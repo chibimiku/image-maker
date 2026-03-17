@@ -103,7 +103,7 @@ def step_1_analyze_image(image_source, client, model_name):
                 }
             ],
             temperature=0.7,
-            max_tokens=2048 
+			max_completion_tokens=16384
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
@@ -132,7 +132,7 @@ def step_2_refine_description(original_json_data, client, model_name):
     8. 根据当前描述的构图和场景内容，推断最合适的画幅长宽比（例如竖图推荐 9:16 或 2:3，横图推荐 16:9 或 3:2，正方形推荐 1:1）。
     
     约束条件：
-    - 输出的图片描述必须全为英文，字数维持在约 500-600 词。
+    - 输出的图片描述必须全为英文，字数维持在约 600-750 词。
     - 维持设定的安全与风格限制（禁止使用'cleavage'、'nude'，若符合'lolita'概念请替换为'rococo'）。
     - 标签总数必须严格保持在 12 个，请根据新增的描述替换部分原有标签。
     - 必须输出严格的 JSON 格式，保留原有标题，并新增 "aspect_ratio" 字段。
@@ -165,7 +165,8 @@ def step_2_refine_description(original_json_data, client, model_name):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": refine_prompt}
             ],
-            temperature=0.7
+            temperature=0.7,
+			max_completion_tokens=16384
         )
         
         final_result_json = json.loads(response.choices[0].message.content)
@@ -289,6 +290,10 @@ class AppWindow(QWidget):
 
         self.setLayout(layout)
 
+        # [新增代码] 设置主窗口的焦点策略为强焦点，并在启动时将焦点赋给主窗口
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocus()
+
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
             try:
@@ -304,6 +309,12 @@ class AppWindow(QWidget):
                         self.model_combo.setCurrentText(saved_model)
             except Exception as e:
                 self.log_msg(f"加载配置文件失败: {e}")
+
+    # [新增方法] 放在 AppWindow 类里面的任意位置，比如 keyPressEvent 下方
+    def mousePressEvent(self, event):
+        # 当用户点击窗口空白处或图片 Label 时，强制主窗口获取焦点，从而取消输入框的焦点
+        self.setFocus()
+        super().mousePressEvent(event)
 
     def save_config(self):
         config = {
