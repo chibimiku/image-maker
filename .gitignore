@@ -92,3 +92,5 @@ docs/build/
 # 你特别要求的两个目录
 useless/
 data/
+config.json
+config-image.json
