@@ -450,11 +450,13 @@ class AppWindow(QWidget):
         if not safe_title:
             safe_title = "未命名"
         
-        now_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        save_dir = 'data' 
+        now = datetime.datetime.now()
+        now_str = now.strftime("%Y%m%d-%H%M%S")
+        date_str = now.strftime("%Y%m%d") # 获取当天日期，格式如 20260319
+        save_dir = os.path.join('data', date_str) 
         
         if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
+            os.makedirs(save_dir) # 自动创建 data 及其下属的当天日期目录
             
         base_filename = f"{now_str}-{safe_title}"
         json_filename = f"{base_filename}.json"

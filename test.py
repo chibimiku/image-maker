@@ -3,11 +3,47 @@ import json
 import base64
 import requests
 import re
+import logging
+import copy
+import uuid
 from datetime import datetime
 
+# ================= 1. 日志系统配置 =================
+# 自动创建 log 目录，保障容错性
+LOG_DIR = "log"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# 初始化 Logger
+logger = logging.getLogger("whatai_logger")
+logger.setLevel(logging.INFO)
+
+# 避免重复添加 Handler（适用于在 Jupyter 等交互式环境中多次运行）
+if not logger.handlers:
+    # 定义日志格式
+    formatter = logging.Formatter(
+        fmt='[%(asctime)s] %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # 控制台 Handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    
+    # 文件 Handler (动态按天命名，例如 log/2026-03-18.log)
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    log_file_path = os.path.join(LOG_DIR, f"{today_date}.log")
+    file_handler = logging.FileHandler(filename=log_file_path, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+
+
+# ================= 2. 核心功能函数 =================
 def load_config(config_path="config-image.json"):
     """读取本地 API 配置文件"""
     if not os.path.exists(config_path):
+        logger.error(f"未找到配置文件: {config_path}")
         raise FileNotFoundError(f"未找到配置文件: {config_path}，请确保其与脚本在同一目录下。")
     with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -17,20 +53,29 @@ def to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2") -> list:
+def generate_image_whatai(
+    prompt: str, 
+    image_paths: list = None, 
+    model: str = "nano-banana-2",
+    aspect_ratio: str = "1:1",
+    instructions: str = ""
+) -> list:
     """
     调用 Whatai 服务商的图像生成 API
     :param prompt: 提示词
     :param image_paths: 参考图片路径列表
-    :param model: 使用的模型，默认 nano-banana-2
+    :param model: 使用的模型
+    :param aspect_ratio: 图片长宽比，例如 "1:1", "16:9", "3:4"
+    :param instructions: 生成指令，例如 "请生成一个与参考图片风格相似的图片"
     :return: 成功保存到本地的图片路径列表
     """
-    # 1. 加载配置
+    # 加载配置
     config = load_config()
     api_base = config.get("api_base", "https://api.whatai.cc/v1")
     api_key = config.get("api_key")
     
     if not api_key:
+        logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
         raise ValueError("配置文件 config-image.json 中缺少 'api_key' 参数。")
 
     url = f"{api_base}/chat/completions"
@@ -39,14 +84,12 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         "Content-Type": "application/json"
     }
 
-    # 2. 构建符合 Nano Banana / Gemini 规范的 messages
-    # 强制在 prompt 中要求输出 PNG 格式，引导模型行为
-    content_list = [{"type": "text", "text": f"{prompt} (请确保生成结果为PNG格式)"}]
+    # 构建 messages
+    content_list = [{"type": "text", "text": f"--ar {aspect_ratio} ,  {instructions}  {prompt}"}]
 
     if image_paths:
         for img_path in image_paths:
             if os.path.exists(img_path):
-                # 简单推断 MIME 类型
                 ext = os.path.splitext(img_path)[-1].lower()
                 mime_type = "image/png" if ext == ".png" else "image/jpeg"
                 
@@ -57,10 +100,12 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
                     }
                 })
             else:
-                print(f"⚠️ 警告: 找不到本地图片文件 {img_path}，已跳过。")
+                logger.warning(f"找不到本地图片文件 {img_path}，已跳过。")
 
     data = {
         "model": model,
+        "aspect_ratio": aspect_ratio,
+        #"instructions": instructions, #这个比不支持
         "messages": [
             {
                 "role": "user",
@@ -69,86 +114,98 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         ]
     }
 
-    # 3. 发送请求
-    print(f"正在向 Whatai 接口发送生成请求 (模型: {model})...")
-    resp = requests.post(url, headers=headers, json=data)
+    # 打印和保存省略了 Base64 图片数据的原始请求
+    safe_data = copy.deepcopy(data)
+    for msg in safe_data.get("messages", []):
+        for content in msg.get("content", []):
+            if type(content) == dict and content.get("type") == "image_url":
+                content["image_url"]["url"] = "<BASE64_IMAGE_DATA_OMITTED_FOR_LOG>"
+    
+    logger.info("=== 发起新的 API 请求 ===")
+    logger.info(f"请求数据:\n{json.dumps(safe_data, ensure_ascii=False, indent=2)}")
+
+    # 发送请求
+    logger.info(f"正在向 Whatai 接口发送生成请求 (模型: {model}, 长宽比: {aspect_ratio})...")
+    try:
+        resp = requests.post(url, headers=headers, json=data, timeout=60)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"网络请求发生异常: {e}")
+        return []
+
+    # 打印和保存原始响应
+    logger.info(f"接收到接口响应状态码: {resp.status_code}")
+    logger.info(f"接收到接口响应内容:\n{resp.text}")
 
     if resp.status_code != 200:
-        print(f"❌ 请求失败，状态码: {resp.status_code}")
-        print("返回信息:\n", resp.text)
+        logger.error("请求失败，已终止处理。")
         return []
 
-    # 4. 解析返回的 Markdown，提取图片 URL
-    resp_json = resp.json()
+    # 解析返回的 Markdown
     try:
+        resp_json = resp.json()
         content_str = resp_json["choices"][0]["message"]["content"]
-    except KeyError:
-        print("❌ 解析返回 JSON 失败，格式不符合预期:", resp_json)
+    except (KeyError, json.JSONDecodeError):
+        logger.error("解析返回 JSON 失败，格式不符合预期。")
         return []
 
-    # 使用正则匹配 Markdown 格式中的图片：![描述](URL)
+    # 提取图片 URL
     img_urls = re.findall(r'!\[.*?\]\((https?://[^\)]+)\)', content_str)
 
     if not img_urls:
-        print("⚠️ 接口调用成功，但未在返回的文本中找到图片链接。")
-        print("接口原始返回文本:\n", content_str)
+        logger.warning("接口调用成功，但未在返回的文本中找到图片链接。")
         return []
 
-    print(f"✅ 成功获取 {len(img_urls)} 张图片链接，准备下载...")
+    logger.info(f"成功获取 {len(img_urls)} 张图片链接，准备下载...")
 
-    # 5. 创建本地保存目录 data/YYYYMMDD/
+    # 创建图片保存目录 (data/YYYYMMDD/)
     today_str = datetime.now().strftime("%Y%m%d")
     save_dir = os.path.join("data", today_str)
     os.makedirs(save_dir, exist_ok=True)
 
     saved_files = []
     
-    # 6. 下载并强制保存为 .png
+    # 下载并保存图片
     for idx, img_url in enumerate(img_urls):
         try:
             img_data = requests.get(img_url, timeout=15).content
             
-            # 以当前时间戳命名避免覆盖
+            # 使用时间戳 + 序号 + 短UUID 防止同名冲突
             timestamp = datetime.now().strftime("%H%M%S")
-            file_name = f"output_{timestamp}_{idx}.png"
+            short_uuid = uuid.uuid4().hex[:6]
+            file_name = f"output_{timestamp}_{idx}_{short_uuid}.png"
             file_path = os.path.join(save_dir, file_name)
 
             with open(file_path, "wb") as f:
                 f.write(img_data)
                 
-            print(f"➡️ 成功保存图片至: {file_path}")
+            logger.info(f"成功保存图片至: {file_path}")
             saved_files.append(file_path)
             
         except Exception as e:
-            print(f"❌ 下载图片失败 {img_url}: {e}")
+            logger.error(f"下载图片失败 {img_url}: {e}")
 
     return saved_files
 
-# ================= 测试调用 =================
+
+# ================= 3. 测试调用 =================
 if __name__ == "__main__":
-    # 模拟外部调用
-    #test_prompt = "精美的洛可可风格少女插画，Galgame CG质感，高光细节丰富"
     test_prompt = '''
-A joyful teenage girl standing in bright spring sunlight, open grassy meadow filled with countless blooming cherry blossom trees, soft pink petals gently floating in the warm breeze, golden hour lighting, dreamy and romantic atmosphere, she is looking directly at the viewer with a sweet, heartwarming smile, sparkling excitement in her large expressive brown eyes, cute slightly flushed cheeks, innocent and playful expression, very lovely and approachable vibe.
-
-She has long, silky bubblegum-pink hair flowing naturally down to her lower back, soft loose waves, several strands gently blowing across her face in the wind, hair shines with subtle iridescent highlights under sunlight, adorned with a few tiny white cherry blossom flowers naturally caught in her hair.
-
-She is wearing the exact dress from reference test-dress.png: a delicate, elegant springtime mini dress with soft layered ruffles, light and airy fabric, beautiful gradient color transition from pale sakura pink at the bodice to deeper cherry-blossom pink at the hem, intricate lace overlays on the sweetheart neckline and short puffed sleeves, cinched waist with a subtle satin ribbon tie creating a perfect A-line silhouette, skirt flares out playfully with multiple soft tulle and chiffon layers, feminine and romantic yet youthful and fresh.
-
-Paired perfectly with the shoes from reference test-shoes.png: dainty strappy heeled sandals in matching pale pink satin, thin delicate ankle straps with small crystal-like buckles, open toe design showing cute pedicured toes, low kitten heel giving her graceful posture without losing the innocent girlish charm.
-
-She stands in a gentle contrapposto pose, one hand lightly holding a few fallen cherry blossom petals, the other hand naturally resting by her side, slight tilt of the head, beaming with pure happiness and springtime energy. Cinematic composition, rule of thirds, viewer feels personally greeted by her warm gaze.
-
-Ultra-detailed textures, photorealistic skin with subtle peach fuzz and natural blush, soft bokeh background of pink-white blossoms and fresh green grass, rim lighting and glowing backlight creating dreamy halo effect around her hair, pastel color grading, vibrant yet gentle spring mood, masterpiece, award-winning anime-art fusion style with realistic rendering, 8k resolution, highly detailed, emotional lighting --ar 3:4 --stylize 250 --v 6 --q 2
+The image is a highly detailed fantasy-style illustration of a girl surrounded by a celestial atmosphere. The artwork employs a soft yet luminous digital painting style with meticulous line work and sparkling light effects reminiscent of starlight. The central figure stands gracefully against a cosmic sky filled with glowing stars and descending light trails, evoking an ethereal dreamscape. The composition centers on the girl’s upper body and flowing gown, emphasizing her elegance and the visual harmony between her attire and the environment.\n\nThe girl’s long, wavy hair flows outward in emerald-green and turquoise shades, cascading down her shoulders and back. Each strand reflects subtle gradients of light, suggesting a gentle, otherworldly breeze. Her eyes, though partially obscured, appear to shimmer in blue tones that mirror the stars. The lighting is primarily cool and radiant, emanating from the celestial background and subtly highlighting the crystalline details of her costume. The color palette transitions smoothly from deep midnight blue to soft aquamarine, reinforcing the serene, cosmic elegance of the setting.\n\nHer dress is the focal point of the illustration, rendered with exquisite detailing. The bodice is a deep blue, densely speckled with white star patterns, creating the illusion of a night sky wrapped around her form. The skirt flows outward gracefully, marked by constellations and elegant shooting star motifs that stretch diagonally across the fabric, glowing softly with golden-white streaks. A pale blue ribbon belt ties neatly around her waist, adding a delicate, structured contrast to the free-flowing nature of the gown.\n\nOver her shoulders drapes a translucent cape tinted with icy blue. The sheer fabric features embroidered floral patterns on the sleeves, with tiny blossoms in shades of sapphire and powder blue. The ends of the sleeves are cinched with cuffs decorated with faint lacework and dotted with small gemstones, catching light like tiny comets. The girl wears a large sapphire pendant on a ribbon choker around her neck, and another teardrop-shaped gemstone gleams at her chest, matching the jewel set within an elaborate ornament near her hair. This ornament branches outward like crystalline frost or stardust, contributing to the ethereal quality of her presence.\n\nThe background complements her appearance perfectly: thousands of softly glowing stars hang from delicate light strands, descending vertically across the top portion of the image. Wisps of clouds below suggest a skybound altitude, reinforcing the celestial aesthetic. The composition adopts a medium-frontal angle, focusing on the girl’s figure with symmetrical balance, suggesting both divinity and serenity. No other characters are present, emphasizing solitude and majesty within this starry realm. The artwork evokes themes of purity, cosmic wonder, and dreamy transcendence, successfully blending the elegance of rococo-inspired fashion with the mystique of the universe.
 '''
+    instructions='''You are a generative model specialized in creating images in a delicate, high-detail, modern anime style. Your creations should evoke a bright, dreamy, and elegant atmosphere.When generating characters, pay close attention to the following features to emulate the target style:Face: Render soft, youthful facial features. The face should be animated with a gentle expression and a subtle blush on the cheeks, conveying a sense of sweet innocence. If the character is female, then two strands of hair will cover each side of her face.Eyes and Eyelashes: The eyes are the central focus and must be large, expressive, and imbued with a gem-like quality. Construct the irises with intricate, multi-layered details, using a primary warm golden hue blended with lighter and darker tones to create depth and a crystalline, refractive appearance. Incorporate multiple, sharp white highlights of varying sizes to simulate a moist, lively sparkle.Include at least one highlight that is nearly pure white at bottom of pupil to simulate the brightest sparkle. Frame the eyes with long, distinct eyelashes. The upper lashes should be full and dark, with individual strands clearly defined. The lower lashes are to be rendered with finer, more delicate strokes. Place tiny, reflective highlights along the lower lash line to suggest a teary or dewy quality.Hair: Hair should be long, flowing, and voluminous. Render it with a multi-tonal, almost iridescent quality, blending a primary soft color with subtle, colorful undertones (pinks, purples, blues). Emphasize its texture by drawing fine, individual strands and applying a mix of soft glows and sharp, specular highlights. This will create a silky, shimmering appearance as if light is passing through it.Shoes: have a blend of glass and leather textures, with a mirror-like reflective surface.'''
     test_images = ['data/test/test-dress.png', 'data/test/test-shoes.png']
+
+    #gemini-3.1-flash-image-preview-2k
     
     # 执行生成
     results = generate_image_whatai(
         prompt=test_prompt,
         image_paths=test_images,
-        model="nano-banana-pro" 
+        model="gemini-3.1-flash-image-preview-2k",
+        #model="gemini-3-pro-image-preview",
+        aspect_ratio="16:9",
+        instructions=instructions
     )
     
     if results:
-        print("\n🎉 任务完成！所有图片已处理完毕。")
+        logger.info("🎉 任务完成！所有图片已处理完毕。")
