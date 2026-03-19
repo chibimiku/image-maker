@@ -76,6 +76,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
                 logger.warning(f"找不到本地图片文件 {img_path}，已跳过。")
 
     data = {
+        "aspect_ratio": aspect_ratio,
         "model": model,
         "messages": [{"role": "user", "content": content_list}]
     }

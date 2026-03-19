@@ -122,6 +122,8 @@ def generate_image_whatai(
                 content["image_url"]["url"] = "<BASE64_IMAGE_DATA_OMITTED_FOR_LOG>"
     
     logger.info("=== 发起新的 API 请求 ===")
+    logger.info(url)
+    logger.info(headers)
     logger.info(f"请求数据:\n{json.dumps(safe_data, ensure_ascii=False, indent=2)}")
 
     # 发送请求
@@ -167,12 +169,25 @@ def generate_image_whatai(
     # 下载并保存图片
     for idx, img_url in enumerate(img_urls):
         try:
-            img_data = requests.get(img_url, timeout=15).content
+            response = requests.get(img_url, timeout=15)
+            response.raise_for_status() # 确保请求成功
+            img_data = response.content
+            
+            # 根据二进制数据的文件头 (Magic Number) 判断真实的图片类型
+            ext = ".png"  # 默认兜底后缀
+            if img_data.startswith(b'\xff\xd8\xff'):
+                ext = ".jpg"
+            elif img_data.startswith(b'\x89PNG\r\n\x1a\n'):
+                ext = ".png"
+            elif img_data.startswith(b'GIF8'):
+                ext = ".gif"
+            elif img_data.startswith(b'RIFF') and img_data[8:12] == b'WEBP':
+                ext = ".webp"
             
             # 使用时间戳 + 序号 + 短UUID 防止同名冲突
             timestamp = datetime.now().strftime("%H%M%S")
             short_uuid = uuid.uuid4().hex[:6]
-            file_name = f"output_{timestamp}_{idx}_{short_uuid}.png"
+            file_name = f"output_{timestamp}_{idx}_{short_uuid}{ext}"
             file_path = os.path.join(save_dir, file_name)
 
             with open(file_path, "wb") as f:
@@ -201,9 +216,9 @@ The image is a highly detailed fantasy-style illustration of a girl surrounded b
     results = generate_image_whatai(
         prompt=test_prompt,
         image_paths=test_images,
-        model="gemini-3.1-flash-image-preview-2k",
+        model="gemini-3.1-flash-image-preview-4k",
         #model="gemini-3-pro-image-preview",
-        aspect_ratio="16:9",
+        aspect_ratio="2:3",
         instructions=instructions
     )
     
