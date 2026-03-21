@@ -10,7 +10,6 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QPixmap
 
-# --- 复用图片压缩函数 ---
 def compress_and_encode_image(image_source, max_dim=2048):
     try:
         if isinstance(image_source, str):
@@ -38,7 +37,6 @@ def compress_and_encode_image(image_source, max_dim=2048):
         print(f"处理图片时发生错误: {e}")
         return None, None
 
-# --- 专属的画风分析 Prompt ---
 STYLE_ANALYZE_PROMPT = """
 You are an expert art style analyzer and prompt engineer. 
 Analyze the provided images and identify their common artistic characteristics.
@@ -59,7 +57,6 @@ Do NOT use Markdown formatting (do not wrap in ```text or ```).
 Do NOT include any conversational filler, introductory, or concluding remarks. Just output the prompt text itself.
 """
 
-# --- API 请求工作线程 ---
 class MultiImageWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(str)
@@ -81,7 +78,6 @@ class MultiImageWorkerThread(QThread):
 
         self.log_signal.emit(f"🚀 开始处理 {len(self.image_paths)} 张图片，使用模型 [{self.model_name}]...")
         
-        # 构建包含多张图片的 content 列表
         content_list = [{"type": "text", "text": STYLE_ANALYZE_PROMPT}]
         
         for path in self.image_paths:
@@ -101,12 +97,7 @@ class MultiImageWorkerThread(QThread):
         try:
             response = client.chat.completions.create(
                 model=self.model_name, 
-                messages=[
-                    {
-                        "role": "user",
-                        "content": content_list
-                    }
-                ],
+                messages=[{"role": "user", "content": content_list}],
                 temperature=0.7,
                 max_completion_tokens=4096
             )
@@ -117,7 +108,6 @@ class MultiImageWorkerThread(QThread):
             self.log_signal.emit(f"❌ API 请求发生错误: {e}")
             self.finish_signal.emit("")
 
-# --- 支持拖拽的列表组件 ---
 class ImageDropListWidget(QListWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -147,37 +137,42 @@ class ImageDropListWidget(QListWidget):
             if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.bmp')):
                 self.add_image_item(file_path)
 
+    def truncate_text(self, text, max_len=16):
+        """截断过长的文件名，保留后缀名"""
+        if len(text) <= max_len:
+            return text
+        name, ext = os.path.splitext(text)
+        keep_len = max_len - len(ext) - 3
+        if keep_len > 0:
+            return name[:keep_len] + "..." + ext
+        return text[:max_len] + "..."
+
     def add_image_item(self, file_path):
-        # 检查是否重复添加
         for i in range(self.count()):
             if self.item(i).data(Qt.UserRole) == file_path:
                 return
                 
         item = QListWidgetItem(self)
-        item.setData(Qt.UserRole, file_path) # 隐藏保存真实路径
-        item.setText(os.path.basename(file_path))
+        item.setData(Qt.UserRole, file_path) 
         
-        # 生成缩略图
+        filename = os.path.basename(file_path)
+        item.setText(self.truncate_text(filename)) # 使用截断后的文件名
+        item.setToolTip(filename) # 悬浮显示完整文件名
+        
         pixmap = QPixmap(file_path)
         if not pixmap.isNull():
             item.setIcon(QIcon(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)))
         self.addItem(item)
 
 
-# --- 暴露给主程序的独立 Widget ---
 class StyleAnalyzerWidget(QWidget):
     def __init__(self, config_getter_func):
-        """
-        config_getter_func: 一个回调函数，用于动态获取 app.py 中的配置 (url, key, model)
-        """
         super().__init__()
         self.get_config = config_getter_func
         self.initUI()
 
     def initUI(self):
         layout = QVBoxLayout()
-        
-        # 顶部提示和操作区
         top_layout = QHBoxLayout()
         hint_label = QLabel("拖拽多张同画风图片至下方区域进行综合分析：")
         top_layout.addWidget(hint_label)
@@ -192,27 +187,22 @@ class StyleAnalyzerWidget(QWidget):
         top_layout.addWidget(self.clear_btn)
         layout.addLayout(top_layout)
 
-        # 图片列表区域
         self.image_list = ImageDropListWidget()
         self.image_list.setMinimumHeight(150)
         layout.addWidget(self.image_list)
 
-        # 分析按钮
         self.analyze_btn = QPushButton("✨ 开始提取共同画风 ✨")
         self.analyze_btn.setFixedHeight(40)
         self.analyze_btn.clicked.connect(self.start_analysis)
         layout.addWidget(self.analyze_btn)
 
-        # 日志提示区 (单行)
         self.status_label = QLabel("就绪")
         self.status_label.setStyleSheet("color: gray;")
         layout.addWidget(self.status_label)
 
-        # 结果输出区
         self.result_edit = QTextEdit()
         self.result_edit.setPlaceholderText("分析完成后的艺术风格记录文本将显示在这里，您可以直接复制和编辑...")
         layout.addWidget(self.result_edit)
-
         self.setLayout(layout)
 
     def browse_images(self):
@@ -233,13 +223,12 @@ class StyleAnalyzerWidget(QWidget):
         
         if len(image_paths) < 2:
             QMessageBox.information(self, "提示", "建议提供至少两张图片以提取共同画风。")
-            if len(image_paths) == 0:
-                return
+            if len(image_paths) == 0: return
 
         base_url, api_key, model_name = self.get_config()
         
         if not api_key or not model_name:
-            QMessageBox.warning(self, "缺少配置", "请确保在【文本分析 API】卡片中配置了 API Key 和 模型名称！")
+            QMessageBox.warning(self, "缺少配置", "请确保在【全局配置】中配置了文本分析的 API Key 和模型！")
             return
 
         self.analyze_btn.setEnabled(False)
@@ -247,7 +236,6 @@ class StyleAnalyzerWidget(QWidget):
         self.add_btn.setEnabled(False)
         self.result_edit.clear()
         
-        # 启动线程
         self.thread = MultiImageWorkerThread(image_paths, api_key, base_url, model_name)
         self.thread.log_signal.connect(self.update_status)
         self.thread.finish_signal.connect(self.on_analysis_finished)
