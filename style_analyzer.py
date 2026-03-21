@@ -40,7 +40,7 @@ def compress_and_encode_image(image_source, max_dim=2048):
 STYLE_ANALYZE_PROMPT = """
 You are an expert art style analyzer and prompt engineer. 
 Analyze the provided images and identify their common artistic characteristics.
-Generate a highly detailed, approximately 700-word English text documenting this specific art style.
+Generate a highly detailed, approximately 500-word English text documenting this specific art style.
 
 The output must be formatted as direct instructions for a generative AI model, starting with a persona setup (e.g., 'You are a generative model specialized in creating images in...').
 
