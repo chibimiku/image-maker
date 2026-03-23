@@ -152,3 +152,56 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
             logger.error(f"下载图片失败 {img_url}: {e}")
 
     return saved_files
+
+def fetch_llm_json(base_url: str, api_key: str, model: str, system_prompt: str, user_content: str, temperature: float = 0.5, merge_system_prompt: bool = True) -> str:
+    """
+    通用 LLM 对话请求函数，专门用于获取 JSON 格式文本，并记录完整请求和响应日志
+    """
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    if merge_system_prompt:
+        messages = [
+            {"role": "user", "content": f"{system_prompt}\n\n{user_content}"}
+        ]
+    else:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content}
+        ]
+    
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        # 如果你使用的大模型 API 兼容 OpenAI，开启此选项能极大提高返回纯 JSON 的概率
+        "response_format": { "type": "json_object" } 
+    }
+
+    logger.info("=== 发起 LLM 提示词请求 ===")
+    logger.info(f"请求 URL: {url}")
+    # 打印完整的 payload 到日志中
+    logger.info(f"请求 Payload:\n{json.dumps(payload, ensure_ascii=False, indent=2)}")
+
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        resp_json = resp.json()
+        
+        # 将服务器返回的原始完整 JSON 记录到日志
+        logger.info(f"=== 服务器原始返回完整信息 ===\n{json.dumps(resp_json, ensure_ascii=False, indent=2)}")
+        
+        # 提取模型回复的文本
+        return resp_json['choices'][0]['message']['content'].strip()
+        
+    except requests.exceptions.Timeout:
+        logger.error("LLM 请求超时。")
+        return ""
+    except Exception as e:
+        logger.error(f"LLM 请求发生异常: {str(e)}")
+        if 'resp' in locals():
+            logger.error(f"服务器返回信息: {resp.text}")
+        return ""

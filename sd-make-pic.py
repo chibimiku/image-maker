@@ -8,8 +8,10 @@ import re
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGroupBox, QFormLayout, QLabel, QLineEdit,
                              QComboBox, QSpinBox, QDoubleSpinBox, QPushButton,
-                             QTextEdit, QMessageBox, QInputDialog, QGridLayout)
+                             QTextEdit, QMessageBox, QInputDialog, QGridLayout, QCheckBox)
 from PyQt6.QtCore import QThread, pyqtSignal
+import traceback
+from api_backend import fetch_llm_json
 
 CONFIG_FILE = "config-sd.json"
 PROMPTS_DIR = "data/prompts"
@@ -30,95 +32,144 @@ class WorkerThread(QThread):
 
     def run(self):
         try:
-            generate_count = self.config.get("generate_count", 3)
-            for i in range(generate_count):
+            generate_count = self.config.get("generate_count", 3)  # X
+            loop_count = self.config.get("loop_count", 1)          # Y
+            
+            if not self.is_running:
+                self.log_signal.emit("任务已被用户中止。")
+                self.finished_signal.emit()
+                return
+
+            total_images = generate_count * loop_count
+            self.log_signal.emit(f"=== 开始总计 {loop_count} 轮请求，每轮 {generate_count} 组，预计共生成 {total_images} 张图片 ===")
+            
+            global_img_index = 1
+
+            # === 外层循环：请求 Y 次大模型 ===
+            for loop_idx in range(loop_count):
                 if not self.is_running:
                     self.log_signal.emit("任务已被用户中止。")
                     break
-                    
-                self.log_signal.emit(f"\n--- 开始执行第 {i+1}/{generate_count} 次任务 ---")
+
+                self.log_signal.emit(f"\n>>> 正在执行第 {loop_idx + 1}/{loop_count} 轮大模型请求...")
                 
-                # 1. 请求大模型获取变体 Prompts
-                self.log_signal.emit("正在请求大模型基于主题和模板生成 SD 提示词...")
-                llm_data = self.fetch_llm_prompt()
-                if not llm_data and self.is_running:
-                    self.log_signal.emit("大模型请求失败，跳过本次循环。")
-                    time.sleep(2)
+                # 1. 请求大模型获取变体 Prompts (X组)
+                llm_response = self.fetch_llm_prompt(generate_count)
+                
+                if not llm_response or "results" not in llm_response or not self.is_running:
+                    self.log_signal.emit(f"第 {loop_idx + 1} 轮大模型请求失败或返回格式错误，跳过本轮。")
                     continue
 
-                if not self.is_running: break
+                llm_data_list = llm_response.get("results", [])
+                actual_count = len(llm_data_list)
+                self.log_signal.emit(f"第 {loop_idx + 1} 轮 LLM 成功返回了 {actual_count} 组差异化提示词！")
 
-                self.log_signal.emit(f"LLM 生成成功! 计划尺寸: {llm_data.get('width')}x{llm_data.get('height')}")
-                self.log_signal.emit(f"原始正向提示词: {llm_data.get('prompt')[:80]}...")
-
-                # ========== 新增：保存 LLM 返回的 prompts 到缓存目录 ==========
+                # 保存缓存 (文件名加上轮数区分)
                 try:
                     timestamp_str = time.strftime("%Y%m%d_%H%M%S")
-                    cache_filename = os.path.join(CACHE_DIR, f"prompt_{timestamp_str}_{i}.json")
+                    cache_filename = os.path.join(CACHE_DIR, f"prompts_batch_{timestamp_str}_loop{loop_idx+1}.json")
                     with open(cache_filename, "w", encoding="utf-8") as f:
-                        json.dump(llm_data, f, ensure_ascii=False, indent=4)
-                    self.log_signal.emit(f"提示词已缓存至: {cache_filename}")
+                        json.dump(llm_response, f, ensure_ascii=False, indent=4)
+                    self.log_signal.emit(f"本轮提示词已统一缓存至: {cache_filename}")
                 except Exception as e:
-                    self.log_signal.emit(f"提示词缓存失败: {str(e)}")
+                    self.log_signal.emit(f"提示词批次缓存失败: {str(e)}")
 
-                # 2. 请求本地 SD WebUI 生成图片
-                self.log_signal.emit("正在拼装固定提示词并将参数发送至本地 Stable Diffusion...")
-                self.generate_sd_image(llm_data)
+                # === 内层循环：依次请求本地 SD WebUI 生成图片 ===
+                for i, llm_data in enumerate(llm_data_list):
+                    if not self.is_running:
+                        self.log_signal.emit("任务已被用户中止。")
+                        break
+                        
+                    self.log_signal.emit(f"\n--- [总进度 {global_img_index}/{total_images}] 开始执行第 {loop_idx+1} 轮的第 {i+1}/{actual_count} 次 SD 绘图 ---")
+                    self.log_signal.emit(f"计划尺寸: {llm_data.get('width', 512)}x{llm_data.get('height', 512)}")
+                    self.log_signal.emit(f"原始正向提示词: {llm_data.get('prompt', '')[:80]}...")
 
-                if self.is_running and i < generate_count - 1:
-                    time.sleep(1) # 批次间短暂休息
+                    self.log_signal.emit("正在拼装固定提示词并将参数发送至本地 Stable Diffusion...")
+                    self.generate_sd_image(llm_data)
+                    
+                    global_img_index += 1
 
-            self.log_signal.emit("\n✅ 工作流执行完毕。")
+                    # 只要任务还在运行，无论是否是最后一张，都在请求间短暂休息，避免并发过载
+                    if self.is_running:
+                        time.sleep(1) 
+
+            if self.is_running:
+                self.log_signal.emit("\n✅ 全部工作流循环执行完毕。")
         except Exception as e:
             self.log_signal.emit(f"发生未捕获的异常: {str(e)}")
         finally:
             self.finished_signal.emit()
 
-    def fetch_llm_prompt(self):
-        url = f"{self.config['base_url'].rstrip('/')}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self.config['api_key']}",
-            "Content-Type": "application/json"
-        }
-        
-        system_prompt = """你是一个 Stable Diffusion 提示词编写专家。
+    def fetch_llm_prompt(self, generate_count):
+        # ========== 保持原有 System Prompt ==========
+        system_prompt = f"""你是一个 Stable Diffusion 提示词编写专家。
 请基于用户提供的【绘画主题】、【目标风格】和【基础模板】，发挥想象力进行扩写，添加丰富的细节（环境、光影、服装、动作等）。
-【重要要求】：
-1. 每次生成必须有随机性和差异化。
-2. 必须返回一个合法的 JSON 对象，不要包含任何 Markdown 标记（如 ```json），直接输出 JSON 文本。
-严格包含以下字段：
-{
-  "prompt": "正向提示词(英文，逗号分隔)",
-  "negative_prompt": "反向提示词(英文，逗号分隔)",
-  "width": 512或768或1024等64的倍数,
-  "height": 512或768或1024等64的倍数
-}"""
+
+【最高指令：强制纯 JSON 输出】
+你必须且只能输出一个合法的 JSON 对象。绝对禁止输出任何问候语、解释性文字、Markdown 标记（如 ```json）以及任何代码注释（如 // ）。
+本次需要生成 {generate_count} 组在符合主题前提下，拥有明显差异化（如视角、服装、背景）的提示词。
+
+请严格参照以下格式输出（务必确保 width 和 height 是纯数字整数，不要带任何其他字符）：
+{{
+  "results": [
+    {{
+      "prompt": "your positive prompt here...",
+      "negative_prompt": "your negative prompt here...",
+      "width": 768,
+      "height": 1024
+    }}
+  ]
+}}
+注意：results 数组内必须准确包含 {generate_count} 个对象，且整个输出必须能被标准的 JSON 解析器直接解析。"""
 
         user_content = f"绘画主题: {self.theme_text}\n目标风格: {self.config['last_used_style']}\n基础模板内容: {self.template_text}"
 
-        payload = {
-            "model": self.config['model'],
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content}
-            ],
-            "temperature": 0.8 
-        }
+        self.log_signal.emit("开始通过 api_backend 发送网络请求，详细请求和响应数据将记录在 log 目录下...")
+        
+        # 调用 api_backend 中的功能，降低 temperature 以获得更稳定的 JSON 输出
+        reply_text = fetch_llm_json(
+            base_url=self.config['base_url'],
+            api_key=self.config['api_key'],
+            model=self.config['model'],
+            system_prompt=system_prompt,
+            user_content=user_content,
+            temperature=0.5,
+            merge_system_prompt=self.config.get("merge_system_prompt", True)
+        )
 
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
-            response.raise_for_status()
-            reply_text = response.json()['choices'][0]['message']['content'].strip()
-            
-            # 清理可能存在的 Markdown 代码块标记
-            reply_text = re.sub(r'^```(json)?\s*', '', reply_text, flags=re.IGNORECASE)
-            reply_text = re.sub(r'\s*```$', '', reply_text)
-            
-            return json.loads(reply_text)
-        except Exception as e:
-            self.log_signal.emit(f"LLM API 错误: {str(e)}")
+        if not reply_text:
+            self.log_signal.emit("❌ 【错误】大模型请求失败或返回为空，请查阅 log 目录下的最新日志排查问题。")
             return None
 
+        # ========== 增强型 JSON 文本清洗 ==========
+        # 很多模型即使被要求不输出 markdown，依然会输出 ```json 开头的数据
+        clean_text = reply_text.strip()
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        elif clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+            
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+
+        start_idx = clean_text.find('{')
+        end_idx = clean_text.rfind('}')
+        
+        if start_idx != -1 and end_idx != -1:
+            clean_json_str = clean_text[start_idx:end_idx+1]
+        else:
+            self.log_signal.emit("❌ 【错误】模型返回值中未找到 JSON 的大括号结构。")
+            self.log_signal.emit(f"模型原始输出: \n{reply_text}")
+            return None
+        
+        try:
+            return json.loads(clean_json_str)
+        except json.JSONDecodeError as e:
+            self.log_signal.emit("❌ 【错误 - JSON 解析失败】模型返回了不规范的 JSON 格式。")
+            self.log_signal.emit(f"尝试解析的文本: \n{clean_json_str}")
+            self.log_signal.emit(f"具体异常: {str(e)}")
+            return None
+        
     def generate_sd_image(self, llm_data):
         url = f"{self.config['sd_url'].rstrip('/')}/sdapi/v1/txt2img"
         
@@ -225,15 +276,18 @@ class MainWindow(QMainWindow):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         os.makedirs(CACHE_DIR, exist_ok=True)
 
-        
-        # 默认配置加入配置组支持、固定提示词和附加字段
+        # 默认配置加入 last_used_theme 和 last_used_template
         self.config = {
-            "base_url": "[https://api.pumpkinaigc.online/v1](https://api.pumpkinaigc.online/v1)",
+            "base_url": "https://api.pumpkinaigc.online/v1",
             "api_key": "",
             "model": "gpt-5",
+            "merge_system_prompt": True,
+            "last_used_theme": "中秋主题少女", 
+            "last_used_template": "",
             "last_used_style": "galgame CG style, rococo aesthetic, high quality",
-            "sd_url": "[http://127.0.0.1:7860](http://127.0.0.1:7860)",
+            "sd_url": "http://127.0.0.1:7860",
             "generate_count": 3,
+            "loop_count": 1,
             "current_sd_group": "Default",
             "fixed_prompt": "(masterpiece, best quality:1.2), ultra-detailed, highres",
             "fixed_negative_prompt": "(worst quality, low quality:1.4), bad anatomy, deformed, signature, watermark",
@@ -300,6 +354,11 @@ class MainWindow(QMainWindow):
         self.fetch_models_btn = QPushButton("获取/刷新模型列表")
         self.fetch_models_btn.clicked.connect(self.fetch_available_models)
         llm_layout.addWidget(self.fetch_models_btn, 2, 3)
+
+         # <--- 新增：兼容模式复选框 --->
+        self.merge_prompt_cb = QCheckBox("启用 System Prompt 兼容模式 (合并到 User)")
+        self.merge_prompt_cb.setChecked(self.config.get("merge_system_prompt", True))
+        llm_layout.addWidget(self.merge_prompt_cb, 3, 1, 1, 3) # 放在网格布局第 3 行
         
         llm_group.setLayout(llm_layout)
         main_layout.addWidget(llm_group)
@@ -309,7 +368,8 @@ class MainWindow(QMainWindow):
         task_layout = QVBoxLayout()
         
         theme_style_layout = QFormLayout()
-        self.theme_input = QLineEdit("中秋主题少女")
+        # 读取上次保存的主题
+        self.theme_input = QLineEdit(self.config.get("last_used_theme", "中秋主题少女"))
         self.theme_input.setPlaceholderText("例如：中秋主题少女、赛博朋克城市...")
         theme_style_layout.addRow("绘画主题 (必填):", self.theme_input)
         
@@ -344,11 +404,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(task_group)
         self.refresh_templates()
 
-        # === 3. SD WebUI 高级配置组 ===
+        # === 3. SD WebUI 高级配置组 (略去重复的布局代码，保持一致) ===
         sd_group = QGroupBox("Stable Diffusion WebUI 配置")
         sd_layout = QVBoxLayout()
         
-        # 组管理与 URL
         top_sd_layout = QHBoxLayout()
         top_sd_layout.addWidget(QLabel("SD API URL:"))
         self.sd_url_input = QLineEdit(self.config.get("sd_url"))
@@ -369,7 +428,6 @@ class MainWindow(QMainWindow):
         top_sd_layout.addWidget(self.del_sd_group_btn)
         sd_layout.addLayout(top_sd_layout)
 
-        # 模型与 VAE
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("大模型 (Checkpoint):"))
         self.sd_model_input = QLineEdit()
@@ -377,7 +435,6 @@ class MainWindow(QMainWindow):
         model_layout.addWidget(self.sd_model_input)
         sd_layout.addLayout(model_layout)
 
-        # 动态 VAE 列表容器
         vae_main_layout = QVBoxLayout()
         vae_header_layout = QHBoxLayout()
         vae_header_layout.addWidget(QLabel("VAE (支持多个拼接):"))
@@ -389,11 +446,10 @@ class MainWindow(QMainWindow):
         vae_main_layout.addLayout(vae_header_layout)
         
         self.vae_inputs_container = QVBoxLayout()
-        self.vae_inputs_list = [] # 用于存储所有的 QLineEdit 对象
+        self.vae_inputs_list = []
         vae_main_layout.addLayout(self.vae_inputs_container)
         sd_layout.addLayout(vae_main_layout)
 
-        # 采样参数
         param_layout = QHBoxLayout()
         param_layout.addWidget(QLabel("Sampler:"))
         self.sampler_input = QLineEdit()
@@ -417,16 +473,21 @@ class MainWindow(QMainWindow):
         self.cfg_input.setSingleStep(0.5)
         param_layout.addWidget(self.cfg_input)
 
-        param_layout.addWidget(QLabel("生成数量:"))
+        # <--- 修改点：增加 Y 输入框，修改 X 描述 --->
+        param_layout.addWidget(QLabel("大模型请求轮数(Y):"))
+        self.loop_count_input = QSpinBox()
+        self.loop_count_input.setRange(1, 9999)
+        self.loop_count_input.setValue(self.config.get("loop_count", 1))
+        param_layout.addWidget(self.loop_count_input)
+
+        param_layout.addWidget(QLabel("单次返回组数(X):"))
         self.count_input = QSpinBox()
         self.count_input.setRange(1, 9999)
         self.count_input.setValue(self.config.get("generate_count", 3))
         param_layout.addWidget(self.count_input)
         sd_layout.addLayout(param_layout)
 
-        # 固定提示词区域
         fixed_prompt_layout = QFormLayout()
-        
         self.fixed_prompt_input = QLineEdit(self.config.get("fixed_prompt", ""))
         self.fixed_prompt_input.setPlaceholderText("如: (masterpiece, best quality:1.2), highres (自动拼接到大模型结果后)")
         fixed_prompt_layout.addRow("附加固定正向提示词:", self.fixed_prompt_input)
@@ -434,14 +495,11 @@ class MainWindow(QMainWindow):
         self.fixed_neg_prompt_input = QLineEdit(self.config.get("fixed_negative_prompt", ""))
         self.fixed_neg_prompt_input.setPlaceholderText("如: (worst quality, low quality:1.4), bad anatomy")
         fixed_prompt_layout.addRow("附加固定反向提示词:", self.fixed_neg_prompt_input)
-        
         sd_layout.addLayout(fixed_prompt_layout)
 
-        # 附加字段
         extra_payload_layout = QVBoxLayout()
         extra_payload_layout.addWidget(QLabel("WebUI 附加 Payload (JSON格式，会被合并到 API 请求中):"))
         self.extra_payload_input = QTextEdit()
-        self.extra_payload_input.setPlaceholderText('例如：\n{\n  "clip_skip": 2,\n  "enable_hr": true,\n  "hr_scale": 2.0,\n  "override_settings": {"text_encoder_...": "..."}\n}')
         self.extra_payload_input.setMaximumHeight(70)
         self.extra_payload_input.setPlainText(self.config.get("webui_extra_payload", ""))
         extra_payload_layout.addWidget(self.extra_payload_input)
@@ -450,7 +508,6 @@ class MainWindow(QMainWindow):
         sd_group.setLayout(sd_layout)
         main_layout.addWidget(sd_group)
 
-        # 初始化加载组数据
         self.refresh_sd_groups()
 
         # === 4. 控制面板与日志 ===
@@ -473,6 +530,11 @@ class MainWindow(QMainWindow):
         self.log_area = QTextEdit()
         self.log_area.setReadOnly(True)
         main_layout.addWidget(self.log_area)
+
+    # ---------- 重写 closeEvent 保证关闭时也会保存 ----------
+    def closeEvent(self, event):
+        self.update_config_from_ui()
+        event.accept()
 
     def add_vae_input_field(self, text=""):
         row_widget = QWidget()
@@ -497,7 +559,6 @@ class MainWindow(QMainWindow):
         if input_field in self.vae_inputs_list:
             self.vae_inputs_list.remove(input_field)
 
-    # ---------- SD 组管理逻辑 ----------
     def refresh_sd_groups(self):
         self.sd_group_combo.blockSignals(True)
         self.sd_group_combo.clear()
@@ -522,7 +583,6 @@ class MainWindow(QMainWindow):
         self.steps_input.setValue(settings.get("steps", 20))
         self.cfg_input.setValue(settings.get("cfg_scale", 7.0))
 
-        # 清理旧的 VAE 框
         for i in reversed(range(self.vae_inputs_container.count())):
             widget = self.vae_inputs_container.itemAt(i).widget()
             if widget:
@@ -530,13 +590,12 @@ class MainWindow(QMainWindow):
                 widget.deleteLater()
         self.vae_inputs_list.clear()
 
-        # 加载新的 VAE 列表
         sd_vaes = settings.get("sd_vae", [])
-        if isinstance(sd_vaes, str): # 兼容旧版配置
+        if isinstance(sd_vaes, str):
             sd_vaes = [sd_vaes] if sd_vaes and sd_vaes.lower() != "automatic" else []
             
         if not sd_vaes:
-            self.add_vae_input_field("") # 默认给一个空框
+            self.add_vae_input_field("")
         else:
             for vae in sd_vaes:
                 self.add_vae_input_field(vae)
@@ -552,7 +611,6 @@ class MainWindow(QMainWindow):
             group_name = "Default"
             self.config["sd_config_groups"][group_name] = {}
 
-        # 提取用户填写的有效 VAE（自动容错未输入的空框）
         valid_vaes = [f.text().strip() for f in self.vae_inputs_list if f.text().strip()]
         
         self.config["sd_config_groups"][group_name] = {
@@ -595,7 +653,6 @@ class MainWindow(QMainWindow):
             self.config["current_sd_group"] = list(self.config["sd_config_groups"].keys())[0]
             self.refresh_sd_groups()
 
-    # ---------- 原有辅助逻辑保留 ----------
     def fetch_available_models(self):
         url = f"{self.url_input.text().strip().rstrip('/')}/models"
         api_key = self.key_input.text().strip()
@@ -632,13 +689,23 @@ class MainWindow(QMainWindow):
             self.fetch_models_btn.setEnabled(True)
             self.fetch_models_btn.setText("获取/刷新模型列表")
 
+    # ---------- 核心修改点：模板列表刷新与恢复逻辑 ----------
     def refresh_templates(self):
         self.template_combo.blockSignals(True)
         self.template_combo.clear()
         templates = [f for f in os.listdir(PROMPTS_DIR) if f.endswith('.txt')]
         if templates:
             self.template_combo.addItems(templates)
-            self.load_template_content(templates[0])
+            
+            # 检查上次使用的模板是否存在
+            last_template = self.config.get("last_used_template", "")
+            if last_template in templates:
+                self.template_combo.setCurrentText(last_template)
+                self.load_template_content(last_template)
+            else:
+                # 不存在则回退到列表第一个
+                self.template_combo.setCurrentText(templates[0])
+                self.load_template_content(templates[0])
         else:
             self.template_combo.addItem("未找到 txt 文件")
             self.template_editor.clear()
@@ -693,23 +760,26 @@ class MainWindow(QMainWindow):
         scrollbar = self.log_area.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
+    # ---------- 核心修改点：保存配置时记录主题和模板 ----------
     def update_config_from_ui(self):
-        # 基础参数
         self.config["base_url"] = self.url_input.text().strip()
         self.config["api_key"] = self.key_input.text().strip()
         self.config["model"] = self.model_combo.currentText().strip()
+        
+        self.config["last_used_theme"] = self.theme_input.text().strip() # 记录主题
+        self.config["last_used_template"] = self.template_combo.currentText() # 记录模板
         self.config["last_used_style"] = self.style_input.text().strip()
+        
         self.config["sd_url"] = self.sd_url_input.text().strip()
         self.config["generate_count"] = self.count_input.value()
+        self.config["loop_count"] = self.loop_count_input.value()
+        self.config["merge_system_prompt"] = self.merge_prompt_cb.isChecked()
         
-        # 固定提示词
         self.config["fixed_prompt"] = self.fixed_prompt_input.text().strip()
         self.config["fixed_negative_prompt"] = self.fixed_neg_prompt_input.text().strip()
         
-        # 附加字段
         self.config["webui_extra_payload"] = self.extra_payload_input.toPlainText()
         
-        # 更新当前选中组的参数
         self.update_current_sd_group_from_ui()
         self.save_config()
 
@@ -724,7 +794,6 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "警告", "模板内容不能为空！")
             return
 
-        # 开始前校验自定义 JSON 格式
         extra_json = self.extra_payload_input.toPlainText().strip()
         if extra_json:
             try:
