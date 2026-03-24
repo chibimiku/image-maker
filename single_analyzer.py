@@ -21,7 +21,10 @@ You must respond strictly in JSON format.
 
 user_prompt_analyze = """
 Please analyze the provided image and generate a highly detailed description in English (approximately 500 words). 
-Include the following elements: art style, composition, lighting, camera angle, character poses and actions, relationships and interactions between characters, hair color, and eye color. 
+Include the following elements: art style, composition, lighting, camera angle, hair color, and eye color. 
+
+CRITICAL ACTION REQUIREMENT: Meticulously describe the precise character poses and dynamic actions. You must explicitly detail their body language, the positioning of their limbs, and exactly how their movements physically interact with the surrounding environment, objects, and other characters.
+
 If present in the original image, meticulously describe the clothing (tops and bottoms, or dresses), painted patterns on the clothing, types and colors of shoes and socks, accessories, and the environment. 
 Do not use ambiguous language. Do not describe any text that appears in the image. 
 

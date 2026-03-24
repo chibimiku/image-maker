@@ -673,6 +673,7 @@ class MainWindow(QMainWindow):
             models = [model["id"] for model in data.get("data", [])]
             
             if models:
+                models.sort(key=str.lower)
                 current_text = self.model_combo.currentText()
                 self.model_combo.clear()
                 self.model_combo.addItems(models)
