@@ -49,6 +49,33 @@ Return the result strictly as a JSON object with the following keys:
 }
 """
 
+def calculate_closest_aspect_ratio(image_source):
+    """根据输入图片尺寸，从预设列表中计算最贴近的长宽比"""
+    try:
+        if isinstance(image_source, str):
+            img = Image.open(image_source)
+        else:
+            img = image_source 
+        w, h = img.size
+        actual_ratio = w / h
+        
+        target_ratios = {
+            "1:1": 1.0,
+            "2:3": 2.0 / 3.0,
+            "3:2": 3.0 / 2.0,
+            "3:4": 3.0 / 4.0,
+            "4:3": 4.0 / 3.0,
+            "16:9": 16.0 / 9.0,
+            "9:16": 9.0 / 16.0
+        }
+        
+        # 寻找实际比例与目标比例差值绝对值最小的键名
+        closest_ar = min(target_ratios.keys(), key=lambda k: abs(target_ratios[k] - actual_ratio))
+        return closest_ar
+    except Exception as e:
+        print(f"计算长宽比失败: {e}")
+        return "1:1" # 发生异常时默认返回 1:1
+
 def compress_and_encode_image(image_source, max_dim=2048):
     try:
         if isinstance(image_source, str):
@@ -190,6 +217,10 @@ class WorkerThread(QThread):
             self.log_signal.emit("Step 1 完成。初步结果已获取。")
             self.log_signal.emit("正在开始 Step 2: 根据中文指令对英文描述进行加工并推断长宽比...")
             final_result = step_2_refine_description(initial_result, client, self.model_name)
+
+            # 【修改】强制将本地计算好的长宽比注入到大模型的返回结果中
+            if final_result:
+                final_result["aspect_ratio"] = calculate_closest_aspect_ratio(self.image_source)
             self.finish_signal.emit(final_result if final_result else {})
         else:
             self.log_signal.emit("Step 1 失败，流程终止。")
@@ -224,7 +255,7 @@ class ImageGenWorkerThread(QThread):
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -238,6 +269,8 @@ class SingleAnalyzerWidget(QWidget):
 
         # 【新增】用来保存正在执行的生图线程池，防止被垃圾回收
         self._active_img_threads = []
+
+        self.get_ar_policy = ar_policy_getter_func
         
         self.initUI()
         
@@ -292,6 +325,31 @@ class SingleAnalyzerWidget(QWidget):
         layout.addWidget(self.log_text)
 
         self.setLayout(layout)
+
+    def _resolve_ar_for_first_stage(self, original_ar: str) -> str:
+        """第一次：分析完成后用于保存 prompts 的长宽比"""
+        if not self.get_ar_policy:
+            return original_ar
+        policy = self.get_ar_policy() or {}
+        override_first = (policy.get("override_first") or "").strip()
+        if override_first.startswith("不覆盖"):
+            return original_ar
+        # 【修改前】return default_ar
+        # 【修改后】返回用户选择的覆盖比例
+        return override_first
+
+    def _resolve_ar_for_second_stage(self, original_ar: str) -> str:
+        """第二次：真正调用生图接口时的长宽比"""
+        if not self.get_ar_policy:
+            return original_ar
+        policy = self.get_ar_policy() or {}
+        override_second = (policy.get("override_second") or "").strip()
+        if override_second.startswith("不覆盖"):
+            return original_ar
+        # 【修改前】return default_ar
+        # 【修改后】返回用户选择的覆盖比例
+        return override_second
+
 
     def update_styles(self, style_keys):
         """由外部 app.py 调用以同步最新的画风列表"""
@@ -401,9 +459,13 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"\n❌ 保存 JSON 文件时出错: {e}")
 
         try:
-            self.current_aspect_ratio = result_json.get("aspect_ratio", "2:3")
+            raw_ar = result_json.get("aspect_ratio", "2:3")
+            self.current_aspect_ratio = self._resolve_ar_for_first_stage(raw_ar)
+            self.log_msg(f"📌 确定的图片长宽比: {self.current_aspect_ratio}")
+
             self.current_refine_desc = result_json.get("english_description", "")
             self.current_orig_desc = result_json.get("original_english_description", "")
+            
             
             selected_style_name = self.main_style_combo.currentText()
             styles_data = self.get_styles()
@@ -450,12 +512,15 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_ref_btn.setEnabled(False)
         
         # 【修改】动态实例化线程对象存放至列表，避免并发勾选导致线程互相覆盖报错
+        final_gen_ar = self._resolve_ar_for_second_stage(self.current_aspect_ratio)
+
         img_thread = ImageGenWorkerThread(
             prompt=prompt_to_use,
             model_name=model_name,
-            aspect_ratio=self.current_aspect_ratio,
+            aspect_ratio=final_gen_ar,
             instructions=active_instructions
         )
+
         self._active_img_threads.append(img_thread)
         
         img_thread.log_signal.connect(self.log_msg)

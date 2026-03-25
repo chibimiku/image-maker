@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QTextEdit, QMessageBox, QInputDialog, QGridLayout, QCheckBox)
 from PyQt6.QtCore import QThread, pyqtSignal
 import traceback
-from api_backend import fetch_llm_json
+from api_backend import fetch_llm_json, fetch_cohere_json
 
 CONFIG_FILE = "config-sd.json"
 PROMPTS_DIR = "data/prompts"
@@ -127,15 +127,24 @@ class WorkerThread(QThread):
         self.log_signal.emit("开始通过 api_backend 发送网络请求，详细请求和响应数据将记录在 log 目录下...")
         
         # 调用 api_backend 中的功能，降低 temperature 以获得更稳定的 JSON 输出
-        reply_text = fetch_llm_json(
-            base_url=self.config['base_url'],
-            api_key=self.config['api_key'],
-            model=self.config['model'],
-            system_prompt=system_prompt,
-            user_content=user_content,
-            temperature=0.5,
-            merge_system_prompt=self.config.get("merge_system_prompt", True)
-        )
+        if self.config.get("use_cohere", False):
+            self.log_signal.emit("开始读取 config-cohere.json 并通过 Cohere API 发送请求，详细数据已记录至 log 目录...")
+            reply_text = fetch_cohere_json(
+                system_prompt=system_prompt,
+                user_content=user_content,
+                temperature=0.5
+            )
+        else:
+            self.log_signal.emit("开始通过 api_backend 发送通用大模型请求，详细数据已记录至 log 目录...")
+            reply_text = fetch_llm_json(
+                base_url=self.config['base_url'],
+                api_key=self.config['api_key'],
+                model=self.config['model'],
+                system_prompt=system_prompt,
+                user_content=user_content,
+                temperature=0.5,
+                merge_system_prompt=self.config.get("merge_system_prompt", True)
+            )
 
         if not reply_text:
             self.log_signal.emit("❌ 【错误】大模型请求失败或返回为空，请查阅 log 目录下的最新日志排查问题。")
@@ -359,6 +368,11 @@ class MainWindow(QMainWindow):
         self.merge_prompt_cb = QCheckBox("启用 System Prompt 兼容模式 (合并到 User)")
         self.merge_prompt_cb.setChecked(self.config.get("merge_system_prompt", True))
         llm_layout.addWidget(self.merge_prompt_cb, 3, 1, 1, 3) # 放在网格布局第 3 行
+
+        # <--- 追加以下代码 --->
+        self.use_cohere_cb = QCheckBox("使用 Cohere API (将独立读取 config-cohere.json)")
+        self.use_cohere_cb.setChecked(self.config.get("use_cohere", False))
+        llm_layout.addWidget(self.use_cohere_cb, 4, 1, 1, 3) # 放在第 4 行
         
         llm_group.setLayout(llm_layout)
         main_layout.addWidget(llm_group)
@@ -775,6 +789,7 @@ class MainWindow(QMainWindow):
         self.config["generate_count"] = self.count_input.value()
         self.config["loop_count"] = self.loop_count_input.value()
         self.config["merge_system_prompt"] = self.merge_prompt_cb.isChecked()
+        self.config["use_cohere"] = self.use_cohere_cb.isChecked()
         
         self.config["fixed_prompt"] = self.fixed_prompt_input.text().strip()
         self.config["fixed_negative_prompt"] = self.fixed_neg_prompt_input.text().strip()

@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                              QScrollArea, QComboBox, QLineEdit, QCheckBox, 
                              QMessageBox, QGridLayout, QFileDialog,
                              QDialog, QFormLayout, QListWidget, QListWidgetItem, QAbstractItemView,
-                             QSizePolicy)
+                             QSizePolicy, QInputDialog)
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QSize
 from PyQt5.QtGui import QPixmap, QIcon, QImage
 
@@ -421,14 +421,16 @@ class ImageSlotWidget(QWidget):
 
 
 # ================== 赛博暖暖标签页 ==================
+# ================== 赛博暖暖标签页 ==================
 class CyberNikiTab(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
         self.slots = {}
-        self.instructions_file = os.path.join("cache", "instructions.json")
+        self.styles_file = "config-styles.json"  # 指向外部的 json 文件
+        self.styles_data = {}
         self.initUI()
-        self.load_instructions_history()
+        self.load_styles_config()
 
     def initUI(self):
         main_layout = QVBoxLayout()
@@ -489,12 +491,11 @@ class CyberNikiTab(QWidget):
         inst_layout.addWidget(self.inst_input, 1)
 
         inst_btn_layout = QVBoxLayout()
-        self.history_combo = QComboBox()
-        self.history_combo.addItem("📜 选择保存的画风...")
-        self.history_combo.setMaximumWidth(150)
-        self.history_combo.setStyleSheet("font-size: 10px;")
-        self.history_combo.currentIndexChanged.connect(self.on_history_selected)
-        inst_btn_layout.addWidget(self.history_combo)
+        self.style_combo = QComboBox()
+        self.style_combo.setMaximumWidth(150)
+        self.style_combo.setStyleSheet("font-size: 10px;")
+        self.style_combo.currentIndexChanged.connect(self.on_style_selected)
+        inst_btn_layout.addWidget(self.style_combo)
         
         save_inst_btn = QPushButton("保存为预设")
         save_inst_btn.setStyleSheet("font-size: 10px;")
@@ -513,7 +514,8 @@ class CyberNikiTab(QWidget):
         bottom_config_layout = QHBoxLayout()
         bottom_config_layout.addWidget(QLabel("输出比例:"))
         self.ratio_combo = QComboBox()
-        self.ratio_combo.addItems(["2:3", "3:4", "1:1", "16:9", "9:16"])
+        # 更新了所有的输出比例选项
+        self.ratio_combo.addItems(["1:1", "2:3", "3:2", "3:4", "4:3", "9:16", "16:9"])
         bottom_config_layout.addWidget(self.ratio_combo)
         bottom_config_layout.addStretch()
         
@@ -526,9 +528,46 @@ class CyberNikiTab(QWidget):
         main_layout.addWidget(config_group, 0)
         self.setLayout(main_layout)
 
-    def on_history_selected(self, index):
-        if index > 0:  # 排除第一个提示语选项 "📜 选择历史指令..."
-            self.inst_input.setPlainText(self.history_combo.currentText())
+    def load_styles_config(self):
+        """读取 config-styles.json 文件并初始化下拉菜单"""
+        if os.path.exists(self.styles_file):
+            try:
+                with open(self.styles_file, 'r', encoding='utf-8') as f:
+                    self.styles_data = json.load(f)
+                    self.style_combo.addItems(self.styles_data.keys())
+            except Exception as e:
+                logging.error(f"读取 {self.styles_file} 失败: {e}")
+        else:
+            logging.warning(f"未找到 {self.styles_file}，将使用空预设。")
+
+    def on_style_selected(self, index):
+        """下拉框切换时更新文本框内容"""
+        selected_style = self.style_combo.currentText()
+        if selected_style in self.styles_data:
+            self.inst_input.setPlainText(self.styles_data[selected_style])
+
+    def save_current_instruction(self):
+        """通过弹窗命名并保存当前文本框内容为新画风预设"""
+        current_text = self.inst_input.toPlainText().strip()
+        if not current_text: return
+        
+        name, ok = QInputDialog.getText(self, '保存画风预设', '请输入新预设名称:')
+        if ok and name:
+            name = name.strip()
+            self.styles_data[name] = current_text
+            
+            # 如果是新名字，添加到下拉列表
+            if self.style_combo.findText(name) == -1:
+                self.style_combo.addItem(name)
+            self.style_combo.setCurrentText(name)
+            
+            # 写入 json 文件
+            try:
+                with open(self.styles_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.styles_data, f, ensure_ascii=False, indent=4)
+                logging.info(f"✅ 成功保存画风预设: [{name}]")
+            except Exception as e:
+                logging.error(f"保存画风预设失败: {e}")
 
     def _build_grid(self, grid_layout, categories):
         row, col = 0, 0
@@ -541,24 +580,6 @@ class CyberNikiTab(QWidget):
                 col = 0
                 row += 1
         grid_layout.setRowStretch(row + 1, 1)
-
-    def load_instructions_history(self):
-        if os.path.exists(self.instructions_file):
-            try:
-                with open(self.instructions_file, 'r', encoding='utf-8') as f:
-                    self.history_combo.addItems(json.load(f))
-            except: pass
-
-    def save_current_instruction(self):
-        current_text = self.inst_input.toPlainText().strip()
-        if not current_text: return
-        # 收集下拉框中已有的记录（跳过第0项提示语）
-        items = [self.history_combo.itemText(i) for i in range(1, self.history_combo.count())]
-        if current_text not in items:
-            self.history_combo.addItem(current_text)
-            items.append(current_text)
-            with open(self.instructions_file, 'w', encoding='utf-8') as f:
-                json.dump(items, f, ensure_ascii=False, indent=2)
 
     def update_preview_image(self, image_path):
         self.preview_label.setPixmap(QPixmap(image_path))
@@ -601,7 +622,6 @@ class CyberNikiTab(QWidget):
         self.generate_btn.setEnabled(False)
         self.generate_btn.setText("⏳ 生成中...")
         
-        # 替换 print
         logging.info("=" * 40)
         logging.info("开始构建并发送生成任务...")
         
@@ -609,12 +629,10 @@ class CyberNikiTab(QWidget):
 
     def run_generation_task(self, active_items, instructions, extra_prompt, aspect_ratio):
         try:
-            # 【修改点 2】将写死的 Prompt 模板迁移到外部文件
             PROMPT_DIR = os.path.join("data", "prompts")
             os.makedirs(PROMPT_DIR, exist_ok=True)
             template_path = os.path.join(PROMPT_DIR, "default_template.txt")
             
-            # 若文件不存在则初始化一个默认模板
             if not os.path.exists(template_path):
                 with open(template_path, 'w', encoding='utf-8') as f:
                     f.write("【生成任务约束】\n1. 严格参考提供的图片元素或文本描述特征。画面要求纯净无水印。\n2. 图片整体生成风格必须是非照片的艺术风格，具体请参考 Instructions。\n")
@@ -622,7 +640,6 @@ class CyberNikiTab(QWidget):
             with open(template_path, 'r', encoding='utf-8') as f:
                 text_prompt = f.read()
 
-            # 【优化点】：加入严格的序号映射关系
             text_prompt += "\n【参考图片映射说明】（请严格按照以下序号和对应的部位提取特征）：\n"
             image_paths = []
             
@@ -630,7 +647,6 @@ class CyberNikiTab(QWidget):
                 cat = item['category']
                 prompt = item['prompt']
                 
-                # 针对不同类别的槽位，生成定制化的提取指令
                 if "角色" in cat:
                     desc = f"- 第 {idx + 1} 张传入的图片：用于参考【{cat}】的外貌特征。请务必详细提取并还原该角色的发型、发色、眼睛颜色（瞳色）、五官特点及整体面部轮廓等核心外貌细节。"
                 elif "衣服" in cat or cat in ["鞋子", "袜子", "手套", "发饰", "手持物"]:
@@ -655,7 +671,6 @@ class CyberNikiTab(QWidget):
             logging.info(f"\n{text_prompt}")
             logging.info("--------------------------------")
 
-            # 【修改点 3/4】调用独立出来的外部生成逻辑
             config = load_config(CONFIG_PATH)
             model_name = config.get("model", "nano-banana-2")
             
@@ -664,11 +679,10 @@ class CyberNikiTab(QWidget):
                 image_paths=image_paths,
                 model=model_name,
                 aspect_ratio=aspect_ratio,
-                instructions=instructions  # 【修改点 6】直接传入用户定义的 Instructions
+                instructions=instructions  
             )
 
             if saved_files: 
-                # 回显第一张图片到界面上
                 self.update_preview_image(saved_files[0])
                 
         except Exception as e:
@@ -676,7 +690,6 @@ class CyberNikiTab(QWidget):
         finally:
             self.generate_btn.setEnabled(True)
             self.generate_btn.setText("✨ 开始生成 ✨")
-            # 替换 print
             logging.info("生成任务流程结束")
             logging.info("=" * 40)
 

@@ -15,6 +15,10 @@ from prompt_generator import PromptGeneratorWidget
 CONFIG_FILE = "config.json"
 CONFIG_IMAGE_FILE = "config-image.json"
 CONFIG_STYLES_FILE = "config-styles.json"
+DEFAULT_ASPECT_RATIO = "1:1"
+ASPECT_RATIO_OPTIONS = ["不覆盖(沿用原逻辑)", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"]
+NO_OVERRIDE_TEXT = "不覆盖(沿用原逻辑)"
+
 
 DEFAULT_STYLES = {
     "默认(无附加)": ""
@@ -43,8 +47,10 @@ class AppWindow(QWidget):
             config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip()),
             styles_getter_func=lambda: self.styles_data,
-            save_img_cfg_callback=lambda: self.save_image_config(silent=True)
+            save_img_cfg_callback=lambda: self.save_image_config(silent=True),
+            ar_policy_getter_func=self.get_ar_policy_config   # 新增
         )
+
         # 【新增】监听画风切换信号以实现多端同步和记忆
         self.single_analyzer_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         self.main_tabs.addTab(self.single_analyzer_tab, "单图内容分析")
@@ -60,8 +66,10 @@ class AppWindow(QWidget):
             config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip()),
             styles_getter_func=lambda: self.styles_data,
-            save_img_cfg_callback=lambda: self.save_image_config(silent=True)
+            save_img_cfg_callback=lambda: self.save_image_config(silent=True),
+            ar_policy_getter_func=self.get_ar_policy_config   # 新增
         )
+
         self.prompt_generator_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         self.main_tabs.addTab(self.prompt_generator_tab, "批量提示词与生图")
 
@@ -106,6 +114,32 @@ class AppWindow(QWidget):
         self.img_model_combo.setEditable(True)
         self.img_model_combo.addItem("nano-banana-2") 
         image_layout.addRow("生图模型:", self.img_model_combo)
+
+        # 默认长宽比（当策略为覆盖时使用）
+        self.default_ar_combo = QComboBox()
+        self.default_ar_combo.setEditable(True)
+        self.default_ar_combo.addItems(ASPECT_RATIO_OPTIONS)
+        self.default_ar_combo.setCurrentText(DEFAULT_ASPECT_RATIO)
+        image_layout.addRow("默认长宽比:", self.default_ar_combo)
+
+        # 第一次策略：分析后保存 prompt 时是否覆盖
+        self.override_ar_first_combo = QComboBox()
+        self.override_ar_first_combo.addItems(ASPECT_RATIO_OPTIONS) 
+        self.override_ar_first_combo.setCurrentText(NO_OVERRIDE_TEXT)
+        image_layout.addRow("第一次长宽比策略:", self.override_ar_first_combo)
+
+        # 第二次策略：真正生图时是否覆盖
+        self.override_ar_second_combo = QComboBox()
+        self.override_ar_second_combo.addItems(ASPECT_RATIO_OPTIONS)
+        self.override_ar_second_combo.setCurrentText(NO_OVERRIDE_TEXT)
+        image_layout.addRow("第二次长宽比策略:", self.override_ar_second_combo)
+
+        # 变更后自动保存
+        self.default_ar_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
+        self.override_ar_first_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
+        self.override_ar_second_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
+
+
         
         self.save_img_cfg_btn = QPushButton("保存生图配置")
         self.save_img_cfg_btn.clicked.connect(lambda: self.save_image_config(silent=False))
@@ -161,6 +195,16 @@ class AppWindow(QWidget):
         
         self.save_text_config(silent=True) # 利用基础配置表保存这个状态
 
+
+    def get_ar_policy_config(self):
+        """提供给子组件读取长宽比策略"""
+        return {
+            "default_aspect_ratio": self.default_ar_combo.currentText().strip() or DEFAULT_ASPECT_RATIO,
+            "override_first": self.override_ar_first_combo.currentText().strip() or NO_OVERRIDE_TEXT,
+            "override_second": self.override_ar_second_combo.currentText().strip() or NO_OVERRIDE_TEXT,
+        }
+
+
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
             try:
@@ -190,6 +234,20 @@ class AppWindow(QWidget):
                         if self.img_model_combo.findText(saved_model) == -1:
                             self.img_model_combo.addItem(saved_model)
                         self.img_model_combo.setCurrentText(saved_model)
+                    saved_default_ar = config.get("default_aspect_ratio", DEFAULT_ASPECT_RATIO)
+                    if self.default_ar_combo.findText(saved_default_ar) == -1:
+                        self.default_ar_combo.addItem(saved_default_ar)
+                    self.default_ar_combo.setCurrentText(saved_default_ar)
+
+                    saved_first = config.get("override_aspect_ratio_first", "不覆盖(沿用原逻辑)")
+                    if self.override_ar_first_combo.findText(saved_first) == -1:
+                        self.override_ar_first_combo.addItem(saved_first)
+                    self.override_ar_first_combo.setCurrentText(saved_first)
+
+                    saved_second = config.get("override_aspect_ratio_second", "不覆盖(沿用原逻辑)")
+                    if self.override_ar_second_combo.findText(saved_second) == -1:
+                        self.override_ar_second_combo.addItem(saved_second)
+                    self.override_ar_second_combo.setCurrentText(saved_second)
             except Exception as e:
                 print(f"加载 {CONFIG_IMAGE_FILE} 失败: {e}")
 
@@ -286,7 +344,11 @@ class AppWindow(QWidget):
         config = {
             "base_url": self.img_url_input.text().strip() or "https://api.whatai.cc/v1",
             "api_key": self.img_key_input.text().strip(),
-            "model": self.img_model_combo.currentText().strip()
+            "model": self.img_model_combo.currentText().strip(),
+            "default_aspect_ratio": self.default_ar_combo.currentText().strip() or DEFAULT_ASPECT_RATIO,
+            "override_aspect_ratio_first": self.override_ar_first_combo.currentText().strip() or "不覆盖(沿用原逻辑)",
+            "override_aspect_ratio_second": self.override_ar_second_combo.currentText().strip() or "不覆盖(沿用原逻辑)",
+
         }
         try:
             with open(CONFIG_IMAGE_FILE, "w", encoding="utf-8") as f:

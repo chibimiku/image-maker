@@ -8,6 +8,7 @@ import logging
 import copy
 import uuid
 from datetime import datetime
+import cohere
 
 # ================= 1. 日志系统配置 =================
 LOG_DIR = "log"
@@ -202,6 +203,80 @@ def fetch_llm_json(base_url: str, api_key: str, model: str, system_prompt: str, 
         return ""
     except Exception as e:
         logger.error(f"LLM 请求发生异常: {str(e)}")
+        if 'resp' in locals():
+            logger.error(f"服务器返回信息: {resp.text}")
+        return ""
+
+def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float = 0.5) -> str:
+    """
+    专门用于读取 config-cohere.json 并请求 Cohere API 的函数
+    """
+    config_path = "config-cohere.json"
+    if not os.path.exists(config_path):
+        logger.error(f"未找到 Cohere 配置文件: {config_path}")
+        return ""
+        
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+    except Exception as e:
+        logger.error(f"读取 {config_path} 失败: {e}")
+        return ""
+        
+    base_url = config.get("base_url", "https://api.cohere.com/v1").rstrip('/')
+    # 智能补全 URL 路径
+    if not base_url.endswith("/chat") and not base_url.endswith("/v1"):
+        base_url = f"{base_url}/v1"
+    url = f"{base_url}/chat" if not base_url.endswith("/chat") else base_url
+    
+    api_key = config.get("api_key", "")
+    model = config.get("model", "command-r-plus")
+    merge_system_prompt = config.get("merge_system_prompt", False)
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    # 按照 Cohere API 的要求构造 message 和 preamble (系统提示词)
+    if merge_system_prompt:
+        message = f"{system_prompt}\n\n{user_content}"
+        preamble = ""
+    else:
+        message = user_content
+        preamble = system_prompt
+    
+    payload = {
+        "model": model,
+        "message": message,
+        "temperature": temperature,
+        "response_format": { "type": "json_object" } # 强制要求 Cohere 输出 JSON
+    }
+    
+    if preamble:
+        payload["preamble"] = preamble
+
+    logger.info("=== 发起 Cohere LLM 提示词请求 ===")
+    logger.info(f"请求 headers: {headers}")
+    logger.info(f"请求 URL: {url}")
+    logger.info(f"请求 Payload:\n{json.dumps(payload, ensure_ascii=False, indent=2)}")
+
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        resp_json = resp.json()
+        
+        logger.info(f"=== Cohere 服务器原始返回完整信息 ===\n{json.dumps(resp_json, ensure_ascii=False, indent=2)}")
+        
+        # Cohere V1 Endpoint 返回的文本内容在 'text' 字段中
+        return resp_json.get('text', '').strip()
+        
+    except requests.exceptions.Timeout:
+        logger.error("Cohere 请求超时。")
+        return ""
+    except Exception as e:
+        logger.error(f"Cohere 请求发生异常: {str(e)}")
         if 'resp' in locals():
             logger.error(f"服务器返回信息: {resp.text}")
         return ""

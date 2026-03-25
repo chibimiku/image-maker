@@ -47,12 +47,13 @@ class TextPromptGenThread(QThread):
             self.finish_signal.emit([])
 
 class PromptCellWidget(QFrame):
-    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback):
+    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
         super().__init__()
         self.get_style = style_getter_func
         self.get_img_config = img_config_getter_func
         self.save_img_cfg = save_img_cfg_callback
         self.img_thread = None
+        self.get_ar_policy = ar_policy_getter_func
         self.initUI(prompt_text)
 
     def initUI(self, prompt_text):
@@ -90,6 +91,18 @@ class PromptCellWidget(QFrame):
         
         self.setLayout(layout)
 
+    def _resolve_ar_for_second_stage(self, fallback_ar="1:1") -> str:
+        if not self.get_ar_policy:
+            return fallback_ar
+        policy = self.get_ar_policy() or {}
+        override_second = (policy.get("override_second") or "").strip()
+        if override_second.startswith("不覆盖"):
+            return fallback_ar
+        # 【修改前】return default_ar
+        # 【修改后】返回用户选择的覆盖比例
+        return override_second
+
+
     def copy_to_clipboard(self):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.text_edit.toPlainText())
@@ -108,12 +121,14 @@ class PromptCellWidget(QFrame):
         self.gen_btn.setText("正在生成...")
         self.img_label.setText("正在请求生图，请稍候...")
         
+        final_ar = self._resolve_ar_for_second_stage("1:1")
         self.img_thread = ImageGenWorkerThread(
             prompt=current_prompt,
             model_name=model_name,
-            aspect_ratio="1:1",  # 默认使用 1:1，您也可后续拓展为可选
+            aspect_ratio=final_ar,
             instructions=active_instructions
         )
+
         self.img_thread.finish_signal.connect(self.on_image_finished)
         self.img_thread.start()
 
@@ -129,12 +144,13 @@ class PromptCellWidget(QFrame):
             self.img_label.setText("生成失败或超时")
 
 class PromptGeneratorWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
         self.get_styles = styles_getter_func
         self.save_img_cfg = save_img_cfg_callback
+        self.get_ar_policy = ar_policy_getter_func
         
         self.initUI()
         
@@ -251,6 +267,8 @@ class PromptGeneratorWidget(QWidget):
                 prompt_text=prompt_str,
                 style_getter_func=self.get_current_style_instructions,
                 img_config_getter_func=self.get_img_config,
-                save_img_cfg_callback=self.save_img_cfg
+                save_img_cfg_callback=self.save_img_cfg,
+                ar_policy_getter_func=self.get_ar_policy
             )
+
             self.grid_layout.addWidget(cell, row, col)
