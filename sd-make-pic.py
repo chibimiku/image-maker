@@ -4,7 +4,7 @@ import os
 import requests
 import time
 import base64
-import re
+import logging
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGroupBox, QFormLayout, QLabel, QLineEdit,
                              QComboBox, QSpinBox, QDoubleSpinBox, QPushButton,
@@ -17,6 +17,21 @@ CONFIG_FILE = "config-sd.json"
 PROMPTS_DIR = "data/prompts"
 OUTPUT_DIR = "outputs"
 CACHE_DIR = "cache/sd-req"  # <--- 新增：提示词请求缓存目录
+
+class GuiLogHandler(logging.Handler):
+    """将 api_backend 的 logging 日志抓取并转发到 PyQt 界面的信号"""
+    def __init__(self, log_signal):
+        super().__init__()
+        self.log_signal = log_signal
+        # 界面已经自带时间戳，所以这里只抓取纯消息内容
+        self.setFormatter(logging.Formatter('%(message)s'))
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            self.log_signal.emit(msg)
+        except Exception:
+            pass
 
 class WorkerThread(QThread):
     """后台工作线程，负责 LLM 请求和 SD 绘图"""
@@ -31,6 +46,9 @@ class WorkerThread(QThread):
         self.is_running = True
 
     def run(self):
+        whatai_logger = logging.getLogger("whatai_logger")
+        gui_handler = GuiLogHandler(self.log_signal)
+        whatai_logger.addHandler(gui_handler)
         try:
             generate_count = self.config.get("generate_count", 3)  # X
             loop_count = self.config.get("loop_count", 1)          # Y
@@ -98,6 +116,8 @@ class WorkerThread(QThread):
         except Exception as e:
             self.log_signal.emit(f"发生未捕获的异常: {str(e)}")
         finally:
+            # --- 新增：任务结束时移除拦截器，防止重复绑定 ---
+            whatai_logger.removeHandler(gui_handler)
             self.finished_signal.emit()
 
     def fetch_llm_prompt(self, generate_count):
@@ -124,18 +144,19 @@ class WorkerThread(QThread):
 
         user_content = f"绘画主题: {self.theme_text}\n目标风格: {self.config['last_used_style']}\n基础模板内容: {self.template_text}"
 
-        self.log_signal.emit("开始通过 api_backend 发送网络请求，详细请求和响应数据将记录在 log 目录下...")
+        self.log_signal.emit("\n>>> 准备发送大模型网络请求...")
+
         
         # 调用 api_backend 中的功能，降低 temperature 以获得更稳定的 JSON 输出
         if self.config.get("use_cohere", False):
-            self.log_signal.emit("开始读取 config-cohere.json 并通过 Cohere API 发送请求，详细数据已记录至 log 目录...")
+            self.log_signal.emit("开始读取 config-cohere.json 并通过 Cohere API 发送请求...")
             reply_text = fetch_cohere_json(
                 system_prompt=system_prompt,
                 user_content=user_content,
                 temperature=0.5
             )
         else:
-            self.log_signal.emit("开始通过 api_backend 发送通用大模型请求，详细数据已记录至 log 目录...")
+            self.log_signal.emit("开始使用通用大模型 API 发送请求...")
             reply_text = fetch_llm_json(
                 base_url=self.config['base_url'],
                 api_key=self.config['api_key'],

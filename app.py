@@ -1,6 +1,6 @@
 import os
 import json
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
                              QLabel, QPushButton, QTextEdit, QLineEdit, QInputDialog,
                              QComboBox, QFormLayout, QMessageBox, QTabWidget)
 from PyQt5.QtCore import Qt
@@ -134,6 +134,20 @@ class AppWindow(QWidget):
         self.override_ar_second_combo.setCurrentText(NO_OVERRIDE_TEXT)
         image_layout.addRow("第二次长宽比策略:", self.override_ar_second_combo)
 
+        # ================= 新增：超时与重试配置 =================
+        self.img_timeout_spin = QSpinBox()
+        self.img_timeout_spin.setRange(10, 600) # 允许设置 10秒 到 600秒
+        self.img_timeout_spin.setValue(120)     # 默认 120秒
+        self.img_timeout_spin.setSuffix(" 秒")
+        image_layout.addRow("请求超时时间:", self.img_timeout_spin)
+
+        self.img_retry_spin = QSpinBox()
+        self.img_retry_spin.setRange(0, 10)     # 允许设置 0 到 10 次重试
+        self.img_retry_spin.setValue(1)         # 默认重试 1 次
+        self.img_retry_spin.setSuffix(" 次")
+        image_layout.addRow("失败重试次数:", self.img_retry_spin)
+        # =======================================================
+
         # 变更后自动保存
         self.default_ar_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.override_ar_first_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
@@ -248,6 +262,14 @@ class AppWindow(QWidget):
                     if self.override_ar_second_combo.findText(saved_second) == -1:
                         self.override_ar_second_combo.addItem(saved_second)
                     self.override_ar_second_combo.setCurrentText(saved_second)
+
+                    # ================= 新增：读取超时与重试 =================
+                    saved_timeout = config.get("timeout", 120)
+                    self.img_timeout_spin.setValue(saved_timeout)
+                    
+                    saved_retries = config.get("max_retries", 1)
+                    self.img_retry_spin.setValue(saved_retries)
+                    # =====================================================
             except Exception as e:
                 print(f"加载 {CONFIG_IMAGE_FILE} 失败: {e}")
 
@@ -348,6 +370,8 @@ class AppWindow(QWidget):
             "default_aspect_ratio": self.default_ar_combo.currentText().strip() or DEFAULT_ASPECT_RATIO,
             "override_aspect_ratio_first": self.override_ar_first_combo.currentText().strip() or "不覆盖(沿用原逻辑)",
             "override_aspect_ratio_second": self.override_ar_second_combo.currentText().strip() or "不覆盖(沿用原逻辑)",
+            "timeout": self.img_timeout_spin.value(),
+            "max_retries": self.img_retry_spin.value(),
 
         }
         try:

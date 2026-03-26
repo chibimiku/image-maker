@@ -1,4 +1,5 @@
 # api_backend.py
+from logging import config
 import os
 import json
 import base64
@@ -8,7 +9,7 @@ import logging
 import copy
 import uuid
 from datetime import datetime
-import cohere
+import time
 
 # ================= 1. 日志系统配置 =================
 LOG_DIR = "log"
@@ -49,6 +50,8 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     # 兼容原有的 base_url 命名
     api_base = config.get("base_url", "https://api.whatai.cc/v1").rstrip('/')
     api_key = config.get("api_key")
+    timeout_val = config.get("timeout", 120)      # <--- 读取超时配置，默认120
+    max_retries = config.get("max_retries", 1)    # <--- 读取重试配置，默认1
     
     if not api_key:
         logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
@@ -92,12 +95,25 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     logger.info("=== 发起 API 请求 ===")
     logger.info(f"请求数据:\n{json.dumps(safe_data, ensure_ascii=False, indent=2)}")
 
-    try:
-        resp = requests.post(url, headers=headers, json=data, timeout=120)
-        resp.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"网络请求发生异常: {e}")
-        return []
+    # ================= 替换掉原来的 try 块，改为重试循环 =================
+    resp = None
+    for attempt in range(max_retries + 1):
+        try:
+            if attempt > 0:
+                logger.info(f"正在进行第 {attempt} 次重试 (最大重试次数: {max_retries})...")
+            
+            resp = requests.post(url, headers=headers, json=data, timeout=timeout_val)
+            resp.raise_for_status()
+            break  # 如果没有抛出异常，说明请求成功，跳出循环
+            
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"网络请求发生异常 (尝试 {attempt + 1}/{max_retries + 1}): {e}")
+            if attempt < max_retries:
+                time.sleep(2)  # 重试前稍微休息2秒，避免频繁打满后端
+            else:
+                logger.error("达到最大重试次数，图片生成请求最终失败。")
+                return []
+    # ====================================================================
 
     try:
         resp_json = resp.json()
