@@ -11,6 +11,8 @@ from style_analyzer import StyleAnalyzerWidget
 from single_analyzer import SingleAnalyzerWidget
 # 【新增】引入批量提示词生成组件
 from prompt_generator import PromptGeneratorWidget
+# 【新增】引入批量图片分析组件
+from batch_analyzer import BatchAnalyzerWidget
 
 CONFIG_FILE = "config.json"
 CONFIG_IMAGE_FILE = "config-image.json"
@@ -73,7 +75,19 @@ class AppWindow(QWidget):
         self.prompt_generator_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         self.main_tabs.addTab(self.prompt_generator_tab, "批量提示词与生图")
 
-        # 【Tab 4: 全局配置】
+        # 【新增 Tab 4: 批量图片分析】
+        self.batch_analyzer_tab = BatchAnalyzerWidget(
+            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip()),
+            styles_getter_func=lambda: self.styles_data,
+            save_img_cfg_callback=lambda: self.save_image_config(silent=True),
+            ar_policy_getter_func=self.get_ar_policy_config
+        )
+
+        self.batch_analyzer_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
+        self.main_tabs.addTab(self.batch_analyzer_tab, "批量图片分析")
+
+        # 【Tab 5: 全局配置】
         self.config_tabs = QTabWidget()
         
         # 3.1 文本分析配置
@@ -201,7 +215,7 @@ class AppWindow(QWidget):
         self.last_used_style = style_name
         
         # 阻断信号避免死循环
-        for combo in [self.single_analyzer_tab.main_style_combo, self.prompt_generator_tab.main_style_combo]:
+        for combo in [self.single_analyzer_tab.main_style_combo, self.prompt_generator_tab.main_style_combo, self.batch_analyzer_tab.main_style_combo]:
             if combo.currentText() != style_name:
                 combo.blockSignals(True)
                 combo.setCurrentText(style_name)
@@ -305,6 +319,13 @@ class AppWindow(QWidget):
                 
         if hasattr(self, 'prompt_generator_tab'):
             self.prompt_generator_tab.update_styles(keys)
+            if self.last_used_style in keys:
+                self.prompt_generator_tab.main_style_combo.setCurrentText(self.last_used_style)
+                
+        if hasattr(self, 'batch_analyzer_tab'):
+            self.batch_analyzer_tab.update_styles(keys)
+            if self.last_used_style in keys:
+                self.batch_analyzer_tab.main_style_combo.setCurrentText(self.last_used_style)
 
     def on_manage_style_changed(self, style_name):
         if style_name in self.styles_data:

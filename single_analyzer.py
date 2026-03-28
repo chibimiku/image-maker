@@ -19,35 +19,22 @@ You are an expert image analyzer and illustrator assistant.
 You must respond strictly in JSON format.
 """
 
-user_prompt_analyze = """
-Please analyze the provided image and generate a highly detailed description in English (approximately 500 words). 
-Include the following elements: art style, composition, lighting, camera angle, hair color, and eye color. 
+# 新增读取 Prompt 的函数
+def load_prompt_from_file(filepath):
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    except Exception as e:
+        print(f"读取 Prompt 文件失败: {e}")
+        # 如果读取失败，返回一个保底的简单提示词以防程序崩溃
+        return "Please analyze the provided image and generate a detailed description in English. Return strict JSON."
 
-CRITICAL ACTION REQUIREMENT: Meticulously describe the precise character poses and dynamic actions. You must explicitly detail their body language, the positioning of their limbs, and exactly how their movements physically interact with the surrounding environment, objects, and other characters.
+# 动态构建文件路径并读取
+PROMPT_DIR = os.path.join(os.path.dirname(__file__), 'data', 'prompts')
+STYLE_ANALY_PATH = os.path.join(PROMPT_DIR, 'style-analy.md')
 
-If present in the original image, meticulously describe the clothing (tops and bottoms, or dresses), painted patterns on the clothing, types and colors of shoes and socks, accessories, and the environment. 
-Do not use ambiguous language. Do not describe any text that appears in the image. 
-
-Important style constraints: 
-If the original image's art style is a photograph (photo), describe it as an 'illustration' and adjust all other domain descriptions to fit an illustration style. 
-Always use the word 'girl' to describe female characters. 
-Output an English text description. Do not generate an image.
-If the concept of 'lolita' applies, use 'rococo' instead. 
-Strictly prohibit sexually explicit or NSFW words, including 'cleavage' and 'nude'.
-
-Additionally, provide the following based on the image content:
-1. A poetic Japanese title using complex kanji (maximum 20 characters).
-2. The Chinese translation of this title.
-3. Exactly 12 Japanese tags suitable for the Pixiv tagging system (e.g., 女の子) that accurately describe the visual content.
-
-Return the result strictly as a JSON object with the following keys:
-{
-  "english_description": "...",
-  "japanese_title": "...",
-  "chinese_title": "...",
-  "pixiv_tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10", "tag11", "tag12"]
-}
-"""
+# 删除原本硬编码的长文本，改为调用函数
+user_prompt_analyze = load_prompt_from_file(STYLE_ANALY_PATH)
 
 def calculate_closest_aspect_ratio(image_source):
     """根据输入图片尺寸，从预设列表中计算最贴近的长宽比"""
@@ -140,40 +127,16 @@ def step_2_refine_description(original_json_data, client, model_name):
     
     tags_str = json.dumps(tags, ensure_ascii=False)
     
-    refine_prompt = f"""
-    请根据以下中文指示，修改并丰富下面提供的英文图片描述。
+    # 构建模板文件路径并读取
+    REFINE_DESC_PATH = os.path.join(os.path.dirname(__file__), 'data', 'prompts', 'refine-desc.md')
+    template = load_prompt_from_file(REFINE_DESC_PATH)
     
-    修改要求：
-    1. 增加背景描述。
-    2. 强调人物动作与场景的互动，使人物经常处于“重心不稳定”的状态（例如踮脚、跳起、失去平衡等），以此构造出具有强烈动感的画面。同时像是在讲述一个故事，人物表情和场景相符，尽量避免让人物位于画面最中央（使用 rule of thirds 或 off-center 构图）。
-    3. 给人物增加蕾丝半透明有宝石的手套。
-    4. 人物穿着蕾丝半透明过膝吊带袜，有着丝袜质感，上面还有与衣服风格相匹配的刺绣。
-    5. 增加人物衣服和鞋子上的交叉系带元素。
-    6. 如果人物有穿着高跟鞋的描述，则把鞋跟高度的描述修改得更高，并带有小饰品。
-    7. 增加人物姿势中大腿分开的描述。
-    8. 根据当前描述的构图和场景内容，推断最合适的画幅长宽比（例如竖图推荐 9:16 或 2:3，横图推荐 16:9 或 3:2，正方形推荐 1:1）。
+    # 安全替换占位符（避免 f-string 遇到 JSON 大括号报错）
+    refine_prompt = template.replace("[jp_title]", jp_title) \
+                            .replace("[cn_title]", cn_title) \
+                            .replace("[original_description]", original_description) \
+                            .replace("[tags_str]", tags_str)
     
-    约束条件：
-    - 输出的图片描述必须全为英文，字数维持在约 600-750 词。
-    - 维持设定的安全与风格限制（禁止使用'cleavage'、'nude'，若符合'lolita'概念请替换为'rococo'）。
-    - 标签总数必须严格保持在 12 个，请根据新增的描述替换部分原有标签。
-    - 必须输出严格的 JSON 格式，保留原有标题，并新增 "aspect_ratio" 字段。
-    
-    以下是 Step 1 已经生成好的基础数据，请在最终输出的 JSON 中直接保留这两个标题：
-    原日文标题：{jp_title}
-    原中文标题：{cn_title}
-    原英文描述：\n{original_description}
-    原标签：\n{tags_str}
-    
-    预期 JSON 结构参考：
-    {{
-      "english_description": "<修改后的英文描述>",
-      "japanese_title": "{jp_title}",
-      "chinese_title": "{cn_title}",
-      "pixiv_tags": ["<更新后的12个标签>"],
-      "aspect_ratio": "<例如 2:3>"
-    }}
-    """
     try:
         response = client.chat.completions.create(
             model=model_name, 
@@ -185,6 +148,7 @@ def step_2_refine_description(original_json_data, client, model_name):
             temperature=0.7, max_completion_tokens=16384
         )
         final_result_json = json.loads(response.choices[0].message.content)
+        # 将原始描述也存入最终结果，方便后续对比或同时生成
         final_result_json["original_english_description"] = original_description
         return final_result_json
     except Exception as e:
@@ -471,8 +435,10 @@ class SingleAnalyzerWidget(QWidget):
             styles_data = self.get_styles()
             current_fixed_tags = styles_data.get(selected_style_name, "")
             
-            final_prompt = f"--ar {self.current_aspect_ratio} {current_fixed_tags} {self.current_refine_desc}".strip()
-            orig_prompt = f"--ar {self.current_aspect_ratio} {current_fixed_tags} {self.current_orig_desc}".strip()
+            # 在风格标签和描述之间添加两个回车
+            style_part = f"--ar {self.current_aspect_ratio} {current_fixed_tags}".strip()
+            final_prompt = f"{style_part}\n\n{self.current_refine_desc}".strip()
+            orig_prompt = f"{style_part}\n\n{self.current_orig_desc}".strip()
             
             txt_filename = f"{base_filename}-prompts.txt"
             orig_txt_filename = f"{base_filename}-original-prompts.txt"
