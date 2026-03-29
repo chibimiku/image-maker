@@ -15,15 +15,16 @@ from api_backend import fetch_llm_json, fetch_cohere_json
 
 CONFIG_FILE = "config-sd.json"
 PROMPTS_DIR = "data/prompts"
+NEG_PROMPTS_DIR = "data/negative_prompts"  # 新增：反向提示词目录
 OUTPUT_DIR = "outputs"
-CACHE_DIR = "cache/sd-req"  # <--- 新增：提示词请求缓存目录
+CACHE_DIR = "cache/sd-req"
+SYSTEM_PROMPT_FILE = "data/prompts/sd-make-system_prompt.md"
 
 class GuiLogHandler(logging.Handler):
     """将 api_backend 的 logging 日志抓取并转发到 PyQt 界面的信号"""
     def __init__(self, log_signal):
         super().__init__()
         self.log_signal = log_signal
-        # 界面已经自带时间戳，所以这里只抓取纯消息内容
         self.setFormatter(logging.Formatter('%(message)s'))
 
     def emit(self, record):
@@ -38,11 +39,12 @@ class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, config, theme_text, template_text):
+    def __init__(self, config, theme_text, template_text, neg_template_text):
         super().__init__()
         self.config = config
         self.theme_text = theme_text
         self.template_text = template_text
+        self.neg_template_text = neg_template_text  # 新增：接收界面传来的反向提示词
         self.is_running = True
 
     def run(self):
@@ -50,8 +52,8 @@ class WorkerThread(QThread):
         gui_handler = GuiLogHandler(self.log_signal)
         whatai_logger.addHandler(gui_handler)
         try:
-            generate_count = self.config.get("generate_count", 3)  # X
-            loop_count = self.config.get("loop_count", 1)          # Y
+            generate_count = self.config.get("generate_count", 3)
+            loop_count = self.config.get("loop_count", 1)
             
             if not self.is_running:
                 self.log_signal.emit("任务已被用户中止。")
@@ -63,7 +65,6 @@ class WorkerThread(QThread):
             
             global_img_index = 1
 
-            # === 外层循环：请求 Y 次大模型 ===
             for loop_idx in range(loop_count):
                 if not self.is_running:
                     self.log_signal.emit("任务已被用户中止。")
@@ -71,7 +72,6 @@ class WorkerThread(QThread):
 
                 self.log_signal.emit(f"\n>>> 正在执行第 {loop_idx + 1}/{loop_count} 轮大模型请求...")
                 
-                # 1. 请求大模型获取变体 Prompts (X组)
                 llm_response = self.fetch_llm_prompt(generate_count)
                 
                 if not llm_response or "results" not in llm_response or not self.is_running:
@@ -82,7 +82,6 @@ class WorkerThread(QThread):
                 actual_count = len(llm_data_list)
                 self.log_signal.emit(f"第 {loop_idx + 1} 轮 LLM 成功返回了 {actual_count} 组差异化提示词！")
 
-                # 保存缓存 (文件名加上轮数区分)
                 try:
                     timestamp_str = time.strftime("%Y%m%d_%H%M%S")
                     cache_filename = os.path.join(CACHE_DIR, f"prompts_batch_{timestamp_str}_loop{loop_idx+1}.json")
@@ -92,7 +91,6 @@ class WorkerThread(QThread):
                 except Exception as e:
                     self.log_signal.emit(f"提示词批次缓存失败: {str(e)}")
 
-                # === 内层循环：依次请求本地 SD WebUI 生成图片 ===
                 for i, llm_data in enumerate(llm_data_list):
                     if not self.is_running:
                         self.log_signal.emit("任务已被用户中止。")
@@ -102,12 +100,11 @@ class WorkerThread(QThread):
                     self.log_signal.emit(f"计划尺寸: {llm_data.get('width', 512)}x{llm_data.get('height', 512)}")
                     self.log_signal.emit(f"原始正向提示词: {llm_data.get('prompt', '')[:80]}...")
 
-                    self.log_signal.emit("正在拼装固定提示词并将参数发送至本地 Stable Diffusion...")
+                    self.log_signal.emit("正在拼装最终提示词并将参数发送至本地 Stable Diffusion...")
                     self.generate_sd_image(llm_data)
                     
                     global_img_index += 1
 
-                    # 只要任务还在运行，无论是否是最后一张，都在请求间短暂休息，避免并发过载
                     if self.is_running:
                         time.sleep(1) 
 
@@ -116,38 +113,52 @@ class WorkerThread(QThread):
         except Exception as e:
             self.log_signal.emit(f"发生未捕获的异常: {str(e)}")
         finally:
-            # --- 新增：任务结束时移除拦截器，防止重复绑定 ---
             whatai_logger.removeHandler(gui_handler)
             self.finished_signal.emit()
 
     def fetch_llm_prompt(self, generate_count):
-        # ========== 保持原有 System Prompt ==========
-        system_prompt = f"""你是一个 Stable Diffusion 提示词编写专家。
-请基于用户提供的【绘画主题】、【目标风格】和【基础模板】，发挥想象力进行扩写，添加丰富的细节（环境、光影、服装、动作等）。
+        # 1. 如果系统提示词文件不存在，则自动创建并写入优化后的内容
+        if not os.path.exists(SYSTEM_PROMPT_FILE):
+            os.makedirs(os.path.dirname(SYSTEM_PROMPT_FILE), exist_ok=True)
+            default_prompt = """你是一个 Stable Diffusion 提示词编写专家。
+请基于用户提供的【绘画主题】和【基础模板】，发挥想象力进行扩写，添加丰富的细节。
+
+【核心要求：极度差异化】
+本次需要生成 {generate_count} 组提示词。请确保在符合【绘画主题】的前提下，每一组的场景、人物特征（发色、瞳色、发型、衣装细节）、姿势、动作、环境、图片视角等因素都必须各自不同。例如：第一张图片中要求人物是金发、仰视视角，第二张人物必须变为银发、俯视视角，依此类推。尽最大可能展现多样的视觉效果，杜绝千篇一律的设定。
 
 【最高指令：强制纯 JSON 输出】
 你必须且只能输出一个合法的 JSON 对象。绝对禁止输出任何问候语、解释性文字、Markdown 标记（如 ```json）以及任何代码注释（如 // ）。
-本次需要生成 {generate_count} 组在符合主题前提下，拥有明显差异化（如视角、服装、背景）的提示词。
 
 请严格参照以下格式输出（务必确保 width 和 height 是纯数字整数，不要带任何其他字符）：
-{{
+{
   "results": [
-    {{
+    {
       "prompt": "your positive prompt here...",
-      "negative_prompt": "your negative prompt here...",
       "width": 768,
       "height": 1024
-    }}
+    }
   ]
-}}
+}
 注意：results 数组内必须准确包含 {generate_count} 个对象，且整个输出必须能被标准的 JSON 解析器直接解析。"""
+            with open(SYSTEM_PROMPT_FILE, "w", encoding="utf-8") as f:
+                f.write(default_prompt)
 
-        user_content = f"绘画主题: {self.theme_text}\n目标风格: {self.config['last_used_style']}\n基础模板内容: {self.template_text}"
+        # 2. 从文件中读取 System Prompt
+        try:
+            with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
+                raw_system_prompt = f.read()
+        except Exception as e:
+            self.log_signal.emit(f"读取 System Prompt 文件失败: {str(e)}，将中止请求。")
+            return None
+            
+        # 3. 动态注入生成数量 (使用 replace 防止 JSON 大括号引起 format 异常)
+        system_prompt = raw_system_prompt.replace("{generate_count}", str(generate_count))
+
+        user_content = f"绘画主题: {self.theme_text}\n基础模板内容: {self.template_text}"
 
         self.log_signal.emit("\n>>> 准备发送大模型网络请求...")
+        self.log_signal.emit(f"已加载外部系统提示词: {SYSTEM_PROMPT_FILE}")
 
-        
-        # 调用 api_backend 中的功能，降低 temperature 以获得更稳定的 JSON 输出
         if self.config.get("use_cohere", False):
             self.log_signal.emit("开始读取 config-cohere.json 并通过 Cohere API 发送请求...")
             reply_text = fetch_cohere_json(
@@ -163,7 +174,7 @@ class WorkerThread(QThread):
                 model=self.config['model'],
                 system_prompt=system_prompt,
                 user_content=user_content,
-                temperature=0.5,
+                temperature=0.7, # 建议将这里的 temperature 稍微调高一点(如0.7)，有助于增加大模型的发散性和差异化
                 merge_system_prompt=self.config.get("merge_system_prompt", True)
             )
 
@@ -171,8 +182,6 @@ class WorkerThread(QThread):
             self.log_signal.emit("❌ 【错误】大模型请求失败或返回为空，请查阅 log 目录下的最新日志排查问题。")
             return None
 
-        # ========== 增强型 JSON 文本清洗 ==========
-        # 很多模型即使被要求不输出 markdown，依然会输出 ```json 开头的数据
         clean_text = reply_text.strip()
         if clean_text.startswith("```json"):
             clean_text = clean_text[7:]
@@ -203,25 +212,29 @@ class WorkerThread(QThread):
     def generate_sd_image(self, llm_data):
         url = f"{self.config['sd_url'].rstrip('/')}/sdapi/v1/txt2img"
         
-        # 获取当前配置组
         current_group_name = self.config.get("current_sd_group", "Default")
         sd_settings = self.config.get("sd_config_groups", {}).get(current_group_name, {})
         
-        # 提取 LLM 生成的提示词和固定提示词
+#       1. 获取 LLM 生成的提示词
         llm_prompt = llm_data.get("prompt", "").strip()
-        llm_neg_prompt = llm_data.get("negative_prompt", "").strip()
         
+        # 2. 获取界面下拉框选择并保存的预设风格提示词
+        style_prompt = self.config.get("last_used_style", "").strip()
+        
+        # 3. 获取固定提示词
         fixed_prompt = self.config.get("fixed_prompt", "").strip()
+        
+        # 4. 组装最终的正向提示词 (自动过滤掉空字符串)
+        prompt_parts = [p for p in [llm_prompt, style_prompt, fixed_prompt] if p]
+        final_prompt = ", ".join(prompt_parts)
+        
+        # 将界面传进来的独立反向模板内容作为基础
+        base_neg_prompt = self.neg_template_text.strip()
         fixed_neg_prompt = self.config.get("fixed_negative_prompt", "").strip()
         
-        # 拼接提示词 (LLM提示词在前，固定词在后，安全处理逗号)
-        final_prompt = f"{llm_prompt}, {fixed_prompt}" if fixed_prompt else llm_prompt
-        final_neg_prompt = f"{llm_neg_prompt}, {fixed_neg_prompt}" if fixed_neg_prompt else llm_neg_prompt
-        
-        final_prompt = final_prompt.strip(", ")
-        final_neg_prompt = final_neg_prompt.strip(", ")
+        neg_prompt_parts = [p for p in [base_neg_prompt, fixed_neg_prompt] if p]
+        final_neg_prompt = ", ".join(neg_prompt_parts)
 
-        # 构建基础 payload
         payload = {
             "prompt": final_prompt,
             "negative_prompt": final_neg_prompt,
@@ -234,33 +247,20 @@ class WorkerThread(QThread):
             "override_settings": {}
         }
         
-        # 处理模型和 VAE 覆写参数
         sd_model = sd_settings.get("sd_model", "").strip()
         sd_vae_list = sd_settings.get("sd_vae", [])
         
         if sd_model:
             payload["override_settings"]["sd_model_checkpoint"] = sd_model
             
-        # 1. 严格清洗数据：去除首尾空格，过滤掉空字符串和 "automatic"
         final_modules = [v.strip() for v in sd_vae_list if v.strip() and v.strip().lower() != "automatic"]
         
-        # 2. 只有在用户确实输入了有效模型时才处理
         if final_modules:
-            # 给 Forge 新版 API 传数组
             payload["override_settings"]["forge_additional_modules"] = final_modules
-            
-            # 【容错处理】安全地取第一个元素赋给老版 sd_vae
-            # 虽然外层 if 已经保证了列表不为空，但显式地检查长度是好习惯
-            # c传入sd_vae 对 neo 会有问题 禁用
-            #if len(final_modules) > 0:
-            #    payload["override_settings"]["sd_vae"] = final_modules[0]
         else:
-            # 【容错处理】如果用户什么都没填，或者填的都是无效字符
-            # 可选：显式地将 VAE 设置为 Automatic，或者直接从 override_settings 里删掉这俩 key 避免干扰
             payload["override_settings"]["sd_vae"] = "Automatic"
-            # 确保不会传个空数组过去导致后端报错
             payload["override_settings"].pop("forge_additional_modules", None)
-        # 智能合并附加字段 (JSON)
+            
         extra_payload_str = self.config.get("webui_extra_payload", "").strip()
         if extra_payload_str:
             try:
@@ -280,7 +280,6 @@ class WorkerThread(QThread):
             response.raise_for_status()
             images_base64 = response.json().get("images", [])
             
-            # 保存图片
             for idx, img_b64 in enumerate(images_base64):
                 img_data = base64.b64decode(img_b64)
                 timestamp = int(time.time())
@@ -299,14 +298,13 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AI 自动化绘画工作流 (PyQt6 增强版)")
-        self.resize(950, 980)
+        self.resize(1000, 1050)
         
-        # 初始化目录
         os.makedirs(PROMPTS_DIR, exist_ok=True)
+        os.makedirs(NEG_PROMPTS_DIR, exist_ok=True)  # 初始化反向提示词目录
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         os.makedirs(CACHE_DIR, exist_ok=True)
 
-        # 默认配置加入 last_used_theme 和 last_used_template
         self.config = {
             "base_url": "https://api.pumpkinaigc.online/v1",
             "api_key": "",
@@ -314,8 +312,9 @@ class MainWindow(QMainWindow):
             "merge_system_prompt": True,
             "last_used_theme": "中秋主题少女", 
             "last_used_template": "",
+            "last_used_negative_template": "", # 新增：记录上次使用的反向模板
             "last_used_style": "",
-            "last_used_style_key": "默认(无附加)",  # 新增：保存上次选择的风格键
+            "last_used_style_key": "默认(无附加)",
             "sd_url": "http://127.0.0.1:7860",
             "generate_count": 3,
             "loop_count": 1,
@@ -337,7 +336,6 @@ class MainWindow(QMainWindow):
         self.worker = None
         
         self.load_config()
-        # 确保基础配置结构存在
         if "sd_config_groups" not in self.config:
             self.config["sd_config_groups"] = {"Default": {"sampler": "Euler a", "steps": 20, "cfg_scale": 7.0}}
         if "current_sd_group" not in self.config:
@@ -386,15 +384,13 @@ class MainWindow(QMainWindow):
         self.fetch_models_btn.clicked.connect(self.fetch_available_models)
         llm_layout.addWidget(self.fetch_models_btn, 2, 3)
 
-         # <--- 新增：兼容模式复选框 --->
         self.merge_prompt_cb = QCheckBox("启用 System Prompt 兼容模式 (合并到 User)")
         self.merge_prompt_cb.setChecked(self.config.get("merge_system_prompt", True))
-        llm_layout.addWidget(self.merge_prompt_cb, 3, 1, 1, 3) # 放在网格布局第 3 行
+        llm_layout.addWidget(self.merge_prompt_cb, 3, 1, 1, 3)
 
-        # <--- 追加以下代码 --->
         self.use_cohere_cb = QCheckBox("使用 Cohere API (将独立读取 config-cohere.json)")
         self.use_cohere_cb.setChecked(self.config.get("use_cohere", False))
-        llm_layout.addWidget(self.use_cohere_cb, 4, 1, 1, 3) # 放在第 4 行
+        llm_layout.addWidget(self.use_cohere_cb, 4, 1, 1, 3)
         
         llm_group.setLayout(llm_layout)
         main_layout.addWidget(llm_group)
@@ -404,21 +400,19 @@ class MainWindow(QMainWindow):
         task_layout = QVBoxLayout()
         
         theme_style_layout = QFormLayout()
-        # 读取上次保存的主题
         self.theme_input = QLineEdit(self.config.get("last_used_theme", "中秋主题少女"))
         self.theme_input.setPlaceholderText("例如：中秋主题少女、赛博朋克城市...")
         theme_style_layout.addRow("绘画主题 (必填):", self.theme_input)
         
-        # 改为下拉菜单
         self.style_combo = QComboBox()
         self.style_combo.setMinimumWidth(200)
         theme_style_layout.addRow("Prompt 风格预设:", self.style_combo)
-        # 加载风格选项
         self.load_style_options()
         task_layout.addLayout(theme_style_layout)
 
+        # --- 正向模板区域 ---
         template_ctrl_layout = QHBoxLayout()
-        template_ctrl_layout.addWidget(QLabel("选择模板 (.txt):"))
+        template_ctrl_layout.addWidget(QLabel("正向模板 (交由 LLM 扩写):"))
         
         self.template_combo = QComboBox()
         self.template_combo.setMinimumWidth(200)
@@ -436,15 +430,41 @@ class MainWindow(QMainWindow):
         task_layout.addLayout(template_ctrl_layout)
         
         self.template_editor = QTextEdit()
-        self.template_editor.setPlaceholderText("在这里编辑提示词基础模板的内容...")
+        self.template_editor.setPlaceholderText("在这里编辑需要发给大模型进行细节扩写的【正向提示词】基础模板...")
         self.template_editor.setMaximumHeight(80)
         task_layout.addWidget(self.template_editor)
+
+        # --- 新增：反向模板区域 ---
+        neg_template_ctrl_layout = QHBoxLayout()
+        neg_template_ctrl_layout.addWidget(QLabel("反向模板 (直接发给 SD引擎):"))
+        
+        self.neg_template_combo = QComboBox()
+        self.neg_template_combo.setMinimumWidth(200)
+        self.neg_template_combo.currentTextChanged.connect(self.load_negative_template_content)
+        neg_template_ctrl_layout.addWidget(self.neg_template_combo)
+        
+        self.save_neg_template_btn = QPushButton("保存反向模板")
+        self.save_neg_template_btn.clicked.connect(self.save_current_negative_template)
+        neg_template_ctrl_layout.addWidget(self.save_neg_template_btn)
+        
+        self.save_as_neg_template_btn = QPushButton("反向模板另存...")
+        self.save_as_neg_template_btn.clicked.connect(self.save_as_new_negative_template)
+        neg_template_ctrl_layout.addWidget(self.save_as_neg_template_btn)
+        
+        task_layout.addLayout(neg_template_ctrl_layout)
+        
+        self.neg_template_editor = QTextEdit()
+        self.neg_template_editor.setPlaceholderText("在这里编辑【反向提示词】的内容。这段文本不会经过大模型，在绘图时会直接合并发送给 Stable Diffusion...")
+        self.neg_template_editor.setMaximumHeight(80)
+        task_layout.addWidget(self.neg_template_editor)
         
         task_group.setLayout(task_layout)
         main_layout.addWidget(task_group)
+        
         self.refresh_templates()
+        self.refresh_negative_templates()
 
-        # === 3. SD WebUI 高级配置组 (略去重复的布局代码，保持一致) ===
+        # === 3. SD WebUI 高级配置组 ===
         sd_group = QGroupBox("Stable Diffusion WebUI 配置")
         sd_layout = QVBoxLayout()
         
@@ -513,7 +533,6 @@ class MainWindow(QMainWindow):
         self.cfg_input.setSingleStep(0.5)
         param_layout.addWidget(self.cfg_input)
 
-        # <--- 修改点：增加 Y 输入框，修改 X 描述 --->
         param_layout.addWidget(QLabel("大模型请求轮数(Y):"))
         self.loop_count_input = QSpinBox()
         self.loop_count_input.setRange(1, 9999)
@@ -533,7 +552,7 @@ class MainWindow(QMainWindow):
         fixed_prompt_layout.addRow("附加固定正向提示词:", self.fixed_prompt_input)
         
         self.fixed_neg_prompt_input = QLineEdit(self.config.get("fixed_negative_prompt", ""))
-        self.fixed_neg_prompt_input.setPlaceholderText("如: (worst quality, low quality:1.4), bad anatomy")
+        self.fixed_neg_prompt_input.setPlaceholderText("如: (worst quality, low quality:1.4) (自动拼接到最终发送的反向提示词后)")
         fixed_prompt_layout.addRow("附加固定反向提示词:", self.fixed_neg_prompt_input)
         sd_layout.addLayout(fixed_prompt_layout)
 
@@ -571,7 +590,6 @@ class MainWindow(QMainWindow):
         self.log_area.setReadOnly(True)
         main_layout.addWidget(self.log_area)
 
-    # ---------- 重写 closeEvent 保证关闭时也会保存 ----------
     def closeEvent(self, event):
         self.update_config_from_ui()
         event.accept()
@@ -730,21 +748,18 @@ class MainWindow(QMainWindow):
             self.fetch_models_btn.setEnabled(True)
             self.fetch_models_btn.setText("获取/刷新模型列表")
 
-    # ---------- 核心修改点：模板列表刷新与恢复逻辑 ----------
+    # ---------- 正向模板逻辑 ----------
     def refresh_templates(self):
         self.template_combo.blockSignals(True)
         self.template_combo.clear()
         templates = [f for f in os.listdir(PROMPTS_DIR) if f.endswith('.txt')]
         if templates:
             self.template_combo.addItems(templates)
-            
-            # 检查上次使用的模板是否存在
             last_template = self.config.get("last_used_template", "")
             if last_template in templates:
                 self.template_combo.setCurrentText(last_template)
                 self.load_template_content(last_template)
             else:
-                # 不存在则回退到列表第一个
                 self.template_combo.setCurrentText(templates[0])
                 self.load_template_content(templates[0])
         else:
@@ -795,15 +810,75 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"保存失败: {e}")
 
+    # ---------- 新增：反向模板逻辑 ----------
+    def refresh_negative_templates(self):
+        self.neg_template_combo.blockSignals(True)
+        self.neg_template_combo.clear()
+        templates = [f for f in os.listdir(NEG_PROMPTS_DIR) if f.endswith('.txt')]
+        if templates:
+            self.neg_template_combo.addItems(templates)
+            last_template = self.config.get("last_used_negative_template", "")
+            if last_template in templates:
+                self.neg_template_combo.setCurrentText(last_template)
+                self.load_negative_template_content(last_template)
+            else:
+                self.neg_template_combo.setCurrentText(templates[0])
+                self.load_negative_template_content(templates[0])
+        else:
+            self.neg_template_combo.addItem("未找到 txt 文件")
+            self.neg_template_editor.clear()
+        self.neg_template_combo.blockSignals(False)
+
+    def load_negative_template_content(self, filename):
+        if not filename or filename == "未找到 txt 文件":
+            return
+        filepath = os.path.join(NEG_PROMPTS_DIR, filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                self.neg_template_editor.setPlainText(f.read())
+
+    def save_current_negative_template(self):
+        filename = self.neg_template_combo.currentText()
+        if not filename or filename == "未找到 txt 文件":
+            QMessageBox.warning(self, "警告", "当前没有选中有效的反向模板文件。")
+            return
+            
+        filepath = os.path.join(NEG_PROMPTS_DIR, filename)
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(self.neg_template_editor.toPlainText())
+            QMessageBox.information(self, "成功", f"反向模板 '{filename}' 已保存！")
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"保存失败: {e}")
+
+    def save_as_new_negative_template(self):
+        new_name, ok = QInputDialog.getText(self, "反向模板另存为", "请输入新反向模板名称 (无需输入 .txt 后缀):")
+        if ok and new_name.strip():
+            filename = f"{new_name.strip()}.txt"
+            filepath = os.path.join(NEG_PROMPTS_DIR, filename)
+            
+            if os.path.exists(filepath):
+                reply = QMessageBox.question(self, "确认覆盖", f"文件 '{filename}' 已存在，是否覆盖？", 
+                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                if reply == QMessageBox.StandardButton.No:
+                    return
+            
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(self.neg_template_editor.toPlainText())
+                self.refresh_negative_templates()
+                self.neg_template_combo.setCurrentText(filename)
+                QMessageBox.information(self, "成功", f"新反向模板 '{filename}' 已保存！")
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"保存失败: {e}")
+
     def append_log(self, text):
         timestamp = time.strftime('%H:%M:%S')
         self.log_area.append(f"[{timestamp}] {text}")
         scrollbar = self.log_area.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-    # ---------- 核心修改点：保存配置时记录主题和模板 ----------
     def load_style_options(self):
-        """加载风格选项从 config-styles.json"""
         styles_file = "config-styles.json"
         self.style_options = {}
         
@@ -812,23 +887,19 @@ class MainWindow(QMainWindow):
                 with open(styles_file, 'r', encoding='utf-8') as f:
                     self.style_options = json.load(f)
             else:
-                # 如果文件不存在，使用默认风格
                 self.style_options = {"默认(无附加)": ""}
         except Exception as e:
             print(f"加载风格文件失败: {e}")
             self.style_options = {"默认(无附加)": ""}
         
-        # 清空并添加风格选项
         self.style_combo.blockSignals(True)
         self.style_combo.clear()
         self.style_combo.addItems(list(self.style_options.keys()))
         
-        # 尝试恢复上次选择的风格
         last_style_key = self.config.get("last_used_style_key")
         if last_style_key in self.style_options:
             self.style_combo.setCurrentText(last_style_key)
         else:
-            # 容错：如果上次选择的风格不存在，选择默认选项
             self.style_combo.setCurrentText("默认(无附加)")
         
         self.style_combo.blockSignals(False)
@@ -838,10 +909,10 @@ class MainWindow(QMainWindow):
         self.config["api_key"] = self.key_input.text().strip()
         self.config["model"] = self.model_combo.currentText().strip()
         
-        self.config["last_used_theme"] = self.theme_input.text().strip() # 记录主题
-        self.config["last_used_template"] = self.template_combo.currentText() # 记录模板
+        self.config["last_used_theme"] = self.theme_input.text().strip()
+        self.config["last_used_template"] = self.template_combo.currentText()
+        self.config["last_used_negative_template"] = self.neg_template_combo.currentText() # 记录反向模板
         
-        # 记录选择的风格键和对应的值
         selected_style_key = self.style_combo.currentText()
         self.config["last_used_style_key"] = selected_style_key
         self.config["last_used_style"] = self.style_options.get(selected_style_key, "")
@@ -868,8 +939,10 @@ class MainWindow(QMainWindow):
             
         template_text = self.template_editor.toPlainText().strip()
         if not template_text:
-            QMessageBox.warning(self, "警告", "模板内容不能为空！")
+            QMessageBox.warning(self, "警告", "正向模板内容不能为空！")
             return
+
+        neg_template_text = self.neg_template_editor.toPlainText().strip()
 
         extra_json = self.extra_payload_input.toPlainText().strip()
         if extra_json:
@@ -887,8 +960,11 @@ class MainWindow(QMainWindow):
         self.fetch_models_btn.setEnabled(False)
         self.save_template_btn.setEnabled(False)
         self.save_as_template_btn.setEnabled(False)
+        self.save_neg_template_btn.setEnabled(False)
+        self.save_as_neg_template_btn.setEnabled(False)
 
-        self.worker = WorkerThread(self.config, theme, template_text)
+        # 实例化 Worker 时传入反向模板文本
+        self.worker = WorkerThread(self.config, theme, template_text, neg_template_text)
         self.worker.log_signal.connect(self.append_log)
         self.worker.finished_signal.connect(self.on_workflow_finished)
         self.worker.start()
@@ -905,7 +981,8 @@ class MainWindow(QMainWindow):
         self.fetch_models_btn.setEnabled(True)
         self.save_template_btn.setEnabled(True)
         self.save_as_template_btn.setEnabled(True)
-
+        self.save_neg_template_btn.setEnabled(True)
+        self.save_as_neg_template_btn.setEnabled(True)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
