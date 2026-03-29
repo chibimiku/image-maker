@@ -109,7 +109,7 @@ class PromptCellWidget(QFrame):
 
     def generate_image(self):
         self.save_img_cfg()
-        img_base_url, img_key, model_name = self.get_img_config()
+        img_base_url, img_key, model_name, api_type = self.get_img_config()
         if not img_key:
             QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空！")
             return
@@ -126,7 +126,8 @@ class PromptCellWidget(QFrame):
             prompt=current_prompt,
             model_name=model_name,
             aspect_ratio=final_ar,
-            instructions=active_instructions
+            instructions=active_instructions,
+            api_type=api_type
         )
 
         self.img_thread.finish_signal.connect(self.on_image_finished)

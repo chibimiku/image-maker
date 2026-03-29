@@ -47,7 +47,7 @@ class AppWindow(QWidget):
         # 【Tab 1: 单图内容分析】
         self.single_analyzer_tab = SingleAnalyzerWidget(
             config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip()),
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
             ar_policy_getter_func=self.get_ar_policy_config   # 新增
@@ -66,7 +66,7 @@ class AppWindow(QWidget):
         # 【新增 Tab 3: 批量提示词与生图】
         self.prompt_generator_tab = PromptGeneratorWidget(
             config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip()),
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
             ar_policy_getter_func=self.get_ar_policy_config   # 新增
@@ -78,7 +78,7 @@ class AppWindow(QWidget):
         # 【新增 Tab 4: 批量图片分析】
         self.batch_analyzer_tab = BatchAnalyzerWidget(
             config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip()),
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
             ar_policy_getter_func=self.get_ar_policy_config
@@ -117,6 +117,15 @@ class AppWindow(QWidget):
         # 3.2 图片生成配置
         tab_image = QWidget()
         image_layout = QFormLayout()
+        
+        # API类型选择
+        self.api_type_combo = QComboBox()
+        self.api_type_combo.addItems(["whatup", "aigc2d"])
+        # 【优化】动态获取当前下拉框的默认选中值，无论列表怎么变都能保持同步
+        self._current_api_type = self.api_type_combo.currentText()
+        self.api_type_combo.currentTextChanged.connect(self.on_api_type_changed)
+        image_layout.addRow("API类型:", self.api_type_combo)
+        
         self.img_url_input = QLineEdit()
         image_layout.addRow("Base URL:", self.img_url_input)
         
@@ -160,12 +169,19 @@ class AppWindow(QWidget):
         self.img_retry_spin.setValue(1)         # 默认重试 1 次
         self.img_retry_spin.setSuffix(" 次")
         image_layout.addRow("失败重试次数:", self.img_retry_spin)
+        
+        # 生成图片分辨率
+        self.img_resolution_combo = QComboBox()
+        self.img_resolution_combo.addItems(["1K", "2K", "4K"])
+        self.img_resolution_combo.setCurrentText("1K")
+        image_layout.addRow("生成图片分辨率:", self.img_resolution_combo)
         # =======================================================
 
         # 变更后自动保存
         self.default_ar_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.override_ar_first_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.override_ar_second_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
+        self.img_resolution_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
 
 
         
@@ -255,34 +271,52 @@ class AppWindow(QWidget):
             try:
                 with open(CONFIG_IMAGE_FILE, "r", encoding="utf-8") as f:
                     config = json.load(f)
-                    self.img_url_input.setText(config.get("base_url", "https://api.whatai.cc/v1"))
-                    self.img_key_input.setText(config.get("api_key", ""))
-                    saved_model = config.get("model", "")
+                    # 读取当前API类型
+                    current_api = config.get("current_api", "whatup")
+
+                    # 【修改开始】阻断信号，避免初始化加载时触发保存，覆盖原有配置
+                    self.api_type_combo.blockSignals(True)
+                    self.api_type_combo.setCurrentText(current_api)
+                    self._current_api_type = current_api  # 同步状态
+                    self.api_type_combo.blockSignals(False)
+                    # 【修改结束】
+                    
+                    # 读取对应API的配置
+                    api_config = config.get("apis", {}).get(current_api, {})
+                    self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
+                    self.img_key_input.setText(api_config.get("api_key", ""))
+                    saved_model = api_config.get("model", "")
                     if saved_model:
                         if self.img_model_combo.findText(saved_model) == -1:
                             self.img_model_combo.addItem(saved_model)
                         self.img_model_combo.setCurrentText(saved_model)
-                    saved_default_ar = config.get("default_aspect_ratio", DEFAULT_ASPECT_RATIO)
+                    saved_default_ar = api_config.get("default_aspect_ratio", DEFAULT_ASPECT_RATIO)
                     if self.default_ar_combo.findText(saved_default_ar) == -1:
                         self.default_ar_combo.addItem(saved_default_ar)
                     self.default_ar_combo.setCurrentText(saved_default_ar)
 
-                    saved_first = config.get("override_aspect_ratio_first", "不覆盖(沿用原逻辑)")
+                    saved_first = api_config.get("override_aspect_ratio_first", "不覆盖(沿用原逻辑)")
                     if self.override_ar_first_combo.findText(saved_first) == -1:
                         self.override_ar_first_combo.addItem(saved_first)
                     self.override_ar_first_combo.setCurrentText(saved_first)
 
-                    saved_second = config.get("override_aspect_ratio_second", "不覆盖(沿用原逻辑)")
+                    saved_second = api_config.get("override_aspect_ratio_second", "不覆盖(沿用原逻辑)")
                     if self.override_ar_second_combo.findText(saved_second) == -1:
                         self.override_ar_second_combo.addItem(saved_second)
                     self.override_ar_second_combo.setCurrentText(saved_second)
 
                     # ================= 新增：读取超时与重试 =================
-                    saved_timeout = config.get("timeout", 120)
+                    saved_timeout = api_config.get("timeout", 120)
                     self.img_timeout_spin.setValue(saved_timeout)
                     
-                    saved_retries = config.get("max_retries", 1)
+                    saved_retries = api_config.get("max_retries", 1)
                     self.img_retry_spin.setValue(saved_retries)
+                    
+                    # 读取分辨率配置
+                    saved_resolution = api_config.get("resolution", "1K")
+                    if self.img_resolution_combo.findText(saved_resolution) == -1:
+                        self.img_resolution_combo.addItem(saved_resolution)
+                    self.img_resolution_combo.setCurrentText(saved_resolution)
                     # =====================================================
             except Exception as e:
                 print(f"加载 {CONFIG_IMAGE_FILE} 失败: {e}")
@@ -383,9 +417,101 @@ class AppWindow(QWidget):
             if not silent:
                 QMessageBox.warning(self, "失败", f"保存配置文件失败: {e}")
             
+    def on_api_type_changed(self, api_type):
+        """当API类型改变时，加载对应API的配置"""
+        # 1. 先保存当前界面的配置（此时会安全地存入 self._current_api_type 对应的旧节点）
+        self.save_image_config(silent=True)
+        
+        # 2. 【新增】更新跟踪变量为新的 API 类型
+        self._current_api_type = api_type
+        
+        # 3. 【新增】临时阻断会自动触发保存的控件信号，防止渲染新数据时引发大量错误覆盖
+        self.default_ar_combo.blockSignals(True)
+        self.override_ar_first_combo.blockSignals(True)
+        self.override_ar_second_combo.blockSignals(True)
+        self.img_resolution_combo.blockSignals(True)
+        
+        # 读取配置文件并更新界面
+        if os.path.exists(CONFIG_IMAGE_FILE):
+            try:
+                with open(CONFIG_IMAGE_FILE, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    
+                    # 读取对应API的配置
+                    api_config = config.get("apis", {}).get(api_type, {})
+                    
+                    # 根据API类型设置不同的默认base_url
+                    if api_type == "aigc2d":
+                        self.img_url_input.setText(api_config.get("base_url", ""))
+                    else:
+                        self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
+                    
+                    self.img_key_input.setText(api_config.get("api_key", ""))
+                    saved_model = api_config.get("model", "")
+                    if saved_model:
+                        if self.img_model_combo.findText(saved_model) == -1:
+                            self.img_model_combo.addItem(saved_model)
+                        self.img_model_combo.setCurrentText(saved_model)
+                    else:
+                        # 设置默认模型
+                        if api_type == "whatup":
+                            self.img_model_combo.setCurrentText("nano-banana-2")
+                        elif api_type == "aigc2d":
+                            self.img_model_combo.setCurrentText("")
+                    
+                    saved_default_ar = api_config.get("default_aspect_ratio", DEFAULT_ASPECT_RATIO)
+                    if self.default_ar_combo.findText(saved_default_ar) == -1:
+                        self.default_ar_combo.addItem(saved_default_ar)
+                    self.default_ar_combo.setCurrentText(saved_default_ar)
+
+                    saved_first = api_config.get("override_aspect_ratio_first", "不覆盖(沿用原逻辑)")
+                    if self.override_ar_first_combo.findText(saved_first) == -1:
+                        self.override_ar_first_combo.addItem(saved_first)
+                    self.override_ar_first_combo.setCurrentText(saved_first)
+
+                    saved_second = api_config.get("override_aspect_ratio_second", "不覆盖(沿用原逻辑)")
+                    if self.override_ar_second_combo.findText(saved_second) == -1:
+                        self.override_ar_second_combo.addItem(saved_second)
+                    self.override_ar_second_combo.setCurrentText(saved_second)
+
+                    # 读取超时与重试配置
+                    saved_timeout = api_config.get("timeout", 120)
+                    self.img_timeout_spin.setValue(saved_timeout)
+                    
+                    saved_retries = api_config.get("max_retries", 1)
+                    self.img_retry_spin.setValue(saved_retries)
+                    
+                    # 读取分辨率配置
+                    saved_resolution = api_config.get("resolution", "1K")
+                    if self.img_resolution_combo.findText(saved_resolution) == -1:
+                        self.img_resolution_combo.addItem(saved_resolution)
+                    self.img_resolution_combo.setCurrentText(saved_resolution)
+            except Exception as e:
+                print(f"加载 {CONFIG_IMAGE_FILE} 失败: {e}")
+
+        # 4. 【新增】界面数据加载完毕，恢复信号阻断
+        self.default_ar_combo.blockSignals(False)
+        self.override_ar_first_combo.blockSignals(False)
+        self.override_ar_second_combo.blockSignals(False)
+        self.img_resolution_combo.blockSignals(False)
+
     def save_image_config(self, silent=False):
-        config = {
-            "base_url": self.img_url_input.text().strip() or "https://api.whatai.cc/v1",
+        current_api_global = self.api_type_combo.currentText()
+        # 【新增】目标保存的API节点使用跟踪的变量，保障切换时数据存入旧节点
+        target_api_node = getattr(self, "_current_api_type", current_api_global)
+        
+        # 读取现有配置
+        existing_config = {}
+        if os.path.exists(CONFIG_IMAGE_FILE):
+            try:
+                with open(CONFIG_IMAGE_FILE, "r", encoding="utf-8") as f:
+                    existing_config = json.load(f)
+            except Exception:
+                pass
+        
+        # 更新配置
+        api_config = {
+            "base_url": self.img_url_input.text().strip() or "",
             "api_key": self.img_key_input.text().strip(),
             "model": self.img_model_combo.currentText().strip(),
             "default_aspect_ratio": self.default_ar_combo.currentText().strip() or DEFAULT_ASPECT_RATIO,
@@ -393,8 +519,15 @@ class AppWindow(QWidget):
             "override_aspect_ratio_second": self.override_ar_second_combo.currentText().strip() or "不覆盖(沿用原逻辑)",
             "timeout": self.img_timeout_spin.value(),
             "max_retries": self.img_retry_spin.value(),
-
+            "resolution": self.img_resolution_combo.currentText().strip() or "2K",
         }
+        
+        config = {
+            "current_api": current_api_global,
+            "apis": existing_config.get("apis", {})
+        }
+        # 【修改】将数据保存到正确的节点 target_api_node 下
+        config["apis"][target_api_node] = api_config
         try:
             with open(CONFIG_IMAGE_FILE, "w", encoding="utf-8") as f:
                 json.dump(config, f, ensure_ascii=False, indent=4)

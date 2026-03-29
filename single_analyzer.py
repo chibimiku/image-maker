@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 
-from api_backend import generate_image_whatai 
+from api_backend import generate_image_whatai, generate_image_aigc2d 
 
 system_prompt = """
 You are an expert image analyzer and illustrator assistant. 
@@ -63,7 +63,7 @@ def calculate_closest_aspect_ratio(image_source):
         print(f"计算长宽比失败: {e}")
         return "1:1" # 发生异常时默认返回 1:1
 
-def compress_and_encode_image(image_source, max_dim=2048):
+def compress_and_encode_image(image_source, max_dim=2048, log_callback=None):
     try:
         if isinstance(image_source, str):
             img = Image.open(image_source)
@@ -74,14 +74,20 @@ def compress_and_encode_image(image_source, max_dim=2048):
             img = img.convert('RGB')
         
         original_width, original_height = img.size
-        print(f"原始图片尺寸: {original_width}x{original_height}")
+        size_msg = f"原始图片尺寸: {original_width}x{original_height}"
+        if log_callback:
+            log_callback(size_msg)
+        print(size_msg)
 
         if max(original_width, original_height) > max_dim:
             scaling_factor = max_dim / max(original_width, original_height)
             new_width = int(original_width * scaling_factor)
             new_height = int(original_height * scaling_factor)
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            print(f"图片已成功压缩为: {new_width}x{new_height}")
+            resize_msg = f"图片已成功压缩为: {new_width}x{new_height}"
+            if log_callback:
+                log_callback(resize_msg)
+            print(resize_msg)
 
         buffered = io.BytesIO()
         img.save(buffered, format="JPEG", quality=100)
@@ -89,12 +95,18 @@ def compress_and_encode_image(image_source, max_dim=2048):
         return "image/jpeg", base64_string
 
     except Exception as e:
-        print(f"处理图片时发生错误: {e}")
+        error_msg = f"处理图片时发生错误: {e}"
+        if log_callback:
+            log_callback(error_msg)
+        print(error_msg)
         return None, None
 
-def step_1_analyze_image(image_source, client, model_name):
-    mime_type, base64_image = compress_and_encode_image(image_source)
-    if not base64_image: return None
+def step_1_analyze_image(image_source, client, model_name, log_callback=None):
+    mime_type, base64_image = compress_and_encode_image(image_source, log_callback=log_callback)
+    if not base64_image:
+        if log_callback:
+            log_callback("Step 1 失败: 图片压缩或编码失败")
+        return None
     try:
         response = client.chat.completions.create(
             model=model_name, 
@@ -116,7 +128,10 @@ def step_1_analyze_image(image_source, client, model_name):
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
-        print(f"Step 1 请求错误: {e}")
+        error_msg = f"Step 1 请求错误: {e}"
+        if log_callback:
+            log_callback(error_msg)
+        print(error_msg)
         return None
 
 def step_2_refine_description(original_json_data, client, model_name):
@@ -132,10 +147,10 @@ def step_2_refine_description(original_json_data, client, model_name):
     template = load_prompt_from_file(REFINE_DESC_PATH)
     
     # 安全替换占位符（避免 f-string 遇到 JSON 大括号报错）
-    refine_prompt = template.replace("[jp_title]", jp_title) \
-                            .replace("[cn_title]", cn_title) \
-                            .replace("[original_description]", original_description) \
-                            .replace("[tags_str]", tags_str)
+    refine_prompt = template.replace("{jp_title}", jp_title) \
+                            .replace("{cn_title}", cn_title) \
+                            .replace("{original_description}", original_description) \
+                            .replace("{tags_str}", tags_str)
     
     try:
         response = client.chat.completions.create(
@@ -175,7 +190,7 @@ class WorkerThread(QThread):
             return
 
         self.log_signal.emit(f"正在使用模型 [{self.model_name}] 开始 Step 1: 读取并压缩图片，发送 Vision 请求...")
-        initial_result = step_1_analyze_image(self.image_source, client, self.model_name)
+        initial_result = step_1_analyze_image(self.image_source, client, self.model_name, log_callback=self.log_signal.emit)
         
         if initial_result:
             self.log_signal.emit("Step 1 完成。初步结果已获取。")
@@ -194,24 +209,37 @@ class ImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(list)
 
-    def __init__(self, prompt, model_name, aspect_ratio, instructions):
+    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None):
         super().__init__()
         self.prompt = prompt
         self.model_name = model_name
         self.aspect_ratio = aspect_ratio
         self.instructions = instructions
+        self.api_type = api_type
 
     def run(self):
         self.log_signal.emit(f"\n🚀 开始请求生图 API (模型: {self.model_name})...")
         self.log_signal.emit("请耐心等待，这可能需要几十秒的时间...")
         try:
-            saved_files = generate_image_whatai(
-                prompt=self.prompt, 
-                image_paths=[],
-                model=self.model_name, 
-                aspect_ratio=self.aspect_ratio, 
-                instructions=self.instructions
-            )
+            # 根据api_type调用相应的生成函数
+            if self.api_type == "aigc2d":
+                saved_files = generate_image_aigc2d(
+                    prompt=self.prompt, 
+                    image_paths=[],
+                    model=self.model_name, 
+                    aspect_ratio=self.aspect_ratio, 
+                    instructions=self.instructions,
+                    api_type=self.api_type
+                )
+            else:
+                saved_files = generate_image_whatai(
+                    prompt=self.prompt, 
+                    image_paths=[],
+                    model=self.model_name, 
+                    aspect_ratio=self.aspect_ratio, 
+                    instructions=self.instructions,
+                    api_type=self.api_type
+                )
             self.finish_signal.emit(saved_files)
         except Exception as e:
             self.log_signal.emit(f"❌ 生图请求发生异常: {e}")
@@ -263,11 +291,14 @@ class SingleAnalyzerWidget(QWidget):
         auto_gen_layout.addWidget(self.auto_gen_ref_cb)
         layout.addLayout(auto_gen_layout)
 
+        # 画风选择
         style_select_layout = QHBoxLayout()
         style_select_layout.addWidget(QLabel("生成时使用的画风预设:"))
         self.main_style_combo = QComboBox()
         style_select_layout.addWidget(self.main_style_combo, stretch=1)
         layout.addLayout(style_select_layout)
+        
+
         
         gen_img_layout = QHBoxLayout()
         self.gen_orig_btn = QPushButton("② 生成图片 (基于 原始 提示词)")
@@ -463,7 +494,7 @@ class SingleAnalyzerWidget(QWidget):
     def trigger_image_generation(self, prompt_type):
         self.save_img_cfg()
         
-        img_base_url, img_key, model_name = self.get_img_config()
+        img_base_url, img_key, model_name, api_type = self.get_img_config()
         if not img_key:
             QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空，请检查【全局配置】。")
             return
@@ -484,7 +515,8 @@ class SingleAnalyzerWidget(QWidget):
             prompt=prompt_to_use,
             model_name=model_name,
             aspect_ratio=final_gen_ar,
-            instructions=active_instructions
+            instructions=active_instructions,
+            api_type=api_type
         )
 
         self._active_img_threads.append(img_thread)

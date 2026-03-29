@@ -314,7 +314,8 @@ class MainWindow(QMainWindow):
             "merge_system_prompt": True,
             "last_used_theme": "中秋主题少女", 
             "last_used_template": "",
-            "last_used_style": "galgame CG style, rococo aesthetic, high quality",
+            "last_used_style": "",
+            "last_used_style_key": "默认(无附加)",  # 新增：保存上次选择的风格键
             "sd_url": "http://127.0.0.1:7860",
             "generate_count": 3,
             "loop_count": 1,
@@ -408,8 +409,12 @@ class MainWindow(QMainWindow):
         self.theme_input.setPlaceholderText("例如：中秋主题少女、赛博朋克城市...")
         theme_style_layout.addRow("绘画主题 (必填):", self.theme_input)
         
-        self.style_input = QLineEdit(self.config.get("last_used_style"))
-        theme_style_layout.addRow("Prompt 风格预设:", self.style_input)
+        # 改为下拉菜单
+        self.style_combo = QComboBox()
+        self.style_combo.setMinimumWidth(200)
+        theme_style_layout.addRow("Prompt 风格预设:", self.style_combo)
+        # 加载风格选项
+        self.load_style_options()
         task_layout.addLayout(theme_style_layout)
 
         template_ctrl_layout = QHBoxLayout()
@@ -797,6 +802,37 @@ class MainWindow(QMainWindow):
         scrollbar.setValue(scrollbar.maximum())
 
     # ---------- 核心修改点：保存配置时记录主题和模板 ----------
+    def load_style_options(self):
+        """加载风格选项从 config-styles.json"""
+        styles_file = "config-styles.json"
+        self.style_options = {}
+        
+        try:
+            if os.path.exists(styles_file):
+                with open(styles_file, 'r', encoding='utf-8') as f:
+                    self.style_options = json.load(f)
+            else:
+                # 如果文件不存在，使用默认风格
+                self.style_options = {"默认(无附加)": ""}
+        except Exception as e:
+            print(f"加载风格文件失败: {e}")
+            self.style_options = {"默认(无附加)": ""}
+        
+        # 清空并添加风格选项
+        self.style_combo.blockSignals(True)
+        self.style_combo.clear()
+        self.style_combo.addItems(list(self.style_options.keys()))
+        
+        # 尝试恢复上次选择的风格
+        last_style_key = self.config.get("last_used_style_key")
+        if last_style_key in self.style_options:
+            self.style_combo.setCurrentText(last_style_key)
+        else:
+            # 容错：如果上次选择的风格不存在，选择默认选项
+            self.style_combo.setCurrentText("默认(无附加)")
+        
+        self.style_combo.blockSignals(False)
+    
     def update_config_from_ui(self):
         self.config["base_url"] = self.url_input.text().strip()
         self.config["api_key"] = self.key_input.text().strip()
@@ -804,7 +840,11 @@ class MainWindow(QMainWindow):
         
         self.config["last_used_theme"] = self.theme_input.text().strip() # 记录主题
         self.config["last_used_template"] = self.template_combo.currentText() # 记录模板
-        self.config["last_used_style"] = self.style_input.text().strip()
+        
+        # 记录选择的风格键和对应的值
+        selected_style_key = self.style_combo.currentText()
+        self.config["last_used_style_key"] = selected_style_key
+        self.config["last_used_style"] = self.style_options.get(selected_style_key, "")
         
         self.config["sd_url"] = self.sd_url_input.text().strip()
         self.config["generate_count"] = self.count_input.value()

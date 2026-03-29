@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabe
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 from single_analyzer import step_1_analyze_image, step_2_refine_description, calculate_closest_aspect_ratio, WorkerThread, ImageGenWorkerThread
-from api_backend import generate_image_whatai
+from api_backend import generate_image_whatai, generate_image_aigc2d
 
 class BatchAnalyzerWidget(QWidget):
     def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
@@ -78,6 +78,8 @@ class BatchAnalyzerWidget(QWidget):
         self.main_style_combo = QComboBox()
         style_select_layout.addWidget(self.main_style_combo, stretch=1)
         options_layout.addLayout(style_select_layout)
+        
+
         
         layout.addLayout(options_layout)
         
@@ -302,7 +304,7 @@ class BatchAnalyzerWidget(QWidget):
     def generate_images(self, result_json):
         self.save_img_cfg()
         
-        img_base_url, img_key, model_name = self.get_img_config()
+        img_base_url, img_key, model_name, api_type = self.get_img_config()
         if not img_key:
             self.log_msg("⚠️ 生图 API Key 为空，跳过图片生成")
             return
@@ -324,7 +326,8 @@ class BatchAnalyzerWidget(QWidget):
                     prompt=orig_desc,
                     model_name=model_name,
                     aspect_ratio=final_gen_ar,
-                    instructions=active_instructions
+                    instructions=active_instructions,
+                    api_type=api_type
                 )
                 img_thread.log_signal.connect(self.log_msg)
                 img_thread.finish_signal.connect(lambda files: self.on_image_generation_finished(files, "original"))
@@ -340,7 +343,8 @@ class BatchAnalyzerWidget(QWidget):
                     prompt=refine_desc,
                     model_name=model_name,
                     aspect_ratio=final_gen_ar,
-                    instructions=active_instructions
+                    instructions=active_instructions,
+                    api_type=api_type
                 )
                 img_thread.log_signal.connect(self.log_msg)
                 img_thread.finish_signal.connect(lambda files: self.on_image_generation_finished(files, "refined"))

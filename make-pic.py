@@ -18,7 +18,7 @@ from PyQt5.QtGui import QPixmap, QIcon, QImage
 
 from PIL import Image
 # 导入我们独立出去的 API 请求模块
-from api_backend import generate_image_whatai, load_config
+from api_backend import generate_image_whatai, generate_image_aigc2d, get_api_config, load_config
 
 # ================== 初始化目录与日志 ==================
 os.makedirs("log", exist_ok=True)
@@ -122,18 +122,26 @@ class APIConfigDialog(QDialog):
     def load_config(self):
         if os.path.exists(CONFIG_PATH):
             data = load_config(CONFIG_PATH)
-            self.api_key_input.setText(data.get("api_key", ""))
-            self.base_url_input.setText(data.get("base_url", ""))
-            current_model = data.get("model", "gemini-3.1-flash-image-preview-2k")
+            current_api = data.get("current_api", "whatup")
+            api_config = data.get("apis", {}).get(current_api, {})
+            self.api_key_input.setText(api_config.get("api_key", ""))
+            self.base_url_input.setText(api_config.get("base_url", ""))
+            current_model = api_config.get("model", "gemini-3.1-flash-image-preview-2k")
             self.model_combo.addItem(current_model)
             self.model_combo.setCurrentText(current_model)
 
     def save_config(self):
         data = load_config(CONFIG_PATH) if os.path.exists(CONFIG_PATH) else {}
-        data.update({
+        current_api = data.get("current_api", "whatup")
+        api_config = data.get("apis", {})
+        api_config[current_api] = {
             "api_key": self.api_key_input.text().strip(),
             "base_url": self.base_url_input.text().strip(),
             "model": self.model_combo.currentText().strip()
+        }
+        data.update({
+            "current_api": current_api,
+            "apis": api_config
         })
         try:
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
@@ -672,15 +680,29 @@ class CyberNikiTab(QWidget):
             logging.info("--------------------------------")
 
             config = load_config(CONFIG_PATH)
-            model_name = config.get("model", "nano-banana-2")
+            current_api = config.get("current_api", "whatup")
+            api_config = config.get("apis", {}).get(current_api, {})
+            model_name = api_config.get("model", "nano-banana-2")
             
-            saved_files = generate_image_whatai(
-                prompt=text_prompt,
-                image_paths=image_paths,
-                model=model_name,
-                aspect_ratio=aspect_ratio,
-                instructions=instructions  
-            )
+            # 根据API类型调用相应的生成函数
+            if current_api == "aigc2d":
+                saved_files = generate_image_aigc2d(
+                    prompt=text_prompt,
+                    image_paths=image_paths,
+                    model=model_name,
+                    aspect_ratio=aspect_ratio,
+                    instructions=instructions,
+                    api_type=current_api
+                )
+            else:
+                saved_files = generate_image_whatai(
+                    prompt=text_prompt,
+                    image_paths=image_paths,
+                    model=model_name,
+                    aspect_ratio=aspect_ratio,
+                    instructions=instructions,
+                    api_type=current_api  
+                )
 
             if saved_files: 
                 self.update_preview_image(saved_files[0])
@@ -734,9 +756,19 @@ class ImageGeneratorGUI(QWidget):
     def ensure_config_exists(self):
         if not os.path.exists(CONFIG_PATH):
             default_config = {
-                "api_key": "",
-                "base_url": "https://api.whatai.cc/v1",
-                "model": "gemini-3.1-flash-image-preview-2k"
+                "current_api": "whatup",
+                "apis": {
+                    "whatup": {
+                        "api_key": "",
+                        "base_url": "https://api.whatai.cc/v1",
+                        "model": "gemini-3.1-flash-image-preview-2k"
+                    },
+                    "aigc2d": {
+                        "api_key": "",
+                        "base_url": "",
+                        "model": ""
+                    }
+                }
             }
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, indent=4)
