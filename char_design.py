@@ -176,6 +176,7 @@ class CharDesignWorker(QRunnable):
             full_prompt = self.task_info['full_prompt']
             image_paths = self.task_info['image_paths']
             save_dir = self.task_info['save_dir']
+            resolution = self.task_info.get('resolution', '默认')
             
             if api_type == "aigc2d":
                 saved_files = generate_image_aigc2d(
@@ -186,7 +187,8 @@ class CharDesignWorker(QRunnable):
                     instructions="", # Style is already in full_prompt
                     api_type=api_type,
                     save_sub_dir=save_dir,
-                    file_prefix=prompt_item.get('id', '')
+                    file_prefix=prompt_item.get('id', ''),
+                    resolution=resolution if resolution != "默认" else None
                 )
             else:
                 saved_files = generate_image_whatai(
@@ -197,7 +199,8 @@ class CharDesignWorker(QRunnable):
                     instructions="",
                     api_type=api_type,
                     save_sub_dir=save_dir,
-                    file_prefix=prompt_item.get('id', '')
+                    file_prefix=prompt_item.get('id', ''),
+                    resolution=resolution if resolution != "默认" else None
                 )
             
             if not saved_files:
@@ -256,6 +259,11 @@ class CharDesignWidget(QWidget):
         self.thread_spin.setValue(3)
         top_layout.addWidget(self.thread_spin)
         
+        top_layout.addWidget(QLabel("强制分辨率:"))
+        self.resolution_combo = QComboBox()
+        self.resolution_combo.addItems(["默认", "1K", "2K", "4K"])
+        top_layout.addWidget(self.resolution_combo)
+        
         layout.addLayout(top_layout)
         
         splitter = QSplitter(Qt.Horizontal)
@@ -297,7 +305,19 @@ class CharDesignWidget(QWidget):
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         
+        # 添加全选和全不选按钮
+        select_buttons_layout = QHBoxLayout()
         right_layout.addWidget(QLabel("任务列表:"))
+        self.select_all_btn = QPushButton("全选")
+        self.select_all_btn.clicked.connect(self.select_all_tasks)
+        select_buttons_layout.addWidget(self.select_all_btn)
+        
+        self.deselect_all_btn = QPushButton("全不选")
+        self.deselect_all_btn.clicked.connect(self.deselect_all_tasks)
+        select_buttons_layout.addWidget(self.deselect_all_btn)
+        
+        right_layout.addLayout(select_buttons_layout)
+        
         self.task_list_widget = QListWidget()
         right_layout.addWidget(self.task_list_widget)
         
@@ -452,15 +472,13 @@ class CharDesignWidget(QWidget):
             self.start_btn.setEnabled(True)
             return
         
-        # If resuming, we only add tasks that are checked and not already successful
+        # 处理选中的任务，包括已完成的任务
         tasks_to_run = []
         for idx, (list_idx, p_item) in enumerate(selected_prompts):
-            task_id = f"{self.current_batch_id}_{list_idx}"
+            # 生成新的任务ID，包含时间戳以避免覆盖
+            timestamp = datetime.now().strftime("%H%M%S")
+            task_id = f"{self.current_batch_id}_{list_idx}_{timestamp}"
             
-            # Skip if resuming and task was already successful
-            if is_resume and task_id in self.results and self.results[task_id]['status'] == 'success':
-                continue
-                
             full_prompt = f"{style_instructions}\n{common_prompt}\n{p_item.get('prompt', '')}".strip()
             task_info = {
                 'task_id': task_id,
@@ -469,16 +487,12 @@ class CharDesignWidget(QWidget):
                 'image_paths': all_image_paths,
                 'save_dir': self.current_save_dir,
                 'status': 'pending',
-                'list_idx': list_idx # Store list index to update color later
+                'list_idx': list_idx, # Store list index to update color later
+                'resolution': self.resolution_combo.currentText()
             }
             
-            # Update or add to global tasks/results
-            existing_task_idx = next((i for i, t in enumerate(self.tasks) if t['task_id'] == task_id), -1)
-            if existing_task_idx >= 0:
-                self.tasks[existing_task_idx] = task_info
-            else:
-                self.tasks.append(task_info)
-                
+            # 添加到全局 tasks/results
+            self.tasks.append(task_info)
             self.results[task_id] = task_info
             tasks_to_run.append(task_info)
 
@@ -539,6 +553,7 @@ class CharDesignWidget(QWidget):
         
         for task in failed_tasks:
             task['status'] = 'pending'
+            task['resolution'] = self.resolution_combo.currentText()
             worker = CharDesignWorker(task, self.config_getter_func, self.img_config_getter_func, lambda: self.is_stopped)
             worker.signals.finished.connect(self.on_task_finished)
             worker.signals.error.connect(self.on_task_error)
@@ -595,3 +610,15 @@ class CharDesignWidget(QWidget):
             has_errors = any(t['status'] == 'error' for t in self.results.values())
             self.retry_btn.setEnabled(has_errors)
             self.log_msg("当前批次任务处理完毕！" + ("有失败任务可重试。" if has_errors else ""))
+    
+    def select_all_tasks(self):
+        """全选所有任务"""
+        for i in range(self.task_list_widget.count()):
+            item = self.task_list_widget.item(i)
+            item.setCheckState(Qt.Checked)
+    
+    def deselect_all_tasks(self):
+        """全不选所有任务"""
+        for i in range(self.task_list_widget.count()):
+            item = self.task_list_widget.item(i)
+            item.setCheckState(Qt.Unchecked)
