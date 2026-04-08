@@ -53,7 +53,7 @@ def to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None) -> list:
+def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None) -> list:
     """
     独立出来的图片生成核心逻辑
     """
@@ -146,7 +146,10 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         return []
 
     today_str = datetime.now().strftime("%Y%m%d")
-    save_dir = os.path.join("data", today_str)
+    if save_sub_dir:
+        save_dir = os.path.join("data", today_str, save_sub_dir)
+    else:
+        save_dir = os.path.join("data", today_str)
     os.makedirs(save_dir, exist_ok=True)
     saved_files = []
     
@@ -169,7 +172,8 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
                 ext = ".gif"
             
             # 使用识别出的正确后缀保存文件
-            file_name = f"output_{datetime.now().strftime('%H%M%S')}_{idx}_{uuid.uuid4().hex[:6]}{ext}"
+            prefix = f"{file_prefix}_" if file_prefix else ""
+            file_name = f"{prefix}output_{datetime.now().strftime('%H%M%S')}_{idx}_{uuid.uuid4().hex[:6]}{ext}"
             file_path = os.path.join(save_dir, file_name)
             
             with open(file_path, "wb") as f:
@@ -310,7 +314,7 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
             logger.error(f"服务器返回信息: {resp.text}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None) -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None) -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
     入参跟 generate_image_whatai 保持完全一致
@@ -420,7 +424,10 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
 
     # 提取图片并保存
     today_str = datetime.now().strftime("%Y%m%d")
-    save_dir = os.path.join("data", today_str)
+    if save_sub_dir:
+        save_dir = os.path.join("data", today_str, save_sub_dir)
+    else:
+        save_dir = os.path.join("data", today_str)
     os.makedirs(save_dir, exist_ok=True)
     saved_files = []
 
@@ -444,10 +451,11 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                     "image/webp": ".webp",
                 }.get(mime_type, ".png")
 
-                # 生成形如：142305-a1b2c3.png 的文件名
+                # 生成形如：P01_142305-a1b2c3.png 的文件名
                 time_str = datetime.now().strftime('%H%M%S')
                 random_str = uuid.uuid4().hex[:6]
-                file_name = f"{time_str}-{random_str}{ext}"
+                prefix = f"{file_prefix}_" if file_prefix else ""
+                file_name = f"{prefix}{time_str}-{random_str}{ext}"
                 file_path = os.path.join(save_dir, file_name)
 
                 try:

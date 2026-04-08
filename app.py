@@ -13,6 +13,10 @@ from single_analyzer import SingleAnalyzerWidget
 from prompt_generator import PromptGeneratorWidget
 # 【新增】引入批量图片分析组件
 from batch_analyzer import BatchAnalyzerWidget
+# 【新增】引入图片编辑组件
+from image_edit import ImageEditWidget
+# 【新增】引入角色设计组件
+from char_design import CharDesignWidget
 
 CONFIG_FILE = "config.json"
 CONFIG_IMAGE_FILE = "config-image.json"
@@ -87,7 +91,25 @@ class AppWindow(QWidget):
         self.batch_analyzer_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         self.main_tabs.addTab(self.batch_analyzer_tab, "批量图片分析")
 
-        # 【Tab 5: 全局配置】
+        # 【新增 Tab 5: 批量图片编辑】
+        self.image_edit_tab = ImageEditWidget(
+            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            styles_getter_func=lambda: self.styles_data
+        )
+        self.image_edit_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
+        self.main_tabs.addTab(self.image_edit_tab, "批量图片编辑")
+
+        # 【新增 Tab 6: 角色设计生成】
+        self.char_design_tab = CharDesignWidget(
+            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            styles_getter_func=lambda: self.styles_data
+        )
+        self.char_design_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
+        self.main_tabs.addTab(self.char_design_tab, "角色设计生成")
+
+        # 【Tab 7: 全局配置】
         self.config_tabs = QTabWidget()
         
         # 3.1 文本分析配置
@@ -231,7 +253,7 @@ class AppWindow(QWidget):
         self.last_used_style = style_name
         
         # 阻断信号避免死循环
-        for combo in [self.single_analyzer_tab.main_style_combo, self.prompt_generator_tab.main_style_combo, self.batch_analyzer_tab.main_style_combo]:
+        for combo in [self.single_analyzer_tab.main_style_combo, self.prompt_generator_tab.main_style_combo, self.batch_analyzer_tab.main_style_combo, self.image_edit_tab.main_style_combo, self.char_design_tab.main_style_combo]:
             if combo.currentText() != style_name:
                 combo.blockSignals(True)
                 combo.setCurrentText(style_name)
@@ -360,6 +382,16 @@ class AppWindow(QWidget):
             self.batch_analyzer_tab.update_styles(keys)
             if self.last_used_style in keys:
                 self.batch_analyzer_tab.main_style_combo.setCurrentText(self.last_used_style)
+                
+        if hasattr(self, 'image_edit_tab'):
+            self.image_edit_tab.update_styles(keys)
+            if self.last_used_style in keys:
+                self.image_edit_tab.main_style_combo.setCurrentText(self.last_used_style)
+                
+        if hasattr(self, 'char_design_tab'):
+            self.char_design_tab.update_styles(keys)
+            if self.last_used_style in keys:
+                self.char_design_tab.main_style_combo.setCurrentText(self.last_used_style)
 
     def on_manage_style_changed(self, style_name):
         if style_name in self.styles_data:

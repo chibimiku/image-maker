@@ -74,9 +74,10 @@ Based ONLY on the commonalities (80%+ agreement) across the provided dataset, me
    - Describe hair texture, grouping of strands, and volume.
    - Detail the lighting on hair (e.g., halo highlights, specular bands), coloring techniques (gradients, ambient color reflection), and how the hair ends are treated.
 
-7. Materials, Clothing & Textures:
+7. Materials, Clothing, Accessories & Textures:
    - Describe how common materials are rendered (e.g., the specific sheen of leather, the softness of fabric, the intricacy of lace).
    - Note recurring textural treatments (e.g., canvas grain overlays, digital noise, smooth airbrushing) and specific clothing details found across the dataset.
+   - Detail the specific style, design patterns, and rendering of shoes, socks, and various accessories (e.g., jewelry, hair ornaments, belts).
 
 Output ONLY the raw English text block, ready to be copied and pasted. 
 Do NOT use Markdown formatting (do not wrap in ```text or ```). 

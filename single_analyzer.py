@@ -200,6 +200,25 @@ class WorkerThread(QThread):
             # 【修改】强制将本地计算好的长宽比注入到大模型的返回结果中
             if final_result:
                 final_result["aspect_ratio"] = calculate_closest_aspect_ratio(self.image_source)
+                
+                # 【新增】保存第一次和第二次的 pixiv tags，并计算交集
+                initial_tags = initial_result.get("pixiv_tags", [])
+                refined_tags = final_result.get("pixiv_tags", [])
+                
+                # 保存原始两次的 tags
+                final_result["pixiv_tags_first"] = initial_tags
+                final_result["pixiv_tags_second"] = refined_tags
+                
+                # 计算交集
+                if initial_tags and refined_tags:
+                    initial_tags_lower = [tag.lower() for tag in initial_tags]
+                    intersection_tags = []
+                    for tag in refined_tags:
+                        if tag.lower() in initial_tags_lower:
+                            intersection_tags.append(tag)
+                    # 如果交集为空，则使用 refined_tags
+                    final_result["pixiv_tags"] = intersection_tags if intersection_tags else refined_tags
+            
             self.finish_signal.emit(final_result if final_result else {})
         else:
             self.log_signal.emit("Step 1 失败，流程终止。")
@@ -295,7 +314,15 @@ class SingleAnalyzerWidget(QWidget):
         style_select_layout = QHBoxLayout()
         style_select_layout.addWidget(QLabel("生成时使用的画风预设:"))
         self.main_style_combo = QComboBox()
-        style_select_layout.addWidget(self.main_style_combo, stretch=1)
+        self.main_style_combo.setMaximumWidth(200)
+        style_select_layout.addWidget(self.main_style_combo)
+        
+        self.reload_styles_btn = QPushButton("🔄 重新加载配置")
+        self.reload_styles_btn.setFixedWidth(120)
+        self.reload_styles_btn.clicked.connect(self.reload_styles)
+        style_select_layout.addWidget(self.reload_styles_btn)
+        
+        style_select_layout.addStretch()
         layout.addLayout(style_select_layout)
         
 
@@ -355,6 +382,19 @@ class SingleAnalyzerWidget(QWidget):
         if curr_main in style_keys:
             self.main_style_combo.setCurrentText(curr_main)
         self.main_style_combo.blockSignals(False)
+
+    def reload_styles(self):
+        """重新加载 config-styles.json 配置文件"""
+        try:
+            import json
+            config_path = os.path.join(os.path.dirname(__file__), 'config-styles.json')
+            with open(config_path, 'r', encoding='utf-8') as f:
+                styles_data = json.load(f)
+            style_keys = list(styles_data.keys())
+            self.update_styles(style_keys)
+            self.log_msg(f"✅ 已重新加载配置文件，共 {len(style_keys)} 个画风预设")
+        except Exception as e:
+            self.log_msg(f"❌ 重新加载配置文件失败: {e}")
 
     def mousePressEvent(self, event):
         self.setFocus()

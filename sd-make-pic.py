@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import QThread, pyqtSignal
 import traceback
 from api_backend import fetch_llm_json, fetch_cohere_json
+from tag_completer import TagAutocompleteManager
 
 CONFIG_FILE = "config-sd.json"
 PROMPTS_DIR = "data/prompts"
@@ -225,7 +226,7 @@ class WorkerThread(QThread):
         fixed_prompt = self.config.get("fixed_prompt", "").strip()
         
         # 4. 组装最终的正向提示词 (自动过滤掉空字符串)
-        prompt_parts = [p for p in [llm_prompt, style_prompt, fixed_prompt] if p]
+        prompt_parts = [p for p in [fixed_prompt, llm_prompt, style_prompt] if p]
         final_prompt = ", ".join(prompt_parts)
         
         # 将界面传进来的独立反向模板内容作为基础
@@ -283,7 +284,10 @@ class WorkerThread(QThread):
             for idx, img_b64 in enumerate(images_base64):
                 img_data = base64.b64decode(img_b64)
                 timestamp = int(time.time())
-                filename = os.path.join(OUTPUT_DIR, f"gen_{timestamp}_{idx}.png")
+                date_str = time.strftime("%Y%m%d")
+                output_dir = os.path.join("data", date_str, "sdmake")
+                os.makedirs(output_dir, exist_ok=True)
+                filename = os.path.join(output_dir, f"gen_{timestamp}_{idx}.png")
                 with open(filename, "wb") as img_file:
                     img_file.write(img_data)
                 self.log_signal.emit(f"图片已保存至: {filename}")
@@ -334,6 +338,8 @@ class MainWindow(QMainWindow):
             }
         }
         self.worker = None
+        
+        self.tag_manager = TagAutocompleteManager()
         
         self.load_config()
         if "sd_config_groups" not in self.config:
@@ -589,6 +595,10 @@ class MainWindow(QMainWindow):
         self.log_area = QTextEdit()
         self.log_area.setReadOnly(True)
         main_layout.addWidget(self.log_area)
+        
+        # === 5. 初始化自动补全 ===
+        self.template_editor_completer = self.tag_manager.setup_text_edit(self.template_editor)
+        self.fixed_prompt_completer = self.tag_manager.setup_line_edit(self.fixed_prompt_input)
 
     def closeEvent(self, event):
         self.update_config_from_ui()
@@ -642,10 +652,12 @@ class MainWindow(QMainWindow):
         self.cfg_input.setValue(settings.get("cfg_scale", 7.0))
 
         for i in reversed(range(self.vae_inputs_container.count())):
-            widget = self.vae_inputs_container.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
-                widget.deleteLater()
+            layout_item = self.vae_inputs_container.itemAt(i)
+            if layout_item is not None:
+                widget = layout_item.widget()
+                if widget is not None:
+                    widget.setParent(None)
+                    widget.deleteLater()
         self.vae_inputs_list.clear()
 
         sd_vaes = settings.get("sd_vae", [])
@@ -876,7 +888,8 @@ class MainWindow(QMainWindow):
         timestamp = time.strftime('%H:%M:%S')
         self.log_area.append(f"[{timestamp}] {text}")
         scrollbar = self.log_area.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        if scrollbar is not None:
+            scrollbar.setValue(scrollbar.maximum())
 
     def load_style_options(self):
         styles_file = "config-styles.json"
