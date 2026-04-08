@@ -2,7 +2,7 @@
   "common_prompt": {
     "id": "COMMON",
     "description": "公共Prompt，用于所有角色生成（纯白背景版）。",
-    "prompt": "请使用提供的四张参考图片来确定人物外观和一致性：第一张为角色头像（面部与表情参考），第二张为角色正面视图（服装和体态结构），第三张为侧面视图（身体比例与造型结构），第四张为背面视图（背部服饰和整体比例）。生成新的图像时请严格保持这些视觉特征一致，不改变人物外观，仅在人物动作、姿态、构图、角度等方面进行多样化变化。所有画面必须使用纯白背景（pure white background），去除任何环境与背景元素，集中展现角色本身的形态。输出画面需要清晰、构图协调、光照均匀且风格保持一致，可用于形成稳定的角色形象训练素材。"
+    "prompt": "请使用提供的四张参考图片来确定人物外观和一致性：第一张为角色头像（面部与表情参考），第二张为角色正面视图（服装和体态结构），第三张为侧面视图（身体比例与造型结构），第四张为背面视图（背部服饰和整体比例）。生成新的图像时请严格保持这些视觉特征一致，不改变人物外观，仅在人物动作、姿态、构图、角度等方面进行多样化变化。所有画面必须使用纯白背景（pure white background），去除任何环境与背景元素，集中展现角色本身的形态。去除画面中添加的蝴蝶、水滴等漂浮、装饰、遮挡元素，只保留人物和服装。输出画面需要清晰、构图协调、光照均匀且风格保持一致，可用于形成稳定的角色形象训练素材。"
   },
 
   "specialized_prompts": [
@@ -233,6 +233,216 @@
     { "id": "P93", "category": "misc", "description": "双腿蜷缩的悬空漂浮姿态。", "prompt": "floating seated composition, knees pulled up in mid-air zero gravity pose, pure white background, isolated on white", "aspect_ratio": "9:16" },
     { "id": "P94", "category": "misc", "description": "深度弯腰，双手触碰脚尖。", "prompt": "bending torso fully forward, hands touching toes, side view flexibility, pure white background, isolated on white", "aspect_ratio": "3:4" },
     { "id": "P95", "category": "misc", "description": "猛然转身的动态半身动作。", "prompt": "rapid turning torso twisting action, arms swinging with momentum, pure white background, isolated on white", "aspect_ratio": "4:5" },
-    { "id": "P96", "category": "misc", "description": "单脚跪地，双手撑地的起跑动作。", "prompt": "one knee on the ground, both hands pushing off the invisible floor in a sprinter start, pure white background, isolated on white", "aspect_ratio": "1:1" }
+    { "id": "P96", "category": "misc", "description": "单脚跪地，双手撑地的起跑动作。", "prompt": "one knee on the ground, both hands pushing off the invisible floor in a sprinter start, pure white background, isolated on white", "aspect_ratio": "1:1" },
+    {
+    "id": "P97",
+    "category": "extreme_action",
+    "description": "贴地滑铲动作，身体几乎与地面平行。",
+    "prompt": "sliding tackle motion close to ground, body almost horizontal, dynamic perspective, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P98",
+    "category": "reclining_pose",
+    "description": "趴在地上，双手托腮翘起双脚的悠闲姿态。",
+    "prompt": "lying on stomach, resting chin on hands, calves raised playfully, relaxed horizontal posture, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P99",
+    "category": "extreme_action",
+    "description": "极限后仰躲避姿势，上半身几乎与腿部垂直（如矩阵躲闪）。",
+    "prompt": "extreme backbend dodge pose, matrix style leaning back deeply, dynamic tension, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P100",
+    "category": "acrobatic",
+    "description": "侧身飞檐走壁的墙上奔跑姿态，抵抗重力感。",
+    "prompt": "wall-running sideways mid-air pose, defying gravity horizontal action, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P101",
+    "category": "acrobatic",
+    "description": "单手撑起身体，翻越隐形障碍物的横向跑酷动作。",
+    "prompt": "vaulting over invisible obstacle, one hand planted, legs swinging over horizontally, parkour motion, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P102",
+    "category": "stealth",
+    "description": "匍匐前进，贴近地面潜行的战术姿势。",
+    "prompt": "tactical crawling on the ground, stealthy movement, elbows and knees low horizontally, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P103",
+    "category": "acrobatic",
+    "description": "街舞大风车旋转，双手撑地双腿在空中横向张开。",
+    "prompt": "breakdancing windmill flare motion, hands supporting body weight, legs spinning wide in mid-air horizontally, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P104",
+    "category": "environment_interaction",
+    "description": "狂风中艰难前行，身体极度前倾伸手阻挡风沙感。",
+    "prompt": "walking against strong wind, body leaning heavily forward horizontally, arm raised to shield face, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P105",
+    "category": "sports_action",
+    "description": "侧身冲浪或滑板压低重心的极限滑行姿态。",
+    "prompt": "surfing or skateboarding extremely low stance, sideways orientation, arms spread for balance, dynamic horizontal action, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P106",
+    "category": "interaction",
+    "description": "身体极度后倾，双手水平用力拖拽身后的重物。",
+    "prompt": "dragging heavy object horizontally, leaning far back, both hands pulling backward tightly, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P107",
+    "category": "extreme_action",
+    "description": "双膝跪地长距离滑行的激情庆祝动作（如摇滚乐手或球员）。",
+    "prompt": "dramatic sliding on knees celebration, leaning back far, wide horizontal composition, energetic mood, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P108",
+    "category": "reclining_pose",
+    "description": "侧躺并紧紧蜷缩成婴儿般的防卫姿态。",
+    "prompt": "curled up tightly in fetal position lying on side, self-soothing horizontal posture, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P109",
+    "category": "fantasy_action",
+    "description": "双手水平向两侧极度张开，释放广域魔法或能量的姿势。",
+    "prompt": "sweeping both arms horizontally extremely wide open, casting wide-area magic spell, dynamic horizontal energy flow, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P110",
+    "category": "interaction",
+    "description": "拔河式的横向向后拉扯姿态，双脚死死蹬住地面。",
+    "prompt": "tug-of-war pulling stance, feet planted forward, pulling an invisible rope sideways, extreme horizontal tension, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P111",
+    "category": "extreme_action",
+    "description": "身体完全平展的横向向前飞扑跳水动作。",
+    "prompt": "diving forward completely flat horizontally in mid-air, arms pointed ahead, full extension, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P112",
+    "category": "reclining_pose",
+    "description": "平躺在地上，双腿在空中交叉踢踏的轻松姿态。",
+    "prompt": "lying flat on back completely horizontal, legs kicked up and playfully crossing in the air, relaxing mood, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P113",
+    "category": "combat_action",
+    "description": "重心极低、贴近地面的扫堂腿宽广横向攻击姿势。",
+    "prompt": "extreme low sweeping leg attack, martial arts wide horizontal combat stance, ground-level action, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P114",
+    "category": "acrobatic",
+    "description": "后空翻在空中身体完全倒立并水平伸展的定格瞬间。",
+    "prompt": "backflip mid-air horizontal freeze frame, body fully upside down and stretched horizontally, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P115",
+    "category": "environment_interaction",
+    "description": "失去平衡，身体僵硬向侧边完全倒下的瞬间抓拍。",
+    "prompt": "falling over sideways completely losing balance, stiff body tipping over horizontally, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P116",
+    "category": "interaction",
+    "description": "横向张开双臂，奋力向前侧方扑救即将落地的无形物品。",
+    "prompt": "lunging forward sideways horizontally to catch a falling object, arms outstretched wide, dramatic rescue motion, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P117",
+    "category": "expression",
+    "description": "极度愤怒的咆哮，双拳紧握在胸前，充满压迫感的宽画幅半身像。",
+    "prompt": "extreme anger roaring expression, clenched fists tight near chest, intense intimidating half body, cinematic horizontal frame, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P118",
+    "category": "expression",
+    "description": "极度惊恐害怕，双眼圆睁瞳孔颤抖，身体后倾并用手臂下意识阻挡。",
+    "prompt": "terrified horror expression, wide trembling eyes, leaning back defensively with arm raised to shield face, fearful mood, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P119",
+    "category": "expression",
+    "description": "傲慢且充满嘲讽的冷笑，下巴微抬，眼神轻蔑地向下看。",
+    "prompt": "smug arrogant smirk, chin tilted up proudly, looking down with a condescending and mocking gaze, horizontal portrait, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P120",
+    "category": "expression",
+    "description": "如释重负地长叹一口气，闭着眼睛，用手背擦拭额头的汗水。",
+    "prompt": "sighing in relief expression, eyes closed peacefully, wiping imaginary sweat from forehead with back of hand, relaxed horizontal shot, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P121",
+    "category": "expression",
+    "description": "心碎痛哭的悲伤表情，眼泪落下，眉头紧锁，单手用力揪住胸口的衣物。",
+    "prompt": "heartbroken crying expression, tears falling down cheeks, furrowed brows, one hand clutching chest clothing tightly in emotional pain, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P122",
+    "category": "expression",
+    "description": "极其无聊的打哈欠神态，眼神涣散半睁，单手慵懒地捂住嘴巴。",
+    "prompt": "bored yawning expression, half-closed lazy lethargic eyes, one hand lazily covering open mouth, tired mood, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P123",
+    "category": "expression",
+    "description": "满脸疑惑与不解，眉头一高一低，歪着头并用手指轻轻挠脸颊。",
+    "prompt": "confused puzzled expression, asymmetrical raised eyebrow, head tilted to the side in questioning manner, finger gently scratching cheek, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P124",
+    "category": "expression",
+    "description": "疯狂且失控的病态笑容，双眼不自然地睁大，手指张开抓着自己的脸侧。",
+    "prompt": "maniacal crazy grin, wide unblinking eyes, fingers clutching own face chaotically, intense unstable psychotic expression, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P125",
+    "category": "expression",
+    "description": "极度嫌弃与恶心的表情，皱起鼻子咧着嘴，身体本能地向后躲闪拉开距离。",
+    "prompt": "disgusted revulsion expression, wrinkled nose and grimacing mouth, leaning back to avoid something unpleasant, horizontal framing, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  },
+  {
+    "id": "P126",
+    "category": "expression",
+    "description": "被深深震撼的敬畏神情，双眼放光，嘴巴微张，出神地注视着画外空间。",
+    "prompt": "awe and wonder expression, mesmerized glowing eyes, mouth slightly agape in amazement, looking off-screen horizontally, captivated mood, pure white background, isolated on white",
+    "aspect_ratio": "16:9"
+  }
   ]
 }
