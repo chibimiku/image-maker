@@ -53,7 +53,78 @@ def to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None) -> list:
+def _extract_json_object(text: str) -> dict:
+    if not isinstance(text, str) or not text.strip():
+        return {}
+    decoder = json.JSONDecoder()
+    code_blocks = re.findall(r"```(?:json)?\s*([\s\S]*?)```", text, flags=re.IGNORECASE)
+    candidates = code_blocks + [text]
+    for candidate in candidates:
+        content = candidate.strip()
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+        for idx, ch in enumerate(content):
+            if ch != "{":
+                continue
+            try:
+                parsed, _ = decoder.raw_decode(content[idx:])
+                if isinstance(parsed, dict):
+                    return parsed
+            except Exception:
+                continue
+    return {}
+
+def _looks_like_base64_text(value: str) -> bool:
+    if not isinstance(value, str):
+        return False
+    compact = value.strip().replace("\n", "").replace("\r", "")
+    if len(compact) < 256:
+        return False
+    if not re.fullmatch(r"[A-Za-z0-9+/=]+", compact):
+        return False
+    return True
+
+def _sanitize_log_data(value):
+    if isinstance(value, dict):
+        sanitized = {}
+        for key, item in value.items():
+            key_lower = str(key).lower()
+            if isinstance(item, str) and ("base64" in key_lower or key_lower.startswith("b64") or key_lower == "data"):
+                if _looks_like_base64_text(item) or key_lower != "data":
+                    sanitized[key] = "<BASE64_IMAGE_DATA_OMITTED>"
+                    continue
+            sanitized[key] = _sanitize_log_data(item)
+        return sanitized
+    if isinstance(value, list):
+        return [_sanitize_log_data(item) for item in value]
+    if isinstance(value, str):
+        sanitized_text = re.sub(
+            r"(data:image\/[a-zA-Z0-9.+-]+;base64,)[A-Za-z0-9+/=\r\n]+",
+            r"\1<BASE64_IMAGE_DATA_OMITTED>",
+            value
+        )
+        if _looks_like_base64_text(sanitized_text):
+            return "<BASE64_IMAGE_DATA_OMITTED>"
+        if len(sanitized_text) > 4000:
+            return f"{sanitized_text[:4000]}...(TRUNCATED, total={len(sanitized_text)})"
+        return sanitized_text
+    return value
+
+def _format_safe_log(value) -> str:
+    sanitized = _sanitize_log_data(value)
+    if isinstance(sanitized, str):
+        return sanitized
+    try:
+        return json.dumps(sanitized, ensure_ascii=False, indent=2)
+    except Exception:
+        return str(sanitized)
+
+
+def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False) -> list:
     """
     独立出来的图片生成核心逻辑
     """
@@ -132,7 +203,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         resp_json = resp.json()
         
         # 【新增】打印服务器返回的原始完整 JSON 信息
-        logger.info(f"=== 服务器原始返回信息 ===\n{json.dumps(resp_json, ensure_ascii=False, indent=2)}")
+        logger.info(f"=== 服务器原始返回信息 ===\n{_format_safe_log(resp_json)}")
         
         content_str = resp_json["choices"][0]["message"]["content"]
     except (KeyError, json.JSONDecodeError) as e:
@@ -141,6 +212,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
 
     # 解析 Markdown 提取图片
     img_urls = re.findall(r'!\[.*?\]\((https?://[^\)]+)\)', content_str)
+    annotation_data = _extract_json_object(content_str)
     if not img_urls:
         logger.warning("未在返回的文本中找到图片链接。")
         return []
@@ -185,6 +257,12 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         except Exception as e:
             logger.error(f"下载图片失败 {img_url}: {e}")
 
+    if return_metadata:
+        return {
+            "saved_files": saved_files,
+            "annotation": annotation_data,
+            "raw_text": content_str
+        }
     return saved_files
 
 def fetch_llm_json(base_url: str, api_key: str, model: str, system_prompt: str, user_content: str, temperature: float = 0.5, merge_system_prompt: bool = True) -> str:
@@ -218,7 +296,7 @@ def fetch_llm_json(base_url: str, api_key: str, model: str, system_prompt: str, 
     logger.info("=== 发起 LLM 提示词请求 ===")
     logger.info(f"请求 URL: {url}")
     # 打印完整的 payload 到日志中
-    logger.info(f"请求 Payload:\n{json.dumps(payload, ensure_ascii=False, indent=2)}")
+    logger.info(f"请求 Payload:\n{_format_safe_log(payload)}")
 
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=60)
@@ -226,7 +304,7 @@ def fetch_llm_json(base_url: str, api_key: str, model: str, system_prompt: str, 
         resp_json = resp.json()
         
         # 将服务器返回的原始完整 JSON 记录到日志
-        logger.info(f"=== 服务器原始返回完整信息 ===\n{json.dumps(resp_json, ensure_ascii=False, indent=2)}")
+        logger.info(f"=== 服务器原始返回完整信息 ===\n{_format_safe_log(resp_json)}")
         
         # 提取模型回复的文本
         return resp_json['choices'][0]['message']['content'].strip()
@@ -237,7 +315,7 @@ def fetch_llm_json(base_url: str, api_key: str, model: str, system_prompt: str, 
     except Exception as e:
         logger.error(f"LLM 请求发生异常: {str(e)}")
         if 'resp' in locals():
-            logger.error(f"服务器返回信息: {resp.text}")
+            logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
 def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float = 0.5) -> str:
@@ -293,14 +371,14 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
     logger.info("=== 发起 Cohere LLM 提示词请求 ===")
     logger.info(f"请求 headers: {headers}")
     logger.info(f"请求 URL: {url}")
-    logger.info(f"请求 Payload:\n{json.dumps(payload, ensure_ascii=False, indent=2)}")
+    logger.info(f"请求 Payload:\n{_format_safe_log(payload)}")
 
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=60)
         resp.raise_for_status()
         resp_json = resp.json()
         
-        logger.info(f"=== Cohere 服务器原始返回完整信息 ===\n{json.dumps(resp_json, ensure_ascii=False, indent=2)}")
+        logger.info(f"=== Cohere 服务器原始返回完整信息 ===\n{_format_safe_log(resp_json)}")
         
         # Cohere V1 Endpoint 返回的文本内容在 'text' 字段中
         return resp_json.get('text', '').strip()
@@ -311,10 +389,10 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
     except Exception as e:
         logger.error(f"Cohere 请求发生异常: {str(e)}")
         if 'resp' in locals():
-            logger.error(f"服务器返回信息: {resp.text}")
+            logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None) -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False) -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
     入参跟 generate_image_whatai 保持完全一致
@@ -402,7 +480,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
             else:
                 logger.error("达到最大重试次数，AIGC2D 图片生成请求最终失败。")
                 if resp is not None:
-                    logger.error(f"最后一次响应内容: {resp.text}")
+                    logger.error(f"最后一次响应内容: {_format_safe_log(resp.text)}")
                 return []
 
     # 解析返回 JSON
@@ -436,6 +514,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         logger.warning("AIGC2D 返回的 JSON 中没有找到 candidates 节点。")
         return []
 
+    model_text_parts = []
     for candidate in candidates:
         content = candidate.get("content", {})
         parts = content.get("parts", [])
@@ -470,5 +549,14 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
             elif "text" in part:
                 # 顺手记录一下模型可能返回的额外文本提示
                 logger.info(f"模型文本反馈: {part['text']}")
+                model_text_parts.append(part["text"])
 
+    raw_text = "\n".join(model_text_parts).strip()
+    annotation_data = _extract_json_object(raw_text)
+    if return_metadata:
+        return {
+            "saved_files": saved_files,
+            "annotation": annotation_data,
+            "raw_text": raw_text
+        }
     return saved_files

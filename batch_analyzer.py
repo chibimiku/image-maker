@@ -2,11 +2,106 @@ import os
 import json
 import datetime
 import re
+from openai import OpenAI
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem, QAbstractItemView)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
-from single_analyzer import step_1_analyze_image, step_2_refine_description, calculate_closest_aspect_ratio, WorkerThread, ImageGenWorkerThread
-from api_backend import generate_image_whatai, generate_image_aigc2d
+from single_analyzer import step_1_analyze_image, step_2_refine_description, calculate_closest_aspect_ratio, WorkerThread, ImageGenWorkerThread, compress_and_encode_image
+from api_backend import generate_image_whatai, generate_image_aigc2d, _extract_json_object
+
+ANNOTATION_SYSTEM_PROMPT = "You are an expert image annotation assistant. You must return strict JSON only."
+PROMPT_DIR = os.path.join(os.path.dirname(__file__), "data", "prompts")
+BATCH_ANNOTATION_PROMPT_PATH = os.path.join(PROMPT_DIR, "batch-annotation.md")
+
+def load_batch_annotation_prompt():
+    if not os.path.exists(BATCH_ANNOTATION_PROMPT_PATH):
+        raise FileNotFoundError(f"未找到批量标注 Prompt 文件: {BATCH_ANNOTATION_PROMPT_PATH}")
+    with open(BATCH_ANNOTATION_PROMPT_PATH, "r", encoding="utf-8") as f:
+        prompt = f.read().strip()
+    if not prompt:
+        raise ValueError(f"批量标注 Prompt 文件为空: {BATCH_ANNOTATION_PROMPT_PATH}")
+    return prompt
+
+def _normalize_annotation_result(result_json):
+    if not isinstance(result_json, dict):
+        return {}
+    long_description = result_json.get("long_description") or result_json.get("longDescription") or ""
+    short_description = result_json.get("short_description") or result_json.get("shortDescription") or ""
+    booru_tags = result_json.get("booru-tags")
+    if booru_tags is None:
+        booru_tags = result_json.get("booru_tags")
+    if booru_tags is None:
+        booru_tags = result_json.get("booruTags")
+    if isinstance(booru_tags, list):
+        booru_tags = ", ".join([str(tag).strip() for tag in booru_tags if str(tag).strip()])
+    if booru_tags is None:
+        booru_tags = ""
+    return {
+        "long_description": str(long_description).strip(),
+        "short_description": str(short_description).strip(),
+        "booru-tags": str(booru_tags).strip()
+    }
+
+class BatchAnnotationWorkerThread(QThread):
+    log_signal = pyqtSignal(str)
+    finish_signal = pyqtSignal(dict)
+
+    def __init__(self, image_path, api_key, base_url, model_name):
+        super().__init__()
+        self.image_path = image_path
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model_name = model_name
+
+    def run(self):
+        try:
+            client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        except Exception as e:
+            self.log_signal.emit(f"初始化 API 客户端失败: {e}")
+            self.finish_signal.emit({})
+            return
+        try:
+            annotation_prompt = load_batch_annotation_prompt()
+        except Exception as e:
+            self.log_signal.emit(f"读取标注 Prompt 文件失败: {e}")
+            self.finish_signal.emit({})
+            return
+        mime_type, base64_image = compress_and_encode_image(self.image_path, log_callback=self.log_signal.emit)
+        if not base64_image:
+            self.log_signal.emit("图片压缩或编码失败")
+            self.finish_signal.emit({})
+            return
+        try:
+            response = client.chat.completions.create(
+                model=self.model_name,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": ANNOTATION_SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": annotation_prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{mime_type};base64,{base64_image}", "detail": "high"}
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.6,
+                max_completion_tokens=16384
+            )
+            raw_text = response.choices[0].message.content if response and response.choices else ""
+            parsed = _extract_json_object(raw_text or "")
+            normalized = _normalize_annotation_result(parsed)
+            if not normalized:
+                self.log_signal.emit("返回内容无法解析为有效 JSON")
+                self.finish_signal.emit({})
+                return
+            self.finish_signal.emit(normalized)
+        except Exception as e:
+            self.log_signal.emit(f"标注请求失败: {e}")
+            self.finish_signal.emit({})
 
 class BatchAnalyzerWidget(QWidget):
     def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
@@ -26,13 +121,13 @@ class BatchAnalyzerWidget(QWidget):
     
     def initUI(self):
         self.setAcceptDrops(True)
-        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
         layout = QVBoxLayout()
         
         # 拖拽提示区域
         drag_label = QLabel("📁 请将图片拖拽至此，或点击下方按钮选择目录")
-        drag_label.setAlignment(Qt.AlignCenter)
+        drag_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         drag_label.setStyleSheet("QLabel { background-color: #f0f0f0; border: 2px dashed #aaa; padding: 20px; font-size: 14px; }")
         drag_label.setMinimumHeight(100)
         layout.addWidget(drag_label)
@@ -63,6 +158,13 @@ class BatchAnalyzerWidget(QWidget):
         
         # 批量处理选项
         options_layout = QVBoxLayout()
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("处理模式:"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(["批量图片分析", "批量图片标注(JSON三字段)"])
+        self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
+        mode_layout.addWidget(self.mode_combo, stretch=1)
+        options_layout.addLayout(mode_layout)
         
         # 自动生成图片选项
         auto_gen_layout = QHBoxLayout()
@@ -84,7 +186,7 @@ class BatchAnalyzerWidget(QWidget):
         layout.addLayout(options_layout)
         
         # 开始按钮
-        self.start_btn = QPushButton("开始批量分析")
+        self.start_btn = QPushButton("开始批量处理")
         self.start_btn.setFixedHeight(40)
         self.start_btn.clicked.connect(self.start_batch_processing)
         self.start_btn.setEnabled(False)
@@ -96,6 +198,7 @@ class BatchAnalyzerWidget(QWidget):
         layout.addWidget(self.log_text)
         
         self.setLayout(layout)
+        self.on_mode_changed(self.mode_combo.currentText())
     
     def update_styles(self, style_keys):
         """由外部 app.py 调用以同步最新的画风列表"""
@@ -106,6 +209,11 @@ class BatchAnalyzerWidget(QWidget):
         if curr_main in style_keys:
             self.main_style_combo.setCurrentText(curr_main)
         self.main_style_combo.blockSignals(False)
+
+    def on_mode_changed(self, mode_name):
+        is_annotation_mode = mode_name == "批量图片标注(JSON三字段)"
+        self.auto_gen_orig_cb.setEnabled(not is_annotation_mode)
+        self.auto_gen_ref_cb.setEnabled(not is_annotation_mode)
     
     def select_directory(self):
         directory = QFileDialog.getExistingDirectory(self, "选择图片目录")
@@ -131,7 +239,8 @@ class BatchAnalyzerWidget(QWidget):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.log_text.append(f"[{timestamp}] {text}")
         scrollbar = self.log_text.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        if scrollbar is not None:
+            scrollbar.setValue(scrollbar.maximum())
     
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -159,7 +268,7 @@ class BatchAnalyzerWidget(QWidget):
             if img_path not in self.image_files:
                 self.image_files.append(img_path)
                 item = QListWidgetItem(os.path.basename(img_path))
-                item.image_path = img_path
+                item.setData(Qt.ItemDataRole.UserRole, img_path)
                 self.image_list.addItem(item)
         
         self.start_btn.setEnabled(len(self.image_files) > 0)
@@ -178,8 +287,21 @@ class BatchAnalyzerWidget(QWidget):
         
         removed_count = 0
         for item in selected_items:
-            if hasattr(item, 'image_path') and item.image_path in self.image_files:
-                self.image_files.remove(item.image_path)
+            # 通过 QListWidgetItem 的文本反查完整路径
+            candidate = None
+            for img_path in self.image_files:
+                if os.path.basename(img_path) == item.text():
+                    candidate = img_path
+                    break
+            if candidate and candidate in self.image_files:
+                # 通过 QListWidgetItem 的文本反查完整路径
+                candidate = None
+                for img_path in self.image_files:
+                    if os.path.basename(img_path) == item.text():
+                        candidate = img_path
+                        break
+                if candidate:
+                    self.image_files.remove(candidate)
                 removed_count += 1
             self.image_list.takeItem(self.image_list.row(item))
         
@@ -196,7 +318,11 @@ class BatchAnalyzerWidget(QWidget):
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
             if item and hasattr(item, 'image_path'):
-                self.image_files.append(item.image_path)
+                # 通过 item.text()（文件名）反查完整路径
+                for img_path in self.image_files:
+                    if os.path.basename(img_path) == item.text():
+                        self.image_files.append(img_path)
+                        break
         
         if len(self.image_files) == 0:
             QMessageBox.warning(self, "错误", "请先添加图片文件")
@@ -210,14 +336,18 @@ class BatchAnalyzerWidget(QWidget):
         self.current_index = 0
         self.start_btn.setEnabled(False)
         self.log_text.clear()
-        self.log_msg(f"开始批量分析，共 {len(self.image_files)} 个文件")
+        mode_name = self.mode_combo.currentText()
+        self.log_msg(f"开始{mode_name}，共 {len(self.image_files)} 个文件")
         
         # 开始处理第一个文件
         self.process_next_image()
     
     def process_next_image(self):
         if self.current_index >= len(self.image_files):
-            self.log_msg("🎉 批量分析完成！")
+            if self.mode_combo.currentText() == "批量图片标注(JSON三字段)":
+                self.log_msg("🎉 批量标注完成！")
+            else:
+                self.log_msg("🎉 批量分析完成！")
             self.start_btn.setEnabled(True)
             return
         
@@ -227,8 +357,10 @@ class BatchAnalyzerWidget(QWidget):
         
         # 调用单图分析逻辑
         base_url, api_key, model_name = self.get_text_config()
-        
-        thread = WorkerThread(image_path, api_key, base_url, model_name)
+        if self.mode_combo.currentText() == "批量图片标注(JSON三字段)":
+            thread = BatchAnnotationWorkerThread(image_path, api_key, base_url, model_name)
+        else:
+            thread = WorkerThread(image_path, api_key, base_url, model_name)
         thread.log_signal.connect(self.log_msg)
         thread.finish_signal.connect(lambda result: self.on_image_processed(result, image_path))
         thread.start()
@@ -238,14 +370,14 @@ class BatchAnalyzerWidget(QWidget):
         if not result_json:
             self.log_msg("❌ 处理失败，跳过此文件")
         else:
-            self.log_msg("✅ 分析完成")
-            
-            # 保存结果
-            self.save_result(result_json, image_path)
-            
-            # 检查是否需要生成图片
-            if self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked():
-                self.generate_images(result_json)
+            if self.mode_combo.currentText() == "批量图片标注(JSON三字段)":
+                self.log_msg("✅ 标注完成")
+                self.save_annotation_result(result_json, image_path)
+            else:
+                self.log_msg("✅ 分析完成")
+                self.save_result(result_json, image_path)
+                if self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked():
+                    self.generate_images(result_json)
         
         # 处理下一个文件
         self.current_index += 1
@@ -300,6 +432,29 @@ class BatchAnalyzerWidget(QWidget):
             
         except Exception as e:
             self.log_msg(f"❌ 保存结果时出错: {e}")
+
+    def save_annotation_result(self, result_json, image_path):
+        try:
+            normalized = _normalize_annotation_result(result_json)
+            if not normalized:
+                self.log_msg("❌ 标注 JSON 结构无效，跳过保存")
+                return
+            now = datetime.datetime.now()
+            date_str = now.strftime("%Y%m%d")
+            save_dir = os.path.join('data', date_str, "annotations")
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            image_stem = os.path.splitext(os.path.basename(image_path))[0]
+            safe_stem = re.sub(r'[\\/*?:"<>|]', "", image_stem).strip() or "image"
+            json_filename = f"{now.strftime('%Y%m%d-%H%M%S')}-{safe_stem}-annotation.json"
+            output_path = os.path.join(save_dir, json_filename)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(normalized, f, ensure_ascii=False, indent=4)
+            self.log_msg("🧾 标注结果:")
+            self.log_msg(json.dumps(normalized, ensure_ascii=False, indent=2))
+            self.log_msg(f"📁 标注 JSON 已保存: {output_path}")
+        except Exception as e:
+            self.log_msg(f"❌ 保存标注结果时出错: {e}")
     
     def generate_images(self, result_json):
         self.save_img_cfg()

@@ -179,7 +179,7 @@ class CharDesignWorker(QRunnable):
             resolution = self.task_info.get('resolution', '默认')
             
             if api_type == "aigc2d":
-                saved_files = generate_image_aigc2d(
+                generation_result = generate_image_aigc2d(
                     prompt=full_prompt, 
                     image_paths=image_paths,
                     model=img_model, 
@@ -188,10 +188,11 @@ class CharDesignWorker(QRunnable):
                     api_type=api_type,
                     save_sub_dir=save_dir,
                     file_prefix=prompt_item.get('id', ''),
-                    resolution=resolution if resolution != "默认" else None
+                    resolution=resolution if resolution != "默认" else "",
+                    return_metadata=True
                 )
             else:
-                saved_files = generate_image_whatai(
+                generation_result = generate_image_whatai(
                     prompt=full_prompt, 
                     image_paths=image_paths,
                     model=img_model, 
@@ -200,8 +201,17 @@ class CharDesignWorker(QRunnable):
                     api_type=api_type,
                     save_sub_dir=save_dir,
                     file_prefix=prompt_item.get('id', ''),
-                    resolution=resolution if resolution != "默认" else None
+                    resolution=resolution if resolution != "默认" else "",
+                    return_metadata=True
                 )
+            if isinstance(generation_result, dict):
+                saved_files = generation_result.get("saved_files", [])
+                annotation_json = generation_result.get("annotation", {})
+                raw_text_output = generation_result.get("raw_text", "")
+            else:
+                saved_files = generation_result
+                annotation_json = {}
+                raw_text_output = ""
             
             if not saved_files:
                 raise ValueError("生图接口未返回任何图片")
@@ -212,7 +222,9 @@ class CharDesignWorker(QRunnable):
                 "prompt_id": prompt_item.get('id', ''),
                 "full_prompt": full_prompt,
                 "aspect_ratio": aspect_ratio,
-                "generated_images": saved_files
+                "generated_images": saved_files,
+                "annotation": annotation_json,
+                "raw_text_output": raw_text_output
             }
             
             self.signals.finished.emit(result_json, self.task_info)
@@ -266,7 +278,7 @@ class CharDesignWidget(QWidget):
         
         layout.addLayout(top_layout)
         
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # 左侧：图片输入区域
         left_widget = QWidget()
@@ -574,11 +586,13 @@ class CharDesignWidget(QWidget):
         
         try:
             today_str = datetime.now().strftime("%Y%m%d")
-            save_path_full = os.path.join("data", today_str, self.current_save_dir)
+            save_path_full = os.path.join("data", today_str, self.current_save_dir or "")
             os.makedirs(save_path_full, exist_ok=True)
             json_filename = f"{task_info['prompt_item'].get('id', 'task')}_{task_id}.json"
             with open(os.path.join(save_path_full, json_filename), 'w', encoding='utf-8') as f:
                 json.dump(result_json, f, ensure_ascii=False, indent=4)
+            annotation = result_json.get("annotation", {})
+            self.save_annotation_texts(save_path_full, result_json.get("generated_images", []), annotation)
         except Exception as e:
             self.log_msg(f"保存任务JSON结果失败: {e}")
             
@@ -622,3 +636,24 @@ class CharDesignWidget(QWidget):
         for i in range(self.task_list_widget.count()):
             item = self.task_list_widget.item(i)
             item.setCheckState(Qt.Unchecked)
+
+    def save_annotation_texts(self, save_path_full, generated_images, annotation):
+        if not isinstance(annotation, dict):
+            return
+        text_mapping = {
+            "long_description": annotation.get("long_description", ""),
+            "short_description": annotation.get("short_description", ""),
+            "booru-tags": annotation.get("booru-tags", "")
+        }
+        if not any(value.strip() for value in text_mapping.values() if isinstance(value, str)):
+            return
+        for key, value in text_mapping.items():
+            if not isinstance(value, str) or not value.strip():
+                continue
+            target_dir = os.path.join(save_path_full, key)
+            os.makedirs(target_dir, exist_ok=True)
+            for img_path in generated_images:
+                image_name = os.path.basename(img_path)
+                target_path = os.path.join(target_dir, f"{image_name}.txt")
+                with open(target_path, "w", encoding="utf-8") as f:
+                    f.write(value.strip())

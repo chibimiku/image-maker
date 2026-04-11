@@ -53,6 +53,30 @@ def to_base64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
+def _looks_like_base64_text(value: str) -> bool:
+    if not isinstance(value, str):
+        return False
+    compact = value.strip().replace("\n", "").replace("\r", "")
+    if len(compact) < 256:
+        return False
+    if not re.fullmatch(r"[A-Za-z0-9+/=]+", compact):
+        return False
+    return True
+
+def _sanitize_log_text(value: str) -> str:
+    if not isinstance(value, str):
+        return str(value)
+    sanitized_text = re.sub(
+        r"(data:image\/[a-zA-Z0-9.+-]+;base64,)[A-Za-z0-9+/=\r\n]+",
+        r"\1<BASE64_IMAGE_DATA_OMITTED>",
+        value
+    )
+    if _looks_like_base64_text(sanitized_text):
+        return "<BASE64_IMAGE_DATA_OMITTED>"
+    if len(sanitized_text) > 4000:
+        return f"{sanitized_text[:4000]}...(TRUNCATED, total={len(sanitized_text)})"
+    return sanitized_text
+
 def generate_image_whatai(
     prompt: str, 
     image_paths: list = None, 
@@ -136,7 +160,7 @@ def generate_image_whatai(
 
     # 打印和保存原始响应
     logger.info(f"接收到接口响应状态码: {resp.status_code}")
-    logger.info(f"接收到接口响应内容:\n{resp.text}")
+    logger.info(f"接收到接口响应内容:\n{_sanitize_log_text(resp.text)}")
 
     if resp.status_code != 200:
         logger.error("请求失败，已终止处理。")
