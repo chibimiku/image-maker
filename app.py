@@ -1,9 +1,15 @@
 import os
 import json
+import hashlib
+import datetime
+import importlib
+try:
+    importlib.import_module("onnxruntime")
+except Exception:
+    pass
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
                              QLabel, QPushButton, QTextEdit, QLineEdit, QInputDialog,
                              QComboBox, QFormLayout, QMessageBox, QTabWidget)
-from PyQt5.QtCore import Qt
 from openai import OpenAI
 
 # 引入抽离出去的独立组件
@@ -17,13 +23,19 @@ from batch_analyzer import BatchAnalyzerWidget
 from image_edit import ImageEditWidget
 # 【新增】引入角色设计组件
 from char_design import CharDesignWidget
+from z_image_edit_tab import ZImageEditWidget
+from pic_cate_tab import PicCateWidget
+from json_dataset_tab import JsonDatasetWidget
+from webp_compressor import DragDropCompressor
 
-CONFIG_FILE = "config.json"
-CONFIG_IMAGE_FILE = "config-image.json"
-CONFIG_STYLES_FILE = "config-styles.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "config-image.json")
+CONFIG_STYLES_FILE = os.path.join(BASE_DIR, "config-styles.json")
 DEFAULT_ASPECT_RATIO = "1:1"
 ASPECT_RATIO_OPTIONS = ["不覆盖(沿用原逻辑)", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"]
 NO_OVERRIDE_TEXT = "不覆盖(沿用原逻辑)"
+DEFAULT_BOORU_TAG_LIMIT = 30
 
 
 DEFAULT_STYLES = {
@@ -34,8 +46,16 @@ class AppWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.styles_data = DEFAULT_STYLES.copy()
+        self.pic_cate_state = {
+            "source_directory": "",
+            "target_directory": "",
+            "trimmed_directory": "",
+            "train_name": ""
+        }
         # 【新增】状态记录器
         self.last_used_style = "默认(无附加)"
+        self.use_nsfw_single = False
+        self.use_nsfw_batch = False
 
         self.initUI()
         self.load_config()
@@ -47,29 +67,30 @@ class AppWindow(QWidget):
         
         main_layout = QVBoxLayout()
         self.main_tabs = QTabWidget()
+        self.analysis_root_tab = QWidget()
+        self.analysis_tabs = QTabWidget()
+        self.generation_root_tab = QWidget()
+        self.generation_tabs = QTabWidget()
+        self.settings_root_tab = QWidget()
         
         # 【Tab 1: 单图内容分析】
         self.single_analyzer_tab = SingleAnalyzerWidget(
-            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            config_getter_func=self.get_text_config,
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
-            ar_policy_getter_func=self.get_ar_policy_config   # 新增
+            ar_policy_getter_func=self.get_ar_policy_config,
+            nsfw_default_getter_func=lambda: self.use_nsfw_single,
+            nsfw_changed_callback=self.on_single_nsfw_changed,
+            booru_tag_limit_getter_func=self.get_booru_tag_limit
         )
 
         # 【新增】监听画风切换信号以实现多端同步和记忆
         self.single_analyzer_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
-        self.main_tabs.addTab(self.single_analyzer_tab, "单图内容分析")
-
-        # 【Tab 2: 多图画风提取】
-        self.style_analyzer_tab = StyleAnalyzerWidget(
-            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip())
-        )
-        self.main_tabs.addTab(self.style_analyzer_tab, "多图画风提取")
 
         # 【新增 Tab 3: 批量提示词与生图】
         self.prompt_generator_tab = PromptGeneratorWidget(
-            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            config_getter_func=self.get_text_config,
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
@@ -77,39 +98,80 @@ class AppWindow(QWidget):
         )
 
         self.prompt_generator_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
-        self.main_tabs.addTab(self.prompt_generator_tab, "批量提示词与生图")
 
         # 【新增 Tab 4: 批量图片分析】
         self.batch_analyzer_tab = BatchAnalyzerWidget(
-            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            config_getter_func=self.get_text_config,
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
-            ar_policy_getter_func=self.get_ar_policy_config
+            ar_policy_getter_func=self.get_ar_policy_config,
+            nsfw_default_getter_func=lambda: self.use_nsfw_batch,
+            nsfw_changed_callback=self.on_batch_nsfw_changed,
+            booru_tag_limit_getter_func=self.get_booru_tag_limit
         )
 
         self.batch_analyzer_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
-        self.main_tabs.addTab(self.batch_analyzer_tab, "批量图片分析")
+        self.batch_analyzer_tab.quick_export_requested.connect(self.handle_batch_quick_export)
 
         # 【新增 Tab 5: 批量图片编辑】
         self.image_edit_tab = ImageEditWidget(
-            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            config_getter_func=self.get_text_config,
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data
         )
         self.image_edit_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
-        self.main_tabs.addTab(self.image_edit_tab, "批量图片编辑")
 
         # 【新增 Tab 6: 角色设计生成】
         self.char_design_tab = CharDesignWidget(
-            config_getter_func=lambda: (self.url_input.text().strip(), self.key_input.text().strip(), self.model_combo.currentText().strip()),
+            config_getter_func=self.get_text_config,
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data
         )
         self.char_design_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
-        self.main_tabs.addTab(self.char_design_tab, "角色设计生成")
+        self.z_image_edit_tab = ZImageEditWidget()
 
-        # 【Tab 7: 全局配置】
+        # 【Tab 2: 多图画风提取】
+        self.style_analyzer_tab = StyleAnalyzerWidget(
+            config_getter_func=self.get_text_config
+        )
+
+        self.pic_cate_tab = PicCateWidget(
+            save_values_callback=self.save_pic_cate_state
+        )
+
+        self.json_dataset_tab = JsonDatasetWidget()
+        self.json_dataset_tab.quick_split_requested.connect(self.handle_json_quick_split)
+
+        self.compressor_tab = DragDropCompressor()
+        self.compressor_tab.setWindowTitle("PNG/WebP 定体积压缩")
+
+        analysis_layout = QVBoxLayout()
+        analysis_layout.addWidget(self.analysis_tabs)
+        analysis_layout.setContentsMargins(0, 0, 0, 0)
+        self.analysis_root_tab.setLayout(analysis_layout)
+
+        generation_layout = QVBoxLayout()
+        generation_layout.addWidget(self.generation_tabs)
+        generation_layout.setContentsMargins(0, 0, 0, 0)
+        self.generation_root_tab.setLayout(generation_layout)
+
+        self.analysis_tabs.addTab(self.single_analyzer_tab, "单图内容分析")
+        self.analysis_tabs.addTab(self.batch_analyzer_tab, "批量图片分析")
+        self.analysis_tabs.addTab(self.json_dataset_tab, "JSON数据集导出")
+        self.analysis_tabs.addTab(self.pic_cate_tab, "图片分类切分")
+
+        self.generation_tabs.addTab(self.prompt_generator_tab, "批量提示词与生图")
+        self.generation_tabs.addTab(self.image_edit_tab, "批量图片编辑")
+        self.generation_tabs.addTab(self.z_image_edit_tab, "z-image编辑")
+        self.generation_tabs.addTab(self.char_design_tab, "角色设计生成")
+        self.generation_tabs.addTab(self.style_analyzer_tab, "多图画风提取")
+        self.generation_tabs.addTab(self.compressor_tab, "PNG/WebP压缩")
+
+        self.main_tabs.addTab(self.analysis_root_tab, "图片分析")
+        self.main_tabs.addTab(self.generation_root_tab, "图片生成")
+
+        # 【Tab 8: 全局配置】
         self.config_tabs = QTabWidget()
         
         # 3.1 文本分析配置
@@ -130,11 +192,43 @@ class AppWindow(QWidget):
         self.fetch_btn.clicked.connect(self.fetch_models)
         model_layout.addWidget(self.fetch_btn)
         text_layout.addRow("分析模型:", model_layout)
+
+        self.booru_tag_limit_spin = QSpinBox()
+        self.booru_tag_limit_spin.setRange(1, 200)
+        self.booru_tag_limit_spin.setValue(DEFAULT_BOORU_TAG_LIMIT)
+        self.booru_tag_limit_spin.valueChanged.connect(lambda: self.save_text_config(silent=True))
+        text_layout.addRow("booru-tags 数量上限:", self.booru_tag_limit_spin)
         
         self.save_text_cfg_btn = QPushButton("保存分析配置")
         self.save_text_cfg_btn.clicked.connect(self.save_text_config)
         text_layout.addRow("", self.save_text_cfg_btn)
         tab_text.setLayout(text_layout)
+
+        tab_text_nsfw = QWidget()
+        text_nsfw_layout = QFormLayout()
+        self.nsfw_url_input = QLineEdit()
+        self.nsfw_url_input.editingFinished.connect(lambda: self.save_text_config(silent=True))
+        text_nsfw_layout.addRow("Base URL:", self.nsfw_url_input)
+
+        self.nsfw_key_input = QLineEdit()
+        self.nsfw_key_input.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+        self.nsfw_key_input.editingFinished.connect(lambda: self.save_text_config(silent=True))
+        text_nsfw_layout.addRow("API Key:", self.nsfw_key_input)
+
+        nsfw_model_layout = QHBoxLayout()
+        self.nsfw_model_combo = QComboBox()
+        self.nsfw_model_combo.setEditable(True)
+        self.nsfw_model_combo.currentTextChanged.connect(lambda: self.save_text_config(silent=True))
+        nsfw_model_layout.addWidget(self.nsfw_model_combo, stretch=1)
+        self.fetch_nsfw_btn = QPushButton("获取模型列表")
+        self.fetch_nsfw_btn.clicked.connect(self.fetch_nsfw_models)
+        nsfw_model_layout.addWidget(self.fetch_nsfw_btn)
+        text_nsfw_layout.addRow("分析模型:", nsfw_model_layout)
+
+        self.save_nsfw_cfg_btn = QPushButton("保存分析配置")
+        self.save_nsfw_cfg_btn.clicked.connect(self.save_text_config)
+        text_nsfw_layout.addRow("", self.save_nsfw_cfg_btn)
+        tab_text_nsfw.setLayout(text_nsfw_layout)
         
         # 3.2 图片生成配置
         tab_image = QWidget()
@@ -239,13 +333,46 @@ class AppWindow(QWidget):
         tab_style.setLayout(style_layout)
 
         self.config_tabs.addTab(tab_text, "文本分析 API")
+        self.config_tabs.addTab(tab_text_nsfw, "文本分析（NSFW）")
         self.config_tabs.addTab(tab_image, "图片生成 API")
         self.config_tabs.addTab(tab_style, "画风预设管理")
-        
-        self.main_tabs.addTab(self.config_tabs, "全局配置")
+
+        settings_layout = QVBoxLayout()
+        settings_layout.addWidget(self.config_tabs)
+        settings_layout.setContentsMargins(0, 0, 0, 0)
+        self.settings_root_tab.setLayout(settings_layout)
+        self.main_tabs.addTab(self.settings_root_tab, "设置")
+
         self.main_tabs.setCurrentIndex(0)
         main_layout.addWidget(self.main_tabs)
         self.setLayout(main_layout)
+
+    def get_text_config(self, use_nsfw=False):
+        if use_nsfw:
+            return (
+                self.nsfw_url_input.text().strip(),
+                self.nsfw_key_input.text().strip(),
+                self.nsfw_model_combo.currentText().strip()
+            )
+        return (
+            self.url_input.text().strip(),
+            self.key_input.text().strip(),
+            self.model_combo.currentText().strip()
+        )
+
+    def get_booru_tag_limit(self):
+        try:
+            return int(self.booru_tag_limit_spin.value())
+        except Exception:
+            return DEFAULT_BOORU_TAG_LIMIT
+
+    def on_single_nsfw_changed(self, checked):
+        self.use_nsfw_single = bool(checked)
+        self.save_text_config(silent=True)
+
+    def on_batch_nsfw_changed(self, checked):
+        self.use_nsfw_batch = bool(checked)
+        self.save_text_config(silent=True)
 
     def sync_selected_style(self, style_name):
         """【新增】同步多页面的画风下拉框，并自动保存到硬盘"""
@@ -272,22 +399,50 @@ class AppWindow(QWidget):
 
 
     def load_config(self):
+        self.use_nsfw_single = False
+        self.use_nsfw_batch = False
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     config = json.load(f)
                     self.url_input.setText(config.get("base_url", ""))
                     self.key_input.setText(config.get("api_key", ""))
+                    self.nsfw_url_input.setText(config.get("nsfw_base_url", config.get("base_url", "")))
+                    self.nsfw_key_input.setText(config.get("nsfw_api_key", ""))
                     # 【新增】读取上次保存的画风
                     self.last_used_style = config.get("last_used_style", "默认(无附加)")
+                    self.use_nsfw_single = bool(config.get("use_nsfw_single", False))
+                    self.use_nsfw_batch = bool(config.get("use_nsfw_batch", False))
+                    saved_booru_tag_limit = config.get("booru_tag_limit", DEFAULT_BOORU_TAG_LIMIT)
+                    try:
+                        saved_booru_tag_limit = int(saved_booru_tag_limit)
+                    except Exception:
+                        saved_booru_tag_limit = DEFAULT_BOORU_TAG_LIMIT
+                    if saved_booru_tag_limit <= 0:
+                        saved_booru_tag_limit = DEFAULT_BOORU_TAG_LIMIT
+                    self.booru_tag_limit_spin.blockSignals(True)
+                    self.booru_tag_limit_spin.setValue(saved_booru_tag_limit)
+                    self.booru_tag_limit_spin.blockSignals(False)
+                    self.pic_cate_state = config.get("pic_cate", self.pic_cate_state)
+                    if hasattr(self, "pic_cate_tab"):
+                        self.pic_cate_tab.set_values(self.pic_cate_state)
                     
                     saved_model = config.get("model", "")
                     if saved_model:
                         self.model_combo.clear()
                         self.model_combo.addItem(saved_model)
                         self.model_combo.setCurrentText(saved_model)
+                    saved_nsfw_model = config.get("nsfw_model", saved_model)
+                    if saved_nsfw_model:
+                        self.nsfw_model_combo.clear()
+                        self.nsfw_model_combo.addItem(saved_nsfw_model)
+                        self.nsfw_model_combo.setCurrentText(saved_nsfw_model)
             except Exception as e:
                 print(f"加载 {CONFIG_FILE} 失败: {e}")
+        if hasattr(self, "single_analyzer_tab"):
+            self.single_analyzer_tab.set_use_nsfw_default(self.use_nsfw_single)
+        if hasattr(self, "batch_analyzer_tab"):
+            self.batch_analyzer_tab.set_use_nsfw_default(self.use_nsfw_batch)
                 
         if os.path.exists(CONFIG_IMAGE_FILE):
             try:
@@ -434,11 +589,20 @@ class AppWindow(QWidget):
             self.save_styles_to_disk()
 
     def save_text_config(self, silent=False):
+        if hasattr(self, "pic_cate_tab"):
+            self.pic_cate_state = self.pic_cate_tab.get_values()
         config = {
             "base_url": self.url_input.text().strip(),
             "api_key": self.key_input.text().strip(),
             "model": self.model_combo.currentText().strip(),
-            "last_used_style": getattr(self, "last_used_style", "默认(无附加)") # 写入记忆状态
+            "nsfw_base_url": self.nsfw_url_input.text().strip(),
+            "nsfw_api_key": self.nsfw_key_input.text().strip(),
+            "nsfw_model": self.nsfw_model_combo.currentText().strip(),
+            "use_nsfw_single": bool(getattr(self, "use_nsfw_single", False)),
+            "use_nsfw_batch": bool(getattr(self, "use_nsfw_batch", False)),
+            "booru_tag_limit": int(self.get_booru_tag_limit()),
+            "last_used_style": getattr(self, "last_used_style", "默认(无附加)"),
+            "pic_cate": self.pic_cate_state
         }
         try:
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -448,6 +612,53 @@ class AppWindow(QWidget):
         except Exception as e:
             if not silent:
                 QMessageBox.warning(self, "失败", f"保存配置文件失败: {e}")
+
+    def save_pic_cate_state(self, values):
+        self.pic_cate_state = values or {
+            "source_directory": "",
+            "target_directory": "",
+            "trimmed_directory": "",
+            "train_name": ""
+        }
+        self.save_text_config(silent=True)
+
+    def handle_batch_quick_export(self, json_paths):
+        valid_paths = [os.path.abspath(path) for path in (json_paths or []) if os.path.isfile(path) and str(path).lower().endswith(".json")]
+        if not valid_paths:
+            QMessageBox.warning(self, "提示", "本次批量分析没有可导出的 JSON 文件")
+            return
+        output_dir = self._build_json_analy_output_dir(valid_paths)
+        self.json_dataset_tab.prefill_for_batch(valid_paths, output_dir)
+        self.main_tabs.setCurrentWidget(self.analysis_root_tab)
+        self.analysis_tabs.setCurrentWidget(self.json_dataset_tab)
+
+    def _build_json_analy_output_dir(self, json_paths):
+        today = datetime.datetime.now().strftime("%Y%m%d")
+        normalized = "|".join(sorted(set(os.path.abspath(path) for path in json_paths)))
+        hash_value = hashlib.md5(normalized.encode("utf-8")).hexdigest()[:10]
+        return os.path.join(os.path.dirname(__file__), "data", today, "json-analy", hash_value)
+
+    def handle_json_quick_split(self, source_dir):
+        source_dir = os.path.abspath(source_dir or "")
+        if not os.path.isdir(source_dir):
+            QMessageBox.warning(self, "提示", "导出目录不存在，无法衔接图片分类切分")
+            return
+        parent_dir = os.path.dirname(source_dir)
+        base_name = os.path.basename(source_dir.rstrip("\\/"))
+        target_dir = os.path.join(parent_dir, f"{base_name}_cate-copy")
+        trimmed_dir = os.path.join(parent_dir, f"{base_name}_trim-train")
+        os.makedirs(target_dir, exist_ok=True)
+        os.makedirs(trimmed_dir, exist_ok=True)
+        values = {
+            "source_directory": source_dir,
+            "target_directory": target_dir,
+            "trimmed_directory": trimmed_dir,
+            "train_name": f"{base_name}_train"
+        }
+        self.pic_cate_tab.set_values(values)
+        self.save_pic_cate_state(values)
+        self.main_tabs.setCurrentWidget(self.analysis_root_tab)
+        self.analysis_tabs.setCurrentWidget(self.pic_cate_tab)
             
     def on_api_type_changed(self, api_type):
         """当API类型改变时，加载对应API的配置"""
@@ -569,16 +780,13 @@ class AppWindow(QWidget):
             if not silent:
                 QMessageBox.warning(self, "失败", f"保存配置文件失败: {e}")
 
-    def fetch_models(self):
-        api_key = self.key_input.text().strip()
-        base_url = self.url_input.text().strip()
-        
+    def _fetch_models_for(self, api_key, base_url, model_combo, fetch_btn):
         if not api_key:
             QMessageBox.warning(self, "错误", "请先输入文本分析的 API Key")
             return
-            
-        self.fetch_btn.setEnabled(False)
-        self.fetch_btn.setText("获取中...")
+
+        fetch_btn.setEnabled(False)
+        fetch_btn.setText("获取中...")
         QApplication.processEvents()
 
         try:
@@ -586,20 +794,36 @@ class AppWindow(QWidget):
             models = client.models.list()
             model_names = sorted([m.id for m in models.data])
             
-            current_text = self.model_combo.currentText()
-            self.model_combo.clear()
-            self.model_combo.addItems(model_names)
+            current_text = model_combo.currentText()
+            model_combo.clear()
+            model_combo.addItems(model_names)
             
-            index = self.model_combo.findText(current_text)
-            if index >= 0: self.model_combo.setCurrentIndex(index)
-            elif current_text: self.model_combo.setCurrentText(current_text)
+            index = model_combo.findText(current_text)
+            if index >= 0: model_combo.setCurrentIndex(index)
+            elif current_text: model_combo.setCurrentText(current_text)
                 
             QMessageBox.information(self, "成功", f"成功获取 {len(model_names)} 个可用模型！")
         except Exception as e:
             QMessageBox.warning(self, "获取失败", f"获取模型列表失败，请检查 URL 和 Key 是否正确。\n错误信息: {e}")
         finally:
-            self.fetch_btn.setEnabled(True)
-            self.fetch_btn.setText("获取模型列表")
+            fetch_btn.setEnabled(True)
+            fetch_btn.setText("获取模型列表")
+
+    def fetch_models(self):
+        self._fetch_models_for(
+            api_key=self.key_input.text().strip(),
+            base_url=self.url_input.text().strip(),
+            model_combo=self.model_combo,
+            fetch_btn=self.fetch_btn
+        )
+
+    def fetch_nsfw_models(self):
+        self._fetch_models_for(
+            api_key=self.nsfw_key_input.text().strip(),
+            base_url=self.nsfw_url_input.text().strip(),
+            model_combo=self.nsfw_model_combo,
+            fetch_btn=self.fetch_nsfw_btn
+        )
 
 if __name__ == '__main__':
     import sys

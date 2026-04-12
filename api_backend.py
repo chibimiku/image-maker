@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime
 import time
 import mimetypes
+from utils.booru_tags import normalize_booru_tags
 
 # ================= 1. 日志系统配置 =================
 LOG_DIR = "log"
@@ -76,6 +77,40 @@ def _extract_json_object(text: str) -> dict:
                     return parsed
             except Exception:
                 continue
+    return {}
+
+def _normalize_annotation_result(result_json: dict, booru_tag_limit: int = 30) -> dict:
+    if not isinstance(result_json, dict):
+        return {}
+    long_description = (
+        result_json.get("long_description")
+        or result_json.get("longDescription")
+        or result_json.get("description")
+        or ""
+    )
+    short_description = (
+        result_json.get("short_description")
+        or result_json.get("shortDescription")
+        or ""
+    )
+    booru_tags = result_json.get("booru-tags")
+    if booru_tags is None:
+        booru_tags = result_json.get("booru_tags")
+    if booru_tags is None:
+        booru_tags = result_json.get("booruTags")
+    if booru_tags is None:
+        booru_tags = result_json.get("tags")
+    limit = int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30
+    if limit <= 0:
+        limit = 30
+    normalized = {
+        "description": str(long_description).strip(),
+        "long_description": str(long_description).strip(),
+        "short_description": str(short_description).strip(),
+        "booru-tags": normalize_booru_tags(booru_tags, limit=limit)
+    }
+    if any(normalized.values()):
+        return normalized
     return {}
 
 def _looks_like_base64_text(value: str) -> bool:
@@ -212,7 +247,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
 
     # 解析 Markdown 提取图片
     img_urls = re.findall(r'!\[.*?\]\((https?://[^\)]+)\)', content_str)
-    annotation_data = _extract_json_object(content_str)
+    annotation_data = _normalize_annotation_result(_extract_json_object(content_str))
     if not img_urls:
         logger.warning("未在返回的文本中找到图片链接。")
         return []
@@ -552,7 +587,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                 model_text_parts.append(part["text"])
 
     raw_text = "\n".join(model_text_parts).strip()
-    annotation_data = _extract_json_object(raw_text)
+    annotation_data = _normalize_annotation_result(_extract_json_object(raw_text))
     if return_metadata:
         return {
             "saved_files": saved_files,

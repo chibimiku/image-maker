@@ -392,7 +392,7 @@ class CharDesignWidget(QWidget):
                 for p in prompts:
                     item_text = f"[{p.get('id', 'N/A')}] {p.get('description', '')} (比例: {p.get('aspect_ratio', '1:1')})"
                     item = QListWidgetItem(item_text)
-                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                    item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                     item.setCheckState(Qt.Checked)
                     # Store prompt data in the item for later use
                     item.setData(Qt.UserRole, p)
@@ -640,10 +640,13 @@ class CharDesignWidget(QWidget):
     def save_annotation_texts(self, save_path_full, generated_images, annotation):
         if not isinstance(annotation, dict):
             return
+        booru_tags_value = annotation.get("booru-tags", "")
+        if isinstance(booru_tags_value, list):
+            booru_tags_value = ", ".join([str(tag).strip() for tag in booru_tags_value if str(tag).strip()])
         text_mapping = {
             "long_description": annotation.get("long_description", ""),
             "short_description": annotation.get("short_description", ""),
-            "booru-tags": annotation.get("booru-tags", "")
+            "booru-tags": booru_tags_value
         }
         if not any(value.strip() for value in text_mapping.values() if isinstance(value, str)):
             return

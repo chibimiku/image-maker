@@ -13,6 +13,8 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 
 from api_backend import generate_image_whatai, generate_image_aigc2d 
+from utils.booru_tags import normalize_booru_tags
+from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags
 
 system_prompt = """
 You are an expert image analyzer and illustrator assistant. 
@@ -33,8 +35,72 @@ def load_prompt_from_file(filepath):
 PROMPT_DIR = os.path.join(os.path.dirname(__file__), 'data', 'prompts')
 STYLE_ANALY_PATH = os.path.join(PROMPT_DIR, 'style-analy.md')
 
-# 删除原本硬编码的长文本，改为调用函数
-user_prompt_analyze = load_prompt_from_file(STYLE_ANALY_PATH)
+style_analyze_prompt_template = load_prompt_from_file(STYLE_ANALY_PATH)
+
+def get_style_analyze_prompt(booru_tag_limit):
+    limit = int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30
+    if limit <= 0:
+        limit = 30
+    return style_analyze_prompt_template.replace("{booru_tag_limit}", str(limit))
+
+def append_extra_llm_prompt(base_prompt, extra_llm_prompt):
+    extra_text = str(extra_llm_prompt or "").strip()
+    if not extra_text:
+        return base_prompt
+    return f"{base_prompt.rstrip()}\n\n{extra_text}"
+
+def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=30):
+    if not isinstance(result_json, dict):
+        return {}
+    fallback_data = fallback_data if isinstance(fallback_data, dict) else {}
+    normalized = dict(result_json)
+    english_description = (
+        result_json.get("english_description")
+        or fallback_data.get("english_description")
+        or ""
+    )
+    japanese_title = (
+        result_json.get("japanese_title")
+        or fallback_data.get("japanese_title")
+        or ""
+    )
+    chinese_title = (
+        result_json.get("chinese_title")
+        or fallback_data.get("chinese_title")
+        or ""
+    )
+    pixiv_tags = result_json.get("pixiv_tags")
+    if pixiv_tags is None:
+        pixiv_tags = fallback_data.get("pixiv_tags", [])
+    if isinstance(pixiv_tags, str):
+        pixiv_tags = [tag.strip() for tag in pixiv_tags.split(",") if tag.strip()]
+    if not isinstance(pixiv_tags, list):
+        pixiv_tags = []
+    short_description = (
+        result_json.get("short_description")
+        or result_json.get("shortDescription")
+        or fallback_data.get("short_description")
+        or ""
+    )
+    booru_tags = (
+        result_json.get("booru-tags")
+        or result_json.get("booru_tags")
+        or result_json.get("booruTags")
+        or result_json.get("booru_tag")
+        or result_json.get("booruTag")
+        or fallback_data.get("booru-tags")
+        or []
+    )
+    limit = int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30
+    if limit <= 0:
+        limit = 30
+    normalized["english_description"] = str(english_description).strip()
+    normalized["japanese_title"] = str(japanese_title).strip()
+    normalized["chinese_title"] = str(chinese_title).strip()
+    normalized["pixiv_tags"] = [str(tag).strip() for tag in pixiv_tags if str(tag).strip()]
+    normalized["short_description"] = str(short_description).strip()
+    normalized["booru-tags"] = normalize_booru_tags(booru_tags, limit=limit)
+    return normalized
 
 def calculate_closest_aspect_ratio(image_source):
     """根据输入图片尺寸，从预设列表中计算最贴近的长宽比"""
@@ -101,13 +167,16 @@ def compress_and_encode_image(image_source, max_dim=2048, log_callback=None):
         print(error_msg)
         return None, None
 
-def step_1_analyze_image(image_source, client, model_name, log_callback=None):
+def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, extra_llm_prompt=""):
     mime_type, base64_image = compress_and_encode_image(image_source, log_callback=log_callback)
     if not base64_image:
         if log_callback:
             log_callback("Step 1 失败: 图片压缩或编码失败")
         return None
     try:
+        analyze_prompt = get_style_analyze_prompt(booru_tag_limit)
+        analyze_prompt = merge_prompt_with_local_booru_tags(analyze_prompt, local_booru_tags)
+        analyze_prompt = append_extra_llm_prompt(analyze_prompt, extra_llm_prompt)
         response = client.chat.completions.create(
             model=model_name, 
             response_format={ "type": "json_object" },
@@ -116,7 +185,7 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": user_prompt_analyze},
+                        {"type": "text", "text": analyze_prompt},
                         {
                             "type": "image_url",
                             "image_url": {"url": f"data:{mime_type};base64,{base64_image}", "detail": "high"}
@@ -126,7 +195,12 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None):
             ],
             temperature=0.7, max_completion_tokens=16384
         )
-        return json.loads(response.choices[0].message.content)
+        parsed = json.loads(response.choices[0].message.content)
+        fallback_data = {"booru-tags": normalize_booru_tags(local_booru_tags or [], limit=booru_tag_limit)}
+        normalized = _normalize_analysis_result(parsed, fallback_data=fallback_data, booru_tag_limit=booru_tag_limit)
+        if local_booru_tags:
+            normalized["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=booru_tag_limit, output_style="space")
+        return normalized
     except Exception as e:
         error_msg = f"Step 1 请求错误: {e}"
         if log_callback:
@@ -134,11 +208,12 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None):
         print(error_msg)
         return None
 
-def step_2_refine_description(original_json_data, client, model_name):
+def step_2_refine_description(original_json_data, client, model_name, booru_tag_limit=30, extra_llm_prompt=""):
     original_description = original_json_data.get("english_description", "")
     jp_title = original_json_data.get("japanese_title", "")
     cn_title = original_json_data.get("chinese_title", "")
     tags = original_json_data.get("pixiv_tags", [])
+    booru_seed_tags = original_json_data.get("booru-tags", [])
     
     tags_str = json.dumps(tags, ensure_ascii=False)
     
@@ -150,7 +225,17 @@ def step_2_refine_description(original_json_data, client, model_name):
     refine_prompt = template.replace("{jp_title}", jp_title) \
                             .replace("{cn_title}", cn_title) \
                             .replace("{original_description}", original_description) \
-                            .replace("{tags_str}", tags_str)
+                            .replace("{tags_str}", tags_str) \
+                            .replace("{booru_tag_limit}", str(int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30))
+    seed_text = ", ".join(normalize_booru_tags(booru_seed_tags, limit=booru_tag_limit))
+    if seed_text:
+        refine_prompt = (
+            f"{refine_prompt}\n\n"
+            "booru-tags seed from local model and step1:\n"
+            f"{seed_text}\n"
+            "Please optimize these booru-tags with your own understanding and keep only final high-quality tags."
+        )
+    refine_prompt = append_extra_llm_prompt(refine_prompt, extra_llm_prompt)
     
     try:
         response = client.chat.completions.create(
@@ -163,6 +248,7 @@ def step_2_refine_description(original_json_data, client, model_name):
             temperature=0.7, max_completion_tokens=16384
         )
         final_result_json = json.loads(response.choices[0].message.content)
+        final_result_json = _normalize_analysis_result(final_result_json, fallback_data=original_json_data, booru_tag_limit=booru_tag_limit)
         # 将原始描述也存入最终结果，方便后续对比或同时生成
         final_result_json["original_english_description"] = original_description
         return final_result_json
@@ -174,12 +260,17 @@ class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
 
-    def __init__(self, image_source, api_key, base_url, model_name):
+    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt=""):
         super().__init__()
         self.image_source = image_source
         self.api_key = api_key
         self.base_url = base_url
         self.model_name = model_name
+        self.enable_refine = bool(enable_refine)
+        self.booru_tag_limit = int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30
+        if self.booru_tag_limit <= 0:
+            self.booru_tag_limit = 30
+        self.extra_llm_prompt = str(extra_llm_prompt or "").strip()
 
     def run(self):
         try:
@@ -189,36 +280,48 @@ class WorkerThread(QThread):
             self.finish_signal.emit({})
             return
 
+        self.log_signal.emit(f"正在执行本地 booru tagger 分析（tag 上限: {self.booru_tag_limit}）...")
+        local_booru_tags = predict_local_booru_tags(self.image_source, booru_tag_limit=self.booru_tag_limit, log_callback=self.log_signal.emit)
+        if local_booru_tags:
+            preview_tags = ", ".join(local_booru_tags[:10])
+            self.log_signal.emit(f"本地 booru tagger 候选标签预览（前 10 个）: {preview_tags}")
+        else:
+            self.log_signal.emit("本地 booru tagger 候选标签为空，将仅使用大模型继续分析")
+        if self.extra_llm_prompt:
+            self.log_signal.emit("已启用附加 prompts，LLM 请求将追加重点关注要求")
         self.log_signal.emit(f"正在使用模型 [{self.model_name}] 开始 Step 1: 读取并压缩图片，发送 Vision 请求...")
-        initial_result = step_1_analyze_image(self.image_source, client, self.model_name, log_callback=self.log_signal.emit)
+        initial_result = step_1_analyze_image(self.image_source, client, self.model_name, log_callback=self.log_signal.emit, booru_tag_limit=self.booru_tag_limit, local_booru_tags=local_booru_tags, extra_llm_prompt=self.extra_llm_prompt)
         
         if initial_result:
             self.log_signal.emit("Step 1 完成。初步结果已获取。")
-            self.log_signal.emit("正在开始 Step 2: 根据中文指令对英文描述进行加工并推断长宽比...")
-            final_result = step_2_refine_description(initial_result, client, self.model_name)
-
-            # 【修改】强制将本地计算好的长宽比注入到大模型的返回结果中
-            if final_result:
+            if self.enable_refine:
+                self.log_signal.emit("正在开始 Step 2: 根据中文指令对英文描述进行加工并推断长宽比...")
+                final_result = step_2_refine_description(initial_result, client, self.model_name, booru_tag_limit=self.booru_tag_limit, extra_llm_prompt=self.extra_llm_prompt)
+                if final_result:
+                    final_result["aspect_ratio"] = calculate_closest_aspect_ratio(self.image_source)
+                    initial_tags = initial_result.get("pixiv_tags", [])
+                    refined_tags = final_result.get("pixiv_tags", [])
+                    final_result["pixiv_tags_first"] = initial_tags
+                    final_result["pixiv_tags_second"] = refined_tags
+                    if initial_tags and refined_tags:
+                        initial_tags_lower = [tag.lower() for tag in initial_tags]
+                        intersection_tags = []
+                        for tag in refined_tags:
+                            if tag.lower() in initial_tags_lower:
+                                intersection_tags.append(tag)
+                        final_result["pixiv_tags"] = intersection_tags if intersection_tags else refined_tags
+                    if local_booru_tags:
+                        final_result["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=self.booru_tag_limit, output_style="space")
+            else:
+                self.log_signal.emit("已跳过 Step 2 refine。")
+                final_result = dict(initial_result)
+                final_result["original_english_description"] = initial_result.get("english_description", "")
+                final_result["english_description"] = ""
                 final_result["aspect_ratio"] = calculate_closest_aspect_ratio(self.image_source)
-                
-                # 【新增】保存第一次和第二次的 pixiv tags，并计算交集
-                initial_tags = initial_result.get("pixiv_tags", [])
-                refined_tags = final_result.get("pixiv_tags", [])
-                
-                # 保存原始两次的 tags
-                final_result["pixiv_tags_first"] = initial_tags
-                final_result["pixiv_tags_second"] = refined_tags
-                
-                # 计算交集
-                if initial_tags and refined_tags:
-                    initial_tags_lower = [tag.lower() for tag in initial_tags]
-                    intersection_tags = []
-                    for tag in refined_tags:
-                        if tag.lower() in initial_tags_lower:
-                            intersection_tags.append(tag)
-                    # 如果交集为空，则使用 refined_tags
-                    final_result["pixiv_tags"] = intersection_tags if intersection_tags else refined_tags
-            
+                final_result["pixiv_tags_first"] = initial_result.get("pixiv_tags", [])
+                final_result["pixiv_tags_second"] = []
+                if local_booru_tags:
+                    final_result["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=self.booru_tag_limit, output_style="space")
             self.finish_signal.emit(final_result if final_result else {})
         else:
             self.log_signal.emit("Step 1 失败，流程终止。")
@@ -266,12 +369,15 @@ class ImageGenWorkerThread(QThread):
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
         self.get_styles = styles_getter_func
         self.save_img_cfg = save_img_cfg_callback
+        self.get_nsfw_default = nsfw_default_getter_func
+        self.on_nsfw_changed = nsfw_changed_callback
+        self.get_booru_tag_limit = booru_tag_limit_getter_func
         
         self.image_source = None
         self.current_aspect_ratio = "1:1"
@@ -309,6 +415,14 @@ class SingleAnalyzerWidget(QWidget):
         auto_gen_layout.addWidget(self.auto_gen_orig_cb)
         auto_gen_layout.addWidget(self.auto_gen_ref_cb)
         layout.addLayout(auto_gen_layout)
+
+        nsfw_layout = QHBoxLayout()
+        self.use_nsfw_cb = QCheckBox("使用nsfw接口")
+        self.use_nsfw_cb.setChecked(bool(self.get_nsfw_default()) if self.get_nsfw_default else False)
+        self.use_nsfw_cb.toggled.connect(self.on_use_nsfw_toggled)
+        nsfw_layout.addWidget(self.use_nsfw_cb)
+        nsfw_layout.addStretch()
+        layout.addLayout(nsfw_layout)
 
         # 画风选择
         style_select_layout = QHBoxLayout()
@@ -448,7 +562,7 @@ class SingleAnalyzerWidget(QWidget):
     def process_image(self):
         if not self.image_source: return
             
-        base_url, api_key, model_name = self.get_text_config()
+        base_url, api_key, model_name = self.get_text_config(self.use_nsfw_cb.isChecked())
         if not api_key or not model_name:
             QMessageBox.warning(self, "缺少配置", "文本分析 API Key 和 模型名称不能为空！")
             return
@@ -459,16 +573,30 @@ class SingleAnalyzerWidget(QWidget):
         self.log_text.clear()
         self.log_msg("任务已启动...\n")
         
-        self.thread = WorkerThread(self.image_source, api_key, base_url, model_name)
+        booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
+        self.thread = WorkerThread(self.image_source, api_key, base_url, model_name, booru_tag_limit=booru_tag_limit)
         self.thread.log_signal.connect(self.log_msg)
         self.thread.finish_signal.connect(self.on_process_finished)
         self.thread.start()
+
+    def on_use_nsfw_toggled(self, checked):
+        if self.on_nsfw_changed:
+            self.on_nsfw_changed(bool(checked))
+
+    def set_use_nsfw_default(self, checked):
+        self.use_nsfw_cb.blockSignals(True)
+        self.use_nsfw_cb.setChecked(bool(checked))
+        self.use_nsfw_cb.blockSignals(False)
 
     def on_process_finished(self, result_json):
         self.send_btn.setEnabled(True)
         if not result_json:
             self.log_msg("\n处理失败，未能获取到有效的 JSON 数据。")
             return
+        if isinstance(self.image_source, str):
+            result_json["source_image_path"] = os.path.abspath(self.image_source)
+        else:
+            result_json["source_image_path"] = ""
 
         self.log_msg("\n========== 最终处理结果 ==========\n")
         self.log_msg(json.dumps(result_json, indent=4, ensure_ascii=False))

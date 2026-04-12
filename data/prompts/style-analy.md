@@ -18,10 +18,16 @@ Additionally, provide the following based on the image content:
 1. A poetic Japanese title using complex kanji (maximum 20 characters).
 2. The Chinese translation of this title.
 3. Exactly 12 Japanese tags suitable for the Pixiv tagging system (e.g., 女の子) that accurately describe the visual content.
+4. short_description: around 100 words in English, concise summary focused on character appearance, outfit details, action, and expression.
+5. booru-tags: a Booru-style tag array (up to {booru_tag_limit} tags), focused on character traits, clothing details, actions, and expressions, excluding environment/background tags. The tags must be sorted by importance from highest to lowest (most important first). Every tag must be a valid Danbooru tag that has searchable results on Danbooru.
+6. booru-tags format rules: each tag must be lowercase and use underscores instead of spaces. Prefer concise Danbooru vocabulary, not natural-language phrases.
+7. booru-tags style examples (for style guidance only): ["1girl", "solo", "long_hair", "blue_eyes", "looking_at_viewer", "smile", "hair_ornament", "frilled_dress", "thighhighs", "lace_gloves"].
 
 Return the result strictly as a JSON object with the following keys:
 {
   "english_description": "...",
+  "short_description": "...",
+  "booru-tags": ["tag1", "tag2", "tag3"],
   "japanese_title": "...",
   "chinese_title": "...",
   "pixiv_tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10", "tag11", "tag12"]
