@@ -1,5 +1,6 @@
 import os
 import importlib
+import json
 import re
 import threading
 import time
@@ -12,16 +13,23 @@ from PIL import Image
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from utils.upscaler import ExtrasUpscalePipeline, UpscalerHandle
+from utils.upscaler_arch import (
+    ONNX_MODEL_EXTS,
+    SUPPORTED_MODEL_EXTS,
+    get_upscaler_model_dirs,
+    list_upscaler_models,
+    normalize_upscaler_arch,
+)
+from utils.upscaler_arch_match import is_arch_compatible
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_ESRGAN_MODEL_DIR = os.path.join(BASE_DIR, "data", "models", "ESRGAN")
-LEGACY_ESRGAN_MODEL_DIR = os.path.join(BASE_DIR, "models", "ESRGAN")
-SUPPORTED_MODEL_EXTS = (".pt", ".pth", ".safetensors")
 
 DEFAULT_UPSCALE_OPTIONS = {
     "enabled": False,
     "model_name": "",
+    "model_arch": "esrgan",
     "upscale_mode": 0,
     "upscale_by": 2.0,
     "max_side_length": 0,
@@ -34,6 +42,7 @@ DEFAULT_UPSCALE_OPTIONS = {
     "webp_target_mb": 10.0,
     "inference_device": "cpu",
     "downsample_method": "lanczos",
+    "process_dump_enabled": True,
 }
 
 DOWNSAMPLE_METHODS = {
@@ -54,21 +63,19 @@ def normalize_model_name(value: Any) -> str:
 
 
 def _model_dirs(model_dir: str | None = None) -> list[str]:
-    if model_dir:
-        return [model_dir]
-    return [DEFAULT_ESRGAN_MODEL_DIR, LEGACY_ESRGAN_MODEL_DIR]
+    return get_upscaler_model_dirs("esrgan", model_dir=model_dir)
 
 
 def list_esrgan_models(model_dir: str | None = None) -> list[str]:
-    merged: dict[str, str] = {}
-    for target_dir in _model_dirs(model_dir):
-        if not os.path.isdir(target_dir):
-            continue
-        for name in os.listdir(target_dir):
-            lower = name.lower()
-            if lower.endswith(SUPPORTED_MODEL_EXTS):
-                merged[lower] = name
-    return sorted(merged.values(), key=lambda x: x.lower())
+    return list_upscaler_models("esrgan", model_dir=model_dir)
+
+
+def list_upscaler_models_by_arch(
+    model_arch: str,
+    model_dir: str | None = None,
+    allowed_exts: tuple[str, ...] | None = None,
+) -> list[str]:
+    return list_upscaler_models(model_arch, model_dir=model_dir, allowed_exts=allowed_exts)
 
 
 def normalize_upscale_options(raw_options: dict | None) -> dict:
@@ -77,6 +84,7 @@ def normalize_upscale_options(raw_options: dict | None) -> dict:
         options.update(raw_options)
     options["enabled"] = bool(options.get("enabled", False))
     options["model_name"] = normalize_model_name(options.get("model_name", ""))
+    options["model_arch"] = normalize_upscaler_arch(options.get("model_arch", "esrgan"))
     options["upscale_mode"] = 1 if int(options.get("upscale_mode", 0)) == 1 else 0
     options["upscale_by"] = max(1.0, float(options.get("upscale_by", 2.0)))
     options["max_side_length"] = max(0, int(options.get("max_side_length", 0)))
@@ -89,10 +97,15 @@ def normalize_upscale_options(raw_options: dict | None) -> dict:
     options["cache_size"] = max(1, int(options.get("cache_size", 4)))
     options["webp_target_mb"] = max(0.1, float(options.get("webp_target_mb", 10.0)))
     device = str(options.get("inference_device", "cpu") or "cpu").strip().lower()
-    options["inference_device"] = device if device in {"cpu", "auto"} else "cpu"
+    options["inference_device"] = device if device in {"cpu", "auto", "npu"} else "cpu"
     method = str(options.get("downsample_method", "lanczos") or "lanczos").strip().lower()
     options["downsample_method"] = method if method in DOWNSAMPLE_METHODS else "lanczos"
+    options["process_dump_enabled"] = bool(options.get("process_dump_enabled", True))
     return options
+
+
+def _allowed_model_exts_for_device(inference_device: str) -> tuple[str, ...]:
+    return ONNX_MODEL_EXTS if str(inference_device).strip().lower() == "npu" else SUPPORTED_MODEL_EXTS
 
 
 def _resize_with_downsample_method(
@@ -137,6 +150,29 @@ def _next_available_path(base_path: str) -> str:
         idx += 1
 
 
+def _next_available_dir(base_dir: str) -> str:
+    if not os.path.exists(base_dir):
+        return base_dir
+    idx = 1
+    while True:
+        candidate = f"{base_dir}_{idx}"
+        if not os.path.exists(candidate):
+            return candidate
+        idx += 1
+
+
+def _build_process_dump_dir(image_path: str) -> str:
+    root, _ = os.path.splitext(image_path)
+    return _next_available_dir(f"{root}-process")
+
+
+def _normalize_stage_name(value: str) -> str:
+    text = str(value or "").strip().lower()
+    text = re.sub(r"[^a-z0-9_]+", "-", text)
+    text = re.sub(r"-+", "-", text).strip("-")
+    return text or "stage"
+
+
 def _build_fixed_png_path(image_path: str) -> str:
     root, _ = os.path.splitext(image_path)
     return _next_available_path(f"{root}-fixed.png")
@@ -166,31 +202,6 @@ def _extract_scale_from_name(name: str, fallback: float = 4.0) -> float:
             except Exception:
                 pass
     return max(1.0, float(fallback))
-
-
-def _detect_model_type(model_name: str, model_path: str) -> tuple[str, str]:
-    filename = os.path.basename(model_name or model_path or "")
-    lower_name = filename.lower()
-    if "dat" in lower_name:
-        return "dat", f"文件名命中 DAT 关键词: {filename}"
-
-    ext = os.path.splitext(filename)[1].lower()
-    if ext == ".safetensors":
-        try:
-            safetensors = importlib.import_module("safetensors")
-            safe_open = getattr(safetensors, "safe_open", None)
-            if callable(safe_open):
-                with safe_open(model_path, framework="pt", device="cpu") as f:
-                    meta = f.metadata() or {}
-                    text = " ".join([str(k) + " " + str(v) for k, v in meta.items()]).lower()
-                    if "dat" in text:
-                        return "dat", "safetensors metadata 命中 DAT 关键词"
-                    if text.strip():
-                        return "non-dat", "safetensors metadata 未发现 DAT 关键词"
-        except Exception:
-            pass
-
-    return "non-dat", "文件名与可读元数据均未识别到 DAT 特征"
 
 
 def _run_with_heartbeat(
@@ -250,7 +261,10 @@ def _safe_int_round(value: float) -> int:
 
 
 def _build_upscaler_fn_with_spandrel(
-    model_name: str, model_path: str, inference_device: str = "cpu"
+    model_name: str,
+    model_path: str,
+    inference_device: str = "cpu",
+    model_arch: str = "esrgan",
 ) -> tuple[Callable[[Image.Image, float, Callable[[str], None] | None], Image.Image], float, str, str]:
     try:
         torch = importlib.import_module("torch")
@@ -263,8 +277,15 @@ def _build_upscaler_fn_with_spandrel(
         spandrel = importlib.import_module("spandrel")
     except Exception as e:
         raise RuntimeError(
-            "未安装 spandrel，无法加载 DAT/ESRGAN 模型。请先安装 spandrel。"
+            "未安装 spandrel，无法加载 upscaler 模型。请先安装 spandrel。"
         ) from e
+
+    has_extra_arches = False
+    try:
+        importlib.import_module("spandrel_extra_arches")
+        has_extra_arches = True
+    except Exception:
+        has_extra_arches = False
 
     loader_cls = getattr(spandrel, "ModelLoader", None)
     if loader_cls is None:
@@ -273,6 +294,7 @@ def _build_upscaler_fn_with_spandrel(
     loader = loader_cls()
     descriptor = None
     last_error = None
+    last_method = ""
     for method_name in ("load_from_file", "load_from_path", "load"):
         fn = getattr(loader, method_name, None)
         if not callable(fn):
@@ -281,11 +303,26 @@ def _build_upscaler_fn_with_spandrel(
             descriptor = fn(model_path)
             break
         except Exception as e:
+            last_method = method_name
             last_error = e
     if descriptor is None:
+        err_text = str(last_error).strip()
+        err_detail = (
+            err_text
+            if err_text
+            else f"{type(last_error).__name__}: {repr(last_error)}"
+        )
+        hint = ""
+        normalized_arch = normalize_upscaler_arch(model_arch)
+        if normalized_arch in {"srformer-light", "omnisr", "real-cugan"} and not has_extra_arches:
+            hint = (
+                " 检测到当前缺少 `spandrel_extra_arches`，"
+                "SRFormer-Light/OmniSR/Real-CUGAN 需要该扩展来注册架构。"
+                "请先安装：`pip install spandrel-extra-arches`。"
+            )
         raise RuntimeError(
             f"spandrel 无法加载模型: {model_name}. "
-            f"最后错误: {last_error}"
+            f"最后方法={last_method or 'unknown'}，错误={err_detail}.{hint}"
         )
 
     arch_obj = getattr(descriptor, "architecture", None) or getattr(descriptor, "arch", None)
@@ -527,11 +564,108 @@ def _build_upscaler_fn_with_spandrel(
     return upscale, native_scale, arch_name, device
 
 
+def _build_upscaler_fn_with_onnx(
+    model_name: str,
+    model_path: str,
+    model_arch: str = "esrgan",
+) -> tuple[Callable[[Image.Image, float, Callable[[str], None] | None], Image.Image], float, str, str]:
+    try:
+        ort = importlib.import_module("onnxruntime")
+    except Exception as e:
+        raise RuntimeError(
+            "NPU 模式需要 onnxruntime。请先安装：`pip install onnxruntime`。"
+        ) from e
+    np = importlib.import_module("numpy")
+
+    available = list(getattr(ort, "get_available_providers", lambda: [])() or [])
+    preferred = [
+        "QNNExecutionProvider",
+        "CANNExecutionProvider",
+        "OpenVINOExecutionProvider",
+        "DmlExecutionProvider",
+        "CPUExecutionProvider",
+    ]
+    providers = [p for p in preferred if p in available]
+    if not providers:
+        if available:
+            providers = [available[0]]
+        else:
+            raise RuntimeError("onnxruntime 未检测到可用的 ExecutionProvider。")
+
+    session = ort.InferenceSession(model_path, providers=providers)
+    active_provider = ", ".join(session.get_providers() or providers)
+    inputs = session.get_inputs()
+    outputs = session.get_outputs()
+    if not inputs or not outputs:
+        raise RuntimeError("ONNX 模型缺少输入或输出定义。")
+
+    input_tensor = inputs[0]
+    input_name = input_tensor.name
+    output_name = outputs[0].name
+    input_shape = list(getattr(input_tensor, "shape", []) or [])
+
+    def _read_fixed_hw() -> tuple[int | None, int | None]:
+        if len(input_shape) != 4:
+            return None, None
+        h = input_shape[2]
+        w = input_shape[3]
+        h = int(h) if isinstance(h, int) and h > 0 else None
+        w = int(w) if isinstance(w, int) and w > 0 else None
+        return h, w
+
+    model_h, model_w = _read_fixed_hw()
+    native_scale = _extract_scale_from_name(model_name, fallback=2.0)
+    arch_name = f"onnx-{normalize_upscaler_arch(model_arch)}"
+
+    def _to_onnx_input(image: Image.Image, step_logger: Callable[[str], None] | None) -> Any:
+        src = image.convert("RGB")
+        if model_h and model_w and (src.height != model_h or src.width != model_w):
+            if callable(step_logger):
+                step_logger(
+                    f"ONNX 输入尺寸固定为 {model_w}x{model_h}，"
+                    f"当前输入 {src.width}x{src.height}，先做对齐缩放。"
+                )
+            src = src.resize((model_w, model_h), Image.Resampling.BICUBIC)
+        arr = np.asarray(src).astype("float32") / 255.0
+        if arr.ndim != 3 or arr.shape[2] != 3:
+            raise RuntimeError(f"ONNX 输入预处理失败，期望 RGB HWC，实际 shape={arr.shape}")
+        x = np.transpose(arr, (2, 0, 1))[None, ...]
+        return x
+
+    def _to_pil(y: Any) -> Image.Image:
+        arr = np.asarray(y)
+        if arr.ndim == 4:
+            arr = arr[0]
+        if arr.ndim == 3 and arr.shape[0] in (1, 3, 4):
+            arr = np.transpose(arr, (1, 2, 0))
+        if arr.ndim != 3:
+            raise RuntimeError(f"ONNX 输出维度不受支持: shape={arr.shape}")
+        if arr.shape[2] == 1:
+            arr = np.repeat(arr, 3, axis=2)
+        elif arr.shape[2] > 3:
+            arr = arr[:, :, :3]
+        arr = np.clip(arr, 0.0, 1.0) if arr.dtype != np.uint8 else arr
+        if arr.dtype != np.uint8:
+            arr = (arr * 255.0).round().astype("uint8")
+        return Image.fromarray(arr, mode="RGB")
+
+    def upscale(
+        image: Image.Image,
+        scale: float,
+        step_logger: Callable[[str], None] | None = None,
+    ) -> Image.Image:
+        x = _to_onnx_input(image, step_logger)
+        y = session.run([output_name], {input_name: x})[0]
+        out = _to_pil(y)
+        if callable(step_logger):
+            step_logger(f"ONNX 推理完成: provider={active_provider}, 输出={out.width}x{out.height}")
+        return out
+
+    return upscale, native_scale, arch_name, active_provider
+
+
 class LocalESRGANProvider:
-    """
-    本地 DAT 推理 Provider（基于 spandrel + torch）。
-    仅允许 DAT 类型模型；非 DAT 会给出明确提示。
-    """
+    """本地 upscaler 推理 Provider（基于 spandrel + torch）。"""
 
     _CACHE_LOCK = threading.RLock()
     _GLOBAL_RUNTIME_CACHE: dict[
@@ -547,22 +681,28 @@ class LocalESRGANProvider:
     def __init__(
         self,
         model_dir: str | None = None,
+        model_arch: str = "esrgan",
         inference_device: str = "cpu",
         downsample_method: str = "lanczos",
         step_logger: Callable[[str], None] | None = None,
+        process_stage_callback: Callable[[str, Image.Image, dict], None] | None = None,
     ):
-        self.model_dir = model_dir or DEFAULT_ESRGAN_MODEL_DIR
+        self.model_arch = normalize_upscaler_arch(model_arch)
+        model_dirs = get_upscaler_model_dirs(self.model_arch, model_dir=model_dir)
+        self.model_dir = model_dirs[0] if model_dirs else (model_dir or DEFAULT_ESRGAN_MODEL_DIR)
         dev = str(inference_device or "cpu").strip().lower()
-        self.inference_device = dev if dev in {"cpu", "auto"} else "cpu"
+        self.inference_device = dev if dev in {"cpu", "auto", "npu"} else "cpu"
         method = str(downsample_method or "lanczos").strip().lower()
         self.downsample_method = method if method in DOWNSAMPLE_METHODS else "lanczos"
         self.step_logger = step_logger
+        self.process_stage_callback = process_stage_callback
+        model_exts = _allowed_model_exts_for_device(self.inference_device)
         self._model_path_map: dict[str, str] = {}
-        for target_dir in _model_dirs(model_dir):
+        for target_dir in model_dirs:
             if not os.path.isdir(target_dir):
                 continue
             for name in os.listdir(target_dir):
-                if name.lower().endswith(SUPPORTED_MODEL_EXTS):
+                if name.lower().endswith(model_exts):
                     self._model_path_map[name] = os.path.join(target_dir, name)
         self._runtime_cache = LocalESRGANProvider._GLOBAL_RUNTIME_CACHE
 
@@ -574,25 +714,31 @@ class LocalESRGANProvider:
         if not model_path:
             raise AssertionError(f"could not find upscaler model: {model_name}")
 
-        model_type, reason = _detect_model_type(model_name, model_path)
-        if model_type != "dat":
-            raise AssertionError(
-                "当前仅支持 DAT 模型推理。"
-                f"模型 `{model_name}` 识别为非 DAT（原因: {reason}）。"
-                "请更换 DAT 模型（如文件名包含 DAT）。"
-            )
-
         with LocalESRGANProvider._CACHE_LOCK:
-            cache_key = f"{self.inference_device}::{model_name}"
+            cache_key = f"{self.inference_device}::{self.model_arch}::{model_name}"
             runtime = self._runtime_cache.get(cache_key)
             if runtime is None:
-                runtime = _build_upscaler_fn_with_spandrel(
-                    model_name=model_name,
-                    model_path=model_path,
-                    inference_device=self.inference_device,
-                )
+                if self.inference_device == "npu":
+                    runtime = _build_upscaler_fn_with_onnx(
+                        model_name=model_name,
+                        model_path=model_path,
+                        model_arch=self.model_arch,
+                    )
+                else:
+                    runtime = _build_upscaler_fn_with_spandrel(
+                        model_name=model_name,
+                        model_path=model_path,
+                        inference_device=self.inference_device,
+                        model_arch=self.model_arch,
+                    )
                 self._runtime_cache[cache_key] = runtime
         upscale_fn, native_scale, arch_name, device = runtime
+        if self.inference_device != "npu" and not is_arch_compatible(self.model_arch, arch_name):
+            raise AssertionError(
+                f"模型架构不匹配: 你当前选择的是 `{self.model_arch}`，"
+                f"但模型 `{model_name}` 实际识别为 `{arch_name}`。"
+                "请切换正确的模型类型，或把模型放到对应目录后再刷新。"
+            )
 
         def upscale(image: Image.Image, scale: float) -> Image.Image:
             src = image.convert("RGB")
@@ -619,6 +765,12 @@ class LocalESRGANProvider:
                 step_logger=self.step_logger,
                 fn=lambda: upscale_fn(src, scale, self.step_logger),
             )
+            if callable(self.process_stage_callback):
+                self.process_stage_callback(
+                    "provider_raw",
+                    out,
+                    {"model_name": model_name, "arch": arch_name, "device": device},
+                )
             infer_cost = time.perf_counter() - t0
             if callable(self.step_logger):
                 self.step_logger(
@@ -639,6 +791,16 @@ class LocalESRGANProvider:
                         f"下采样对齐完成: method={self.downsample_method}, 输出={out.width}x{out.height}, "
                         f"耗时={resize_cost:.2f}s"
                     )
+                if callable(self.process_stage_callback):
+                    self.process_stage_callback(
+                        "provider_align",
+                        out,
+                        {
+                            "model_name": model_name,
+                            "method": self.downsample_method,
+                            "target_size": f"{target_w}x{target_h}",
+                        },
+                    )
             return out
 
         return UpscalerHandle(name=f"{model_name} [{arch_name} x{native_scale:g} on {device}]", upscale=upscale)
@@ -655,12 +817,19 @@ class LocalESRGANProvider:
             result: dict[str, dict[str, Any]] = {}
             for key, runtime in cls._GLOBAL_RUNTIME_CACHE.items():
                 if "::" in key:
-                    device_mode, model_name = key.split("::", 1)
+                    parts = key.split("::", 2)
+                    if len(parts) == 3:
+                        device_mode, selected_arch, model_name = parts
+                    else:
+                        device_mode = parts[0]
+                        selected_arch = "esrgan"
+                        model_name = parts[1]
                 else:
-                    device_mode, model_name = "cpu", key
+                    device_mode, selected_arch, model_name = "cpu", "esrgan", key
                 result[key] = {
                     "model_name": model_name,
                     "mode": device_mode,
+                    "selected_arch": selected_arch,
                     "native_scale": runtime[1],
                     "arch": runtime[2],
                     "device": runtime[3],
@@ -705,6 +874,8 @@ class UpscaleResult:
     fixed_png_size_bytes: int = 0
     webp_path: str = ""
     webp_size_bytes: int = 0
+    process_dir: str = ""
+    trace_json_path: str = ""
     error: str = ""
 
 
@@ -726,6 +897,36 @@ def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
         step_logger = opts.get("_step_logger")
         if not callable(step_logger):
             step_logger = _noop
+        process_dump_enabled = bool(opts.get("process_dump_enabled", True))
+        process_dir = ""
+        trace_json_path = ""
+        trace_rows: list[dict[str, Any]] = []
+        stage_index = 0
+
+        def save_stage_image(stage_name: str, image: Image.Image, meta: dict | None = None):
+            nonlocal stage_index, process_dir
+            if not process_dump_enabled:
+                return
+            if not process_dir:
+                process_dir = _build_process_dump_dir(image_path)
+                os.makedirs(process_dir, exist_ok=True)
+                step_logger(f"过程文件目录: {process_dir}")
+            stage_index += 1
+            normalized = _normalize_stage_name(stage_name)
+            filename = f"{stage_index:02d}-{normalized}.png"
+            out_path = os.path.join(process_dir, filename)
+            image.convert("RGB").save(out_path, format="PNG")
+            row = {
+                "index": stage_index,
+                "stage": stage_name,
+                "file": out_path,
+                "width": int(image.width),
+                "height": int(image.height),
+            }
+            if isinstance(meta, dict) and meta:
+                row["meta"] = dict(meta)
+            trace_rows.append(row)
+
         total_steps = 8
         step_index = 0
 
@@ -737,9 +938,11 @@ def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
         t_total = time.perf_counter()
         emit_step("参数校验完成")
         provider = LocalESRGANProvider(
+            model_arch=str(opts.get("model_arch", "esrgan")),
             inference_device=str(opts.get("inference_device", "cpu")),
             downsample_method=str(opts.get("downsample_method", "lanczos")),
             step_logger=step_logger,
+            process_stage_callback=save_stage_image if process_dump_enabled else None,
         )
         pipeline = ExtrasUpscalePipeline(
             provider=provider,
@@ -754,6 +957,7 @@ def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
         with Image.open(image_path) as img:
             src = img.convert("RGB")
             emit_step(f"图片读取完成: 输入尺寸={src.width}x{src.height}")
+            save_stage_image("input", src)
             t_up = time.perf_counter()
             out = pipeline.upscale_image(
                 image=src,
@@ -767,8 +971,10 @@ def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
                 upscaler_1_name=str(opts["model_name"]),
                 upscaler_2_name=str(opts.get("upscaler_2_name") or None),
                 upscaler_2_visibility=float(opts["upscaler_2_visibility"]),
+                stage_callback=save_stage_image if process_dump_enabled else None,
             )
             emit_step(f"放大阶段完成: 输出尺寸={out.width}x{out.height}, 耗时={time.perf_counter() - t_up:.2f}s")
+            save_stage_image("pipeline_output", out)
             fixed_png_path = _build_fixed_png_path(image_path)
             t_save = time.perf_counter()
             out.save(fixed_png_path, format="PNG")
@@ -780,6 +986,7 @@ def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
             skipped=False,
             fixed_png_path=fixed_png_path,
             fixed_png_size_bytes=fixed_size,
+            process_dir=process_dir,
         )
 
         target_mb = float(opts["webp_target_mb"])
@@ -804,6 +1011,35 @@ def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
             )
         else:
             emit_step("WebP 压缩跳过: PNG 已低于目标体积")
+        if process_dump_enabled and process_dir:
+            trace_json_path = os.path.join(process_dir, "trace.json")
+            with open(trace_json_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "source_path": image_path,
+                        "fixed_png_path": fixed_png_path,
+                        "webp_path": result.webp_path,
+                        "target_mode": int(opts.get("upscale_mode", 0)),
+                        "target_scale": float(opts.get("upscale_by", 2.0)),
+                        "target_size": {
+                            "width": int(opts.get("upscale_to_width", 1024)),
+                            "height": int(opts.get("upscale_to_height", 1024)),
+                            "crop": bool(opts.get("upscale_crop", False)),
+                        },
+                        "model": {
+                            "name": str(opts.get("model_name", "")),
+                            "arch": str(opts.get("model_arch", "esrgan")),
+                            "secondary_name": str(opts.get("upscaler_2_name", "")),
+                            "secondary_visibility": float(opts.get("upscaler_2_visibility", 0.0)),
+                        },
+                        "steps": trace_rows,
+                    },
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            result.trace_json_path = trace_json_path
+            step_logger(f"过程追踪文件已保存: {trace_json_path}")
         emit_step(f"整图处理完成: 总耗时={time.perf_counter() - t_total:.2f}s")
         return result
     except Exception as e:
@@ -831,6 +1067,7 @@ class JpgAutoUpscaleThread(QThread):
         total = len(self.image_paths)
         self.log_signal.emit(
             f"{self.task_name} 配置: model={self.options.get('model_name')!r}, "
+            f"model_arch={self.options.get('model_arch')}, "
             f"scale={self.options.get('upscale_by')}, device_mode={self.options.get('inference_device')}, "
             f"downsample={self.options.get('downsample_method')}"
         )
@@ -863,6 +1100,10 @@ class JpgAutoUpscaleThread(QThread):
             self.log_signal.emit(f"已输出放大 PNG: {result.fixed_png_path}")
             if result.webp_path:
                 self.log_signal.emit(f"已输出定体积 WebP: {result.webp_path}")
+            if result.process_dir:
+                self.log_signal.emit(f"已输出过程文件目录: {result.process_dir}")
+            if result.trace_json_path:
+                self.log_signal.emit(f"已输出过程追踪: {result.trace_json_path}")
             self.progress_signal.emit(idx, total)
         packed = [
             {
@@ -872,6 +1113,8 @@ class JpgAutoUpscaleThread(QThread):
                 "fixed_png_size_bytes": item.fixed_png_size_bytes,
                 "webp_path": item.webp_path,
                 "webp_size_bytes": item.webp_size_bytes,
+                "process_dir": item.process_dir,
+                "trace_json_path": item.trace_json_path,
                 "error": item.error,
             }
             for item in results

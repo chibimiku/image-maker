@@ -24,9 +24,15 @@ from PyQt5.QtWidgets import (
 from utils.image_upscale_runtime import (
     JpgAutoUpscaleThread,
     get_loaded_upscale_models_status,
-    list_esrgan_models,
+    list_upscaler_models_by_arch,
     normalize_upscale_options,
     release_loaded_upscale_models,
+)
+from utils.upscaler_arch import (
+    ONNX_MODEL_EXTS,
+    UPSCALER_ARCH_CHOICES,
+    get_upscaler_model_dir_hint,
+    normalize_upscaler_arch,
 )
 
 
@@ -67,6 +73,15 @@ class UpscalerTabWidget(QWidget):
         list_btn_layout.addWidget(self.remove_btn)
         list_btn_layout.addWidget(self.clear_btn)
         main_layout.addLayout(list_btn_layout)
+
+        arch_layout = QHBoxLayout()
+        arch_layout.addWidget(QLabel("模型类型:"))
+        self.arch_combo = QComboBox()
+        for label, value in UPSCALER_ARCH_CHOICES:
+            self.arch_combo.addItem(label, value)
+        self.arch_combo.currentIndexChanged.connect(self._on_arch_changed)
+        arch_layout.addWidget(self.arch_combo, stretch=1)
+        main_layout.addLayout(arch_layout)
 
         model_layout = QHBoxLayout()
         model_layout.addWidget(QLabel("主模型:"))
@@ -146,7 +161,8 @@ class UpscalerTabWidget(QWidget):
         self.device_combo = QComboBox()
         self.device_combo.addItem("CPU优先(推荐稳定)", "cpu")
         self.device_combo.addItem("自动CUDA(有GPU时启用)", "auto")
-        self.device_combo.currentIndexChanged.connect(self.persist_options)
+        self.device_combo.addItem("NPU优先(ONNX推理)", "npu")
+        self.device_combo.currentIndexChanged.connect(self._on_device_changed)
         misc_layout.addWidget(self.device_combo)
         misc_layout.addWidget(QLabel("下采样算法:"))
         self.downsample_combo = QComboBox()
@@ -156,6 +172,10 @@ class UpscalerTabWidget(QWidget):
         self.downsample_combo.addItem("Mitchell(Wand，可选)", "mitchell_wand")
         self.downsample_combo.currentIndexChanged.connect(self.persist_options)
         misc_layout.addWidget(self.downsample_combo)
+        self.process_dump_cb = QCheckBox("保存中间过程文件")
+        self.process_dump_cb.setChecked(True)
+        self.process_dump_cb.toggled.connect(self.persist_options)
+        misc_layout.addWidget(self.process_dump_cb)
         main_layout.addLayout(misc_layout)
 
         self.loading_label = QLabel("状态: 空闲")
@@ -196,8 +216,19 @@ class UpscalerTabWidget(QWidget):
         self.by_spin.setEnabled(not is_size_mode)
         self.persist_options()
 
+    def _on_arch_changed(self):
+        self.reload_models()
+        self.persist_options()
+
+    def _on_device_changed(self):
+        self.reload_models()
+        self.persist_options()
+
     def reload_models(self):
-        models = list_esrgan_models()
+        arch = normalize_upscaler_arch(self.arch_combo.currentData())
+        selected_device = str(self.device_combo.currentData() or "cpu").strip().lower()
+        allowed_exts = ONNX_MODEL_EXTS if selected_device == "npu" else None
+        models = list_upscaler_models_by_arch(arch, allowed_exts=allowed_exts)
         current_primary = self.model_combo.currentText().strip()
         current_secondary = self.secondary_model_combo.currentText().strip()
         self.model_combo.blockSignals(True)
@@ -214,12 +245,27 @@ class UpscalerTabWidget(QWidget):
         self.model_combo.blockSignals(False)
         self.secondary_model_combo.blockSignals(False)
         if not models:
-            self.log_msg("未找到 ESRGAN 模型，请将模型文件放到 data/models/ESRGAN 或 models/ESRGAN")
+            target_dir = get_upscaler_model_dir_hint(arch)
+            if selected_device == "npu":
+                self.log_msg(
+                    f"未找到 {self.arch_combo.currentText()} 的 ONNX 模型（.onnx），"
+                    f"请将模型文件放到 {target_dir}"
+                )
+            else:
+                self.log_msg(
+                    f"未找到 {self.arch_combo.currentText()} 模型，请将模型文件放到 {target_dir}"
+                )
         self.persist_options()
 
     def load_saved_options(self):
         raw = self.get_options() if callable(self.get_options) else {}
         opts = normalize_upscale_options(raw)
+        arch = normalize_upscaler_arch(opts.get("model_arch", "esrgan"))
+        arch_idx = self.arch_combo.findData(arch)
+        self.arch_combo.blockSignals(True)
+        self.arch_combo.setCurrentIndex(0 if arch_idx < 0 else arch_idx)
+        self.arch_combo.blockSignals(False)
+        self.reload_models()
         self.mode_combo.blockSignals(True)
         self.mode_combo.setCurrentIndex(1 if int(opts["upscale_mode"]) == 1 else 0)
         self.mode_combo.blockSignals(False)
@@ -231,10 +277,13 @@ class UpscalerTabWidget(QWidget):
         self.cache_size_spin.setValue(int(opts["cache_size"]))
         self.secondary_visibility_spin.setValue(float(opts["upscaler_2_visibility"]))
         self.webp_target_spin.setValue(float(opts["webp_target_mb"]))
-        self.device_combo.setCurrentIndex(1 if str(opts.get("inference_device", "cpu")) == "auto" else 0)
+        inference_device = str(opts.get("inference_device", "cpu"))
+        device_idx = self.device_combo.findData(inference_device)
+        self.device_combo.setCurrentIndex(0 if device_idx < 0 else device_idx)
         downsample = str(opts.get("downsample_method", "lanczos"))
         downsample_idx = self.downsample_combo.findData(downsample)
         self.downsample_combo.setCurrentIndex(0 if downsample_idx < 0 else downsample_idx)
+        self.process_dump_cb.setChecked(bool(opts.get("process_dump_enabled", True)))
         if opts["model_name"]:
             self.model_combo.setCurrentText(opts["model_name"])
         if opts["upscaler_2_name"]:
@@ -249,6 +298,7 @@ class UpscalerTabWidget(QWidget):
         options = {
             "enabled": bool(prev.get("enabled", False)),
             "model_name": model_name,
+            "model_arch": normalize_upscaler_arch(self.arch_combo.currentData()),
             "upscale_mode": mode,
             "upscale_by": float(self.by_spin.value()),
             "max_side_length": int(self.max_side_spin.value()),
@@ -261,6 +311,7 @@ class UpscalerTabWidget(QWidget):
             "webp_target_mb": float(self.webp_target_spin.value()),
             "inference_device": str(self.device_combo.currentData()),
             "downsample_method": str(self.downsample_combo.currentData()),
+            "process_dump_enabled": bool(self.process_dump_cb.isChecked()),
         }
         return normalize_upscale_options(options)
 
@@ -331,6 +382,8 @@ class UpscalerTabWidget(QWidget):
         self.remove_btn.setEnabled(not running)
         self.clear_btn.setEnabled(not running)
         self.reload_models_btn.setEnabled(not running)
+        self.arch_combo.setEnabled(not running)
+        self.process_dump_cb.setEnabled(not running)
 
     def start_upscale(self):
         if not self.image_files:
@@ -413,9 +466,11 @@ class UpscalerTabWidget(QWidget):
             mode = meta.get("mode", "cpu")
             device = meta.get("device", "unknown")
             arch = meta.get("arch", "unknown")
+            selected_arch = meta.get("selected_arch", "unknown")
             native_scale = meta.get("native_scale", "unknown")
             self.log_msg(
-                f"- {display_name}: mode={mode}, arch={arch}, native_scale={native_scale}, device={device}"
+                f"- {display_name}: mode={mode}, selected_arch={selected_arch}, arch={arch}, "
+                f"native_scale={native_scale}, device={device}"
             )
 
     def _refresh_model_status_bar(self):

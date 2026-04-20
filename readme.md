@@ -24,6 +24,52 @@ pip install numpy onnxruntime
 4. `booru tags` 的词表过滤会读取 `config-autocomplete.json` 中的 `csv_path`，默认是：
    - `data/tags/danbooru.csv`
 
+## 图片 Upscaler 模型放置说明
+
+`图片Upscaler` 目前支持以下架构类型：
+
+- `ESRGAN(DAT)`
+- `SRFormer-Light`
+- `OmniSR`
+- `Real-CUGAN`
+
+### 1. 模型目录规则
+
+- `ESRGAN(DAT)`：
+  - `data/models/ESRGAN/`
+  - `models/ESRGAN/`
+- `SRFormer-Light`：
+  - `models/upscaler/SRFormer-Light/`
+- `OmniSR`：
+  - `models/upscaler/OmniSR/`
+- `Real-CUGAN`：
+  - `models/upscaler/Real-CUGAN/`
+
+> 说明：`Real-CUGAN` 官方项目参考：<https://github.com/bilibili/ailab/tree/main/Real-CUGAN>
+
+### 2. 文件扩展名规则（按设备）
+
+- 当推理设备选择 `CPU优先` 或 `自动CUDA` 时：
+  - 只扫描 `*.pt`、`*.pth`、`*.safetensors`
+- 当推理设备选择 `NPU优先(ONNX推理)` 时：
+  - 只扫描 `*.onnx`
+
+### 3. 依赖说明
+
+- `CPU/CUDA` 的本地架构推理依赖：
+  - `torch`
+  - `spandrel`
+- `SRFormer-Light` / `OmniSR` / `Real-CUGAN` 额外建议安装：
+  - `spandrel-extra-arches`
+- `NPU(ONNX)` 推理依赖：
+  - `onnxruntime`
+
+示例安装命令：
+
+```bash
+pip install torch spandrel spandrel-extra-arches onnxruntime
+```
+
 ## config-autocomplete.json 配置项（中文）
 
 - `local_booru_tagger_model_path`
