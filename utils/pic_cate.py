@@ -209,7 +209,10 @@ def do_main(source_directory, target_directory, trimmed_directory="", train_name
     datasets = [] #准备生成数据集
     datasets_batch_size = 1
     datasets_enable_bucket = False
+    trimmed_dir_name = os.path.basename(os.path.normpath(trimmed_directory)) if str(trimmed_directory).strip() else ""
     datasets_image_dir_base = "./train/" + train_name + "/"
+    if trimmed_dir_name:
+        datasets_image_dir_base += trimmed_dir_name + "/"
     datasets_num_repeats = 6
 
     '''
@@ -302,7 +305,7 @@ def do_main(source_directory, target_directory, trimmed_directory="", train_name
     #输出 datasets_xxx.toml
     output_json = {"datasets": datasets}
     toml_string = toml.dumps(output_json)
-    with open( os.path.join( trimmed_directory, "datasets_" + train_name + ".toml"), "w+") as wfp:
+    with open( os.path.join( trimmed_directory, "datasets.toml"), "w+") as wfp:
         wfp.write(toml_string)
 
     ss = [

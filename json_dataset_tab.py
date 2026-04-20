@@ -23,6 +23,14 @@ class JsonBatchWorkerThread(QThread):
             blacklist_tags = {tag.lower() for tag in self._parse_tags_input(self.blacklist_tags_text)}
 
             os.makedirs(self.output_directory, exist_ok=True)
+            dataset_directories = {
+                "long": os.path.join(self.output_directory, "long"),
+                "short": os.path.join(self.output_directory, "short"),
+                "booru": os.path.join(self.output_directory, "booru"),
+                "mixed": os.path.join(self.output_directory, "mixed"),
+            }
+            for directory in dataset_directories.values():
+                os.makedirs(directory, exist_ok=True)
 
             success_count = 0
             fail_count = 0
@@ -44,14 +52,18 @@ class JsonBatchWorkerThread(QThread):
                     booru_tags = [tag for tag in booru_tags if tag.lower() not in blacklist_tags]
                     booru_tags = self._merge_unique_tags(forced_tags, booru_tags)
                     booru_text = ", ".join(booru_tags)
-
-                    mixed_text = short_description
-                    if booru_text:
-                        mixed_text = f"{short_description}, {booru_text}" if short_description else booru_text
+                    forced_tag_keys = {tag.lower() for tag in forced_tags}
+                    booru_tags_without_forced = [tag for tag in booru_tags if tag.lower() not in forced_tag_keys]
+                    mixed_parts = [
+                        ", ".join(forced_tags),
+                        short_description,
+                        ", ".join(booru_tags_without_forced),
+                    ]
+                    mixed_text = ", ".join(part for part in mixed_parts if part)
 
                     src_filename = os.path.basename(source_image_path)
                     src_stem, src_ext = os.path.splitext(src_filename)
-                    unique_stem = self._allocate_unique_stem(src_stem, src_ext, self.output_directory)
+                    unique_stem = self._allocate_unique_stem(src_stem, src_ext, dataset_directories)
 
                     grouped_contents = {
                         "long": original_english_description,
@@ -61,9 +73,8 @@ class JsonBatchWorkerThread(QThread):
                     }
 
                     for key, text in grouped_contents.items():
-                        prefixed_stem = f"{key}__{unique_stem}"
-                        image_dst = os.path.join(self.output_directory, f"{prefixed_stem}{src_ext}")
-                        txt_dst = os.path.join(self.output_directory, f"{prefixed_stem}.txt")
+                        image_dst = os.path.join(dataset_directories[key], f"{unique_stem}{src_ext}")
+                        txt_dst = os.path.join(dataset_directories[key], f"{unique_stem}.txt")
                         shutil.copy2(source_image_path, image_dst)
                         with open(txt_dst, "w", encoding="utf-8") as wf:
                             wf.write(text)
@@ -79,16 +90,14 @@ class JsonBatchWorkerThread(QThread):
         except Exception as e:
             self.finished_signal.emit(False, f"处理失败: {e}")
 
-    def _allocate_unique_stem(self, stem, ext, output_directory):
-        prefixes = ["long", "short", "booru", "mixed"]
+    def _allocate_unique_stem(self, stem, ext, dataset_directories):
         index = 0
         while True:
             candidate_stem = stem if index == 0 else f"{stem}_{index}"
             conflict = False
-            for prefix in prefixes:
-                prefixed_stem = f"{prefix}__{candidate_stem}"
-                image_candidate = os.path.join(output_directory, f"{prefixed_stem}{ext}")
-                txt_candidate = os.path.join(output_directory, f"{prefixed_stem}.txt")
+            for directory in dataset_directories.values():
+                image_candidate = os.path.join(directory, f"{candidate_stem}{ext}")
+                txt_candidate = os.path.join(directory, f"{candidate_stem}.txt")
                 if os.path.exists(image_candidate) or os.path.exists(txt_candidate):
                     conflict = True
                     break

@@ -2,15 +2,17 @@ import os
 import json
 import datetime
 import re
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem, QAbstractItemView, QProgressBar, QSpinBox)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem, QAbstractItemView, QProgressBar, QSpinBox, QDoubleSpinBox)
 from PyQt5.QtCore import Qt, pyqtSignal
 
 from single_analyzer import WorkerThread, ImageGenWorkerThread
+from utils.task_runtime import SystemNotifier, TaskCountdown
+from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 
 class BatchAnalyzerWidget(QWidget):
     quick_export_requested = pyqtSignal(list)
 
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -20,6 +22,9 @@ class BatchAnalyzerWidget(QWidget):
         self.get_nsfw_default = nsfw_default_getter_func
         self.on_nsfw_changed = nsfw_changed_callback
         self.get_booru_tag_limit = booru_tag_limit_getter_func
+        self.get_timeout_seconds = timeout_getter_func
+        self.get_upscale_options = upscale_options_getter_func
+        self.on_upscale_options_changed = upscale_options_changed_callback
         
         self.target_directory = ""
         self.image_files = []
@@ -29,10 +34,29 @@ class BatchAnalyzerWidget(QWidget):
         self.current_run_images = []
         self.pending_images = []
         self.active_workers = {}
+        self._active_image_threads = []
         self.next_worker_id = 1
         self.current_run_json_paths = []
         self.last_finished_json_paths = []
         self.failed_image_files = []
+        self.cancel_soft_requested = False
+        self.cancel_hard_requested = False
+        self.current_run_timeout_count = 0
+        self.batch_run_state = "idle"
+        self._notifier = SystemNotifier(self)
+        self._img_gen_running = False
+        self._img_gen_timeout_seconds = 0
+        self._img_gen_countdown = TaskCountdown(
+            parent=self,
+            on_tick=self._on_image_gen_countdown_tick,
+            on_timeout=lambda: self.cancel_image_generation(reason="timeout")
+        )
+        self._auto_gen_expected = 0
+        self._auto_gen_finished = 0
+        self._auto_gen_cancelled = False
+        self._pending_finish_reason = "completed"
+        self._pending_completion_notice = False
+        self._active_post_threads = []
         
         self.initUI()
     
@@ -97,6 +121,35 @@ class BatchAnalyzerWidget(QWidget):
         auto_gen_layout.addWidget(self.auto_gen_orig_cb)
         auto_gen_layout.addWidget(self.auto_gen_ref_cb)
         options_layout.addLayout(auto_gen_layout)
+
+        upscale_layout = QHBoxLayout()
+        self.enable_jpg_upscale_cb = QCheckBox("生图后自动处理 JPG")
+        self.enable_jpg_upscale_cb.toggled.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.enable_jpg_upscale_cb)
+        upscale_layout.addWidget(QLabel("模型:"))
+        self.upscale_model_combo = QComboBox()
+        self.upscale_model_combo.currentTextChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.upscale_model_combo)
+        self.reload_upscale_models_btn = QPushButton("刷新模型")
+        self.reload_upscale_models_btn.clicked.connect(self._reload_upscale_models)
+        upscale_layout.addWidget(self.reload_upscale_models_btn)
+        upscale_layout.addWidget(QLabel("倍率:"))
+        self.upscale_by_spin = QDoubleSpinBox()
+        self.upscale_by_spin.setRange(1.0, 8.0)
+        self.upscale_by_spin.setSingleStep(0.1)
+        self.upscale_by_spin.setValue(2.0)
+        self.upscale_by_spin.valueChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.upscale_by_spin)
+        upscale_layout.addWidget(QLabel("WebP目标MB:"))
+        self.webp_target_mb_spin = QDoubleSpinBox()
+        self.webp_target_mb_spin.setRange(0.1, 100.0)
+        self.webp_target_mb_spin.setDecimals(1)
+        self.webp_target_mb_spin.setSingleStep(0.5)
+        self.webp_target_mb_spin.setValue(10.0)
+        self.webp_target_mb_spin.valueChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.webp_target_mb_spin)
+        upscale_layout.addStretch()
+        options_layout.addLayout(upscale_layout)
         
         # 画风选择
         style_select_layout = QHBoxLayout()
@@ -129,6 +182,20 @@ class BatchAnalyzerWidget(QWidget):
         self.start_btn.clicked.connect(self.start_batch_processing)
         self.start_btn.setEnabled(False)
         layout.addWidget(self.start_btn)
+        self.cancel_btn = QPushButton("取消当前任务")
+        self.cancel_btn.setFixedHeight(36)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.clicked.connect(self.request_cancel_batch)
+        layout.addWidget(self.cancel_btn)
+        gen_ctrl_layout = QHBoxLayout()
+        self.gen_countdown_label = QLabel("生图超时倒计时: --")
+        self.cancel_gen_btn = QPushButton("终止当前生图")
+        self.cancel_gen_btn.setEnabled(False)
+        self.cancel_gen_btn.clicked.connect(self.cancel_image_generation)
+        gen_ctrl_layout.addWidget(self.gen_countdown_label)
+        gen_ctrl_layout.addStretch()
+        gen_ctrl_layout.addWidget(self.cancel_gen_btn)
+        layout.addLayout(gen_ctrl_layout)
 
         self.quick_export_btn = QPushButton("快捷切换到 JSON数据集导出（本次结果）")
         self.quick_export_btn.clicked.connect(self.trigger_quick_export)
@@ -158,6 +225,11 @@ class BatchAnalyzerWidget(QWidget):
         layout.addWidget(self.log_text)
         
         self.setLayout(layout)
+        self._reload_upscale_models()
+        self.set_upscale_options_defaults(self.get_upscale_options() if self.get_upscale_options else {})
+
+    def _send_system_notification(self, title, message):
+        self._notifier.notify(title, message)
     
     def update_styles(self, style_keys):
         """由外部 app.py 调用以同步最新的画风列表"""
@@ -299,17 +371,37 @@ class BatchAnalyzerWidget(QWidget):
         self.active_workers = {}
         self.next_worker_id = 1
         self.current_run_json_paths = []
+        self.current_run_timeout_count = 0
+        self.cancel_soft_requested = False
+        self.cancel_hard_requested = False
+        self.batch_run_state = "running"
+        self._auto_gen_expected = 0
+        self._auto_gen_finished = 0
+        self._auto_gen_cancelled = False
+        self._pending_finish_reason = "completed"
+        self._pending_completion_notice = False
         self.start_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setText("取消当前任务")
+        self.cancel_gen_btn.setEnabled(False)
+        self.gen_countdown_label.setText("生图超时倒计时: --")
         self.quick_export_btn.setEnabled(False)
         self.retry_failed_btn.setEnabled(False)
         self.set_manage_buttons_enabled(False)
         self.log_text.clear()
+        timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+        submit_time = datetime.datetime.now()
+        ddl = submit_time + datetime.timedelta(seconds=max(1, timeout_seconds))
+        self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）")
         self.update_progress()
         mode_text = "失败重试" if is_retry else "批量图片分析"
         self.log_msg(f"开始{mode_text}，共 {self.current_run_total} 个文件，并发线程数: {int(self.concurrent_threads_spin.value())}")
         self.dispatch_next_workers()
 
     def dispatch_next_workers(self):
+        if self.cancel_soft_requested or self.cancel_hard_requested or self.batch_run_state != "running":
+            return
         max_workers = int(self.concurrent_threads_spin.value())
         while self.pending_images and len(self.active_workers) < max_workers:
             image_path = self.pending_images.pop(0)
@@ -317,6 +409,7 @@ class BatchAnalyzerWidget(QWidget):
             self.next_worker_id += 1
             base_url, api_key, model_name = self.get_text_config(self.use_nsfw_cb.isChecked())
             booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
+            timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
             extra_llm_prompt = self.extra_llm_prompt_edit.toPlainText().strip()
             thread = WorkerThread(
                 image_path,
@@ -325,7 +418,8 @@ class BatchAnalyzerWidget(QWidget):
                 model_name,
                 enable_refine=self.enable_refine_cb.isChecked(),
                 booru_tag_limit=booru_tag_limit,
-                extra_llm_prompt=extra_llm_prompt
+                extra_llm_prompt=extra_llm_prompt,
+                timeout_seconds=timeout_seconds
             )
             thread.log_signal.connect(lambda text, wid=worker_id: self.log_msg(f"[线程-{wid}] {text}"))
             thread.finish_signal.connect(lambda result, t=thread, wid=worker_id, path=image_path: self.on_worker_finished(t, wid, path, result))
@@ -337,8 +431,17 @@ class BatchAnalyzerWidget(QWidget):
     def on_worker_finished(self, thread, worker_id, image_path, result_json):
         if thread in self.active_workers:
             self.active_workers.pop(thread)
+        elif self.batch_run_state != "running":
+            return
+        worker_status = getattr(thread, "last_status", "unknown")
         if not result_json:
-            self.log_msg(f"[线程-{worker_id}] ❌ 处理失败: {os.path.basename(image_path)}")
+            if worker_status == "timeout":
+                self.current_run_timeout_count += 1
+                self.log_msg(f"[线程-{worker_id}] ⏰ 请求超时: {os.path.basename(image_path)}")
+            elif worker_status == "cancelled":
+                self.log_msg(f"[线程-{worker_id}] 🛑 已取消: {os.path.basename(image_path)}")
+            else:
+                self.log_msg(f"[线程-{worker_id}] ❌ 处理失败: {os.path.basename(image_path)}")
             self.add_failed_image(image_path)
         else:
             self.log_msg(f"[线程-{worker_id}] ✅ 分析完成: {os.path.basename(image_path)}")
@@ -351,13 +454,30 @@ class BatchAnalyzerWidget(QWidget):
         self.current_index += 1
         self.update_progress()
         if self.current_index >= self.current_run_total and not self.pending_images and not self.active_workers:
-            self.finish_batch_processing()
+            final_reason = "cancelled" if (self.cancel_soft_requested or self.cancel_hard_requested) else "completed"
+            self.finish_batch_processing(final_reason=final_reason)
+            return
+        if self.cancel_soft_requested and not self.pending_images and not self.active_workers:
+            self.finish_batch_processing(final_reason="cancelled")
             return
         self.dispatch_next_workers()
 
-    def finish_batch_processing(self):
+    def finish_batch_processing(self, final_reason="completed"):
+        self.batch_run_state = "idle"
+        self._pending_finish_reason = final_reason
         self.update_progress()
-        self.log_msg("🎉 批量分析完成！")
+        if final_reason == "cancelled":
+            self.log_msg("🛑 批量任务已取消。")
+            if self._active_image_threads:
+                self.cancel_image_generation(reason="manual")
+            self._send_system_notification("批量任务已取消", "批量图片分析已结束（用户取消）。")
+        else:
+            self.log_msg("🎉 批量分析完成！")
+            if self._auto_gen_expected > 0 and self._auto_gen_finished < self._auto_gen_expected:
+                self._pending_completion_notice = True
+                self.log_msg("🕒 分析阶段已完成，正在等待自动生图全部结束后发送完成通知。")
+            else:
+                self._send_system_notification("批量任务完成", "批量图片分析已全部结束。")
         self.last_finished_json_paths = list(self.current_run_json_paths)
         has_outputs = len(self.last_finished_json_paths) > 0
         self.quick_export_btn.setEnabled(has_outputs)
@@ -367,9 +487,50 @@ class BatchAnalyzerWidget(QWidget):
             self.log_msg(f"⚠️ 本轮失败 {len(self.failed_image_files)} 个文件，可点击“重试失败文件”继续处理")
             for failed_path in self.failed_image_files:
                 self.log_msg(f" 失败文件: {os.path.basename(failed_path)}")
+        if self.current_run_timeout_count > 0:
+            self.log_msg(f"⏰ 本轮超时 {self.current_run_timeout_count} 个任务，请检查超时设置是否生效。")
+            self._send_system_notification("批量任务发生超时", f"本轮共有 {self.current_run_timeout_count} 个任务超时。")
         self.retry_failed_btn.setEnabled(len(self.failed_image_files) > 0)
         self.start_btn.setEnabled(True)
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setText("取消当前任务")
+        if not self._active_image_threads:
+            self.cancel_gen_btn.setEnabled(False)
+            self.gen_countdown_label.setText("生图超时倒计时: --")
         self.set_manage_buttons_enabled(True)
+
+    def request_cancel_batch(self):
+        if self.batch_run_state != "running":
+            self.log_msg("当前没有正在运行的批量任务。")
+            return
+        if not self.cancel_soft_requested:
+            self.cancel_soft_requested = True
+            self.pending_images = []
+            self.cancel_btn.setText("强制取消（再次点击）")
+            self.log_msg("已请求取消：不再派发新任务，将等待当前运行中的任务完成。再次点击将强制取消当前任务。")
+            if not self.active_workers:
+                self.finish_batch_processing(final_reason="cancelled")
+            return
+        if self.cancel_hard_requested:
+            return
+        self.cancel_hard_requested = True
+        self.log_msg("收到二次取消，正在强制停止当前运行中的任务...")
+        running_threads = list(self.active_workers.keys())
+        for thread in running_threads:
+            try:
+                if hasattr(thread, "request_cancel"):
+                    thread.request_cancel(force=True)
+                else:
+                    thread.requestInterruption()
+                if not thread.wait(300):
+                    thread.terminate()
+                    thread.wait(200)
+            except Exception:
+                pass
+        self.active_workers = {}
+        self.pending_images = []
+        self.current_index = self.current_run_total
+        self.finish_batch_processing(final_reason="cancelled")
 
     def retry_failed_images(self):
         self.start_batch_processing(target_images=list(self.failed_image_files), is_retry=True)
@@ -480,6 +641,7 @@ class BatchAnalyzerWidget(QWidget):
         raw_ar = result_json.get("aspect_ratio", "2:3")
         current_aspect_ratio = self._resolve_ar_for_first_stage(raw_ar)
         final_gen_ar = self._resolve_ar_for_second_stage(current_aspect_ratio)
+        timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
         
         # 生成原始提示词图片
         if self.auto_gen_orig_cb.isChecked():
@@ -493,10 +655,15 @@ class BatchAnalyzerWidget(QWidget):
                     instructions=active_instructions,
                     api_type=api_type
                 )
+                img_thread.meta_prompt_type = "original"
                 img_thread.log_signal.connect(self.log_msg)
-                img_thread.finish_signal.connect(lambda files: self.on_image_generation_finished(files, "original"))
+                img_thread.finish_signal.connect(lambda files, t=img_thread: self.on_image_generation_finished(t, files))
+                img_thread.finished.connect(lambda t=img_thread: self._on_image_thread_stopped(t))
                 img_thread.start()
                 self._active_threads.append(img_thread)
+                self._active_image_threads.append(img_thread)
+                self._auto_gen_expected += 1
+                self._start_image_gen_runtime(timeout_seconds)
         
         # 生成优化提示词图片
         if self.auto_gen_ref_cb.isChecked():
@@ -510,18 +677,91 @@ class BatchAnalyzerWidget(QWidget):
                     instructions=active_instructions,
                     api_type=api_type
                 )
+                img_thread.meta_prompt_type = "refined"
                 img_thread.log_signal.connect(self.log_msg)
-                img_thread.finish_signal.connect(lambda files: self.on_image_generation_finished(files, "refined"))
+                img_thread.finish_signal.connect(lambda files, t=img_thread: self.on_image_generation_finished(t, files))
+                img_thread.finished.connect(lambda t=img_thread: self._on_image_thread_stopped(t))
                 img_thread.start()
                 self._active_threads.append(img_thread)
+                self._active_image_threads.append(img_thread)
+                self._auto_gen_expected += 1
+                self._start_image_gen_runtime(timeout_seconds)
     
-    def on_image_generation_finished(self, saved_files, prompt_type):
+    def _start_image_gen_runtime(self, timeout_seconds):
+        self._img_gen_running = True
+        self._img_gen_timeout_seconds = max(1, int(timeout_seconds))
+        self.cancel_gen_btn.setEnabled(True)
+        self.log_msg(f"生图超时设置: {self._img_gen_timeout_seconds} 秒")
+        self._img_gen_countdown.start(self._img_gen_timeout_seconds)
+
+    def _stop_image_gen_runtime(self):
+        self._img_gen_running = False
+        self._img_gen_timeout_seconds = 0
+        self._img_gen_countdown.stop()
+        self.cancel_gen_btn.setEnabled(False)
+        self.gen_countdown_label.setText("生图超时倒计时: --")
+
+    def _on_image_gen_countdown_tick(self, remain_seconds):
+        if not self._img_gen_running:
+            self.gen_countdown_label.setText("生图超时倒计时: --")
+            return
+        remain = int(remain_seconds)
+        if remain <= 0:
+            self.gen_countdown_label.setText("生图超时倒计时: 0 秒")
+            self.log_msg("⏰ 生图超时倒计时已到，正在终止当前生图任务...")
+            return
+        self.gen_countdown_label.setText(f"生图超时倒计时: {remain} 秒")
+
+    def _on_image_thread_stopped(self, thread):
+        if thread in self._active_image_threads:
+            self._active_image_threads.remove(thread)
+        if not self._active_image_threads:
+            self._stop_image_gen_runtime()
+            if self._pending_completion_notice and self._pending_finish_reason == "completed":
+                self._pending_completion_notice = False
+                self._send_system_notification("批量任务完成", "批量分析与自动生图均已完成。")
+
+    def cancel_image_generation(self, reason="manual"):
+        if not self._active_image_threads:
+            self.log_msg("当前没有正在执行的生图任务。")
+            return
+        self._auto_gen_cancelled = True
+        running_threads = list(self._active_image_threads)
+        self.log_msg(f"正在终止 {len(running_threads)} 个生图任务...")
+        for thread in running_threads:
+            try:
+                if hasattr(thread, "request_cancel"):
+                    thread.request_cancel()
+                else:
+                    thread.requestInterruption()
+                if not thread.wait(300):
+                    thread.terminate()
+                    thread.wait(200)
+            except Exception:
+                pass
+        self._active_image_threads = []
+        self._stop_image_gen_runtime()
+        if reason == "timeout":
+            self.log_msg("⏰ 生图任务已因超时被终止。")
+            self._send_system_notification("批量生图超时", "自动生图任务已超时并终止。")
+        else:
+            self.log_msg("🛑 生图任务已手动终止。")
+            self._send_system_notification("批量生图已终止", "自动生图任务已手动取消。")
+
+    def on_image_generation_finished(self, thread, saved_files):
+        prompt_type = getattr(thread, "meta_prompt_type", "unknown")
+        self._auto_gen_finished += 1
         if saved_files:
             self.log_msg(f"🎉 成功生成了 {len(saved_files)} 张 {prompt_type} 图片！")
             for file_path in saved_files:
                 self.log_msg(f" 📂 保存路径: {file_path}")
+            self._start_jpg_postprocess(saved_files, prompt_type)
         else:
-            self.log_msg(f"⚠️ 未能生成 {prompt_type} 图片")
+            status = getattr(thread, "last_status", "unknown")
+            if status == "cancelled":
+                self.log_msg(f"🛑 已取消 {prompt_type} 图片生成")
+            else:
+                self.log_msg(f"⚠️ 未能生成 {prompt_type} 图片")
     
     def _resolve_ar_for_first_stage(self, original_ar: str) -> str:
         """第一次：分析完成后用于保存 prompts 的长宽比"""
@@ -551,6 +791,91 @@ class BatchAnalyzerWidget(QWidget):
         self.use_nsfw_cb.blockSignals(True)
         self.use_nsfw_cb.setChecked(bool(checked))
         self.use_nsfw_cb.blockSignals(False)
+
+    def _reload_upscale_models(self):
+        current = self.upscale_model_combo.currentText().strip()
+        models = list_esrgan_models()
+        self.upscale_model_combo.blockSignals(True)
+        self.upscale_model_combo.clear()
+        self.upscale_model_combo.addItems(models)
+        if current:
+            self.upscale_model_combo.setCurrentText(current)
+        self.upscale_model_combo.blockSignals(False)
+        if not models:
+            self.log_msg("⚠️ 未找到 ESRGAN 模型，请确认 data/models/ESRGAN 或 models/ESRGAN 目录")
+        self._persist_upscale_options()
+
+    def _collect_upscale_options(self):
+        raw = {
+            "enabled": bool(self.enable_jpg_upscale_cb.isChecked()),
+            "model_name": self.upscale_model_combo.currentText().strip(),
+            "upscale_mode": 0,
+            "upscale_by": float(self.upscale_by_spin.value()),
+            "max_side_length": 0,
+            "upscale_to_width": 1024,
+            "upscale_to_height": 1024,
+            "upscale_crop": False,
+            "upscaler_2_name": "",
+            "upscaler_2_visibility": 0.0,
+            "cache_size": 4,
+            "webp_target_mb": float(self.webp_target_mb_spin.value()),
+        }
+        return normalize_upscale_options(raw)
+
+    def _persist_upscale_options(self):
+        if self.on_upscale_options_changed:
+            self.on_upscale_options_changed(self._collect_upscale_options())
+
+    def set_upscale_options_defaults(self, options):
+        opts = normalize_upscale_options(options)
+        self.enable_jpg_upscale_cb.blockSignals(True)
+        self.enable_jpg_upscale_cb.setChecked(bool(opts.get("enabled", False)))
+        self.enable_jpg_upscale_cb.blockSignals(False)
+        self.upscale_by_spin.blockSignals(True)
+        self.upscale_by_spin.setValue(float(opts.get("upscale_by", 2.0)))
+        self.upscale_by_spin.blockSignals(False)
+        self.webp_target_mb_spin.blockSignals(True)
+        self.webp_target_mb_spin.setValue(float(opts.get("webp_target_mb", 10.0)))
+        self.webp_target_mb_spin.blockSignals(False)
+        model_name = str(opts.get("model_name", "")).strip()
+        if model_name:
+            self.upscale_model_combo.setCurrentText(model_name)
+
+    def _start_jpg_postprocess(self, saved_files, prompt_type):
+        if not self.enable_jpg_upscale_cb.isChecked():
+            return
+        jpg_files = [str(path) for path in (saved_files or []) if str(path).lower().endswith((".jpg", ".jpeg"))]
+        if not jpg_files:
+            return
+        options = self._collect_upscale_options()
+        if not options.get("model_name"):
+            self.log_msg("⚠️ 已启用 JPG 自动处理，但未选择 upscaler 模型，已跳过。")
+            return
+        thread = JpgAutoUpscaleThread(
+            image_paths=jpg_files,
+            options=options,
+            task_name=f"批量{prompt_type}后处理",
+        )
+        self._active_post_threads.append(thread)
+        thread.log_signal.connect(self.log_msg)
+        thread.finish_signal.connect(lambda results, t=thread: self._on_postprocess_finished(t, results))
+        thread.finished.connect(lambda t=thread: self._cleanup_post_thread(t))
+        thread.start()
+
+    def _on_postprocess_finished(self, thread, results):
+        success = 0
+        webp_count = 0
+        for item in results or []:
+            if item.get("fixed_png_path") and not item.get("error"):
+                success += 1
+            if item.get("webp_path"):
+                webp_count += 1
+        if success > 0:
+            self.log_msg(f"✅ JPG 自动处理完成，新增 fixed.png: {success} 张，WebP: {webp_count} 张")
+
+    def _cleanup_post_thread(self, thread):
+        if thread in self._active_post_threads:
+            self._active_post_threads.remove(thread)
 
     def trigger_quick_export(self):
         if not self.last_finished_json_paths:

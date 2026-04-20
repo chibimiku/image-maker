@@ -2,13 +2,14 @@
 import json
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QTextEdit, QComboBox, 
-                             QSpinBox, QLineEdit, QScrollArea, QGridLayout, QFrame, QMessageBox, QApplication)
+                             QSpinBox, QLineEdit, QScrollArea, QGridLayout, QFrame, QMessageBox, QApplication, QCheckBox, QDoubleSpinBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap
 from openai import OpenAI
 
 # 复用 single_analyzer 中的生图线程
 from single_analyzer import ImageGenWorkerThread
+from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 
 class TextPromptGenThread(QThread):
     log_signal = pyqtSignal(str)
@@ -47,13 +48,15 @@ class TextPromptGenThread(QThread):
             self.finish_signal.emit([])
 
 class PromptCellWidget(QFrame):
-    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
+    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, upscale_options_getter_func=None):
         super().__init__()
         self.get_style = style_getter_func
         self.get_img_config = img_config_getter_func
         self.save_img_cfg = save_img_cfg_callback
         self.img_thread = None
         self.get_ar_policy = ar_policy_getter_func
+        self.get_upscale_options = upscale_options_getter_func
+        self._post_threads = []
         self.initUI(prompt_text)
 
     def initUI(self, prompt_text):
@@ -141,17 +144,44 @@ class PromptCellWidget(QFrame):
             file_path = saved_files[0]
             pixmap = QPixmap(file_path)
             self.img_label.setPixmap(pixmap.scaled(self.img_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self._start_jpg_postprocess(saved_files)
         else:
             self.img_label.setText("生成失败或超时")
 
+    def _start_jpg_postprocess(self, saved_files):
+        options = normalize_upscale_options(self.get_upscale_options() if self.get_upscale_options else {})
+        if not options.get("enabled"):
+            return
+        jpg_files = [str(path) for path in (saved_files or []) if str(path).lower().endswith((".jpg", ".jpeg"))]
+        if not jpg_files:
+            return
+        if not options.get("model_name"):
+            return
+        thread = JpgAutoUpscaleThread(
+            image_paths=jpg_files,
+            options=options,
+            task_name="批量生图后处理",
+        )
+        self._post_threads.append(thread)
+        thread.log_signal.connect(lambda msg: None)
+        thread.finish_signal.connect(lambda _results: None)
+        thread.finished.connect(lambda t=thread: self._cleanup_post_thread(t))
+        thread.start()
+
+    def _cleanup_post_thread(self, thread):
+        if thread in self._post_threads:
+            self._post_threads.remove(thread)
+
 class PromptGeneratorWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
         self.get_styles = styles_getter_func
         self.save_img_cfg = save_img_cfg_callback
         self.get_ar_policy = ar_policy_getter_func
+        self.get_upscale_options = upscale_options_getter_func
+        self.on_upscale_options_changed = upscale_options_changed_callback
         
         self.initUI()
         
@@ -190,6 +220,35 @@ class PromptGeneratorWidget(QWidget):
         style_layout.addWidget(self.gen_prompts_btn)
         main_layout.addLayout(style_layout)
 
+        upscale_layout = QHBoxLayout()
+        self.enable_jpg_upscale_cb = QCheckBox("生图后自动处理 JPG")
+        self.enable_jpg_upscale_cb.toggled.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.enable_jpg_upscale_cb)
+        upscale_layout.addWidget(QLabel("模型:"))
+        self.upscale_model_combo = QComboBox()
+        self.upscale_model_combo.currentTextChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.upscale_model_combo)
+        self.reload_upscale_models_btn = QPushButton("刷新模型")
+        self.reload_upscale_models_btn.clicked.connect(self._reload_upscale_models)
+        upscale_layout.addWidget(self.reload_upscale_models_btn)
+        upscale_layout.addWidget(QLabel("倍率:"))
+        self.upscale_by_spin = QDoubleSpinBox()
+        self.upscale_by_spin.setRange(1.0, 8.0)
+        self.upscale_by_spin.setSingleStep(0.1)
+        self.upscale_by_spin.setValue(2.0)
+        self.upscale_by_spin.valueChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.upscale_by_spin)
+        upscale_layout.addWidget(QLabel("WebP目标MB:"))
+        self.webp_target_mb_spin = QDoubleSpinBox()
+        self.webp_target_mb_spin.setRange(0.1, 100.0)
+        self.webp_target_mb_spin.setDecimals(1)
+        self.webp_target_mb_spin.setSingleStep(0.5)
+        self.webp_target_mb_spin.setValue(10.0)
+        self.webp_target_mb_spin.valueChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.webp_target_mb_spin)
+        upscale_layout.addStretch()
+        main_layout.addLayout(upscale_layout)
+
         # 状态提示
         self.status_label = QLabel("输入条件后点击上方按钮...")
         self.status_label.setStyleSheet("color: gray;")
@@ -206,6 +265,8 @@ class PromptGeneratorWidget(QWidget):
         
         main_layout.addWidget(self.scroll_area)
         self.setLayout(main_layout)
+        self._reload_upscale_models()
+        self.set_upscale_options_defaults(self.get_upscale_options() if self.get_upscale_options else {})
 
     def update_styles(self, style_keys):
         """同步画风列表"""
@@ -258,6 +319,53 @@ class PromptGeneratorWidget(QWidget):
         style_name = self.main_style_combo.currentText()
         return self.get_styles().get(style_name, "")
 
+    def _reload_upscale_models(self):
+        current = self.upscale_model_combo.currentText().strip()
+        models = list_esrgan_models()
+        self.upscale_model_combo.blockSignals(True)
+        self.upscale_model_combo.clear()
+        self.upscale_model_combo.addItems(models)
+        if current:
+            self.upscale_model_combo.setCurrentText(current)
+        self.upscale_model_combo.blockSignals(False)
+        self._persist_upscale_options()
+
+    def _collect_upscale_options(self):
+        raw = {
+            "enabled": bool(self.enable_jpg_upscale_cb.isChecked()),
+            "model_name": self.upscale_model_combo.currentText().strip(),
+            "upscale_mode": 0,
+            "upscale_by": float(self.upscale_by_spin.value()),
+            "max_side_length": 0,
+            "upscale_to_width": 1024,
+            "upscale_to_height": 1024,
+            "upscale_crop": False,
+            "upscaler_2_name": "",
+            "upscaler_2_visibility": 0.0,
+            "cache_size": 4,
+            "webp_target_mb": float(self.webp_target_mb_spin.value()),
+        }
+        return normalize_upscale_options(raw)
+
+    def _persist_upscale_options(self):
+        if self.on_upscale_options_changed:
+            self.on_upscale_options_changed(self._collect_upscale_options())
+
+    def set_upscale_options_defaults(self, options):
+        opts = normalize_upscale_options(options)
+        self.enable_jpg_upscale_cb.blockSignals(True)
+        self.enable_jpg_upscale_cb.setChecked(bool(opts.get("enabled", False)))
+        self.enable_jpg_upscale_cb.blockSignals(False)
+        self.upscale_by_spin.blockSignals(True)
+        self.upscale_by_spin.setValue(float(opts.get("upscale_by", 2.0)))
+        self.upscale_by_spin.blockSignals(False)
+        self.webp_target_mb_spin.blockSignals(True)
+        self.webp_target_mb_spin.setValue(float(opts.get("webp_target_mb", 10.0)))
+        self.webp_target_mb_spin.blockSignals(False)
+        model_name = str(opts.get("model_name", "")).strip()
+        if model_name:
+            self.upscale_model_combo.setCurrentText(model_name)
+
     def populate_grid(self, prompts):
         # 横向最多4个，纵向滚动
         cols = 4
@@ -269,7 +377,8 @@ class PromptGeneratorWidget(QWidget):
                 style_getter_func=self.get_current_style_instructions,
                 img_config_getter_func=self.get_img_config,
                 save_img_cfg_callback=self.save_img_cfg,
-                ar_policy_getter_func=self.get_ar_policy
+                ar_policy_getter_func=self.get_ar_policy,
+                upscale_options_getter_func=self._collect_upscale_options
             )
 
             self.grid_layout.addWidget(cell, row, col)

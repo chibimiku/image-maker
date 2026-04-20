@@ -27,6 +27,9 @@ from z_image_edit_tab import ZImageEditWidget
 from pic_cate_tab import PicCateWidget
 from json_dataset_tab import JsonDatasetWidget
 from webp_compressor import DragDropCompressor
+from flux2_client_tab import Flux2ClientWidget
+from upscaler_tab import UpscalerTabWidget
+from utils.image_upscale_runtime import normalize_upscale_options
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
@@ -46,6 +49,7 @@ class AppWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.styles_data = DEFAULT_STYLES.copy()
+        self._style_sync_enabled = False
         self.pic_cate_state = {
             "source_directory": "",
             "target_directory": "",
@@ -56,10 +60,15 @@ class AppWindow(QWidget):
         self.last_used_style = "默认(无附加)"
         self.use_nsfw_single = False
         self.use_nsfw_batch = False
+        self.upscale_options = normalize_upscale_options({})
 
         self.initUI()
         self.load_config()
         self.load_styles_config()
+        self._style_sync_enabled = True
+        if self.last_used_style not in self.styles_data:
+            self.last_used_style = "默认(无附加)"
+        self.sync_selected_style(self.last_used_style)
 
     def initUI(self):
         self.setWindowTitle("AI 图像辅助创作工具箱")
@@ -82,7 +91,10 @@ class AppWindow(QWidget):
             ar_policy_getter_func=self.get_ar_policy_config,
             nsfw_default_getter_func=lambda: self.use_nsfw_single,
             nsfw_changed_callback=self.on_single_nsfw_changed,
-            booru_tag_limit_getter_func=self.get_booru_tag_limit
+            booru_tag_limit_getter_func=self.get_booru_tag_limit,
+            timeout_getter_func=self.get_request_timeout_seconds,
+            upscale_options_getter_func=self.get_upscale_options,
+            upscale_options_changed_callback=self.update_upscale_options
         )
 
         # 【新增】监听画风切换信号以实现多端同步和记忆
@@ -94,7 +106,9 @@ class AppWindow(QWidget):
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
-            ar_policy_getter_func=self.get_ar_policy_config   # 新增
+            ar_policy_getter_func=self.get_ar_policy_config,   # 新增
+            upscale_options_getter_func=self.get_upscale_options,
+            upscale_options_changed_callback=self.update_upscale_options
         )
 
         self.prompt_generator_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
@@ -108,7 +122,10 @@ class AppWindow(QWidget):
             ar_policy_getter_func=self.get_ar_policy_config,
             nsfw_default_getter_func=lambda: self.use_nsfw_batch,
             nsfw_changed_callback=self.on_batch_nsfw_changed,
-            booru_tag_limit_getter_func=self.get_booru_tag_limit
+            booru_tag_limit_getter_func=self.get_booru_tag_limit,
+            timeout_getter_func=self.get_request_timeout_seconds,
+            upscale_options_getter_func=self.get_upscale_options,
+            upscale_options_changed_callback=self.update_upscale_options
         )
 
         self.batch_analyzer_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
@@ -126,7 +143,9 @@ class AppWindow(QWidget):
         self.char_design_tab = CharDesignWidget(
             config_getter_func=self.get_text_config,
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
-            styles_getter_func=lambda: self.styles_data
+            styles_getter_func=lambda: self.styles_data,
+            upscale_options_getter_func=self.get_upscale_options,
+            upscale_options_changed_callback=self.update_upscale_options
         )
         self.char_design_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         self.z_image_edit_tab = ZImageEditWidget()
@@ -145,6 +164,11 @@ class AppWindow(QWidget):
 
         self.compressor_tab = DragDropCompressor()
         self.compressor_tab.setWindowTitle("PNG/WebP 定体积压缩")
+        self.upscaler_tab = UpscalerTabWidget(
+            options_getter=self.get_upscale_options,
+            options_changed_callback=self.update_upscale_options
+        )
+        self.flux2_client_tab = Flux2ClientWidget()
 
         analysis_layout = QVBoxLayout()
         analysis_layout.addWidget(self.analysis_tabs)
@@ -163,10 +187,11 @@ class AppWindow(QWidget):
 
         self.generation_tabs.addTab(self.prompt_generator_tab, "批量提示词与生图")
         self.generation_tabs.addTab(self.image_edit_tab, "批量图片编辑")
-        self.generation_tabs.addTab(self.z_image_edit_tab, "z-image编辑")
         self.generation_tabs.addTab(self.char_design_tab, "角色设计生成")
         self.generation_tabs.addTab(self.style_analyzer_tab, "多图画风提取")
         self.generation_tabs.addTab(self.compressor_tab, "PNG/WebP压缩")
+        self.generation_tabs.addTab(self.upscaler_tab, "图片Upscaler")
+        self.generation_tabs.addTab(self.flux2_client_tab, "WebUI Img2Img")
 
         self.main_tabs.addTab(self.analysis_root_tab, "图片分析")
         self.main_tabs.addTab(self.generation_root_tab, "图片生成")
@@ -366,6 +391,12 @@ class AppWindow(QWidget):
         except Exception:
             return DEFAULT_BOORU_TAG_LIMIT
 
+    def get_request_timeout_seconds(self):
+        try:
+            return int(self.img_timeout_spin.value())
+        except Exception:
+            return 120
+
     def on_single_nsfw_changed(self, checked):
         self.use_nsfw_single = bool(checked)
         self.save_text_config(silent=True)
@@ -374,8 +405,18 @@ class AppWindow(QWidget):
         self.use_nsfw_batch = bool(checked)
         self.save_text_config(silent=True)
 
+    def get_upscale_options(self):
+        return normalize_upscale_options(getattr(self, "upscale_options", {}))
+
+    def update_upscale_options(self, options):
+        self.upscale_options = normalize_upscale_options(options)
+        if hasattr(self, "url_input") and hasattr(self, "key_input"):
+            self.save_text_config(silent=True)
+
     def sync_selected_style(self, style_name):
         """【新增】同步多页面的画风下拉框，并自动保存到硬盘"""
+        if not self._style_sync_enabled:
+            return
         if not style_name: return
         self.last_used_style = style_name
         
@@ -413,6 +454,7 @@ class AppWindow(QWidget):
                     self.last_used_style = config.get("last_used_style", "默认(无附加)")
                     self.use_nsfw_single = bool(config.get("use_nsfw_single", False))
                     self.use_nsfw_batch = bool(config.get("use_nsfw_batch", False))
+                    self.upscale_options = normalize_upscale_options(config.get("upscale_options", {}))
                     saved_booru_tag_limit = config.get("booru_tag_limit", DEFAULT_BOORU_TAG_LIMIT)
                     try:
                         saved_booru_tag_limit = int(saved_booru_tag_limit)
@@ -441,8 +483,16 @@ class AppWindow(QWidget):
                 print(f"加载 {CONFIG_FILE} 失败: {e}")
         if hasattr(self, "single_analyzer_tab"):
             self.single_analyzer_tab.set_use_nsfw_default(self.use_nsfw_single)
+            self.single_analyzer_tab.set_upscale_options_defaults(self.upscale_options)
         if hasattr(self, "batch_analyzer_tab"):
             self.batch_analyzer_tab.set_use_nsfw_default(self.use_nsfw_batch)
+            self.batch_analyzer_tab.set_upscale_options_defaults(self.upscale_options)
+        if hasattr(self, "prompt_generator_tab"):
+            self.prompt_generator_tab.set_upscale_options_defaults(self.upscale_options)
+        if hasattr(self, "char_design_tab"):
+            self.char_design_tab.set_upscale_options_defaults(self.upscale_options)
+        if hasattr(self, "upscaler_tab"):
+            self.upscaler_tab.load_saved_options()
                 
         if os.path.exists(CONFIG_IMAGE_FILE):
             try:
@@ -602,6 +652,7 @@ class AppWindow(QWidget):
             "use_nsfw_batch": bool(getattr(self, "use_nsfw_batch", False)),
             "booru_tag_limit": int(self.get_booru_tag_limit()),
             "last_used_style": getattr(self, "last_used_style", "默认(无附加)"),
+            "upscale_options": normalize_upscale_options(getattr(self, "upscale_options", {})),
             "pic_cate": self.pic_cate_state
         }
         try:

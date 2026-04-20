@@ -6,6 +6,64 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel,
 from PyQt5.QtCore import Qt
 from PIL import Image
 
+
+def compress_image_to_webp_best_quality(input_path, target_mb, output_path=None, max_iters=10):
+    """
+    将图片压缩为不超过 target_mb 的 WebP，并尽量保持最高 quality。
+    返回: (ok, output_path, output_size_bytes, best_quality)
+    """
+    target_bytes = int(float(target_mb) * 1024 * 1024)
+    if target_bytes <= 0:
+        return False, "", 0, 0
+    if not output_path:
+        directory = os.path.dirname(input_path)
+        name, _ = os.path.splitext(os.path.basename(input_path))
+        output_path = os.path.join(directory, f"{name}_compressed.webp")
+    try:
+        img = Image.open(input_path)
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGBA") if "transparency" in img.info else img.convert("RGB")
+
+        # 最高画质直接命中
+        first_buffer = io.BytesIO()
+        img.save(first_buffer, format="webp", quality=100)
+        first_data = first_buffer.getvalue()
+        if len(first_data) <= target_bytes:
+            with open(output_path, "wb") as f:
+                f.write(first_data)
+            return True, output_path, len(first_data), 100
+
+        low, high = 0, 100
+        best_quality = 0
+        best_data = b""
+        for _ in range(max(1, int(max_iters))):
+            mid = (low + high) // 2
+            buf = io.BytesIO()
+            img.save(buf, format="webp", quality=mid)
+            data = buf.getvalue()
+            size = len(data)
+            if size <= target_bytes:
+                best_quality = mid
+                best_data = data
+                low = mid + 1
+            else:
+                high = mid - 1
+
+        if best_data:
+            with open(output_path, "wb") as f:
+                f.write(best_data)
+            return True, output_path, len(best_data), best_quality
+
+        # 兜底保存最低质量
+        fallback = io.BytesIO()
+        img.save(fallback, format="webp", quality=0)
+        fallback_data = fallback.getvalue()
+        with open(output_path, "wb") as f:
+            f.write(fallback_data)
+        return True, output_path, len(fallback_data), 0
+    except Exception:
+        return False, "", 0, 0
+
 class DragDropCompressor(QWidget):
     def __init__(self):
         super().__init__()

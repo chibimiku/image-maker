@@ -1,5 +1,7 @@
 # image-maker 本地 booru tagger 配置说明
 
+> 开发/改动代码前，建议先阅读项目根目录的 `AGENTS.md`（模块索引与改动入口说明）。
+
 ## 安装说明
 
 1. 安装 Python 依赖：

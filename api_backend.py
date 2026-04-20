@@ -8,6 +8,7 @@ import re
 import logging
 import copy
 import uuid
+import sys
 from datetime import datetime
 import time
 import mimetypes
@@ -22,6 +23,19 @@ logger.setLevel(logging.INFO)
 if not logger.handlers:
     formatter = logging.Formatter(fmt='[%(asctime)s] %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     console_handler = logging.StreamHandler()
+    # 在 Windows 环境尽量确保控制台输出使用 UTF-8，避免 emoji 触发 gbk 编码异常
+    try:
+        if hasattr(console_handler.stream, "reconfigure"):
+            console_handler.stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     console_handler.setFormatter(formatter)
     
     today_date = datetime.now().strftime("%Y-%m-%d")
@@ -158,6 +172,57 @@ def _format_safe_log(value) -> str:
     except Exception:
         return str(sanitized)
 
+def _log_stage_elapsed(stage_name: str, start_time: float):
+    try:
+        elapsed = time.perf_counter() - float(start_time)
+    except Exception:
+        elapsed = 0.0
+    logger.info(f"[耗时] {stage_name}: {elapsed:.3f} 秒")
+
+def _save_server_response_json(save_dir: str, file_prefix: str, api_tag: str, resp_json) -> str:
+    try:
+        os.makedirs(save_dir, exist_ok=True)
+        prefix = f"{file_prefix}_" if file_prefix else ""
+        filename = f"{prefix}{api_tag}_server_response_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:6]}.json"
+        output_path = os.path.join(save_dir, filename)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(resp_json, f, ensure_ascii=False, indent=2)
+        logger.warning(f"⚠️ 图片获取失败，已将服务器返回 JSON 保存到: {output_path}")
+        return output_path
+    except Exception as e:
+        logger.error(f"保存服务器返回 JSON 失败: {e}")
+        return ""
+
+def _response_text_utf8(resp) -> str:
+    """统一按 UTF-8 解析响应文本，避免 requests 在部分场景错误推断为 gbk。"""
+    if resp is None:
+        return ""
+    try:
+        if hasattr(resp, "content") and resp.content is not None:
+            return resp.content.decode("utf-8", errors="replace")
+    except Exception:
+        pass
+    try:
+        if getattr(resp, "encoding", None) is None:
+            resp.encoding = "utf-8"
+        return resp.text or ""
+    except Exception:
+        return ""
+
+def _save_server_response_raw(save_dir: str, file_prefix: str, api_tag: str, raw_text: str) -> str:
+    try:
+        os.makedirs(save_dir, exist_ok=True)
+        prefix = f"{file_prefix}_" if file_prefix else ""
+        filename = f"{prefix}{api_tag}_server_raw_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:6]}.txt"
+        output_path = os.path.join(save_dir, filename)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(str(raw_text or ""))
+        logger.warning(f"服务器原始响应已保存到: {output_path}")
+        return output_path
+    except Exception as e:
+        logger.error(f"保存服务器原始响应失败: {e}")
+        return ""
+
 
 def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False) -> list:
     """
@@ -214,7 +279,8 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     logger.info("=== 发起 API 请求 ===")
     logger.info(f"请求数据:\n{json.dumps(safe_data, ensure_ascii=False, indent=2)}")
 
-    # ================= 替换掉原来的 try 块，改为重试循环 =================
+    # ================= 阶段1：请求并获取 JSON 响应 =================
+    stage_json_start = time.perf_counter()
     resp = None
     for attempt in range(max_retries + 1):
         try:
@@ -231,10 +297,16 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
                 time.sleep(2)  # 重试前稍微休息2秒，避免频繁打满后端
             else:
                 logger.error("达到最大重试次数，图片生成请求最终失败。")
+                fail_today = datetime.now().strftime("%Y%m%d")
+                fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+                if resp is not None:
+                    _save_server_response_raw(fail_dir, file_prefix, "whatai", _response_text_utf8(resp))
                 return []
     # ====================================================================
 
     try:
+        if getattr(resp, "encoding", None) is None:
+            resp.encoding = "utf-8"
         resp_json = resp.json()
         
         # 【新增】打印服务器返回的原始完整 JSON 信息
@@ -243,14 +315,11 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         content_str = resp_json["choices"][0]["message"]["content"]
     except (KeyError, json.JSONDecodeError) as e:
         logger.error(f"解析返回 JSON 失败: {e}")
+        fail_today = datetime.now().strftime("%Y%m%d")
+        fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+        _save_server_response_raw(fail_dir, file_prefix, "whatai", _response_text_utf8(resp))
         return []
-
-    # 解析 Markdown 提取图片
-    img_urls = re.findall(r'!\[.*?\]\((https?://[^\)]+)\)', content_str)
-    annotation_data = _normalize_annotation_result(_extract_json_object(content_str))
-    if not img_urls:
-        logger.warning("未在返回的文本中找到图片链接。")
-        return []
+    _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
     today_str = datetime.now().strftime("%Y%m%d")
     if save_sub_dir:
@@ -258,8 +327,19 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     else:
         save_dir = os.path.join("data", today_str)
     os.makedirs(save_dir, exist_ok=True)
+
+    # 解析 Markdown 提取图片
+    img_urls = re.findall(r'!\[.*?\]\((https?://[^\)]+)\)', content_str)
+    annotation_data = _normalize_annotation_result(_extract_json_object(content_str))
+    if not img_urls:
+        logger.warning("未在返回的文本中找到图片链接。")
+        _save_server_response_json(save_dir, file_prefix, "whatai", resp_json)
+        _save_server_response_raw(save_dir, file_prefix, "whatai", content_str)
+        return []
     saved_files = []
-    
+
+    # ================= 阶段2：下载并保存图片 =================
+    stage_download_start = time.perf_counter()
     for idx, img_url in enumerate(img_urls):
         try:
             # 【优化】获取完整的 response 以读取内容
@@ -291,6 +371,11 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
             
         except Exception as e:
             logger.error(f"下载图片失败 {img_url}: {e}")
+    _log_stage_elapsed("阶段2-下载并保存图片", stage_download_start)
+    logger.info(f"[阶段统计] 识别到图片链接: {len(img_urls)}，成功保存: {len(saved_files)}")
+    if len(saved_files) == 0:
+        _save_server_response_json(save_dir, file_prefix, "whatai", resp_json)
+        _save_server_response_raw(save_dir, file_prefix, "whatai", content_str)
 
     if return_metadata:
         return {
@@ -498,7 +583,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     logger.info("=== 发起 AIGC2D API 请求 ===")
     logger.info(f"请求数据:\n{json.dumps(safe_payload, ensure_ascii=False, indent=2)}")
 
-    # 带重试机制的请求
+    # ================= 阶段1：请求并获取 JSON 响应 =================
+    stage_json_start = time.perf_counter()
     resp = None
     for attempt in range(max_retries + 1):
         try:
@@ -515,11 +601,17 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
             else:
                 logger.error("达到最大重试次数，AIGC2D 图片生成请求最终失败。")
                 if resp is not None:
-                    logger.error(f"最后一次响应内容: {_format_safe_log(resp.text)}")
+                    raw_text = _response_text_utf8(resp)
+                    logger.error(f"最后一次响应内容: {_format_safe_log(raw_text)}")
+                    fail_today = datetime.now().strftime("%Y%m%d")
+                    fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+                    _save_server_response_raw(fail_dir, file_prefix, "aigc2d", raw_text)
                 return []
 
     # 解析返回 JSON
     try:
+        if getattr(resp, "encoding", None) is None:
+            resp.encoding = "utf-8"
         resp_json = resp.json()
         # 记录脱敏后的原始返回（避免返回巨量 base64 撑爆日志）
         safe_resp_json = copy.deepcopy(resp_json)
@@ -533,7 +625,11 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         logger.info(f"=== AIGC2D 服务器返回信息 ===\n{json.dumps(safe_resp_json, ensure_ascii=False, indent=2)}")
     except (KeyError, json.JSONDecodeError) as e:
         logger.error(f"解析 AIGC2D 返回 JSON 失败: {e}")
+        fail_today = datetime.now().strftime("%Y%m%d")
+        fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+        _save_server_response_raw(fail_dir, file_prefix, "aigc2d", _response_text_utf8(resp))
         return []
+    _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
     # 提取图片并保存
     today_str = datetime.now().strftime("%Y%m%d")
@@ -547,9 +643,13 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     candidates = resp_json.get("candidates", [])
     if not candidates:
         logger.warning("AIGC2D 返回的 JSON 中没有找到 candidates 节点。")
+        _save_server_response_json(save_dir, file_prefix, "aigc2d", resp_json)
+        _save_server_response_raw(save_dir, file_prefix, "aigc2d", _response_text_utf8(resp))
         return []
 
     model_text_parts = []
+    # ================= 阶段2：提取并保存图片 =================
+    stage_save_start = time.perf_counter()
     for candidate in candidates:
         content = candidate.get("content", {})
         parts = content.get("parts", [])
@@ -585,6 +685,11 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                 # 顺手记录一下模型可能返回的额外文本提示
                 logger.info(f"模型文本反馈: {part['text']}")
                 model_text_parts.append(part["text"])
+    _log_stage_elapsed("阶段2-提取并保存图片", stage_save_start)
+    logger.info(f"[阶段统计] candidates: {len(candidates)}，成功保存: {len(saved_files)}")
+    if len(saved_files) == 0:
+        _save_server_response_json(save_dir, file_prefix, "aigc2d", resp_json)
+        _save_server_response_raw(save_dir, file_prefix, "aigc2d", _response_text_utf8(resp))
 
     raw_text = "\n".join(model_text_parts).strip()
     annotation_data = _normalize_annotation_result(_extract_json_object(raw_text))

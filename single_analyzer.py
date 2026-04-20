@@ -8,13 +8,15 @@ from openai import OpenAI
 from PIL import Image, ImageGrab
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
-                             QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox)
+                             QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 
 from api_backend import generate_image_whatai, generate_image_aigc2d 
 from utils.booru_tags import normalize_booru_tags
 from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags
+from utils.task_runtime import SystemNotifier, TaskCountdown
+from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 
 system_prompt = """
 You are an expert image analyzer and illustrator assistant. 
@@ -48,6 +50,10 @@ def append_extra_llm_prompt(base_prompt, extra_llm_prompt):
     if not extra_text:
         return base_prompt
     return f"{base_prompt.rstrip()}\n\n{extra_text}"
+
+def _is_timeout_error(err) -> bool:
+    text = str(err).lower()
+    return ("timeout" in text) or ("timed out" in text) or ("readtimeout" in text)
 
 def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=30):
     if not isinstance(result_json, dict):
@@ -167,7 +173,7 @@ def compress_and_encode_image(image_source, max_dim=2048, log_callback=None):
         print(error_msg)
         return None, None
 
-def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, extra_llm_prompt=""):
+def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, extra_llm_prompt="", timeout_seconds=120, status_callback=None):
     mime_type, base64_image = compress_and_encode_image(image_source, log_callback=log_callback)
     if not base64_image:
         if log_callback:
@@ -193,7 +199,7 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
                     ]
                 }
             ],
-            temperature=0.7, max_completion_tokens=16384
+            temperature=0.7, max_completion_tokens=16384, timeout=timeout_seconds
         )
         parsed = json.loads(response.choices[0].message.content)
         fallback_data = {"booru-tags": normalize_booru_tags(local_booru_tags or [], limit=booru_tag_limit)}
@@ -205,10 +211,12 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
         error_msg = f"Step 1 请求错误: {e}"
         if log_callback:
             log_callback(error_msg)
+        if status_callback:
+            status_callback("timeout" if _is_timeout_error(e) else "error")
         print(error_msg)
         return None
 
-def step_2_refine_description(original_json_data, client, model_name, booru_tag_limit=30, extra_llm_prompt=""):
+def step_2_refine_description(original_json_data, client, model_name, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, status_callback=None):
     original_description = original_json_data.get("english_description", "")
     jp_title = original_json_data.get("japanese_title", "")
     cn_title = original_json_data.get("chinese_title", "")
@@ -245,7 +253,7 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": refine_prompt}
             ],
-            temperature=0.7, max_completion_tokens=16384
+            temperature=0.7, max_completion_tokens=16384, timeout=timeout_seconds
         )
         final_result_json = json.loads(response.choices[0].message.content)
         final_result_json = _normalize_analysis_result(final_result_json, fallback_data=original_json_data, booru_tag_limit=booru_tag_limit)
@@ -254,13 +262,15 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
         return final_result_json
     except Exception as e:
         print(f"Step 2 二次加工时发生错误: {e}")
+        if status_callback:
+            status_callback("timeout" if _is_timeout_error(e) else "error")
         return None
 
 class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
 
-    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt=""):
+    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120):
         super().__init__()
         self.image_source = image_source
         self.api_key = api_key
@@ -271,17 +281,39 @@ class WorkerThread(QThread):
         if self.booru_tag_limit <= 0:
             self.booru_tag_limit = 30
         self.extra_llm_prompt = str(extra_llm_prompt or "").strip()
+        self.timeout_seconds = int(timeout_seconds) if str(timeout_seconds).strip().isdigit() else 120
+        if self.timeout_seconds <= 0:
+            self.timeout_seconds = 120
+        self.last_status = "idle"
+        self._force_cancel_requested = False
+
+    def request_cancel(self, force=False):
+        self._force_cancel_requested = bool(force)
+        self.requestInterruption()
 
     def run(self):
+        self.last_status = "running"
+        if self.isInterruptionRequested():
+            self.last_status = "cancelled"
+            self.log_signal.emit("任务在开始前已被取消。")
+            self.finish_signal.emit({})
+            return
         try:
-            client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            client = OpenAI(api_key=self.api_key, base_url=self.base_url, timeout=self.timeout_seconds)
         except Exception as e:
+            self.last_status = "error"
             self.log_signal.emit(f"初始化 API 客户端失败: {e}")
             self.finish_signal.emit({})
             return
 
+        self.log_signal.emit(f"请求超时设置: {self.timeout_seconds} 秒")
         self.log_signal.emit(f"正在执行本地 booru tagger 分析（tag 上限: {self.booru_tag_limit}）...")
         local_booru_tags = predict_local_booru_tags(self.image_source, booru_tag_limit=self.booru_tag_limit, log_callback=self.log_signal.emit)
+        if self.isInterruptionRequested():
+            self.last_status = "cancelled"
+            self.log_signal.emit("任务已取消（已停止后续分析步骤）。")
+            self.finish_signal.emit({})
+            return
         if local_booru_tags:
             preview_tags = ", ".join(local_booru_tags[:10])
             self.log_signal.emit(f"本地 booru tagger 候选标签预览（前 10 个）: {preview_tags}")
@@ -290,13 +322,38 @@ class WorkerThread(QThread):
         if self.extra_llm_prompt:
             self.log_signal.emit("已启用附加 prompts，LLM 请求将追加重点关注要求")
         self.log_signal.emit(f"正在使用模型 [{self.model_name}] 开始 Step 1: 读取并压缩图片，发送 Vision 请求...")
-        initial_result = step_1_analyze_image(self.image_source, client, self.model_name, log_callback=self.log_signal.emit, booru_tag_limit=self.booru_tag_limit, local_booru_tags=local_booru_tags, extra_llm_prompt=self.extra_llm_prompt)
+        stage_status = {"value": "ok"}
+        initial_result = step_1_analyze_image(
+            self.image_source,
+            client,
+            self.model_name,
+            log_callback=self.log_signal.emit,
+            booru_tag_limit=self.booru_tag_limit,
+            local_booru_tags=local_booru_tags,
+            extra_llm_prompt=self.extra_llm_prompt,
+            timeout_seconds=self.timeout_seconds,
+            status_callback=lambda status: stage_status.update({"value": status})
+        )
         
         if initial_result:
             self.log_signal.emit("Step 1 完成。初步结果已获取。")
             if self.enable_refine:
+                if self.isInterruptionRequested():
+                    self.last_status = "cancelled"
+                    self.log_signal.emit("任务已取消（Step 2 未执行）。")
+                    self.finish_signal.emit({})
+                    return
                 self.log_signal.emit("正在开始 Step 2: 根据中文指令对英文描述进行加工并推断长宽比...")
-                final_result = step_2_refine_description(initial_result, client, self.model_name, booru_tag_limit=self.booru_tag_limit, extra_llm_prompt=self.extra_llm_prompt)
+                stage_status["value"] = "ok"
+                final_result = step_2_refine_description(
+                    initial_result,
+                    client,
+                    self.model_name,
+                    booru_tag_limit=self.booru_tag_limit,
+                    extra_llm_prompt=self.extra_llm_prompt,
+                    timeout_seconds=self.timeout_seconds,
+                    status_callback=lambda status: stage_status.update({"value": status})
+                )
                 if final_result:
                     final_result["aspect_ratio"] = calculate_closest_aspect_ratio(self.image_source)
                     initial_tags = initial_result.get("pixiv_tags", [])
@@ -312,6 +369,8 @@ class WorkerThread(QThread):
                         final_result["pixiv_tags"] = intersection_tags if intersection_tags else refined_tags
                     if local_booru_tags:
                         final_result["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=self.booru_tag_limit, output_style="space")
+                else:
+                    self.last_status = "timeout" if stage_status.get("value") == "timeout" else "error"
             else:
                 self.log_signal.emit("已跳过 Step 2 refine。")
                 final_result = dict(initial_result)
@@ -322,8 +381,14 @@ class WorkerThread(QThread):
                 final_result["pixiv_tags_second"] = []
                 if local_booru_tags:
                     final_result["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=self.booru_tag_limit, output_style="space")
+            if final_result:
+                self.last_status = "success"
             self.finish_signal.emit(final_result if final_result else {})
         else:
+            if self.isInterruptionRequested() or self._force_cancel_requested:
+                self.last_status = "cancelled"
+            else:
+                self.last_status = "timeout" if stage_status.get("value") == "timeout" else "error"
             self.log_signal.emit("Step 1 失败，流程终止。")
             self.finish_signal.emit({})
 
@@ -338,8 +403,17 @@ class ImageGenWorkerThread(QThread):
         self.aspect_ratio = aspect_ratio
         self.instructions = instructions
         self.api_type = api_type
+        self.last_status = "idle"
+
+    def request_cancel(self):
+        self.requestInterruption()
 
     def run(self):
+        self.last_status = "running"
+        if self.isInterruptionRequested():
+            self.last_status = "cancelled"
+            self.finish_signal.emit([])
+            return
         self.log_signal.emit(f"\n🚀 开始请求生图 API (模型: {self.model_name})...")
         self.log_signal.emit("请耐心等待，这可能需要几十秒的时间...")
         try:
@@ -362,14 +436,21 @@ class ImageGenWorkerThread(QThread):
                     instructions=self.instructions,
                     api_type=self.api_type
                 )
+            if self.isInterruptionRequested():
+                self.last_status = "cancelled"
+                self.finish_signal.emit([])
+                return
+            self.last_status = "success" if saved_files else "error"
             self.finish_signal.emit(saved_files)
         except Exception as e:
-            self.log_signal.emit(f"❌ 生图请求发生异常: {e}")
+            self.last_status = "cancelled" if self.isInterruptionRequested() else "error"
+            if self.last_status != "cancelled":
+                self.log_signal.emit(f"❌ 生图请求发生异常: {e}")
             self.finish_signal.emit([])
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -378,6 +459,9 @@ class SingleAnalyzerWidget(QWidget):
         self.get_nsfw_default = nsfw_default_getter_func
         self.on_nsfw_changed = nsfw_changed_callback
         self.get_booru_tag_limit = booru_tag_limit_getter_func
+        self.get_timeout_seconds = timeout_getter_func
+        self.get_upscale_options = upscale_options_getter_func
+        self.on_upscale_options_changed = upscale_options_changed_callback
         
         self.image_source = None
         self.current_aspect_ratio = "1:1"
@@ -386,10 +470,26 @@ class SingleAnalyzerWidget(QWidget):
 
         # 【新增】用来保存正在执行的生图线程池，防止被垃圾回收
         self._active_img_threads = []
+        self._auto_gen_expected = 0
+        self._auto_gen_finished = 0
+        self._auto_gen_cancelled = False
+        self._img_gen_running = False
+        self._img_gen_deadline = None
+        self._img_gen_timeout_seconds = 0
+        self._img_gen_countdown = TaskCountdown(
+            parent=self,
+            on_tick=self._on_image_gen_countdown_tick,
+            on_timeout=lambda: self.cancel_image_generation(reason="timeout")
+        )
 
         self.get_ar_policy = ar_policy_getter_func
+        self._notifier = SystemNotifier(self)
+        self._active_post_threads = []
         
         self.initUI()
+
+    def _send_system_notification(self, title, message):
+        self._notifier.notify(title, message)
         
     def initUI(self):
         self.setAcceptDrops(True)
@@ -424,6 +524,35 @@ class SingleAnalyzerWidget(QWidget):
         nsfw_layout.addStretch()
         layout.addLayout(nsfw_layout)
 
+        upscale_layout = QHBoxLayout()
+        self.enable_jpg_upscale_cb = QCheckBox("生图后自动处理 JPG")
+        self.enable_jpg_upscale_cb.toggled.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.enable_jpg_upscale_cb)
+        upscale_layout.addWidget(QLabel("模型:"))
+        self.upscale_model_combo = QComboBox()
+        self.upscale_model_combo.currentTextChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.upscale_model_combo)
+        self.reload_upscale_models_btn = QPushButton("刷新模型")
+        self.reload_upscale_models_btn.clicked.connect(self._reload_upscale_models)
+        upscale_layout.addWidget(self.reload_upscale_models_btn)
+        upscale_layout.addWidget(QLabel("倍率:"))
+        self.upscale_by_spin = QDoubleSpinBox()
+        self.upscale_by_spin.setRange(1.0, 8.0)
+        self.upscale_by_spin.setSingleStep(0.1)
+        self.upscale_by_spin.setValue(2.0)
+        self.upscale_by_spin.valueChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.upscale_by_spin)
+        upscale_layout.addWidget(QLabel("WebP目标MB:"))
+        self.webp_target_mb_spin = QDoubleSpinBox()
+        self.webp_target_mb_spin.setRange(0.1, 100.0)
+        self.webp_target_mb_spin.setDecimals(1)
+        self.webp_target_mb_spin.setSingleStep(0.5)
+        self.webp_target_mb_spin.setValue(10.0)
+        self.webp_target_mb_spin.valueChanged.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.webp_target_mb_spin)
+        upscale_layout.addStretch()
+        layout.addLayout(upscale_layout)
+
         # 画风选择
         style_select_layout = QHBoxLayout()
         style_select_layout.addWidget(QLabel("生成时使用的画风预设:"))
@@ -456,11 +585,23 @@ class SingleAnalyzerWidget(QWidget):
         gen_img_layout.addWidget(self.gen_ref_btn)
         layout.addLayout(gen_img_layout)
 
+        gen_control_layout = QHBoxLayout()
+        self.gen_countdown_label = QLabel("生图超时倒计时: --")
+        self.cancel_gen_btn = QPushButton("终止当前生图")
+        self.cancel_gen_btn.setEnabled(False)
+        self.cancel_gen_btn.clicked.connect(self.cancel_image_generation)
+        gen_control_layout.addWidget(self.gen_countdown_label)
+        gen_control_layout.addStretch()
+        gen_control_layout.addWidget(self.cancel_gen_btn)
+        layout.addLayout(gen_control_layout)
+
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         layout.addWidget(self.log_text)
 
         self.setLayout(layout)
+        self._reload_upscale_models()
+        self.set_upscale_options_defaults(self.get_upscale_options() if self.get_upscale_options else {})
 
     def _resolve_ar_for_first_stage(self, original_ar: str) -> str:
         """第一次：分析完成后用于保存 prompts 的长宽比"""
@@ -572,9 +713,14 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_ref_btn.setEnabled(False)
         self.log_text.clear()
         self.log_msg("任务已启动...\n")
+        timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+        submit_time = datetime.datetime.now()
+        ddl = submit_time + datetime.timedelta(seconds=max(1, timeout_seconds))
+        self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）")
         
         booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
-        self.thread = WorkerThread(self.image_source, api_key, base_url, model_name, booru_tag_limit=booru_tag_limit)
+        self.thread = WorkerThread(self.image_source, api_key, base_url, model_name, booru_tag_limit=booru_tag_limit, timeout_seconds=timeout_seconds)
         self.thread.log_signal.connect(self.log_msg)
         self.thread.finish_signal.connect(self.on_process_finished)
         self.thread.start()
@@ -583,6 +729,55 @@ class SingleAnalyzerWidget(QWidget):
         if self.on_nsfw_changed:
             self.on_nsfw_changed(bool(checked))
 
+    def _reload_upscale_models(self):
+        current = self.upscale_model_combo.currentText().strip()
+        models = list_esrgan_models()
+        self.upscale_model_combo.blockSignals(True)
+        self.upscale_model_combo.clear()
+        self.upscale_model_combo.addItems(models)
+        if current:
+            self.upscale_model_combo.setCurrentText(current)
+        self.upscale_model_combo.blockSignals(False)
+        if not models:
+            self.log_msg("⚠️ 未找到 ESRGAN 模型，请确认 data/models/ESRGAN 或 models/ESRGAN 目录")
+        self._persist_upscale_options()
+
+    def _collect_upscale_options(self):
+        raw = {
+            "enabled": bool(self.enable_jpg_upscale_cb.isChecked()),
+            "model_name": self.upscale_model_combo.currentText().strip(),
+            "upscale_mode": 0,
+            "upscale_by": float(self.upscale_by_spin.value()),
+            "max_side_length": 0,
+            "upscale_to_width": 1024,
+            "upscale_to_height": 1024,
+            "upscale_crop": False,
+            "upscaler_2_name": "",
+            "upscaler_2_visibility": 0.0,
+            "cache_size": 4,
+            "webp_target_mb": float(self.webp_target_mb_spin.value()),
+        }
+        return normalize_upscale_options(raw)
+
+    def _persist_upscale_options(self):
+        if self.on_upscale_options_changed:
+            self.on_upscale_options_changed(self._collect_upscale_options())
+
+    def set_upscale_options_defaults(self, options):
+        opts = normalize_upscale_options(options)
+        self.enable_jpg_upscale_cb.blockSignals(True)
+        self.enable_jpg_upscale_cb.setChecked(bool(opts.get("enabled", False)))
+        self.enable_jpg_upscale_cb.blockSignals(False)
+        self.upscale_by_spin.blockSignals(True)
+        self.upscale_by_spin.setValue(float(opts.get("upscale_by", 2.0)))
+        self.upscale_by_spin.blockSignals(False)
+        self.webp_target_mb_spin.blockSignals(True)
+        self.webp_target_mb_spin.setValue(float(opts.get("webp_target_mb", 10.0)))
+        self.webp_target_mb_spin.blockSignals(False)
+        model_name = str(opts.get("model_name", "")).strip()
+        if model_name:
+            self.upscale_model_combo.setCurrentText(model_name)
+
     def set_use_nsfw_default(self, checked):
         self.use_nsfw_cb.blockSignals(True)
         self.use_nsfw_cb.setChecked(bool(checked))
@@ -590,8 +785,17 @@ class SingleAnalyzerWidget(QWidget):
 
     def on_process_finished(self, result_json):
         self.send_btn.setEnabled(True)
+        task_status = getattr(self.thread, "last_status", "unknown")
         if not result_json:
-            self.log_msg("\n处理失败，未能获取到有效的 JSON 数据。")
+            if task_status == "timeout":
+                self.log_msg("\n处理失败：请求超时，请检查“请求超时时间”配置是否足够。")
+                self._send_system_notification("单图分析超时", "任务因请求超时结束，请调整超时配置后重试。")
+            elif task_status == "cancelled":
+                self.log_msg("\n任务已取消。")
+                self._send_system_notification("单图分析已取消", "当前任务已被取消。")
+            else:
+                self.log_msg("\n处理失败，未能获取到有效的 JSON 数据。")
+                self._send_system_notification("单图分析失败", "任务已结束但未获取到有效结果。")
             return
         if isinstance(self.image_source, str):
             result_json["source_image_path"] = os.path.abspath(self.image_source)
@@ -654,18 +858,95 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"❌ 保存提示词 txt 文件时出错: {e}")
 
         # 【新增】自动执行发图逻辑
-        if self.auto_gen_orig_cb.isChecked():
-            self.trigger_image_generation("original")
-        if self.auto_gen_ref_cb.isChecked():
-            self.trigger_image_generation("refined")
+        auto_targets = []
+        if self.auto_gen_orig_cb.isChecked() and str(self.current_orig_desc).strip():
+            auto_targets.append("original")
+        if self.auto_gen_ref_cb.isChecked() and str(self.current_refine_desc).strip():
+            auto_targets.append("refined")
+        self._auto_gen_cancelled = False
+        self._auto_gen_expected = len(auto_targets)
+        self._auto_gen_finished = 0
+        if auto_targets:
+            self.log_msg(f"🤖 检测到自动生图任务，共 {len(auto_targets)} 项，通知将于全部生图结束后发送。")
+            for prompt_type in auto_targets:
+                self.trigger_image_generation(prompt_type, is_auto=True)
+        else:
+            self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
 
-    def trigger_image_generation(self, prompt_type):
+    def _start_image_gen_runtime(self, timeout_seconds):
+        self._img_gen_running = True
+        self._img_gen_timeout_seconds = max(1, int(timeout_seconds))
+        now = datetime.datetime.now()
+        self._img_gen_deadline = now + datetime.timedelta(seconds=self._img_gen_timeout_seconds)
+        self.cancel_gen_btn.setEnabled(True)
+        self.log_msg(f"生图提交时间: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.log_msg(f"生图超时设置: {self._img_gen_timeout_seconds} 秒（预计超时点: {self._img_gen_deadline.strftime('%H:%M:%S')}）")
+        self._img_gen_countdown.start(self._img_gen_timeout_seconds)
+
+    def _stop_image_gen_runtime(self):
+        self._img_gen_running = False
+        self._img_gen_deadline = None
+        self._img_gen_timeout_seconds = 0
+        self._img_gen_countdown.stop()
+        self.cancel_gen_btn.setEnabled(False)
+        self.gen_countdown_label.setText("生图超时倒计时: --")
+
+    def _on_image_gen_countdown_tick(self, remain_seconds):
+        if not self._img_gen_running:
+            self.gen_countdown_label.setText("生图超时倒计时: --")
+            return
+        remain = int(remain_seconds)
+        if remain <= 0:
+            self.gen_countdown_label.setText("生图超时倒计时: 0 秒")
+            self.log_msg("⏰ 生图超时倒计时已到，正在终止当前生图任务...")
+            return
+        self.gen_countdown_label.setText(f"生图超时倒计时: {remain} 秒")
+
+    def _on_image_thread_stopped(self, thread):
+        if thread in self._active_img_threads:
+            self._active_img_threads.remove(thread)
+        if not self._active_img_threads:
+            self.gen_orig_btn.setEnabled(True)
+            self.gen_ref_btn.setEnabled(True)
+            self._stop_image_gen_runtime()
+
+    def cancel_image_generation(self, reason="manual"):
+        if not self._active_img_threads:
+            self.log_msg("当前没有正在执行的生图任务。")
+            return
+        self._auto_gen_cancelled = True
+        running_threads = list(self._active_img_threads)
+        self.log_msg(f"正在终止 {len(running_threads)} 个生图任务...")
+        for t in running_threads:
+            try:
+                if hasattr(t, "request_cancel"):
+                    t.request_cancel()
+                else:
+                    t.requestInterruption()
+                if not t.wait(300):
+                    t.terminate()
+                    t.wait(200)
+            except Exception:
+                pass
+        self._active_img_threads = []
+        self.gen_orig_btn.setEnabled(True)
+        self.gen_ref_btn.setEnabled(True)
+        self._stop_image_gen_runtime()
+        if reason == "timeout":
+            self.log_msg("⏰ 生图任务已因超时被终止。")
+            self._send_system_notification("生图任务超时", "自动生图已超时并终止。")
+        else:
+            self.log_msg("🛑 生图任务已手动终止。")
+            self._send_system_notification("生图任务已终止", "当前生图任务已手动取消。")
+
+    def trigger_image_generation(self, prompt_type, is_auto=False):
         self.save_img_cfg()
         
         img_base_url, img_key, model_name, api_type = self.get_img_config()
         if not img_key:
             QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空，请检查【全局配置】。")
             return
+        timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
             
         prompt_to_use = self.current_orig_desc if prompt_type == "original" else self.current_refine_desc
         
@@ -686,23 +967,72 @@ class SingleAnalyzerWidget(QWidget):
             instructions=active_instructions,
             api_type=api_type
         )
+        img_thread.meta_is_auto = bool(is_auto)
+        img_thread.meta_prompt_type = prompt_type
 
         self._active_img_threads.append(img_thread)
+        if not self._img_gen_running:
+            self._start_image_gen_runtime(timeout_seconds)
         
         img_thread.log_signal.connect(self.log_msg)
-        img_thread.finish_signal.connect(self.on_image_generation_finished)
+        img_thread.finish_signal.connect(lambda files, t=img_thread: self.on_image_generation_finished(t, files))
         
-        # 清除完成的线程
-        img_thread.finished.connect(lambda t=img_thread: self._active_img_threads.remove(t) if t in self._active_img_threads else None)
+        # 清除完成的线程并同步按钮状态
+        img_thread.finished.connect(lambda t=img_thread: self._on_image_thread_stopped(t))
         img_thread.start()
 
-    def on_image_generation_finished(self, saved_files):
-        self.gen_orig_btn.setEnabled(True)
-        self.gen_ref_btn.setEnabled(True)
+    def on_image_generation_finished(self, thread, saved_files):
+        prompt_type = getattr(thread, "meta_prompt_type", "unknown")
+        is_auto = bool(getattr(thread, "meta_is_auto", False))
         
         if saved_files:
-            self.log_msg(f"\n🎉 成功生成了 {len(saved_files)} 张图片！")
+            self.log_msg(f"\n🎉 成功生成了 {len(saved_files)} 张 {prompt_type} 图片！")
             for file_path in saved_files:
                 self.log_msg(f" 📂 保存路径: {file_path}")
+            self._start_jpg_postprocess(saved_files, prompt_type)
         else:
-            self.log_msg("\n⚠️ 未能获取到图片，请检查上方日志，或查看日志文件夹（log）的记录。")
+            status = getattr(thread, "last_status", "unknown")
+            if status == "cancelled":
+                self.log_msg(f"\n🛑 {prompt_type} 生图已取消。")
+            else:
+                self.log_msg(f"\n⚠️ 未能生成 {prompt_type} 图片，请检查上方日志，或查看日志文件夹（log）的记录。")
+        if is_auto:
+            self._auto_gen_finished += 1
+        if is_auto and (self._auto_gen_finished >= self._auto_gen_expected) and self._auto_gen_expected > 0 and not self._auto_gen_cancelled:
+            self._send_system_notification("单图分析与自动生图完成", "分析与自动生图任务已全部完成。")
+
+    def _start_jpg_postprocess(self, saved_files, prompt_type):
+        if not self.enable_jpg_upscale_cb.isChecked():
+            return
+        jpg_files = [str(path) for path in (saved_files or []) if str(path).lower().endswith((".jpg", ".jpeg"))]
+        if not jpg_files:
+            return
+        options = self._collect_upscale_options()
+        if not options.get("model_name"):
+            self.log_msg("⚠️ 已启用 JPG 自动处理，但未选择 upscaler 模型，已跳过。")
+            return
+        thread = JpgAutoUpscaleThread(
+            image_paths=jpg_files,
+            options=options,
+            task_name=f"单图{prompt_type}后处理",
+        )
+        self._active_post_threads.append(thread)
+        thread.log_signal.connect(self.log_msg)
+        thread.finish_signal.connect(lambda results, t=thread: self._on_postprocess_finished(t, results))
+        thread.finished.connect(lambda t=thread: self._cleanup_post_thread(t))
+        thread.start()
+
+    def _on_postprocess_finished(self, thread, results):
+        success = 0
+        webp_count = 0
+        for item in results or []:
+            if item.get("fixed_png_path") and not item.get("error"):
+                success += 1
+            if item.get("webp_path"):
+                webp_count += 1
+        if success > 0:
+            self.log_msg(f"✅ JPG 自动处理完成，新增 fixed.png: {success} 张，WebP: {webp_count} 张")
+
+    def _cleanup_post_thread(self, thread):
+        if thread in self._active_post_threads:
+            self._active_post_threads.remove(thread)

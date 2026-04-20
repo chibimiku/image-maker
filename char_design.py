@@ -5,13 +5,15 @@ from datetime import datetime
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QFileDialog, QLabel, QTextEdit, QMessageBox, QComboBox, 
                              QSplitter, QProgressBar, QSpinBox, QScrollArea, QGridLayout, QFrame,
-                             QListWidget, QListWidgetItem)
+                             QListWidget, QListWidgetItem, QCheckBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QThreadPool, QRunnable, QObject
 from PyQt5.QtGui import QPixmap, QImageReader
 
 from api_backend import generate_image_whatai, generate_image_aigc2d
+from utils.image_upscale_runtime import JpgAutoUpscaleThread, normalize_upscale_options
 
 CHAR_PROMPT_DIR = "data/prompts/char"
+CHAR_DESIGN_UI_STATE_FILE = "data/char_design_ui_state.json"
 
 class DropImageLabel(QLabel):
     image_changed = pyqtSignal(str)
@@ -166,6 +168,9 @@ class CharDesignWorker(QRunnable):
         try:
             prompt_item = self.task_info['prompt_item']
             self.signals.log.emit(f"开始处理任务: {prompt_item.get('id', 'unknown')} - {prompt_item.get('description', '')}")
+            self.signals.log.emit(
+                f"任务参数: style={self.task_info.get('style_name', '默认(无附加)')} | prompt预览={self.task_info.get('prompt_preview', '')}"
+            )
             
             img_url, img_key, img_model, api_type = self.img_config_getter_func()
             
@@ -233,11 +238,13 @@ class CharDesignWorker(QRunnable):
             self.signals.error.emit(str(e), self.task_info)
 
 class CharDesignWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, upscale_options_getter_func=None, upscale_options_changed_callback=None):
         super().__init__()
         self.config_getter_func = config_getter_func
         self.img_config_getter_func = img_config_getter_func
         self.get_styles = styles_getter_func
+        self.get_upscale_options = upscale_options_getter_func
+        self.on_upscale_options_changed = upscale_options_changed_callback
         
         self.threadpool = QThreadPool()
         self.tasks = []
@@ -247,9 +254,13 @@ class CharDesignWidget(QWidget):
         self.is_stopped = False
         self.current_batch_total = 0
         self.current_batch_completed = 0
+        self._is_restoring_state = False
+        self._pending_main_style = ""
+        self._post_threads = []
         
         self.initUI()
         self.load_prompt_jsons()
+        self.load_ui_state()
 
     def initUI(self):
         layout = QVBoxLayout(self)
@@ -277,6 +288,42 @@ class CharDesignWidget(QWidget):
         top_layout.addWidget(self.resolution_combo)
         
         layout.addLayout(top_layout)
+
+        upscale_layout = QHBoxLayout()
+        self.enable_jpg_upscale_cb = QCheckBox("生图后自动处理 JPG")
+        self.enable_jpg_upscale_cb.toggled.connect(self._persist_upscale_options)
+        upscale_layout.addWidget(self.enable_jpg_upscale_cb)
+        upscale_layout.addStretch()
+        layout.addLayout(upscale_layout)
+        self.set_upscale_options_defaults(self.get_upscale_options() if self.get_upscale_options else {})
+
+        extra_prompt_layout = QVBoxLayout()
+        extra_prompt_layout.addWidget(QLabel("自定义前置 Prompt（可选，拼接到正文前）:"))
+        self.custom_prefix_prompt = QTextEdit()
+        self.custom_prefix_prompt.setPlaceholderText("例如：masterpiece, best quality, ultra detailed")
+        self.custom_prefix_prompt.setMaximumHeight(70)
+        extra_prompt_layout.addWidget(self.custom_prefix_prompt)
+
+        extra_prompt_layout.addWidget(QLabel("自定义后置 Prompt（可选，拼接到正文后）:"))
+        self.custom_suffix_prompt = QTextEdit()
+        self.custom_suffix_prompt.setPlaceholderText("例如：clean background, no watermark, no text")
+        self.custom_suffix_prompt.setMaximumHeight(70)
+        extra_prompt_layout.addWidget(self.custom_suffix_prompt)
+
+        extra_prompt_layout.addWidget(QLabel("拼接额外要求（可选）:"))
+        self.concat_requirement_prompt = QTextEdit()
+        self.concat_requirement_prompt.setPlaceholderText("例如：保持角色服装与发色一致，避免改变人物年龄")
+        self.concat_requirement_prompt.setMaximumHeight(70)
+        extra_prompt_layout.addWidget(self.concat_requirement_prompt)
+
+        concat_position_layout = QHBoxLayout()
+        concat_position_layout.addWidget(QLabel("额外要求位置:"))
+        self.concat_requirement_position_combo = QComboBox()
+        self.concat_requirement_position_combo.addItems(["拼接在正文后", "拼接在正文前"])
+        concat_position_layout.addWidget(self.concat_requirement_position_combo)
+        concat_position_layout.addStretch()
+        extra_prompt_layout.addLayout(concat_position_layout)
+        layout.addLayout(extra_prompt_layout)
         
         splitter = QSplitter(Qt.Orientation.Horizontal)
         
@@ -327,6 +374,10 @@ class CharDesignWidget(QWidget):
         self.deselect_all_btn = QPushButton("全不选")
         self.deselect_all_btn.clicked.connect(self.deselect_all_tasks)
         select_buttons_layout.addWidget(self.deselect_all_btn)
+
+        self.select_missing_btn = QPushButton("勾选缺失任务")
+        self.select_missing_btn.clicked.connect(self.select_missing_tasks_from_output_dir)
+        select_buttons_layout.addWidget(self.select_missing_btn)
         
         right_layout.addLayout(select_buttons_layout)
         
@@ -365,6 +416,14 @@ class CharDesignWidget(QWidget):
         
         # Connect signal after all UI components are initialized
         self.json_combo.currentIndexChanged.connect(self.on_json_changed)
+        self.json_combo.currentTextChanged.connect(self.save_ui_state)
+        self.main_style_combo.currentTextChanged.connect(self.save_ui_state)
+        self.thread_spin.valueChanged.connect(self.save_ui_state)
+        self.resolution_combo.currentTextChanged.connect(self.save_ui_state)
+        self.custom_prefix_prompt.textChanged.connect(self.save_ui_state)
+        self.custom_suffix_prompt.textChanged.connect(self.save_ui_state)
+        self.concat_requirement_prompt.textChanged.connect(self.save_ui_state)
+        self.concat_requirement_position_combo.currentTextChanged.connect(self.save_ui_state)
 
     def load_prompt_jsons(self):
         self.json_combo.blockSignals(True)
@@ -378,6 +437,91 @@ class CharDesignWidget(QWidget):
         # Manually trigger the first load if items exist
         if self.json_combo.count() > 0:
             self.on_json_changed()
+    
+    def load_ui_state_data(self):
+        if not os.path.exists(CHAR_DESIGN_UI_STATE_FILE):
+            return {}
+        try:
+            with open(CHAR_DESIGN_UI_STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception as e:
+            self.log_msg(f"读取UI状态失败，已使用默认设置: {e}")
+            return {}
+
+    def load_ui_state(self):
+        state = self.load_ui_state_data()
+        if not state:
+            return
+
+        self._is_restoring_state = True
+        try:
+            thread_count = state.get("thread_count")
+            if isinstance(thread_count, int):
+                thread_count = max(self.thread_spin.minimum(), min(self.thread_spin.maximum(), thread_count))
+                self.thread_spin.setValue(thread_count)
+
+            resolution = state.get("resolution")
+            if isinstance(resolution, str) and self.resolution_combo.findText(resolution) >= 0:
+                self.resolution_combo.setCurrentText(resolution)
+            else:
+                self.resolution_combo.setCurrentIndex(0)
+
+            json_filename = state.get("json_filename")
+            if isinstance(json_filename, str) and self.json_combo.findText(json_filename) >= 0:
+                self.json_combo.setCurrentText(json_filename)
+            elif self.json_combo.count() > 0:
+                self.json_combo.setCurrentIndex(0)
+
+            style_name = state.get("main_style")
+            if isinstance(style_name, str):
+                self._pending_main_style = style_name
+                if self.main_style_combo.findText(style_name) >= 0:
+                    self.main_style_combo.setCurrentText(style_name)
+
+            custom_prefix = state.get("custom_prefix_prompt")
+            if isinstance(custom_prefix, str):
+                self.custom_prefix_prompt.setPlainText(custom_prefix)
+
+            custom_suffix = state.get("custom_suffix_prompt")
+            if isinstance(custom_suffix, str):
+                self.custom_suffix_prompt.setPlainText(custom_suffix)
+
+            concat_requirement = state.get("concat_requirement_prompt")
+            if isinstance(concat_requirement, str):
+                self.concat_requirement_prompt.setPlainText(concat_requirement)
+
+            concat_requirement_position = state.get("concat_requirement_position")
+            if (
+                isinstance(concat_requirement_position, str)
+                and self.concat_requirement_position_combo.findText(concat_requirement_position) >= 0
+            ):
+                self.concat_requirement_position_combo.setCurrentText(concat_requirement_position)
+        finally:
+            self._is_restoring_state = False
+
+        self.save_ui_state()
+
+    def save_ui_state(self, *args):
+        if self._is_restoring_state:
+            return
+
+        state = {
+            "json_filename": self.json_combo.currentText(),
+            "thread_count": self.thread_spin.value(),
+            "main_style": self.main_style_combo.currentText(),
+            "resolution": self.resolution_combo.currentText(),
+            "custom_prefix_prompt": self.custom_prefix_prompt.toPlainText().strip(),
+            "custom_suffix_prompt": self.custom_suffix_prompt.toPlainText().strip(),
+            "concat_requirement_prompt": self.concat_requirement_prompt.toPlainText().strip(),
+            "concat_requirement_position": self.concat_requirement_position_combo.currentText()
+        }
+        try:
+            os.makedirs(os.path.dirname(CHAR_DESIGN_UI_STATE_FILE), exist_ok=True)
+            with open(CHAR_DESIGN_UI_STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.log_msg(f"保存UI状态失败: {e}")
 
     def on_json_changed(self):
         filename = self.json_combo.currentText()
@@ -405,9 +549,13 @@ class CharDesignWidget(QWidget):
         self.main_style_combo.blockSignals(True)
         self.main_style_combo.clear()
         self.main_style_combo.addItems(style_keys)
-        if curr_main in style_keys:
+        if self._pending_main_style and self._pending_main_style in style_keys:
+            self.main_style_combo.setCurrentText(self._pending_main_style)
+            self._pending_main_style = ""
+        elif curr_main in style_keys:
             self.main_style_combo.setCurrentText(curr_main)
         self.main_style_combo.blockSignals(False)
+        self.save_ui_state()
 
     def clear_all_images(self):
         self.img_front.clear_image()
@@ -455,6 +603,11 @@ class CharDesignWidget(QWidget):
         selected_style_name = self.main_style_combo.currentText()
         styles_data = self.get_styles()
         style_instructions = styles_data.get(selected_style_name, "")
+        custom_prefix_prompt = self.custom_prefix_prompt.toPlainText().strip()
+        custom_suffix_prompt = self.custom_suffix_prompt.toPlainText().strip()
+        concat_requirement_prompt = self.concat_requirement_prompt.toPlainText().strip()
+        concat_requirement_position = self.concat_requirement_position_combo.currentText()
+        self.log_msg(f"本次批量使用画风: {selected_style_name}")
 
         all_image_paths = required_imgs + self.img_others.image_paths
 
@@ -491,17 +644,40 @@ class CharDesignWidget(QWidget):
             timestamp = datetime.now().strftime("%H%M%S")
             task_id = f"{self.current_batch_id}_{list_idx}_{timestamp}"
             
-            full_prompt = f"{style_instructions}\n{common_prompt}\n{p_item.get('prompt', '')}".strip()
+            prompt_parts = [
+                custom_prefix_prompt,
+                style_instructions,
+                common_prompt,
+                p_item.get('prompt', ''),
+                custom_suffix_prompt
+            ]
+            full_prompt = "\n".join([part for part in prompt_parts if str(part).strip()]).strip()
+            if concat_requirement_prompt:
+                concat_text = f"额外拼接要求：{concat_requirement_prompt}"
+                if concat_requirement_position == "拼接在正文前":
+                    full_prompt = f"{concat_text}\n\n{full_prompt}".strip()
+                else:
+                    full_prompt = f"{full_prompt}\n\n{concat_text}".strip()
+            prompt_preview = full_prompt.replace("\n", " ")[:120]
             task_info = {
                 'task_id': task_id,
                 'prompt_item': p_item,
                 'full_prompt': full_prompt,
+                'style_name': selected_style_name,
+                'prompt_preview': prompt_preview,
+                'custom_prefix_prompt': custom_prefix_prompt,
+                'custom_suffix_prompt': custom_suffix_prompt,
+                'concat_requirement_prompt': concat_requirement_prompt,
+                'concat_requirement_position': concat_requirement_position,
                 'image_paths': all_image_paths,
                 'save_dir': self.current_save_dir,
                 'status': 'pending',
                 'list_idx': list_idx, # Store list index to update color later
                 'resolution': self.resolution_combo.currentText()
             }
+            self.log_msg(
+                f"排队任务: {p_item.get('id', 'unknown')} | style={selected_style_name} | prompt预览={prompt_preview}"
+            )
             
             # 添加到全局 tasks/results
             self.tasks.append(task_info)
@@ -592,7 +768,9 @@ class CharDesignWidget(QWidget):
             with open(os.path.join(save_path_full, json_filename), 'w', encoding='utf-8') as f:
                 json.dump(result_json, f, ensure_ascii=False, indent=4)
             annotation = result_json.get("annotation", {})
-            self.save_annotation_texts(save_path_full, result_json.get("generated_images", []), annotation)
+            generated_images = result_json.get("generated_images", [])
+            self.save_annotation_texts(save_path_full, generated_images, annotation)
+            self._start_jpg_postprocess(generated_images, task_info['prompt_item'].get('id', 'unknown'))
         except Exception as e:
             self.log_msg(f"保存任务JSON结果失败: {e}")
             
@@ -636,6 +814,112 @@ class CharDesignWidget(QWidget):
         for i in range(self.task_list_widget.count()):
             item = self.task_list_widget.item(i)
             item.setCheckState(Qt.Unchecked)
+
+    def select_missing_tasks_from_output_dir(self):
+        """根据输出目录中缺失的图片文件，自动勾选对应任务。"""
+        output_dir = QFileDialog.getExistingDirectory(self, "选择输出目录", "")
+        if not output_dir:
+            self.log_msg("未选择输出目录，已取消勾选缺失任务。")
+            return
+
+        self.deselect_all_tasks()
+
+        image_extensions = set()
+        for fmt in QImageReader.supportedImageFormats():
+            try:
+                ext = bytes(fmt).decode("ascii").lower()
+            except Exception:
+                ext = str(fmt).lower()
+            if ext:
+                image_extensions.add(f".{ext}")
+
+        try:
+            dir_entries = os.listdir(output_dir)
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"读取目录失败: {e}")
+            self.log_msg(f"读取目录失败: {e}")
+            return
+
+        missing_count = 0
+        total_count = self.task_list_widget.count()
+
+        for i in range(total_count):
+            item = self.task_list_widget.item(i)
+            prompt_item = item.data(Qt.UserRole) or {}
+            prompt_id = str(prompt_item.get("id", "")).strip()
+            if not prompt_id:
+                continue
+
+            prefix = f"{prompt_id}_"
+            has_image = False
+            for filename in dir_entries:
+                file_path = os.path.join(output_dir, filename)
+                if not os.path.isfile(file_path):
+                    continue
+                if not filename.startswith(prefix):
+                    continue
+                _, ext = os.path.splitext(filename)
+                if ext.lower() in image_extensions:
+                    has_image = True
+                    break
+
+            if not has_image:
+                item.setCheckState(Qt.Checked)
+                missing_count += 1
+
+        self.log_msg(
+            f"缺失任务勾选完成: 输出目录={output_dir}，共扫描 {total_count} 个任务，勾选缺失 {missing_count} 个。"
+        )
+        QMessageBox.information(
+            self,
+            "完成",
+            f"已扫描 {total_count} 个任务，并勾选缺失项 {missing_count} 个。"
+        )
+
+    def _collect_upscale_options(self):
+        base_options = normalize_upscale_options(self.get_upscale_options() if self.get_upscale_options else {})
+        base_options["enabled"] = bool(self.enable_jpg_upscale_cb.isChecked())
+        return normalize_upscale_options(base_options)
+
+    def _persist_upscale_options(self):
+        if self.on_upscale_options_changed:
+            self.on_upscale_options_changed(self._collect_upscale_options())
+
+    def set_upscale_options_defaults(self, options):
+        opts = normalize_upscale_options(options)
+        self.enable_jpg_upscale_cb.blockSignals(True)
+        self.enable_jpg_upscale_cb.setChecked(bool(opts.get("enabled", False)))
+        self.enable_jpg_upscale_cb.blockSignals(False)
+
+    def _start_jpg_postprocess(self, saved_files, prompt_id):
+        if not self.enable_jpg_upscale_cb.isChecked():
+            return
+        jpg_files = [str(path) for path in (saved_files or []) if str(path).lower().endswith((".jpg", ".jpeg"))]
+        if not jpg_files:
+            return
+        options = self._collect_upscale_options()
+        if not options.get("model_name"):
+            self.log_msg("⚠️ 已启用 JPG 自动处理，但未选择 upscaler 模型，已跳过。")
+            return
+        thread = JpgAutoUpscaleThread(
+            image_paths=jpg_files,
+            options=options,
+            task_name=f"角色任务后处理({prompt_id})",
+        )
+        self._post_threads.append(thread)
+        thread.log_signal.connect(self.log_msg)
+        thread.finish_signal.connect(self._on_postprocess_finished)
+        thread.finished.connect(lambda t=thread: self._cleanup_post_thread(t))
+        thread.start()
+
+    def _on_postprocess_finished(self, results):
+        success = sum(1 for item in results if item.get("success"))
+        webp_count = sum(1 for item in results if item.get("webp_path"))
+        self.log_msg(f"✅ JPG 自动处理完成，新增 fixed.png: {success} 张，WebP: {webp_count} 张")
+
+    def _cleanup_post_thread(self, thread):
+        if thread in self._post_threads:
+            self._post_threads.remove(thread)
 
     def save_annotation_texts(self, save_path_full, generated_images, annotation):
         if not isinstance(annotation, dict):
