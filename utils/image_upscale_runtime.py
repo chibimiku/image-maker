@@ -353,7 +353,7 @@ def _build_upscaler_fn_with_spandrel(
                 x0 = max(0, x_start - tile_pad)
                 x1 = min(w, x_start + tile_size + tile_pad)
 
-                tile = x[:, :, y0:y1, x0:x1]
+                tile = x[:, :, y0:y1, x0:x1].to(device)
                 tile_out = _run_model(tile, amp_enabled=amp_enabled)
                 tile_out = tile_out[0]
                 cur_scale_h = tile_out.shape[1] / max(1, (y1 - y0))
@@ -400,6 +400,8 @@ def _build_upscaler_fn_with_spandrel(
                 del tile_u8
                 del tile_out
                 del tile
+                if device == "cuda":
+                    _cleanup_cuda_memory(torch)
 
         if out_u8 is None:
             raise RuntimeError("分块推理失败：未生成有效输出。")
@@ -416,10 +418,57 @@ def _build_upscaler_fn_with_spandrel(
         np_img = importlib.import_module("numpy").asarray(src).astype("float32") / 255.0
         x = torch.from_numpy(np_img).permute(2, 0, 1).unsqueeze(0).to(device)
         if device != "cuda":
-            y = _run_model(x, amp_enabled=False)
-            return _to_pil(y)
+            try:
+                y = _run_model(x, amp_enabled=False)
+                return _to_pil(y)
+            except (MemoryError, RuntimeError) as cpu_err:
+                if callable(step_logger):
+                    step_logger(
+                        f"CPU 单次推理内存不足({type(cpu_err).__name__})，切换到分块推理。"
+                    )
+                import gc; gc.collect()
+                last_cpu_err = cpu_err
+                for tile_size in (768, 640, 512, 384, 256):
+                    try:
+                        if callable(step_logger):
+                            step_logger(f"CPU 分块重试: tile={tile_size}, overlap=32")
+                        out = _upscale_tiled(
+                            x=x,
+                            tile_size=tile_size,
+                            tile_pad=32,
+                            amp_enabled=False,
+                        )
+                        if callable(step_logger):
+                            step_logger(f"CPU 分块推理成功: tile={tile_size}")
+                        return out
+                    except (MemoryError, RuntimeError) as tile_e:
+                        last_cpu_err = tile_e
+                        if callable(step_logger):
+                            step_logger(
+                                f"CPU 分块推理仍失败: tile={tile_size}，继续尝试更小 tile。"
+                            )
+                        import gc; gc.collect()
+                        continue
+                raise RuntimeError(
+                    "CPU 内存不足：已自动尝试分块推理（tile=768..256）仍失败。"
+                    "请降低输入尺寸或使用更小的模型。"
+                ) from last_cpu_err
 
         try:
+            # 阶段 1: CUDA fp32 整图推理（精度最高，显存消耗最大）
+            try:
+                y = _run_model(x, amp_enabled=False)
+                return _to_pil(y)
+            except RuntimeError as e:
+                if not _is_cuda_oom_error(e):
+                    raise
+                if callable(step_logger):
+                    step_logger(
+                        "CUDA fp32 整图推理 OOM，尝试 fp16 整图推理。"
+                    )
+                _cleanup_cuda_memory(torch)
+
+            # 阶段 2: CUDA fp16 整图推理（省显存，但 DAT 等注意力模型可能精度不足）
             try:
                 y = _run_model(x, amp_enabled=True)
                 return _to_pil(y)
@@ -428,39 +477,46 @@ def _build_upscaler_fn_with_spandrel(
                     raise
                 if callable(step_logger):
                     step_logger(
-                        "检测到 CUDA OOM，开始自动显存清理并切换分块推理重试。"
+                        "CUDA fp16 整图推理仍 OOM，切换到分块推理。"
                     )
                 _cleanup_cuda_memory(torch)
-                last_oom = e
+                x = x.cpu()  # 释放 GPU 上的完整输入，tiling 时按切片搬运
+
+            # 阶段 3: 分块推理（先 fp32 再 fp16），逐级缩小 tile
+            last_oom: RuntimeError | None = None
+            for amp in (False, True):
+                mode_label = "fp16" if amp else "fp32"
                 for tile_size in (1024, 768, 640, 512, 384, 256):
                     try:
                         if callable(step_logger):
                             step_logger(
-                                f"分块重试: tile={tile_size}, overlap=32, 模式=fp16"
+                                f"分块重试: tile={tile_size}, overlap=32, 模式={mode_label}"
                             )
                         out = _upscale_tiled(
                             x=x,
                             tile_size=tile_size,
                             tile_pad=32,
-                            amp_enabled=True,
+                            amp_enabled=amp,
                         )
                         if callable(step_logger):
-                            step_logger(f"分块推理成功: tile={tile_size}")
+                            step_logger(f"分块推理成功: tile={tile_size}, 模式={mode_label}")
                         return out
                     except RuntimeError as tile_e:
                         if _is_cuda_oom_error(tile_e):
                             last_oom = tile_e
                             if callable(step_logger):
                                 step_logger(
-                                    f"分块推理仍 OOM: tile={tile_size}，继续尝试更小 tile。"
+                                    f"分块推理 OOM: tile={tile_size}, 模式={mode_label}，继续尝试。"
                                 )
                             _cleanup_cuda_memory(torch)
                             continue
                         raise
-                raise RuntimeError(
-                    "CUDA 显存不足：已自动尝试分块推理（tile=1024..256）仍失败。"
-                    "请降低放大倍率/输入尺寸，或切换到 CPU。"
-                ) from last_oom
+                # fp32 全部 tile 失败后，尝试 fp16 更小 tile 前先清理
+                _cleanup_cuda_memory(torch)
+            raise RuntimeError(
+                "CUDA 显存不足：已自动尝试整图(fp32/fp16)+分块推理(tile=1024..256, fp32/fp16)仍失败。"
+                "请降低放大倍率/输入尺寸，或切换到 CPU。"
+            ) from last_oom
         finally:
             try:
                 del x
