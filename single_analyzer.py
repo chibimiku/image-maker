@@ -135,6 +135,46 @@ def calculate_closest_aspect_ratio(image_source):
         print(f"计算长宽比失败: {e}")
         return "1:1" # 发生异常时默认返回 1:1
 
+def _looks_like_base64_text(value: str) -> bool:
+    if not isinstance(value, str):
+        return False
+    compact = value.strip().replace("\n", "").replace("\r", "")
+    if len(compact) < 256:
+        return False
+    return bool(re.fullmatch(r"[A-Za-z0-9+/=]+", compact))
+
+def _sanitize_ui_log_data(value):
+    if isinstance(value, dict):
+        sanitized = {}
+        for key, item in value.items():
+            key_lower = str(key).lower()
+            if isinstance(item, str) and ("base64" in key_lower or key_lower.startswith("b64") or key_lower == "data"):
+                if _looks_like_base64_text(item) or key_lower != "data":
+                    sanitized[key] = "<BASE64_IMAGE_DATA_OMITTED>"
+                    continue
+            sanitized[key] = _sanitize_ui_log_data(item)
+        return sanitized
+    if isinstance(value, list):
+        return [_sanitize_ui_log_data(item) for item in value]
+    if isinstance(value, str):
+        text = re.sub(
+            r"(data:image\/[a-zA-Z0-9.+-]+;base64,)[A-Za-z0-9+/=\r\n]+",
+            r"\1<BASE64_IMAGE_DATA_OMITTED>",
+            value
+        )
+        if _looks_like_base64_text(text):
+            return "<BASE64_IMAGE_DATA_OMITTED>"
+        if len(text) > 4000:
+            return f"{text[:4000]}...(TRUNCATED, total={len(text)})"
+        return text
+    return value
+
+def _format_ui_log_json(value) -> str:
+    try:
+        return json.dumps(_sanitize_ui_log_data(value), ensure_ascii=False, indent=2)
+    except Exception:
+        return str(value)
+
 def compress_and_encode_image(image_source, max_dim=2048, log_callback=None):
     try:
         if isinstance(image_source, str):
@@ -396,13 +436,16 @@ class ImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(list)
 
-    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None):
+    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False):
         super().__init__()
         self.prompt = prompt
         self.model_name = model_name
         self.aspect_ratio = aspect_ratio
         self.instructions = instructions
         self.api_type = api_type
+        self.resolution = resolution
+        self.image_paths = list(image_paths or [])
+        self.verbose_debug = bool(verbose_debug)
         self.last_status = "idle"
 
     def request_cancel(self):
@@ -417,25 +460,55 @@ class ImageGenWorkerThread(QThread):
         self.log_signal.emit(f"\n🚀 开始请求生图 API (模型: {self.model_name})...")
         self.log_signal.emit("请耐心等待，这可能需要几十秒的时间...")
         try:
+            if self.verbose_debug:
+                self.log_signal.emit(
+                    "=== 单图调试-完整请求输入 ===\n" + _format_ui_log_json({
+                        "api_type": self.api_type,
+                        "model": self.model_name,
+                        "aspect_ratio": self.aspect_ratio,
+                        "resolution": self.resolution,
+                        "instructions": self.instructions,
+                        "prompt": self.prompt,
+                        "image_paths": self.image_paths
+                    })
+                )
             # 根据api_type调用相应的生成函数
             if self.api_type == "aigc2d":
-                saved_files = generate_image_aigc2d(
+                result = generate_image_aigc2d(
                     prompt=self.prompt, 
-                    image_paths=[],
+                    image_paths=self.image_paths,
                     model=self.model_name, 
                     aspect_ratio=self.aspect_ratio, 
                     instructions=self.instructions,
-                    api_type=self.api_type
+                    api_type=self.api_type,
+                    resolution=self.resolution,
+                    return_metadata=self.verbose_debug
                 )
             else:
-                saved_files = generate_image_whatai(
+                result = generate_image_whatai(
                     prompt=self.prompt, 
-                    image_paths=[],
+                    image_paths=self.image_paths,
                     model=self.model_name, 
                     aspect_ratio=self.aspect_ratio, 
                     instructions=self.instructions,
-                    api_type=self.api_type
+                    api_type=self.api_type,
+                    resolution=self.resolution,
+                    return_metadata=self.verbose_debug
                 )
+            if isinstance(result, dict):
+                saved_files = result.get("saved_files", []) or []
+                response_payload = {
+                    "saved_files": saved_files,
+                    "annotation": result.get("annotation", {}),
+                    "raw_text": result.get("raw_text", "")
+                }
+            else:
+                saved_files = result or []
+                response_payload = {"saved_files": saved_files}
+
+            if self.verbose_debug:
+                self.log_signal.emit("=== 单图调试-完整返回 ===\n" + _format_ui_log_json(response_payload))
+
             if self.isInterruptionRequested():
                 self.last_status = "cancelled"
                 self.finish_signal.emit([])

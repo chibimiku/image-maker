@@ -9,7 +9,7 @@ except Exception:
     pass
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
                              QLabel, QPushButton, QTextEdit, QLineEdit, QInputDialog,
-                             QComboBox, QFormLayout, QMessageBox, QTabWidget)
+                             QComboBox, QFormLayout, QMessageBox, QTabWidget, QCheckBox)
 from openai import OpenAI
 
 # 引入抽离出去的独立组件
@@ -29,6 +29,7 @@ from json_dataset_tab import JsonDatasetWidget
 from webp_compressor import DragDropCompressor
 from flux2_client_tab import Flux2ClientWidget
 from upscaler_tab import UpscalerTabWidget
+from single_gen_debug_tab import SingleGenDebugWidget
 from utils.image_upscale_runtime import normalize_upscale_options
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -148,6 +149,13 @@ class AppWindow(QWidget):
             upscale_options_changed_callback=self.update_upscale_options
         )
         self.char_design_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
+        self.single_gen_debug_tab = SingleGenDebugWidget(
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            styles_getter_func=lambda: self.styles_data,
+            save_img_cfg_callback=lambda: self.save_image_config(silent=True),
+            ar_policy_getter_func=self.get_ar_policy_config
+        )
+        self.single_gen_debug_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         self.z_image_edit_tab = ZImageEditWidget()
 
         # 【Tab 2: 多图画风提取】
@@ -188,6 +196,7 @@ class AppWindow(QWidget):
         self.generation_tabs.addTab(self.prompt_generator_tab, "批量提示词与生图")
         self.generation_tabs.addTab(self.image_edit_tab, "批量图片编辑")
         self.generation_tabs.addTab(self.char_design_tab, "角色设计生成")
+        self.generation_tabs.addTab(self.single_gen_debug_tab, "单图调试生图")
         self.generation_tabs.addTab(self.style_analyzer_tab, "多图画风提取")
         self.generation_tabs.addTab(self.compressor_tab, "PNG/WebP压缩")
         self.generation_tabs.addTab(self.upscaler_tab, "图片Upscaler")
@@ -261,7 +270,7 @@ class AppWindow(QWidget):
         
         # API类型选择
         self.api_type_combo = QComboBox()
-        self.api_type_combo.addItems(["whatup", "aigc2d"])
+        self.api_type_combo.addItems(["whatup", "aigc2d", "openai-image", "openrouter-image", "aigc-2d-gpt"])
         # 【优化】动态获取当前下拉框的默认选中值，无论列表怎么变都能保持同步
         self._current_api_type = self.api_type_combo.currentText()
         self.api_type_combo.currentTextChanged.connect(self.on_api_type_changed)
@@ -300,7 +309,7 @@ class AppWindow(QWidget):
 
         # ================= 新增：超时与重试配置 =================
         self.img_timeout_spin = QSpinBox()
-        self.img_timeout_spin.setRange(10, 600) # 允许设置 10秒 到 600秒
+        self.img_timeout_spin.setRange(10, 999) # 允许设置 10秒 到 999秒（支持3位数）
         self.img_timeout_spin.setValue(120)     # 默认 120秒
         self.img_timeout_spin.setSuffix(" 秒")
         image_layout.addRow("请求超时时间:", self.img_timeout_spin)
@@ -310,6 +319,10 @@ class AppWindow(QWidget):
         self.img_retry_spin.setValue(1)         # 默认重试 1 次
         self.img_retry_spin.setSuffix(" 次")
         image_layout.addRow("失败重试次数:", self.img_retry_spin)
+
+        self.img_debug_dump_checkbox = QCheckBox("开启")
+        self.img_debug_dump_checkbox.setChecked(False)
+        image_layout.addRow("Debug完整HTTP落盘:", self.img_debug_dump_checkbox)
         
         # 生成图片分辨率
         self.img_resolution_combo = QComboBox()
@@ -323,6 +336,7 @@ class AppWindow(QWidget):
         self.override_ar_first_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.override_ar_second_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.img_resolution_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
+        self.img_debug_dump_checkbox.stateChanged.connect(lambda _v: self.save_image_config(silent=True))
 
 
         
@@ -421,7 +435,7 @@ class AppWindow(QWidget):
         self.last_used_style = style_name
         
         # 阻断信号避免死循环
-        for combo in [self.single_analyzer_tab.main_style_combo, self.prompt_generator_tab.main_style_combo, self.batch_analyzer_tab.main_style_combo, self.image_edit_tab.main_style_combo, self.char_design_tab.main_style_combo]:
+        for combo in [self.single_analyzer_tab.main_style_combo, self.prompt_generator_tab.main_style_combo, self.batch_analyzer_tab.main_style_combo, self.image_edit_tab.main_style_combo, self.char_design_tab.main_style_combo, self.single_gen_debug_tab.main_style_combo]:
             if combo.currentText() != style_name:
                 combo.blockSignals(True)
                 combo.setCurrentText(style_name)
@@ -538,6 +552,11 @@ class AppWindow(QWidget):
                     
                     saved_retries = api_config.get("max_retries", 1)
                     self.img_retry_spin.setValue(saved_retries)
+
+                    saved_debug_dump = bool(api_config.get("debug_dump_full_http", False))
+                    self.img_debug_dump_checkbox.blockSignals(True)
+                    self.img_debug_dump_checkbox.setChecked(saved_debug_dump)
+                    self.img_debug_dump_checkbox.blockSignals(False)
                     
                     # 读取分辨率配置
                     saved_resolution = api_config.get("resolution", "1K")
@@ -597,6 +616,10 @@ class AppWindow(QWidget):
             self.char_design_tab.update_styles(keys)
             if self.last_used_style in keys:
                 self.char_design_tab.main_style_combo.setCurrentText(self.last_used_style)
+        if hasattr(self, 'single_gen_debug_tab'):
+            self.single_gen_debug_tab.update_styles(keys)
+            if self.last_used_style in keys:
+                self.single_gen_debug_tab.main_style_combo.setCurrentText(self.last_used_style)
 
     def on_manage_style_changed(self, style_name):
         if style_name in self.styles_data:
@@ -737,6 +760,10 @@ class AppWindow(QWidget):
                     # 根据API类型设置不同的默认base_url
                     if api_type == "aigc2d":
                         self.img_url_input.setText(api_config.get("base_url", ""))
+                    elif api_type in ("openai-image", "aigc-2d-gpt"):
+                        self.img_url_input.setText(api_config.get("base_url", "https://api.openai.com/v1"))
+                    elif api_type == "openrouter-image":
+                        self.img_url_input.setText(api_config.get("base_url", "https://openrouter.ai/api"))
                     else:
                         self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
                     
@@ -752,6 +779,10 @@ class AppWindow(QWidget):
                             self.img_model_combo.setCurrentText("nano-banana-2")
                         elif api_type == "aigc2d":
                             self.img_model_combo.setCurrentText("")
+                        elif api_type in ("openai-image", "aigc-2d-gpt"):
+                            self.img_model_combo.setCurrentText("gpt-image-2")
+                        elif api_type == "openrouter-image":
+                            self.img_model_combo.setCurrentText("gpt-image-1")
                     
                     saved_default_ar = api_config.get("default_aspect_ratio", DEFAULT_ASPECT_RATIO)
                     if self.default_ar_combo.findText(saved_default_ar) == -1:
@@ -774,6 +805,11 @@ class AppWindow(QWidget):
                     
                     saved_retries = api_config.get("max_retries", 1)
                     self.img_retry_spin.setValue(saved_retries)
+
+                    saved_debug_dump = bool(api_config.get("debug_dump_full_http", False))
+                    self.img_debug_dump_checkbox.blockSignals(True)
+                    self.img_debug_dump_checkbox.setChecked(saved_debug_dump)
+                    self.img_debug_dump_checkbox.blockSignals(False)
                     
                     # 读取分辨率配置
                     saved_resolution = api_config.get("resolution", "1K")
@@ -813,6 +849,7 @@ class AppWindow(QWidget):
             "override_aspect_ratio_second": self.override_ar_second_combo.currentText().strip() or "不覆盖(沿用原逻辑)",
             "timeout": self.img_timeout_spin.value(),
             "max_retries": self.img_retry_spin.value(),
+            "debug_dump_full_http": bool(self.img_debug_dump_checkbox.isChecked()),
             "resolution": self.img_resolution_combo.currentText().strip() or "2K",
         }
         

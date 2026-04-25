@@ -3,7 +3,7 @@ import os
 import io
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, 
                              QLineEdit, QPushButton, QFileDialog, QMessageBox)
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QObject, QThread, pyqtSignal
 from PIL import Image
 
 
@@ -64,9 +64,62 @@ def compress_image_to_webp_best_quality(input_path, target_mb, output_path=None,
     except Exception:
         return False, "", 0, 0
 
+
+def get_unique_output_path(original_path):
+    directory = os.path.dirname(original_path)
+    filename = os.path.basename(original_path)
+    name, _ = os.path.splitext(filename)
+
+    base_new_name = f"{name}_compressed.webp"
+    new_path = os.path.join(directory, base_new_name)
+
+    counter = 1
+    # 避免重名，叠加序号
+    while os.path.exists(new_path):
+        new_path = os.path.join(directory, f"{name}_compressed_{counter}.webp")
+        counter += 1
+
+    return new_path
+
+
+class WebpCompressWorker(QObject):
+    progress_signal = pyqtSignal(int, int, str)
+    finished_signal = pyqtSignal(list)
+
+    def __init__(self, file_paths, target_mb):
+        super().__init__()
+        self.file_paths = list(file_paths or [])
+        self.target_mb = float(target_mb)
+
+    def run(self):
+        total = len(self.file_paths)
+        results = []
+        for index, img_path in enumerate(self.file_paths, start=1):
+            output_path = get_unique_output_path(img_path)
+            ok, saved_path, output_size_bytes, quality = compress_image_to_webp_best_quality(
+                input_path=img_path,
+                target_mb=self.target_mb,
+                output_path=output_path,
+                max_iters=10,
+            )
+            results.append(
+                {
+                    "input_path": img_path,
+                    "ok": bool(ok),
+                    "output_path": saved_path if ok else "",
+                    "output_size_bytes": int(output_size_bytes or 0),
+                    "quality": int(quality),
+                }
+            )
+            self.progress_signal.emit(index, total, os.path.basename(img_path))
+        self.finished_signal.emit(results)
+
 class DragDropCompressor(QWidget):
     def __init__(self):
         super().__init__()
+        self.worker_thread = None
+        self.worker = None
+        self.is_running = False
         self.initUI()
 
     def initUI(self):
@@ -101,15 +154,26 @@ class DragDropCompressor(QWidget):
         layout.addWidget(self.drop_label)
         layout.setStretchFactor(self.drop_label, 1)
 
+        self.status_label = QLabel("状态: 空闲")
+        self.status_label.setStyleSheet("font-size: 13px; color: #444;")
+        layout.addWidget(self.status_label)
+
         self.setLayout(layout)
 
     def dragEnterEvent(self, event):
+        if self.is_running:
+            event.ignore()
+            return
         if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
     def dropEvent(self, event):
+        if self.is_running:
+            QMessageBox.information(self, "处理中", "当前正在压缩，请稍候完成后再拖入。")
+            return
+
         try:
             target_mb = float(self.size_input.text())
             if target_mb <= 0:
@@ -118,80 +182,88 @@ class DragDropCompressor(QWidget):
             QMessageBox.warning(self, "输入错误", "请输入有效的大于0的数字作为目标大小！")
             return
 
-        urls = event.mimeData().urls()
-        for url in urls:
+        file_paths = []
+        for url in event.mimeData().urls():
             file_path = url.toLocalFile()
             if os.path.isfile(file_path):
-                self.process_image(file_path, target_mb)
+                file_paths.append(file_path)
 
-    def get_output_path(self, original_path):
-        directory = os.path.dirname(original_path)
-        filename = os.path.basename(original_path)
-        name, _ = os.path.splitext(filename)
-        
-        base_new_name = f"{name}_compressed.webp"
-        new_path = os.path.join(directory, base_new_name)
-        
-        counter = 1
-        # 避免重名，叠加序号
-        while os.path.exists(new_path):
-            new_path = os.path.join(directory, f"{name}_compressed_{counter}.webp")
-            counter += 1
-            
-        return new_path
+        if not file_paths:
+            QMessageBox.warning(self, "提示", "未检测到可处理的本地文件。")
+            return
 
-    def process_image(self, img_path, target_mb):
-        target_bytes = int(target_mb * 1024 * 1024)
-        output_path = self.get_output_path(img_path)
+        self.start_batch_compress(file_paths, target_mb)
 
-        try:
-            img = Image.open(img_path)
-            # WebP 最好使用 RGB 或 RGBA 模式
-            if img.mode not in ('RGB', 'RGBA'):
-                img = img.convert('RGBA') if 'transparency' in img.info else img.convert('RGB')
+    def _set_running(self, running):
+        self.is_running = bool(running)
+        self.size_input.setEnabled(not running)
+        if running:
+            self.drop_label.setText("处理中，请稍候...\n(处理完成后会弹窗提示)")
+            self.status_label.setText("状态: 处理中 0/0")
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+        else:
+            self.drop_label.setText("请将图片拖拽到此窗口内\n(支持 JPG, PNG, BMP 等常见格式)")
+            self.status_label.setText("状态: 空闲")
+            QApplication.restoreOverrideCursor()
 
-            # 初始检查：如果最高质量100已经小于目标大小，直接保存
-            buffer = io.BytesIO()
-            img.save(buffer, format="webp", quality=100)
-            if len(buffer.getvalue()) <= target_bytes:
-                with open(output_path, 'wb') as f:
-                    f.write(buffer.getvalue())
-                QMessageBox.information(self, "完成", f"原图体积已满足要求。\n已保存最高质量:\n{output_path}")
-                return
+    def start_batch_compress(self, file_paths, target_mb):
+        self._set_running(True)
+        total = len(file_paths)
+        self.status_label.setText(f"状态: 处理中 0/{total}")
 
-            # 二分查找寻找最佳 quality
-            low, high = 0, 100
-            best_quality = 0
-            best_buffer = None
+        self.worker_thread = QThread(self)
+        self.worker = WebpCompressWorker(file_paths=file_paths, target_mb=target_mb)
+        self.worker.moveToThread(self.worker_thread)
 
-            for _ in range(10): # 10次迭代对于 0-100 的区间足够精确
-                mid = (low + high) // 2
-                buffer = io.BytesIO()
-                img.save(buffer, format="webp", quality=mid)
-                size = len(buffer.getvalue())
+        self.worker_thread.started.connect(self.worker.run)
+        self.worker.progress_signal.connect(self.on_worker_progress)
+        self.worker.finished_signal.connect(self.on_worker_finished)
+        self.worker.finished_signal.connect(self.worker_thread.quit)
+        self.worker.finished_signal.connect(self.worker.deleteLater)
+        self.worker_thread.finished.connect(self.on_worker_thread_finished)
+        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
+        self.worker_thread.start()
 
-                if size <= target_bytes:
-                    best_quality = mid
-                    best_buffer = buffer.getvalue()
-                    low = mid + 1 # 尝试进一步提升画质
-                else:
-                    high = mid - 1 # 体积超标，降低画质
+    def on_worker_progress(self, current, total, current_name):
+        self.status_label.setText(f"状态: 处理中 {current}/{total}")
+        self.drop_label.setText(f"处理中：{current_name}\n进度 {current}/{total}")
 
-            # 写入结果
-            if best_buffer:
-                with open(output_path, 'wb') as f:
-                    f.write(best_buffer)
-                QMessageBox.information(self, "压缩成功", f"成功压缩至指定大小！\nQuality 参数: {best_quality}\n保存路径:\n{output_path}")
+    def on_worker_finished(self, results):
+        self._set_running(False)
+        success = [item for item in results if item.get("ok")]
+        failed = [item for item in results if not item.get("ok")]
+
+        if len(results) == 1:
+            item = results[0]
+            if item.get("ok"):
+                QMessageBox.information(
+                    self,
+                    "压缩成功",
+                    f"成功压缩至指定大小。\n"
+                    f"Quality 参数: {item.get('quality')}\n"
+                    f"保存路径:\n{item.get('output_path')}",
+                )
             else:
-                # 极端情况：quality=0 依然超标（通常发生在极小目标体积下，如 0.001MB）
-                buffer = io.BytesIO()
-                img.save(buffer, format="webp", quality=0)
-                with open(output_path, 'wb') as f:
-                    f.write(buffer.getvalue())
-                QMessageBox.warning(self, "提示", f"已降至最低画质，但体积可能仍大于目标大小。\n保存路径:\n{output_path}")
+                QMessageBox.critical(self, "错误", f"处理图片失败:\n{item.get('input_path')}")
+            return
 
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"处理图片 {img_path} 时发生错误:\n{str(e)}")
+        message_lines = [f"处理完成：成功 {len(success)} / {len(results)}"]
+        if failed:
+            failed_names = [os.path.basename(item.get("input_path", "")) for item in failed[:5]]
+            if failed_names:
+                message_lines.append("失败文件(最多显示5个):")
+                message_lines.extend(failed_names)
+            if len(failed) > 5:
+                message_lines.append(f"... 还有 {len(failed) - 5} 个失败文件")
+
+        if failed:
+            QMessageBox.warning(self, "压缩完成", "\n".join(message_lines))
+        else:
+            QMessageBox.information(self, "压缩完成", "\n".join(message_lines))
+
+    def on_worker_thread_finished(self):
+        self.worker = None
+        self.worker_thread = None
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
