@@ -30,6 +30,8 @@ from webp_compressor import DragDropCompressor
 from flux2_client_tab import Flux2ClientWidget
 from upscaler_tab import UpscalerTabWidget
 from single_gen_debug_tab import SingleGenDebugWidget
+from booru_tag_generator import BooruTagGeneratorWidget
+from diff_cg_tab import DiffCgTabWidget
 from utils.image_upscale_runtime import normalize_upscale_options
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -81,6 +83,8 @@ class AppWindow(QWidget):
         self.analysis_tabs = QTabWidget()
         self.generation_root_tab = QWidget()
         self.generation_tabs = QTabWidget()
+        self.others_root_tab = QWidget()
+        self.others_tabs = QTabWidget()
         self.settings_root_tab = QWidget()
         
         # 【Tab 1: 单图内容分析】
@@ -177,6 +181,10 @@ class AppWindow(QWidget):
             options_changed_callback=self.update_upscale_options
         )
         self.flux2_client_tab = Flux2ClientWidget()
+        self.diff_cg_tab = DiffCgTabWidget(
+            text_config_getter_func=self.get_text_config
+        )
+        self.booru_tag_generator_tab = BooruTagGeneratorWidget()
 
         analysis_layout = QVBoxLayout()
         analysis_layout.addWidget(self.analysis_tabs)
@@ -187,6 +195,11 @@ class AppWindow(QWidget):
         generation_layout.addWidget(self.generation_tabs)
         generation_layout.setContentsMargins(0, 0, 0, 0)
         self.generation_root_tab.setLayout(generation_layout)
+
+        others_layout = QVBoxLayout()
+        others_layout.addWidget(self.others_tabs)
+        others_layout.setContentsMargins(0, 0, 0, 0)
+        self.others_root_tab.setLayout(others_layout)
 
         self.analysis_tabs.addTab(self.single_analyzer_tab, "单图内容分析")
         self.analysis_tabs.addTab(self.batch_analyzer_tab, "批量图片分析")
@@ -201,9 +214,13 @@ class AppWindow(QWidget):
         self.generation_tabs.addTab(self.compressor_tab, "PNG/WebP压缩")
         self.generation_tabs.addTab(self.upscaler_tab, "图片Upscaler")
         self.generation_tabs.addTab(self.flux2_client_tab, "WebUI Img2Img")
+        self.generation_tabs.addTab(self.diff_cg_tab, "差分CG生成")
+
+        self.others_tabs.addTab(self.booru_tag_generator_tab, "生成booru-tag")
 
         self.main_tabs.addTab(self.analysis_root_tab, "图片分析")
         self.main_tabs.addTab(self.generation_root_tab, "图片生成")
+        self.main_tabs.addTab(self.others_root_tab, "其他")
 
         # 【Tab 8: 全局配置】
         self.config_tabs = QTabWidget()
@@ -332,9 +349,16 @@ class AppWindow(QWidget):
         # =======================================================
 
         # 变更后自动保存
+        self.img_url_input.editingFinished.connect(lambda: self.save_image_config(silent=True))
+        self.img_key_input.editingFinished.connect(lambda: self.save_image_config(silent=True))
+        self.img_model_combo.activated.connect(lambda _idx: self.save_image_config(silent=True))
+        if self.img_model_combo.lineEdit() is not None:
+            self.img_model_combo.lineEdit().editingFinished.connect(lambda: self.save_image_config(silent=True))
         self.default_ar_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.override_ar_first_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.override_ar_second_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
+        self.img_timeout_spin.valueChanged.connect(lambda _v: self.save_image_config(silent=True))
+        self.img_retry_spin.valueChanged.connect(lambda _v: self.save_image_config(silent=True))
         self.img_resolution_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.img_debug_dump_checkbox.stateChanged.connect(lambda _v: self.save_image_config(silent=True))
 
@@ -746,6 +770,8 @@ class AppWindow(QWidget):
         self.default_ar_combo.blockSignals(True)
         self.override_ar_first_combo.blockSignals(True)
         self.override_ar_second_combo.blockSignals(True)
+        self.img_timeout_spin.blockSignals(True)
+        self.img_retry_spin.blockSignals(True)
         self.img_resolution_combo.blockSignals(True)
         
         # 读取配置文件并更新界面
@@ -823,6 +849,8 @@ class AppWindow(QWidget):
         self.default_ar_combo.blockSignals(False)
         self.override_ar_first_combo.blockSignals(False)
         self.override_ar_second_combo.blockSignals(False)
+        self.img_timeout_spin.blockSignals(False)
+        self.img_retry_spin.blockSignals(False)
         self.img_resolution_combo.blockSignals(False)
 
     def save_image_config(self, silent=False):
@@ -852,11 +880,12 @@ class AppWindow(QWidget):
             "debug_dump_full_http": bool(self.img_debug_dump_checkbox.isChecked()),
             "resolution": self.img_resolution_combo.currentText().strip() or "2K",
         }
-        
-        config = {
-            "current_api": current_api_global,
-            "apis": existing_config.get("apis", {})
-        }
+
+        # 保留 config-image.json 其他顶层节点（如 webui_img2img / diff_cg）
+        config = existing_config if isinstance(existing_config, dict) else {}
+        if not isinstance(config.get("apis"), dict):
+            config["apis"] = {}
+        config["current_api"] = current_api_global
         # 【修改】将数据保存到正确的节点 target_api_node 下
         config["apis"][target_api_node] = api_config
         try:
