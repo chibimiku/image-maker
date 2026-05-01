@@ -1,0 +1,1 @@
+﻿Put SAM2 files here (sam2.1_hiera_l.yaml, sam2.1_hiera_large.pt).

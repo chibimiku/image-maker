@@ -97,3 +97,15 @@ log/
 outputs/
 config.json
 config-image.json
+
+# 模型文件与缓存（保留目录结构 + 占位文件）
+models/**/*.safetensors
+models/**/*.ckpt
+models/**/*.pth
+models/**/*.pt
+models/**/*.onnx
+models/**/*.bin
+models/**/hf-cache/**
+models/segmentation/GroundingDINO/GroundingDINO_SwinT_OGC.py
+models/segmentation/sam2/sam2.1_hiera_l.yaml
+!models/segmentation/hf-cache/put HF cache files here.txt

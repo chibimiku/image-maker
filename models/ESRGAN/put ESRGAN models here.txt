@@ -1,0 +1,1 @@
+﻿Put ESRGAN model files here (e.g. .pth/.safetensors).

@@ -1,0 +1,1 @@
+﻿Put GroundingDINO model files here (e.g. groundingdino_swint_ogc.pth).
