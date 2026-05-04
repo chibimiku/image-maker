@@ -2,11 +2,14 @@ import os
 import json
 import hashlib
 import re
+import traceback
+from functools import partial
 from datetime import datetime
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QListWidget, QListWidgetItem, QFileDialog, QLabel, 
-                             QTextEdit, QMessageBox, QComboBox, QSplitter, QProgressBar, QSpinBox)
+                             QTextEdit, QMessageBox, QComboBox, QSplitter, QProgressBar, QSpinBox, QApplication)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QImageReader
 from openai import OpenAI
 
 # 复用已有的工具函数
@@ -16,6 +19,7 @@ from api_backend import generate_image_whatai, generate_image_aigc2d
 PROMPT_DIR = "data/prompts/image-edit"
 IMAGE_EDIT_UI_STATE_FILE = "data/image_edit_ui_state.json"
 MD5_TAIL_RE = re.compile(r"^[0-9a-fA-F]{32}$")
+SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 
 
 def compute_file_md5(file_path, chunk_size=1024 * 1024):
@@ -29,16 +33,15 @@ def compute_file_md5(file_path, chunk_size=1024 * 1024):
     return md5.hexdigest()
 
 class ImageEditWorker(QThread):
-    finished = pyqtSignal(dict, str)  # result_json, image_path
+    result_ready = pyqtSignal(dict, str)  # result_json, image_path
     error = pyqtSignal(str, str)      # error_msg, image_path
     log = pyqtSignal(str)
 
-    def __init__(self, image_path, prompt, config_getter_func, img_config_getter_func, style_instructions=""):
+    def __init__(self, image_path, prompt, img_config_snapshot, style_instructions=""):
         super().__init__()
         self.image_path = image_path
         self.prompt = prompt
-        self.config_getter_func = config_getter_func
-        self.img_config_getter_func = img_config_getter_func
+        self.img_config_snapshot = img_config_snapshot or ("", "", "", "")
         self.style_instructions = style_instructions
 
     def run(self):
@@ -46,7 +49,7 @@ class ImageEditWorker(QThread):
             self.log.emit(f"开始处理图片: {os.path.basename(self.image_path)}")
             
             # 1. 获取配置
-            img_url, img_key, img_model, api_type = self.img_config_getter_func()
+            _img_url, img_key, img_model, api_type = self.img_config_snapshot
             
             if not img_key:
                 raise ValueError("请先配置生图 API Key")
@@ -100,10 +103,11 @@ class ImageEditWorker(QThread):
                 "generated_images": saved_files
             }
             
-            self.finished.emit(result_json, self.image_path)
+            self.result_ready.emit(result_json, self.image_path)
             
         except Exception as e:
-            self.error.emit(str(e), self.image_path)
+            tb = traceback.format_exc()
+            self.error.emit(f"{e}\n{tb}", self.image_path)
 
 class ImageEditWidget(QWidget):
     def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func):
@@ -119,6 +123,7 @@ class ImageEditWidget(QWidget):
         self._pending_main_style = ""
         self._pending_template = ""
         self._md5_cache = {}
+        self._run_scope_paths = None
         
         # 确保提示词目录存在
         os.makedirs(PROMPT_DIR, exist_ok=True)
@@ -126,9 +131,13 @@ class ImageEditWidget(QWidget):
         self.initUI()
         self.load_prompt_templates()
         self.load_ui_state()
+        app = QApplication.instance()
+        if app is not None:
+            app.aboutToQuit.connect(self._on_app_about_to_quit)
 
     def initUI(self):
         layout = QVBoxLayout(self)
+        self.setAcceptDrops(True)
         
         # 顶部：提示词模板管理和画风选择
         top_layout = QHBoxLayout()
@@ -157,6 +166,9 @@ class ImageEditWidget(QWidget):
         self.save_template_btn = QPushButton("保存为新模板")
         self.save_template_btn.clicked.connect(self.save_template)
         template_layout.addWidget(self.save_template_btn)
+        self.save_current_template_btn = QPushButton("保存当前模板")
+        self.save_current_template_btn.clicked.connect(self.save_current_template)
+        template_layout.addWidget(self.save_current_template_btn)
         
         top_layout.addLayout(template_layout)
         layout.addLayout(top_layout)
@@ -183,6 +195,7 @@ class ImageEditWidget(QWidget):
         
         self.image_list = QListWidget()
         self.image_list.setSelectionMode(QListWidget.ExtendedSelection)
+        self.image_list.itemChanged.connect(self._update_action_buttons)
         left_layout.addWidget(self.image_list)
         
         splitter.addWidget(left_widget)
@@ -230,6 +243,7 @@ class ImageEditWidget(QWidget):
 
         self.main_style_combo.currentTextChanged.connect(self.save_ui_state)
         self.template_combo.currentTextChanged.connect(self.save_ui_state)
+        self.template_combo.currentTextChanged.connect(self._update_template_save_buttons)
         self.thread_spin.valueChanged.connect(self.save_ui_state)
 
     def load_prompt_templates(self):
@@ -244,6 +258,7 @@ class ImageEditWidget(QWidget):
             if self.template_combo.findText(self._pending_template) >= 0:
                 self.template_combo.setCurrentText(self._pending_template)
             self._pending_template = ""
+        self._update_template_save_buttons()
 
     def load_ui_state_data(self):
         if not os.path.exists(IMAGE_EDIT_UI_STATE_FILE):
@@ -300,6 +315,7 @@ class ImageEditWidget(QWidget):
 
     def on_template_changed(self, index):
         if index <= 0:
+            self._update_template_save_buttons()
             return
             
         template_name = self.template_combo.currentText()
@@ -312,6 +328,7 @@ class ImageEditWidget(QWidget):
                 self.prompt_edit.setPlainText(content)
             except Exception as e:
                 self.log_msg(f"加载模板失败: {e}")
+        self._update_template_save_buttons()
 
     def save_template(self):
         content = self.prompt_edit.toPlainText().strip()
@@ -332,30 +349,123 @@ class ImageEditWidget(QWidget):
             except Exception as e:
                 self.log_msg(f"保存模板失败: {e}")
 
+    def _update_template_save_buttons(self):
+        template_name = self.template_combo.currentText().strip()
+        can_save_current = bool(template_name and template_name != "自定义")
+        self.save_current_template_btn.setEnabled(can_save_current and not self.processing)
+        self.save_template_btn.setEnabled(not self.processing)
+
+    def save_current_template(self):
+        template_name = self.template_combo.currentText().strip()
+        if not template_name or template_name == "自定义":
+            QMessageBox.information(self, "提示", "当前为“自定义”，请使用“保存为新模板”。")
+            return
+
+        content = self.prompt_edit.toPlainText().strip()
+        if not content:
+            QMessageBox.warning(self, "警告", "提示词不能为空")
+            return
+
+        filepath = os.path.join(PROMPT_DIR, f"{template_name}.md")
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(content)
+            self.log_msg(f"已保存当前模板: {template_name}")
+        except Exception as e:
+            self.log_msg(f"保存当前模板失败: {e}")
+
     def add_images(self):
         files, _ = QFileDialog.getOpenFileNames(
             self, "选择图片", "", "Images (*.png *.jpg *.jpeg *.webp *.bmp)"
         )
         if files:
-            for file in files:
-                if file not in self.image_paths:
-                    self.image_paths.append(file)
-                    item = QListWidgetItem(os.path.basename(file))
-                    item.setData(Qt.UserRole, file)
-                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                    item.setCheckState(Qt.Unchecked)
-                    self.image_list.addItem(item)
-                    self._cache_md5(file)
+            added_count, _ = self._add_images_from_paths(files)
+            self.log_msg(f"已添加 {added_count} 张图片。")
+            self._update_action_buttons()
+
+    def _is_supported_image_file(self, file_path):
+        _, ext = os.path.splitext(file_path)
+        return ext.lower() in SUPPORTED_IMAGE_EXTENSIONS
+
+    def _add_images_from_paths(self, paths):
+        added_count = 0
+        skipped_count = 0
+        for file in paths:
+            norm_path = os.path.normpath(str(file))
+            if not os.path.isfile(norm_path):
+                skipped_count += 1
+                continue
+            if not self._is_supported_image_file(norm_path):
+                skipped_count += 1
+                continue
+            if norm_path in self.image_paths:
+                skipped_count += 1
+                continue
+            self.image_paths.append(norm_path)
+            item = QListWidgetItem(os.path.basename(norm_path))
+            item.setData(Qt.UserRole, norm_path)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.image_list.addItem(item)
+            self._cache_md5(norm_path)
+            added_count += 1
+        if added_count:
             self.update_progress()
+        return added_count, skipped_count
+
+    def _collect_image_paths_from_drop(self, mime_data):
+        if not mime_data or not mime_data.hasUrls():
+            return []
+        collected = []
+        for url in mime_data.urls():
+            if not url.isLocalFile():
+                continue
+            local_path = os.path.normpath(url.toLocalFile())
+            if os.path.isdir(local_path):
+                for root, _dirs, files in os.walk(local_path):
+                    for filename in files:
+                        candidate = os.path.join(root, filename)
+                        if self._is_supported_image_file(candidate):
+                            collected.append(candidate)
+            elif os.path.isfile(local_path) and self._is_supported_image_file(local_path):
+                collected.append(local_path)
+        # 去重并保持原顺序
+        return list(dict.fromkeys(collected))
+
+    def dragEnterEvent(self, event):
+        if self._collect_image_paths_from_drop(event.mimeData()):
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    def dragMoveEvent(self, event):
+        if self._collect_image_paths_from_drop(event.mimeData()):
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    def dropEvent(self, event):
+        dropped_paths = self._collect_image_paths_from_drop(event.mimeData())
+        if not dropped_paths:
+            event.ignore()
+            return
+        added_count, skipped_count = self._add_images_from_paths(dropped_paths)
+        self.log_msg(f"拖拽添加完成：新增 {added_count} 张，跳过 {skipped_count} 项。")
+        event.acceptProposedAction()
 
     def clear_images(self):
+        if self.processing:
+            QMessageBox.warning(self, "提示", "任务执行中，暂不支持清空列表")
+            return
         self.image_paths.clear()
         self.image_list.clear()
         self.results.clear()
         self.active_workers.clear()
+        self._run_scope_paths = None
         self._md5_cache.clear()
         self.update_progress()
         self.log_text.clear()
+        self._update_action_buttons()
 
     def _cache_md5(self, image_path):
         if image_path in self._md5_cache:
@@ -376,27 +486,88 @@ class ImageEditWidget(QWidget):
         if not target_dir:
             return
 
+        # 仅把图片文件视为“已生成结果”，避免 json/txt 造成误判
+        image_extensions = set()
+        for fmt in QImageReader.supportedImageFormats():
+            try:
+                ext = bytes(fmt).decode("ascii").lower()
+            except Exception:
+                ext = str(fmt).lower()
+            if ext:
+                image_extensions.add(f".{ext}")
+        if not image_extensions:
+            image_extensions = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+
         found_md5 = set()
+        json_md5_seen = set()
+        json_md5_has_existing_image = {}
+        workspace_root = os.path.abspath(".")
         for root, _dirs, files in os.walk(target_dir):
             for filename in files:
-                stem = os.path.splitext(filename)[0]
-                last_seg = stem.split("-")[-1].strip().lower()
-                if MD5_TAIL_RE.match(last_seg):
-                    found_md5.add(last_seg)
+                _, ext = os.path.splitext(filename)
+                ext_lower = ext.lower()
+                if ext_lower in image_extensions:
+                    stem = os.path.splitext(filename)[0]
+                    last_seg = stem.split("-")[-1].strip().lower()
+                    if MD5_TAIL_RE.match(last_seg):
+                        found_md5.add(last_seg)
+                    continue
+
+                if ext_lower != ".json":
+                    continue
+
+                json_path = os.path.join(root, filename)
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        result_obj = json.load(f)
+                except Exception:
+                    continue
+
+                input_md5 = str(result_obj.get("input_image_md5", "")).strip().lower()
+                if not MD5_TAIL_RE.match(input_md5):
+                    continue
+
+                json_md5_seen.add(input_md5)
+                if input_md5 not in json_md5_has_existing_image:
+                    json_md5_has_existing_image[input_md5] = False
+
+                generated_images = result_obj.get("generated_images", []) or []
+                for out_path in generated_images:
+                    out_path = str(out_path).strip()
+                    if not out_path:
+                        continue
+                    if os.path.isabs(out_path):
+                        check_path = out_path
+                    else:
+                        check_path = os.path.normpath(os.path.join(workspace_root, out_path))
+                    if os.path.exists(check_path):
+                        json_md5_has_existing_image[input_md5] = True
+                        break
+
+        broken_json_md5 = {
+            md5 for md5 in json_md5_seen
+            if not json_md5_has_existing_image.get(md5, False)
+        }
 
         missing_count = 0
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
             image_path = item.data(Qt.UserRole)
             image_md5 = self._cache_md5(image_path).lower()
-            if image_md5 and image_md5 not in found_md5:
+            is_missing_by_files = image_md5 and image_md5 not in found_md5
+            is_missing_by_json = image_md5 and image_md5 in broken_json_md5
+            if is_missing_by_files or is_missing_by_json:
                 item.setCheckState(Qt.Checked)
                 missing_count += 1
             else:
                 item.setCheckState(Qt.Unchecked)
 
         total = self.image_list.count()
-        self.log_msg(f"目录扫描完成：共发现 {len(found_md5)} 个输出md5，待处理 {total} 项，缺失 {missing_count} 项（已自动勾选）。")
+        self.log_msg(
+            f"目录扫描完成：共发现 {len(found_md5)} 个输出图片md5，"
+            f"发现 {len(broken_json_md5)} 个json缺图md5，待处理 {total} 项，缺失 {missing_count} 项（已自动勾选）。"
+        )
+        self._update_action_buttons()
 
     def log_msg(self, msg):
         self.log_text.append(msg)
@@ -405,18 +576,23 @@ class ImageEditWidget(QWidget):
         scrollbar.setValue(scrollbar.maximum())
 
     def update_progress(self):
-        total = len(self.image_paths)
+        if self._run_scope_paths is None:
+            scoped_paths = set(self.image_paths)
+        else:
+            scoped_paths = set(self._run_scope_paths)
+
+        total = len(scoped_paths)
         if total == 0:
             self.progress_bar.setValue(0)
             self.progress_bar.setFormat("0/0")
             return
-            
-        processed = len(self.results)
+
+        processed = sum(1 for path in scoped_paths if path in self.results)
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(processed)
         self.progress_bar.setFormat(f"{processed}/{total}")
 
-    def start_processing(self):
+    def _start_processing_with_scope(self, scope_paths=None):
         if not self.image_paths:
             QMessageBox.warning(self, "警告", "请先添加图片")
             return
@@ -425,19 +601,34 @@ class ImageEditWidget(QWidget):
         if not prompt:
             QMessageBox.warning(self, "警告", "请输入提示词")
             return
+
+        if scope_paths is None:
+            self._run_scope_paths = None
+        else:
+            normalized_scope = {p for p in scope_paths if p in self.image_paths}
+            if not normalized_scope:
+                self.log_msg("没有可执行的勾选任务")
+                return
+            self._run_scope_paths = normalized_scope
             
         self.processing = True
+        self.update_progress()
         self.start_btn.setEnabled(False)
         self.add_btn.setEnabled(False)
         self.clear_btn.setEnabled(False)
         self.retry_btn.setEnabled(False)
         self.retry_selected_btn.setEnabled(False)
         self.template_combo.setEnabled(False)
+        self.save_template_btn.setEnabled(False)
+        self.save_current_template_btn.setEnabled(False)
         self.prompt_edit.setEnabled(False)
         self.thread_spin.setEnabled(False)
         
         self.log_msg("开始批量处理任务...")
         self.launch_available_workers()
+
+    def start_processing(self):
+        self._start_processing_with_scope(None)
 
     def retry_failed(self):
         # 直接重试所有红色失败任务
@@ -450,75 +641,93 @@ class ImageEditWidget(QWidget):
             if path in self.results:
                 del self.results[path]
                 
-        self.update_progress()
-        self.start_processing()
+        self._start_processing_with_scope(set(failed_paths))
 
     def retry_selected_failed(self):
-        failed_paths = []
+        checked_paths = []
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
             if item.checkState() != Qt.Checked:
                 continue
             path = item.data(Qt.UserRole)
-            if self.results.get(path) == "error":
-                failed_paths.append(path)
+            checked_paths.append(path)
 
-        if not failed_paths:
-            self.log_msg("没有勾选的失败任务需要重试")
+        if not checked_paths:
+            self.log_msg("没有勾选任务可执行")
             return
 
-        for path in failed_paths:
+        for path in checked_paths:
             if path in self.results:
                 del self.results[path]
             self.update_item_status(path, Qt.white)
-        self.log_msg(f"将重试 {len(failed_paths)} 个勾选失败任务")
-        self.update_progress()
-        self.start_processing()
+        self.log_msg(f"将执行 {len(checked_paths)} 个勾选任务")
+        self._start_processing_with_scope(set(checked_paths))
 
     def _get_next_unprocessed_path(self):
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
             path = item.data(Qt.UserRole)
+            if self._run_scope_paths is not None and path not in self._run_scope_paths:
+                continue
             if path in self.results or path in self.active_workers:
                 continue
             return path
         return None
 
+    def _update_action_buttons(self):
+        if self.processing:
+            return
+        has_errors = any(status == "error" for status in self.results.values())
+        has_checked = any(
+            self.image_list.item(i).checkState() == Qt.Checked
+            for i in range(self.image_list.count())
+        )
+        self.retry_btn.setEnabled(has_errors)
+        self.retry_selected_btn.setEnabled(has_checked)
+
     def launch_available_workers(self):
         if not self.processing:
             return
 
-        max_workers = int(self.thread_spin.value())
-        while len(self.active_workers) < max_workers:
-            next_path = self._get_next_unprocessed_path()
-            if not next_path:
-                break
-
-            # 更新UI状态
-            for i in range(self.image_list.count()):
-                item = self.image_list.item(i)
-                if item.data(Qt.UserRole) == next_path:
-                    item.setBackground(Qt.yellow)
-                    self.image_list.scrollToItem(item)
+        try:
+            max_workers = int(self.thread_spin.value())
+            while len(self.active_workers) < max_workers:
+                next_path = self._get_next_unprocessed_path()
+                if not next_path:
                     break
 
-            prompt = self.prompt_edit.toPlainText().strip()
-            # 获取选中的画风指令
-            selected_style_name = self.main_style_combo.currentText()
-            styles_data = self.get_styles()
-            active_instructions = styles_data.get(selected_style_name, "")
+                # 更新UI状态
+                for i in range(self.image_list.count()):
+                    item = self.image_list.item(i)
+                    if item.data(Qt.UserRole) == next_path:
+                        item.setBackground(Qt.yellow)
+                        self.image_list.scrollToItem(item)
+                        break
 
-            worker = ImageEditWorker(
-                next_path, prompt, 
-                self.config_getter_func, 
-                self.img_config_getter_func,
-                style_instructions=active_instructions
-            )
-            worker.finished.connect(self.on_worker_finished)
-            worker.error.connect(self.on_worker_error)
-            worker.log.connect(self.log_msg)
-            self.active_workers[next_path] = worker
-            worker.start()
+                prompt = self.prompt_edit.toPlainText().strip()
+                # 获取选中的画风指令
+                selected_style_name = self.main_style_combo.currentText()
+                styles_data = self.get_styles() or {}
+                active_instructions = styles_data.get(selected_style_name, "")
+                # 关键修复：在主线程拍快照，避免工作线程读取 Qt 控件
+                img_config_snapshot = self.img_config_getter_func()
+
+                worker = ImageEditWorker(
+                    next_path,
+                    prompt,
+                    img_config_snapshot=img_config_snapshot,
+                    style_instructions=active_instructions
+                )
+                worker.result_ready.connect(self.on_worker_finished)
+                worker.error.connect(self.on_worker_error)
+                worker.log.connect(self.log_msg)
+                worker.finished.connect(partial(self.on_worker_thread_finished, next_path))
+                self.active_workers[next_path] = worker
+                worker.start()
+        except Exception as e:
+            self.log_msg(f"启动线程失败: {e}")
+            self.log_msg(traceback.format_exc())
+            self.finish_processing()
 
         # 没有待处理且没有运行中的任务，说明当前批次结束
         if self.processing and not self.active_workers and self._get_next_unprocessed_path() is None:
@@ -537,8 +746,6 @@ class ImageEditWidget(QWidget):
         self.main_style_combo.blockSignals(False)
 
     def on_worker_finished(self, result_json, image_path):
-        if image_path in self.active_workers:
-            del self.active_workers[image_path]
         self.results[image_path] = "success"
         self.update_item_status(image_path, Qt.green)
         self.log_msg(f"处理成功: {os.path.basename(image_path)}")
@@ -547,16 +754,18 @@ class ImageEditWidget(QWidget):
         self.save_result(result_json, image_path)
         
         self.update_progress()
-        self.launch_available_workers()
 
     def on_worker_error(self, error_msg, image_path):
-        if image_path in self.active_workers:
-            del self.active_workers[image_path]
         self.results[image_path] = "error"
         self.update_item_status(image_path, Qt.red)
         self.log_msg(f"处理失败: {os.path.basename(image_path)} - {error_msg}")
         
         self.update_progress()
+ 
+    def on_worker_thread_finished(self, image_path):
+        if image_path in self.active_workers:
+            worker = self.active_workers.pop(image_path)
+            worker.deleteLater()
         self.launch_available_workers()
 
     def update_item_status(self, image_path, color):
@@ -655,18 +864,55 @@ class ImageEditWidget(QWidget):
 
     def finish_processing(self):
         self.processing = False
+        self._run_scope_paths = None
+        self.update_progress()
         self.start_btn.setEnabled(True)
         self.add_btn.setEnabled(True)
         self.clear_btn.setEnabled(True)
         self.template_combo.setEnabled(True)
+        self._update_template_save_buttons()
         self.prompt_edit.setEnabled(True)
         self.thread_spin.setEnabled(True)
-        
-        # 检查是否有失败的任务
+
+        # 更新按钮可用性（失败重试/勾选执行）
+        self._update_action_buttons()
         has_errors = any(status == "error" for status in self.results.values())
-        self.retry_btn.setEnabled(has_errors)
-        self.retry_selected_btn.setEnabled(has_errors)
         
         self.log_msg("批量处理任务完成！")
         if has_errors:
             self.log_msg("部分任务处理失败，可点击'重试失败任务'(重试全部红色)或'重试勾选失败项'。")
+
+    def _shutdown_workers(self, wait_ms=8000):
+        workers = list(self.active_workers.values())
+        if not workers:
+            return
+
+        self.log_msg(f"检测到 {len(workers)} 个后台线程，正在安全停止...")
+        for worker in workers:
+            try:
+                worker.requestInterruption()
+            except Exception:
+                pass
+
+        for worker in workers:
+            try:
+                if worker.isRunning() and not worker.wait(wait_ms):
+                    self.log_msg("线程等待超时，执行强制终止")
+                    worker.terminate()
+                    worker.wait(1000)
+            except Exception as e:
+                self.log_msg(f"停止线程失败: {e}")
+
+        self.active_workers.clear()
+
+    def closeEvent(self, event):
+        try:
+            self.processing = False
+            self._shutdown_workers()
+        except Exception:
+            pass
+        super().closeEvent(event)
+
+    def _on_app_about_to_quit(self):
+        self.processing = False
+        self._shutdown_workers()
