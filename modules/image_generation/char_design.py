@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QThreadPool, QRunnable, QObject
 from PyQt5.QtGui import QPixmap, QImageReader
 
-from api_backend import generate_image_whatai, generate_image_aigc2d
+from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, normalize_upscale_options
 
 CHAR_PROMPT_DIR = "data/prompts/char"

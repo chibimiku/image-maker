@@ -13,31 +13,31 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QS
 from openai import OpenAI
 
 # 引入抽离出去的独立组件
-from style_analyzer import StyleAnalyzerWidget
-from single_analyzer import SingleAnalyzerWidget
+from modules.image_analysis.style_analyzer import StyleAnalyzerWidget
+from modules.image_analysis.single_analyzer import SingleAnalyzerWidget
 # 【新增】引入批量提示词生成组件
-from prompt_generator import PromptGeneratorWidget
+from modules.image_generation.prompt_generator import PromptGeneratorWidget
 # 【新增】引入批量图片分析组件
-from batch_analyzer import BatchAnalyzerWidget
+from modules.image_analysis.batch_analyzer import BatchAnalyzerWidget
 # 【新增】引入图片编辑组件
-from image_edit import ImageEditWidget
+from modules.image_generation.image_edit import ImageEditWidget
 # 【新增】引入角色设计组件
-from char_design import CharDesignWidget
-from z_image_edit_tab import ZImageEditWidget
-from pic_cate_tab import PicCateWidget
-from json_dataset_tab import JsonDatasetWidget
-from webp_compressor import DragDropCompressor
-from flux2_client_tab import Flux2ClientWidget
-from upscaler_tab import UpscalerTabWidget
-from single_gen_debug_tab import SingleGenDebugWidget
-from booru_tag_generator import BooruTagGeneratorWidget
-from diff_cg_tab import DiffCgTabWidget
+from modules.image_generation.char_design import CharDesignWidget
+from modules.image_generation.z_image_edit_tab import ZImageEditWidget
+from modules.image_analysis.pic_cate_tab import PicCateWidget
+from modules.image_analysis.json_dataset_tab import JsonDatasetWidget
+from modules.image_generation.webp_compressor import DragDropCompressor
+from modules.image_generation.flux2_client_tab import Flux2ClientWidget
+from modules.image_generation.upscaler_tab import UpscalerTabWidget
+from modules.image_generation.single_gen_debug_tab import SingleGenDebugWidget
+from modules.others.booru_tag_generator import BooruTagGeneratorWidget
+from modules.image_generation.diff_cg_tab import DiffCgTabWidget
 from utils.image_upscale_runtime import normalize_upscale_options
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "config-image.json")
-CONFIG_STYLES_FILE = os.path.join(BASE_DIR, "config-styles.json")
+CONFIG_FILE = os.path.join(BASE_DIR, "conf", "config.json")
+CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "conf", "config-image.json")
+CONFIG_STYLES_FILE = os.path.join(BASE_DIR, "conf", "config-styles.json")
 DEFAULT_ASPECT_RATIO = "1:1"
 ASPECT_RATIO_OPTIONS = ["不覆盖(沿用原逻辑)", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"]
 NO_OVERRIDE_TEXT = "不覆盖(沿用原逻辑)"
@@ -548,7 +548,14 @@ class AppWindow(QWidget):
                     
                     # 读取对应API的配置
                     api_config = config.get("apis", {}).get(current_api, {})
-                    self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
+                    if current_api == "aigc2d":
+                        self.img_url_input.setText(api_config.get("base_url", "https://next.aigc2d.com/v1beta/models/"))
+                    elif current_api in ("openai-image", "aigc-2d-gpt"):
+                        self.img_url_input.setText(api_config.get("base_url", "https://api.openai.com/v1"))
+                    elif current_api == "openrouter-image":
+                        self.img_url_input.setText(api_config.get("base_url", "https://openrouter.ai/api"))
+                    else:
+                        self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
                     self.img_key_input.setText(api_config.get("api_key", ""))
                     saved_model = api_config.get("model", "")
                     if saved_model:
@@ -785,7 +792,7 @@ class AppWindow(QWidget):
                     
                     # 根据API类型设置不同的默认base_url
                     if api_type == "aigc2d":
-                        self.img_url_input.setText(api_config.get("base_url", ""))
+                        self.img_url_input.setText(api_config.get("base_url", "https://next.aigc2d.com/v1beta/models/"))
                     elif api_type in ("openai-image", "aigc-2d-gpt"):
                         self.img_url_input.setText(api_config.get("base_url", "https://api.openai.com/v1"))
                     elif api_type == "openrouter-image":

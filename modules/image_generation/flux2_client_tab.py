@@ -27,8 +27,8 @@ from PyQt5.QtWidgets import (
 
 from utils.webui_img2img_client import WebuiImg2ImgClient
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "config-image.json")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "conf", "config-image.json")
 TEMP_INPUT_DIR = os.path.join(BASE_DIR, "data")
 
 

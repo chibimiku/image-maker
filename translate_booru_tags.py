@@ -10,7 +10,7 @@ from openai import OpenAI
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+CONFIG_PATH = os.path.join(BASE_DIR, "conf", "config.json")
 INPUT_CSV_PATH = os.path.join(BASE_DIR, "data", "tags", "danbooru_e621_merged.csv")
 OUTPUT_CSV_PATH = os.path.join(BASE_DIR, "data", "tags", "danbooru_e621_merged_zh.csv")
 PROGRESS_PATH = os.path.join(BASE_DIR, "data", "tags", "danbooru_e621_merged_zh.progress.json")

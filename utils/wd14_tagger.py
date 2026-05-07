@@ -6,7 +6,7 @@ from PIL import Image
 
 from utils.booru_tags import normalize_booru_tags
 
-AUTOCOMPLETE_CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config-autocomplete.json")
+AUTOCOMPLETE_CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "conf", "config-autocomplete.json")
 DEFAULT_AUTOCOMPLETE_CSV_PATH = "data/tags/danbooru.csv"
 LOCAL_TAGGER_MODEL_CANDIDATES = [
     "data/models/wd14/model.onnx",

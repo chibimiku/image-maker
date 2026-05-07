@@ -8,7 +8,7 @@ from PyQt5.QtGui import QPixmap
 from openai import OpenAI
 
 # 复用 single_analyzer 中的生图线程
-from single_analyzer import ImageGenWorkerThread
+from modules.image_analysis.single_analyzer import ImageGenWorkerThread
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 
 class TextPromptGenThread(QThread):

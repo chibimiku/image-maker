@@ -95,8 +95,8 @@ data/
 cache/
 log/
 outputs/
-config.json
-config-image.json
+conf/config.json
+conf/config-image.json
 
 # 模型文件与缓存（保留目录结构 + 占位文件）
 models/**/*.safetensors

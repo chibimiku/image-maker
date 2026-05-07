@@ -18,13 +18,13 @@ from PyQt5.QtGui import QPixmap, QIcon, QImage
 
 from PIL import Image
 # 导入我们独立出去的 API 请求模块
-from api_backend import generate_image_whatai, generate_image_aigc2d, get_api_config, load_config
+from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d, get_api_config, load_config
 
 # ================== 初始化目录与日志 ==================
 os.makedirs("log", exist_ok=True)
 os.makedirs("cache", exist_ok=True)
 STATE_FILE = os.path.join("cache", "last_state.json")
-CONFIG_PATH = "config-image.json"
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config-image.json")
 
 # 【新增】正规的 PyQt 日志处理器
 class GUILogHandler(logging.Handler, QObject):
@@ -435,7 +435,7 @@ class CyberNikiTab(QWidget):
         super().__init__()
         self.main_window = main_window
         self.slots = {}
-        self.styles_file = "config-styles.json"  # 指向外部的 json 文件
+        self.styles_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config-styles.json")  # 指向外部的 json 文件
         self.styles_data = {}
         self.initUI()
         self.load_styles_config()

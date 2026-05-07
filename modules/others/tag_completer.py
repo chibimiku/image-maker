@@ -268,7 +268,10 @@ class LineEditCompleter(QObject):
             self.completer.popup().hide()
 
 class TagAutocompleteManager:
-    def __init__(self, config_path="config-autocomplete.json"):
+    def __init__(self, config_path=None):
+        if config_path is None:
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            config_path = os.path.join(base_dir, "conf", "config-autocomplete.json")
         self.config_path = config_path
         self.tags = []
         self.load_config()

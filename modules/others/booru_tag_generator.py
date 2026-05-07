@@ -219,14 +219,15 @@ class BooruTagGeneratorWidget(QWidget):
 
     def __init__(self):
         super().__init__()
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.csv_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
+            base_dir,
             "data",
             "tags",
             "danbooru_e621_merged.csv",
         )
         self.translation_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
+            base_dir,
             "data",
             "tags",
             "danbooru_e621_merged_zh.csv",

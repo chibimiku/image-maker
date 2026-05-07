@@ -11,10 +11,10 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QTextEdit, QMessageBox, QInputDialog, QGridLayout, QCheckBox)
 from PyQt6.QtCore import QThread, pyqtSignal
 import traceback
-from api_backend import fetch_llm_json, fetch_cohere_json
-from tag_completer import TagAutocompleteManager
+from modules.others.api_backend import fetch_llm_json, fetch_cohere_json
+from modules.others.tag_completer import TagAutocompleteManager
 
-CONFIG_FILE = "config-sd.json"
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config-sd.json")
 PROMPTS_DIR = "data/prompts"
 NEG_PROMPTS_DIR = "data/negative_prompts"  # 新增：反向提示词目录
 OUTPUT_DIR = "outputs"
@@ -892,7 +892,7 @@ class MainWindow(QMainWindow):
             scrollbar.setValue(scrollbar.maximum())
 
     def load_style_options(self):
-        styles_file = "config-styles.json"
+        styles_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config-styles.json")
         self.style_options = {}
         
         try:

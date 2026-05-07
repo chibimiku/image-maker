@@ -47,15 +47,20 @@ if not logger.handlers:
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CONFIG_DIR = os.path.join(BASE_DIR, "conf")
+
 # ================= 2. 核心功能函数 =================
-def load_config(config_path="config-image.json"):
+def load_config(config_path=None):
+    if config_path is None:
+        config_path = os.path.join(CONFIG_DIR, "config-image.json")
     if not os.path.exists(config_path):
         logger.error(f"未找到配置文件: {config_path}")
         raise FileNotFoundError(f"未找到配置文件: {config_path}")
     with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def get_api_config(config_path="config-image.json", api_type=None):
+def get_api_config(config_path=None, api_type=None):
     """获取指定API类型的配置"""
     config = load_config(config_path)
     # 如果指定了api_type，直接返回对应配置
@@ -172,6 +177,23 @@ def _format_safe_log(value) -> str:
         return json.dumps(sanitized, ensure_ascii=False, indent=2)
     except Exception:
         return str(sanitized)
+
+def _headers_for_log(headers: dict) -> str:
+    safe = {}
+    for k, v in (headers or {}).items():
+        kl = str(k).lower()
+        if kl in ("authorization", "x-goog-api-key", "api-key", "token"):
+            v_str = str(v)
+            if len(v_str) > 12:
+                safe[k] = v_str[:8] + "..." + v_str[-4:]
+            else:
+                safe[k] = v_str[:4] + "***" if len(v_str) > 4 else "***"
+        else:
+            safe[k] = v
+    try:
+        return json.dumps(safe, ensure_ascii=False)
+    except Exception:
+        return str(safe)
 
 def _log_stage_elapsed(stage_name: str, start_time: float):
     try:
@@ -319,6 +341,78 @@ def _save_debug_http_trace(
         logger.error(f"[DEBUG] 保存完整HTTP请求/响应失败: {e}")
         return ""
 
+REPLAY_SCRIPT_TEMPLATE = r'''#!/usr/bin/env python3
+"""API 请求回放脚本 — 将本文件和同名 .json 数据文件放在同一目录，运行即可复现请求。"""
+import json, os, sys, requests
+
+DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "{data_filename}")
+
+def main():
+    if not os.path.exists(DATA_FILE):
+        print(f"错误：找不到数据文件 {{DATA_FILE}}", file=sys.stderr)
+        sys.exit(1)
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    url = data["url"]
+    headers = data["headers"]
+    body = data.get("body")
+
+    print(f"=== 请求 URL ===")
+    print(url)
+    print(f"\n=== 请求 Headers ===")
+    print(json.dumps(headers, ensure_ascii=False, indent=2))
+    if body:
+        print(f"\n=== 请求 Body ===")
+        print(json.dumps(body, ensure_ascii=False, indent=2))
+    print("\n" + "=" * 60 + "\n正在发送请求...\n")
+
+    resp = requests.post(url, headers=headers, json=body, timeout=120)
+    print(f"响应状态码: {{resp.status_code}}")
+    print(f"响应 Headers: {{json.dumps(dict(resp.headers), ensure_ascii=False)}}")
+    print(f"\n响应 Body:\n{{resp.text[:8000]}}")
+    if len(resp.text) > 8000:
+        print(f"\n... (共 {{len(resp.text)}} 字符，已截断)")
+
+if __name__ == "__main__":
+    main()
+'''
+
+def _generate_request_replay(save_dir: str, file_prefix: str, api_tag: str,
+                              url: str, headers: dict, body) -> dict:
+    """生成请求回放文件：一份 JSON 数据 + 一份独立 .py 脚本。返回 {"json_path": ..., "script_path": ...}"""
+    try:
+        os.makedirs(save_dir, exist_ok=True)
+        prefix = f"{file_prefix}_" if file_prefix else ""
+        base_name = f"{prefix}{api_tag}_replay_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+        safe_body = body
+        if isinstance(safe_body, dict):
+            safe_body = _sanitize_log_data(safe_body)
+
+        request_data = {
+            "url": str(url or ""),
+            "headers": dict(headers or {}),
+            "body": safe_body,
+            "api_tag": api_tag,
+            "generated_at": datetime.now().isoformat()
+        }
+
+        json_path = os.path.join(save_dir, f"{base_name}.json")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(request_data, f, ensure_ascii=False, indent=2)
+
+        script_path = os.path.join(save_dir, f"{base_name}.py")
+        script_content = REPLAY_SCRIPT_TEMPLATE.replace("{data_filename}", f"{base_name}.json")
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(script_content)
+
+        logger.info(f"📋 请求回放文件已生成:\n  JSON: {json_path}\n  脚本: {script_path}")
+        return {"replay_json": json_path, "replay_script": script_path}
+    except Exception as e:
+        logger.error(f"生成请求回放文件失败: {e}")
+        return {}
+
 def _aspect_ratio_to_dalle3_size(aspect_ratio: str, allow_auto_for_extreme: bool = True) -> str:
     """
     将常见长宽比映射到 GPT Image 可用 size（3挡）：
@@ -398,6 +492,30 @@ def _derive_edits_url_from_generations_url(generations_url: str) -> str:
         return f"{normalized}/images/edits"
     return f"{normalized}/v1/images/edits"
 
+def _build_aigc2d_generate_content_url(api_base: str, model_name: str) -> str:
+    """
+    统一将 AIGC2D 的 base_url 规范化为:
+    https://next.aigc2d.com/v1beta/models/{model}:generateContent
+    兼容用户可能填写的 /v1、/v1beta、/v1beta/models 以及旧的完整 endpoint。
+    """
+    base = str(api_base or "").strip().rstrip("/")
+    if not base:
+        base = "https://next.aigc2d.com/v1beta/models"
+
+    if base.endswith("/models"):
+        prefix = base
+    elif "/models/" in base:
+        prefix = base.split("/models/", 1)[0] + "/models"
+    elif base.endswith("/v1beta"):
+        prefix = f"{base}/models"
+    elif base.endswith("/v1"):
+        prefix = f"{base[:-3]}/v1beta/models"
+    else:
+        prefix = f"{base}/v1beta/models"
+
+    model_text = str(model_name or "").strip() or "gemini-3.1-flash-image-preview"
+    return f"{prefix.rstrip('/')}/{model_text}:generateContent"
+
 def _post_images_edits_request(url: str, api_key: str, form_payload: dict, image_paths: list, timeout_val: int):
     used_files = []
     with ExitStack() as stack:
@@ -427,14 +545,14 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     if api_base.endswith("/v1"):
         url = f"{api_base}/images/generations"
     else:
-        url = f"{api_base}/v1/images/generations"
+        url = f"{api_base}/v1beta/images/generations"
     api_key = config.get("api_key")
     timeout_val = config.get("timeout", 180)
     max_retries = config.get("max_retries", 1)
     debug_dump_full_http = _as_bool(config.get("debug_dump_full_http", False), False)
 
     if not api_key:
-        logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
         return []
 
     valid_image_paths = _existing_image_paths(image_paths)
@@ -468,6 +586,7 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
 
     logger.info("=== 发起 openai-image API 请求 ===")
     logger.info(f"请求 URL: {request_url}")
+    logger.info(f"请求 Headers: {_headers_for_log({'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'})}")
     logger.info(f"请求数据:\n{_format_safe_log(payload)}")
 
     # ================= 阶段1：请求并获取 JSON 响应 =================
@@ -517,11 +636,23 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
                     )
                 if resp is not None:
                     _save_server_response_raw(fail_dir, file_prefix, "openai-image", _response_text_utf8(resp))
+                if return_metadata:
+                    raw_text = _response_text_utf8(resp) if resp is not None else str(e)
+                    replay_info = _generate_request_replay(fail_dir, file_prefix, "openai-image", request_url,
+                                                            {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": raw_text,
+                        "server_response_raw": {"error": str(e), "note": "retry_exhausted", "raw_text": raw_text[:2000]},
+                        "replay_script": replay_info.get("replay_script", ""),
+                        "replay_json": replay_info.get("replay_json", "")
+                    }
                 return []
-
     try:
         if getattr(resp, "encoding", None) is None:
             resp.encoding = "utf-8"
+        resp_text_raw = _response_text_utf8(resp)
         resp_json = resp.json()
         logger.info(f"=== openai-image 服务器原始返回信息 ===\n{_format_safe_log(resp_json)}")
     except (KeyError, json.JSONDecodeError) as e:
@@ -539,7 +670,18 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
                 response=resp,
                 note=f"json_parse_error: {e}"
             )
-        _save_server_response_raw(fail_dir, file_prefix, "openai-image", _response_text_utf8(resp))
+        _save_server_response_raw(fail_dir, file_prefix, "openai-image", resp_text_raw)
+        if return_metadata:
+            replay_info = _generate_request_replay(fail_dir, file_prefix, "openai-image", request_url,
+                                                    {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": resp_text_raw,
+                "server_response_raw": resp_json if 'resp_json' in locals() else {"parse_error": str(e), "raw_text": resp_text_raw[:2000]},
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
@@ -562,8 +704,20 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     data_items = resp_json.get("data", [])
     if not data_items:
         logger.warning("openai-image 返回的 JSON 中没有找到 data 节点。")
+        logger.warning(f"=== openai-image 服务器完整返回 ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "openai-image", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "openai-image", _response_text_utf8(resp))
+        if return_metadata:
+            replay_info = _generate_request_replay(save_dir, file_prefix, "openai-image", request_url,
+                                                    {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": _response_text_utf8(resp),
+                "server_response_raw": resp_json,
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
 
     saved_files = []
@@ -617,16 +771,22 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     _log_stage_elapsed("阶段2-提取并保存图片", stage_save_start)
     logger.info(f"[阶段统计] data节点: {len(data_items)}，成功保存: {len(saved_files)}")
     if len(saved_files) == 0:
+        logger.warning(f"=== openai-image 服务器完整返回(图片提取全部失败) ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "openai-image", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "openai-image", _response_text_utf8(resp))
 
     raw_text = "\n".join(revised_prompt_parts).strip()
     annotation_data = _normalize_annotation_result(_extract_json_object(raw_text))
     if return_metadata:
+        replay_info = _generate_request_replay(save_dir, file_prefix, "openai-image", request_url,
+                                                {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
         return {
             "saved_files": saved_files,
             "annotation": annotation_data,
-            "raw_text": raw_text
+            "raw_text": raw_text,
+            "server_response_raw": resp_json,
+            "replay_script": replay_info.get("replay_script", ""),
+            "replay_json": replay_info.get("replay_json", "")
         }
     return saved_files
 
@@ -650,7 +810,7 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
     download_referer = f"{str(api_base).rstrip('/')}/"
 
     if not api_key:
-        logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
         return []
 
     valid_image_paths = _existing_image_paths(image_paths)
@@ -684,6 +844,7 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
 
     logger.info("=== 发起 openrouter-image API 请求 ===")
     logger.info(f"请求 URL: {request_url}")
+    logger.info(f"请求 Headers: {_headers_for_log({'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'})}")
     logger.info(f"请求数据:\n{_format_safe_log(payload)}")
 
     stage_json_start = time.perf_counter()
@@ -732,6 +893,18 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
                     )
                 if resp is not None:
                     _save_server_response_raw(fail_dir, file_prefix, "openrouter-image", _response_text_utf8(resp))
+                if return_metadata:
+                    raw_text = _response_text_utf8(resp) if resp is not None else str(e)
+                    replay_info = _generate_request_replay(fail_dir, file_prefix, "openrouter-image", request_url,
+                                                            {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": raw_text,
+                        "server_response_raw": {"error": str(e), "note": "timeout_retry_exhausted", "raw_text": raw_text[:2000]},
+                        "replay_script": replay_info.get("replay_script", ""),
+                        "replay_json": replay_info.get("replay_json", "")
+                    }
                 return []
         except requests.exceptions.RequestException as e:
             logger.error(f"openrouter-image 请求失败: {e}")
@@ -750,11 +923,24 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
                 )
             if resp is not None:
                 _save_server_response_raw(fail_dir, file_prefix, "openrouter-image", _response_text_utf8(resp))
+            if return_metadata:
+                raw_text = _response_text_utf8(resp) if resp is not None else str(e)
+                replay_info = _generate_request_replay(fail_dir, file_prefix, "openrouter-image", request_url,
+                                                        {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
+                return {
+                    "saved_files": [],
+                    "annotation": {},
+                    "raw_text": raw_text,
+                    "server_response_raw": {"error": str(e), "note": "request_exception_retry_exhausted", "raw_text": raw_text[:2000]},
+                    "replay_script": replay_info.get("replay_script", ""),
+                    "replay_json": replay_info.get("replay_json", "")
+                }
             return []
 
     try:
         if getattr(resp, "encoding", None) is None:
             resp.encoding = "utf-8"
+        resp_text_raw = _response_text_utf8(resp)
         resp_json = resp.json()
         logger.info(f"=== openrouter-image 服务器原始返回信息 ===\n{_format_safe_log(resp_json)}")
     except (KeyError, json.JSONDecodeError) as e:
@@ -772,7 +958,18 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
                 response=resp,
                 note=f"json_parse_error: {e}"
             )
-        _save_server_response_raw(fail_dir, file_prefix, "openrouter-image", _response_text_utf8(resp))
+        _save_server_response_raw(fail_dir, file_prefix, "openrouter-image", resp_text_raw)
+        if return_metadata:
+            replay_info = _generate_request_replay(fail_dir, file_prefix, "openrouter-image", request_url,
+                                                    {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": resp_text_raw,
+                "server_response_raw": resp_json if 'resp_json' in locals() else {"parse_error": str(e), "raw_text": resp_text_raw[:2000]},
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
@@ -795,8 +992,20 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
     data_items = resp_json.get("data", [])
     if not isinstance(data_items, list) or not data_items:
         logger.warning("openrouter-image 返回的 JSON 中没有找到 data 节点。")
+        logger.warning(f"=== openrouter-image 服务器完整返回 ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "openrouter-image", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "openrouter-image", _response_text_utf8(resp))
+        if return_metadata:
+            replay_info = _generate_request_replay(save_dir, file_prefix, "openrouter-image", request_url,
+                                                    {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": _response_text_utf8(resp),
+                "server_response_raw": resp_json,
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
 
     saved_files = []
@@ -855,16 +1064,22 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
     _log_stage_elapsed("阶段2-提取并保存图片", stage_save_start)
     logger.info(f"[阶段统计] data节点: {len(data_items)}，成功保存: {len(saved_files)}")
     if len(saved_files) == 0:
+        logger.warning(f"=== openrouter-image 服务器完整返回(图片提取全部失败) ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "openrouter-image", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "openrouter-image", _response_text_utf8(resp))
 
     raw_text = "\n".join(raw_text_parts).strip()
     annotation_data = _normalize_annotation_result(_extract_json_object(raw_text))
     if return_metadata:
+        replay_info = _generate_request_replay(save_dir, file_prefix, "openrouter-image", request_url,
+                                                {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, payload)
         return {
             "saved_files": saved_files,
             "annotation": annotation_data,
-            "raw_text": raw_text
+            "raw_text": raw_text,
+            "server_response_raw": resp_json,
+            "replay_script": replay_info.get("replay_script", ""),
+            "replay_json": replay_info.get("replay_json", "")
         }
     return saved_files
 
@@ -897,7 +1112,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         size = _aspect_ratio_to_dalle3_size(aspect_ratio, allow_auto_for_extreme=True)
 
     if not api_key:
-        logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
         return []
 
     final_prompt = f"{instructions}\n\n{prompt}".strip() if instructions else str(prompt or "")
@@ -929,6 +1144,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
 
     logger.info("=== 发起 AIGC-2D-GPT API 请求（app-func 逻辑）===")
     logger.info(f"请求 URL: {request_url}")
+    logger.info(f"请求 Headers: {_headers_for_log(headers)}")
     logger.info(f"请求数据:\n{_format_safe_log(payload)}")
 
     stage_json_start = time.perf_counter()
@@ -982,6 +1198,16 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
             "aigc-2d-gpt",
             {"error": str(last_exc or "request failed"), "request_url": url}
         )
+        if return_metadata:
+            replay_info = _generate_request_replay(save_dir, file_prefix, "aigc-2d-gpt", request_url, headers, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": str(last_exc or "request failed"),
+                "server_response_raw": {"error": str(last_exc or "request failed"), "note": "no_response"},
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
 
     resp_text = _response_text_utf8(resp)
@@ -1001,6 +1227,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     try:
         if getattr(resp, "encoding", None) is None:
             resp.encoding = "utf-8"
+        resp_text_raw = _response_text_utf8(resp)
         resp_json = resp.json()
     except Exception:
         resp_json = {"raw_text": resp_text, "status_code": getattr(resp, "status_code", None)}
@@ -1011,7 +1238,18 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     data_items = resp_json.get("data", []) if isinstance(resp_json, dict) else []
     if not isinstance(data_items, list) or not data_items:
         logger.warning("AIGC-2D-GPT 返回 JSON 中没有 data 节点。")
+        logger.warning(f"=== AIGC-2D-GPT 服务器完整返回 ===\n{_format_safe_log(resp_json)}")
         _save_server_response_raw(save_dir, file_prefix, "aigc-2d-gpt", resp_text)
+        if return_metadata:
+            replay_info = _generate_request_replay(save_dir, file_prefix, "aigc-2d-gpt", request_url, headers, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": resp_text,
+                "server_response_raw": resp_json,
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
 
     saved_files = []
@@ -1063,14 +1301,22 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
                 logger.error(f"AIGC-2D-GPT 下载图片失败 {img_url}: {e}")
     _log_stage_elapsed("阶段2-提取并保存图片", stage_save_start)
     logger.info(f"[阶段统计] data节点: {len(data_items)}，成功保存: {len(saved_files)}")
+    if len(saved_files) == 0:
+        logger.warning(f"=== AIGC-2D-GPT 服务器完整返回(图片提取全部失败) ===\n{_format_safe_log(resp_json)}")
+        _save_server_response_json(save_dir, file_prefix, "aigc-2d-gpt", resp_json)
+        _save_server_response_raw(save_dir, file_prefix, "aigc-2d-gpt", resp_text)
 
     raw_text = "\n".join(revised_prompt_parts).strip()
     annotation_data = _normalize_annotation_result(_extract_json_object(raw_text))
     if return_metadata:
+        replay_info = _generate_request_replay(save_dir, file_prefix, "aigc-2d-gpt", request_url, headers, payload)
         return {
             "saved_files": saved_files,
             "annotation": annotation_data,
-            "raw_text": raw_text
+            "raw_text": raw_text,
+            "server_response_raw": resp_json,
+            "replay_script": replay_info.get("replay_script", ""),
+            "replay_json": replay_info.get("replay_json", "")
         }
     return saved_files
 
@@ -1130,8 +1376,8 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     # TODO: 处理resolution，但是whatai其实根本不接受这个参数，目前只能放在prompt里让模型自己理解了
     
     if not api_key:
-        logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
-        raise ValueError("配置文件 config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
+        raise ValueError("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
 
     url = f"{api_base}/chat/completions"
     headers = {
@@ -1167,7 +1413,9 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
             if type(content) == dict and content.get("type") == "image_url":
                 content["image_url"]["url"] = "<BASE64_IMAGE_DATA_OMITTED>"
     
-    logger.info("=== 发起 API 请求 ===")
+    logger.info("=== 发起 whatai API 请求 ===")
+    logger.info(f"请求 URL: {url}")
+    logger.info(f"请求 Headers: {_headers_for_log(headers)}")
     logger.info(f"请求数据:\n{json.dumps(safe_data, ensure_ascii=False, indent=2)}")
 
     # ================= 阶段1：请求并获取 JSON 响应 =================
@@ -1203,15 +1451,26 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
                     )
                 if resp is not None:
                     _save_server_response_raw(fail_dir, file_prefix, "whatai", _response_text_utf8(resp))
+                if return_metadata:
+                    raw_text = _response_text_utf8(resp) if resp is not None else str(e)
+                    replay_info = _generate_request_replay(fail_dir, file_prefix, "whatai", url, headers, data)
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": raw_text,
+                        "server_response_raw": {"error": str(e), "note": "retry_exhausted", "raw_text": raw_text[:2000]},
+                        "replay_script": replay_info.get("replay_script", ""),
+                        "replay_json": replay_info.get("replay_json", "")
+                    }
                 return []
     # ====================================================================
 
     try:
         if getattr(resp, "encoding", None) is None:
             resp.encoding = "utf-8"
+        resp_text = _response_text_utf8(resp)
         resp_json = resp.json()
         
-        # 【新增】打印服务器返回的原始完整 JSON 信息
         logger.info(f"=== 服务器原始返回信息 ===\n{_format_safe_log(resp_json)}")
         
         content_str = resp_json["choices"][0]["message"]["content"]
@@ -1219,6 +1478,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         logger.error(f"解析返回 JSON 失败: {e}")
         fail_today = datetime.now().strftime("%Y%m%d")
         fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+        raw_text = _response_text_utf8(resp) if resp is not None else str(e)
         if debug_dump_full_http:
             _save_debug_http_trace(
                 save_dir=fail_dir,
@@ -1230,7 +1490,17 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
                 response=resp,
                 note=f"json_parse_error: {e}"
             )
-        _save_server_response_raw(fail_dir, file_prefix, "whatai", _response_text_utf8(resp))
+        _save_server_response_raw(fail_dir, file_prefix, "whatai", raw_text)
+        if return_metadata:
+            replay_info = _generate_request_replay(fail_dir, file_prefix, "whatai", url, headers, data)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": raw_text,
+                "server_response_raw": resp_json if 'resp_json' in locals() else {"parse_error": str(e), "raw_text": raw_text[:2000]},
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
@@ -1258,8 +1528,19 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     annotation_data = _normalize_annotation_result(_extract_json_object(content_str))
     if not img_urls:
         logger.warning("未在返回的文本中找到图片链接。")
+        logger.warning(f"=== whatai 服务器完整返回 ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "whatai", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "whatai", content_str)
+        if return_metadata:
+            replay_info = _generate_request_replay(save_dir, file_prefix, "whatai", url, headers, data)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": content_str,
+                "server_response_raw": resp_json,
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
     saved_files = []
 
@@ -1299,14 +1580,19 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     _log_stage_elapsed("阶段2-下载并保存图片", stage_download_start)
     logger.info(f"[阶段统计] 识别到图片链接: {len(img_urls)}，成功保存: {len(saved_files)}")
     if len(saved_files) == 0:
+        logger.warning(f"=== whatai 服务器完整返回(图片下载全部失败) ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "whatai", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "whatai", content_str)
 
     if return_metadata:
+        replay_info = _generate_request_replay(save_dir, file_prefix, "whatai", url, headers, data)
         return {
             "saved_files": saved_files,
             "annotation": annotation_data,
-            "raw_text": content_str
+            "raw_text": content_str,
+            "server_response_raw": resp_json,
+            "replay_script": replay_info.get("replay_script", ""),
+            "replay_json": replay_info.get("replay_json", "")
         }
     return saved_files
 
@@ -1340,7 +1626,7 @@ def fetch_llm_json(base_url: str, api_key: str, model: str, system_prompt: str, 
 
     logger.info("=== 发起 LLM 提示词请求 ===")
     logger.info(f"请求 URL: {url}")
-    # 打印完整的 payload 到日志中
+    logger.info(f"请求 Headers: {_headers_for_log(headers)}")
     logger.info(f"请求 Payload:\n{_format_safe_log(payload)}")
 
     try:
@@ -1367,7 +1653,7 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
     """
     专门用于读取 config-cohere.json 并请求 Cohere API 的函数
     """
-    config_path = "config-cohere.json"
+    config_path = os.path.join(CONFIG_DIR, "config-cohere.json")
     if not os.path.exists(config_path):
         logger.error(f"未找到 Cohere 配置文件: {config_path}")
         return ""
@@ -1414,8 +1700,8 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
         payload["preamble"] = preamble
 
     logger.info("=== 发起 Cohere LLM 提示词请求 ===")
-    logger.info(f"请求 headers: {headers}")
     logger.info(f"请求 URL: {url}")
+    logger.info(f"请求 Headers: {_headers_for_log(headers)}")
     logger.info(f"请求 Payload:\n{_format_safe_log(payload)}")
 
     try:
@@ -1445,7 +1731,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     # 从统一配置文件中加载 aigc2d 配置
     config = get_api_config(api_type="aigc2d" if not api_type else api_type)
 
-    api_base = config.get("base_url", "https://next.aigc2d.com/v1beta").rstrip('/')
+    api_base = str(config.get("base_url", "https://next.aigc2d.com/v1beta/models/") or "https://next.aigc2d.com/v1beta/models/").strip()
     api_key = config.get("api_key")
     timeout_val = config.get("timeout", 180)
     max_retries = config.get("max_retries", 1)
@@ -1455,13 +1741,13 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         resolution = config.get("resolution", "1K")
 
     if not api_key:
-        logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
         return []
 
-    # AIGC2D 接口 URL 拼接规则
-    url = f"{api_base}/models/{model}:generateContent"
+    # AIGC2D 接口 URL 统一规范：/v1beta/models/{model}:generateContent
+    url = _build_aigc2d_generate_content_url(api_base, model)
     headers = {
-        "x-goog-api-key": api_key,
+        "x-goog-api-key": str(api_key),
         "Content-Type": "application/json"
     }
 
@@ -1507,6 +1793,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
             part["inline_data"]["data"] = "<BASE64_IMAGE_DATA_OMITTED>"
             
     logger.info("=== 发起 AIGC2D API 请求 ===")
+    logger.info(f"请求 URL: {url}")
+    logger.info(f"请求 Headers: {_headers_for_log(headers)}")
     logger.info(f"请求数据:\n{json.dumps(safe_payload, ensure_ascii=False, indent=2)}")
 
     # ================= 阶段1：请求并获取 JSON 响应 =================
@@ -1543,12 +1831,24 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                     raw_text = _response_text_utf8(resp)
                     logger.error(f"最后一次响应内容: {_format_safe_log(raw_text)}")
                     _save_server_response_raw(fail_dir, file_prefix, "aigc2d", raw_text)
+                if return_metadata:
+                    raw_text = _response_text_utf8(resp) if resp is not None else str(e)
+                    replay_info = _generate_request_replay(fail_dir, file_prefix, "aigc2d", url, headers, payload)
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": raw_text,
+                        "server_response_raw": {"error": str(e), "note": "retry_exhausted", "raw_text": raw_text[:2000]},
+                        "replay_script": replay_info.get("replay_script", ""),
+                        "replay_json": replay_info.get("replay_json", "")
+                    }
                 return []
 
     # 解析返回 JSON
     try:
         if getattr(resp, "encoding", None) is None:
             resp.encoding = "utf-8"
+        resp_text_raw = _response_text_utf8(resp)
         resp_json = resp.json()
         # 记录脱敏后的原始返回（避免返回巨量 base64 撑爆日志）
         safe_resp_json = copy.deepcopy(resp_json)
@@ -1575,7 +1875,17 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                 response=resp,
                 note=f"json_parse_error: {e}"
             )
-        _save_server_response_raw(fail_dir, file_prefix, "aigc2d", _response_text_utf8(resp))
+        _save_server_response_raw(fail_dir, file_prefix, "aigc2d", resp_text_raw)
+        if return_metadata:
+            replay_info = _generate_request_replay(fail_dir, file_prefix, "aigc2d", url, headers, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": resp_text_raw,
+                "server_response_raw": resp_json if 'resp_json' in locals() else {"parse_error": str(e), "raw_text": resp_text_raw[:2000]},
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
@@ -1603,8 +1913,19 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     candidates = resp_json.get("candidates", [])
     if not candidates:
         logger.warning("AIGC2D 返回的 JSON 中没有找到 candidates 节点。")
+        logger.warning(f"=== AIGC2D 服务器完整返回 ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "aigc2d", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "aigc2d", _response_text_utf8(resp))
+        if return_metadata:
+            replay_info = _generate_request_replay(save_dir, file_prefix, "aigc2d", url, headers, payload)
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": _response_text_utf8(resp),
+                "server_response_raw": resp_json,
+                "replay_script": replay_info.get("replay_script", ""),
+                "replay_json": replay_info.get("replay_json", "")
+            }
         return []
 
     model_text_parts = []
@@ -1648,15 +1969,20 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     _log_stage_elapsed("阶段2-提取并保存图片", stage_save_start)
     logger.info(f"[阶段统计] candidates: {len(candidates)}，成功保存: {len(saved_files)}")
     if len(saved_files) == 0:
+        logger.warning(f"=== AIGC2D 服务器完整返回(图片提取全部失败) ===\n{_format_safe_log(resp_json)}")
         _save_server_response_json(save_dir, file_prefix, "aigc2d", resp_json)
         _save_server_response_raw(save_dir, file_prefix, "aigc2d", _response_text_utf8(resp))
 
     raw_text = "\n".join(model_text_parts).strip()
     annotation_data = _normalize_annotation_result(_extract_json_object(raw_text))
     if return_metadata:
+        replay_info = _generate_request_replay(save_dir, file_prefix, "aigc2d", url, headers, payload)
         return {
             "saved_files": saved_files,
             "annotation": annotation_data,
-            "raw_text": raw_text
+            "raw_text": raw_text,
+            "server_response_raw": resp_json,
+            "replay_script": replay_info.get("replay_script", ""),
+            "replay_json": replay_info.get("replay_json", "")
         }
     return saved_files

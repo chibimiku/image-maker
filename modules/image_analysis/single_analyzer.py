@@ -12,11 +12,13 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage
 
-from api_backend import generate_image_whatai, generate_image_aigc2d 
+from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d 
 from utils.booru_tags import normalize_booru_tags
 from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags
 from utils.task_runtime import SystemNotifier, TaskCountdown
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 system_prompt = """
 You are an expert image analyzer and illustrator assistant. 
@@ -34,7 +36,7 @@ def load_prompt_from_file(filepath):
         return "Please analyze the provided image and generate a detailed description in English. Return strict JSON."
 
 # 动态构建文件路径并读取
-PROMPT_DIR = os.path.join(os.path.dirname(__file__), 'data', 'prompts')
+PROMPT_DIR = os.path.join(BASE_DIR, 'data', 'prompts')
 STYLE_ANALY_PATH = os.path.join(PROMPT_DIR, 'style-analy.md')
 
 style_analyze_prompt_template = load_prompt_from_file(STYLE_ANALY_PATH)
@@ -266,7 +268,7 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
     tags_str = json.dumps(tags, ensure_ascii=False)
     
     # 构建模板文件路径并读取
-    REFINE_DESC_PATH = os.path.join(os.path.dirname(__file__), 'data', 'prompts', 'refine-desc.md')
+    REFINE_DESC_PATH = os.path.join(BASE_DIR, 'data', 'prompts', 'refine-desc.md')
     template = load_prompt_from_file(REFINE_DESC_PATH)
     
     # 安全替换占位符（避免 f-string 遇到 JSON 大括号报错）
@@ -500,14 +502,27 @@ class ImageGenWorkerThread(QThread):
                 response_payload = {
                     "saved_files": saved_files,
                     "annotation": result.get("annotation", {}),
-                    "raw_text": result.get("raw_text", "")
+                    "raw_text": result.get("raw_text", ""),
                 }
+                server_raw = result.get("server_response_raw")
+                if server_raw and isinstance(server_raw, dict) and server_raw:
+                    response_payload["server_response_raw"] = server_raw
             else:
                 saved_files = result or []
                 response_payload = {"saved_files": saved_files}
+                server_raw = None
 
             if self.verbose_debug:
                 self.log_signal.emit("=== 单图调试-完整返回 ===\n" + _format_ui_log_json(response_payload))
+                if not saved_files and server_raw:
+                    self.log_signal.emit("=== 单图调试-服务器原始返回 ===\n" + _format_ui_log_json(server_raw))
+                if isinstance(result, dict):
+                    replay_script = result.get("replay_script", "")
+                    replay_json = result.get("replay_json", "")
+                    if replay_script or replay_json:
+                        self.log_signal.emit(f"\n📋 请求回放文件（可发送给客服复现）:\n  脚本: {replay_script}\n  数据: {replay_json}")
+                if not saved_files:
+                    self.log_signal.emit("⚠️ 生图失败：请查看上方的「服务器原始返回」定位问题。")
 
             if self.isInterruptionRequested():
                 self.last_status = "cancelled"
@@ -715,7 +730,7 @@ class SingleAnalyzerWidget(QWidget):
         """重新加载 config-styles.json 配置文件"""
         try:
             import json
-            config_path = os.path.join(os.path.dirname(__file__), 'config-styles.json')
+            config_path = os.path.join(BASE_DIR, 'conf', 'config-styles.json')
             with open(config_path, 'r', encoding='utf-8') as f:
                 styles_data = json.load(f)
             style_keys = list(styles_data.keys())

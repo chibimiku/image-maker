@@ -21,8 +21,8 @@ DEFAULT_PROMPTS = [
     "remove artifacts",
     "improve lighting"
 ]
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-Z_IMAGE_CONFIG_FILE = os.path.join(BASE_DIR, "config-z-image.json")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+Z_IMAGE_CONFIG_FILE = os.path.join(BASE_DIR, "conf", "config-z-image.json")
 
 
 def _safe_prompt_name(prompt: str) -> str:

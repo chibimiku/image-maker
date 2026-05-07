@@ -1,16 +1,51 @@
+import json
 import os
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPixmap
 
-from single_analyzer import ImageGenWorkerThread
+from modules.image_analysis.single_analyzer import ImageGenWorkerThread
 
 
 MANUAL_AR_OPTIONS = ["跟随全局策略", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"]
 MANUAL_RES_OPTIONS = ["默认(跟配置)", "1K", "2K", "4K"]
+SINGLE_DEBUG_UI_STATE_FILE = "data/single_gen_debug_ui_state.json"
+
+JSON_FIELD_OPTIONS = [
+    ("english_description", "精修英文描述"),
+    ("original_english_description", "原始英文描述"),
+    ("short_description", "简短描述"),
+]
+
+
+class JsonDropLabel(QLabel):
+    file_loaded = pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.setText("拖放分析结果 JSON 文件到此处\n或点击「加载JSON」按钮选择文件")
+        self.setAlignment(Qt.AlignCenter)
+        self.setMinimumHeight(52)
+        self.setStyleSheet("QLabel { background-color: #f7f7f7; border: 1px dashed #aaa; color: #888; }")
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        for url in urls:
+            path = url.toLocalFile()
+            if path.lower().endswith('.json'):
+                self.file_loaded.emit(path)
+                return
+        QMessageBox.warning(self, "格式错误", "请拖放 JSON 文件。")
 
 
 class SingleGenDebugWidget(QWidget):
@@ -23,7 +58,11 @@ class SingleGenDebugWidget(QWidget):
         self.img_thread = None
         self._last_image_path = ""
         self.attach_image_paths = []
+        self.json_data = {}
+        self.json_file_path = ""
+        self._is_restoring_state = False
         self.init_ui()
+        self.load_ui_state()
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -34,6 +73,35 @@ class SingleGenDebugWidget(QWidget):
         style_layout.addWidget(self.main_style_combo, stretch=1)
         style_layout.addStretch()
         layout.addLayout(style_layout)
+
+        json_group_layout = QVBoxLayout()
+        json_label_layout = QHBoxLayout()
+        json_label_layout.addWidget(QLabel("📋 加载分析JSON:"))
+        self.json_info_label = QLabel("(未加载)")
+        self.json_info_label.setStyleSheet("color: gray;")
+        json_label_layout.addWidget(self.json_info_label, stretch=1)
+        self.json_load_btn = QPushButton("加载JSON")
+        self.json_load_btn.clicked.connect(self.load_json_file)
+        json_label_layout.addWidget(self.json_load_btn)
+        self.json_apply_btn = QPushButton("填入Prompt")
+        self.json_apply_btn.setEnabled(False)
+        self.json_apply_btn.clicked.connect(self.apply_json_field)
+        json_label_layout.addWidget(self.json_apply_btn)
+        json_group_layout.addLayout(json_label_layout)
+
+        json_field_layout = QHBoxLayout()
+        json_field_layout.addWidget(QLabel("选择字段:"))
+        self.json_field_combo = QComboBox()
+        for key, label in JSON_FIELD_OPTIONS:
+            self.json_field_combo.addItem(label, key)
+        json_field_layout.addWidget(self.json_field_combo, stretch=1)
+        json_group_layout.addLayout(json_field_layout)
+
+        self.json_drop_label = JsonDropLabel()
+        self.json_drop_label.file_loaded.connect(self._on_json_file_loaded)
+        json_group_layout.addWidget(self.json_drop_label)
+
+        layout.addLayout(json_group_layout)
 
         prompt_label = QLabel("调试提示词:")
         layout.addWidget(prompt_label)
@@ -102,7 +170,143 @@ class SingleGenDebugWidget(QWidget):
         self.log_text.setMinimumHeight(120)
         layout.addWidget(self.log_text)
 
+        self.main_style_combo.currentTextChanged.connect(self.save_ui_state)
+        self.prompt_edit.textChanged.connect(self._on_prompt_changed)
+        self.aspect_ratio_combo.currentTextChanged.connect(self.save_ui_state)
+        self.resolution_combo.currentTextChanged.connect(self.save_ui_state)
+
         self.setLayout(layout)
+
+    def _load_json_data(self, file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                self.json_data = json.load(f)
+        except Exception as e:
+            QMessageBox.warning(self, "加载失败", f"无法解析 JSON 文件:\n{e}")
+            return False
+        self.json_file_path = file_path
+        basename = os.path.basename(file_path)
+        self.json_info_label.setText(f"已加载: {basename}")
+        self.json_info_label.setStyleSheet("color: #228B22;")
+        self.json_apply_btn.setEnabled(True)
+        self.json_drop_label.setText(f"✅ {basename}")
+
+        field_preview = self._get_selected_field_text()
+        if field_preview:
+            preview = field_preview[:80].replace('\n', ' ') + ('…' if len(field_preview) > 80 else '')
+            self._append_log(f"JSON 已加载: {basename} | 当前字段预览: {preview}")
+        else:
+            self._append_log(f"JSON 已加载: {basename} | 当前字段内容为空")
+        return True
+
+    def _get_selected_field_text(self):
+        key = self.json_field_combo.currentData()
+        if not self.json_data or not key:
+            return ""
+        return str(self.json_data.get(key, "")).strip()
+
+    def load_json_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择分析结果 JSON 文件", "",
+            "JSON 文件 (*.json)"
+        )
+        if file_path:
+            self._load_json_data(file_path)
+
+    def _on_json_file_loaded(self, file_path):
+        self._load_json_data(file_path)
+
+    def apply_json_field(self):
+        text = self._get_selected_field_text()
+        if not text:
+            QMessageBox.information(self, "提示", "所选字段内容为空。")
+            return
+        current = self.prompt_edit.toPlainText().rstrip()
+        if current:
+            new_text = current + "\n\n" + text
+        else:
+            new_text = text
+        self.prompt_edit.setPlainText(new_text)
+        field_label = self.json_field_combo.currentText()
+        self._append_log(f"已将「{field_label}」内容填入 Prompt（{len(text)} 字符）")
+
+    def _on_prompt_changed(self):
+        from PyQt5.QtCore import QTimer
+        if hasattr(self, '_save_timer'):
+            self._save_timer.stop()
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.setInterval(500)
+        self._save_timer.timeout.connect(self.save_ui_state)
+        self._save_timer.start()
+
+    def load_ui_state_data(self):
+        if not os.path.exists(SINGLE_DEBUG_UI_STATE_FILE):
+            return {}
+        try:
+            with open(SINGLE_DEBUG_UI_STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def load_ui_state(self):
+        state = self.load_ui_state_data()
+        if not state:
+            return
+        self._is_restoring_state = True
+        try:
+            prompt_text = state.get("prompt")
+            if isinstance(prompt_text, str) and prompt_text:
+                self.prompt_edit.setPlainText(prompt_text)
+
+            style_name = state.get("main_style")
+            if isinstance(style_name, str) and style_name:
+                if self.main_style_combo.findText(style_name) >= 0:
+                    self.main_style_combo.setCurrentText(style_name)
+
+            ar_text = state.get("aspect_ratio")
+            if isinstance(ar_text, str) and ar_text:
+                idx = self.aspect_ratio_combo.findText(ar_text)
+                if idx >= 0:
+                    self.aspect_ratio_combo.setCurrentText(ar_text)
+                else:
+                    self.aspect_ratio_combo.setEditText(ar_text)
+
+            res_text = state.get("resolution")
+            if isinstance(res_text, str) and res_text:
+                idx = self.resolution_combo.findText(res_text)
+                if idx >= 0:
+                    self.resolution_combo.setCurrentText(res_text)
+                else:
+                    self.resolution_combo.setEditText(res_text)
+
+            saved_attachments = state.get("attachments")
+            if isinstance(saved_attachments, list):
+                existing = [p for p in saved_attachments if isinstance(p, str) and os.path.exists(p)]
+                if existing:
+                    self.attach_image_paths = existing
+                    self._refresh_attach_info()
+                    self._append_log(f"已恢复 {len(existing)} 个附件路径 ({len(saved_attachments) - len(existing)} 个已失效)")
+        finally:
+            self._is_restoring_state = False
+
+    def save_ui_state(self, *args):
+        if self._is_restoring_state:
+            return
+        state = {
+            "prompt": self.prompt_edit.toPlainText(),
+            "main_style": self.main_style_combo.currentText().strip(),
+            "aspect_ratio": self.aspect_ratio_combo.currentText().strip(),
+            "resolution": self.resolution_combo.currentText().strip(),
+            "attachments": list(self.attach_image_paths)
+        }
+        try:
+            os.makedirs(os.path.dirname(SINGLE_DEBUG_UI_STATE_FILE), exist_ok=True)
+            with open(SINGLE_DEBUG_UI_STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=4)
+        except Exception:
+            pass
 
     def update_styles(self, style_keys):
         current = self.main_style_combo.currentText()
@@ -160,11 +364,13 @@ class SingleGenDebugWidget(QWidget):
         self.attach_image_paths = merged
         self._refresh_attach_info()
         self._append_log(f"已添加附件 {len(files)} 张，当前共 {len(self.attach_image_paths)} 张")
+        self.save_ui_state()
 
     def clear_attachments(self):
         self.attach_image_paths = []
         self._refresh_attach_info()
         self._append_log("已清空附件")
+        self.save_ui_state()
 
     def _current_style_text(self):
         style_name = self.main_style_combo.currentText()
@@ -228,7 +434,7 @@ class SingleGenDebugWidget(QWidget):
         else:
             self.preview_label.setText("生成失败或超时")
             self.status_label.setText("生成失败或超时")
-            self._append_log("生成失败或未返回图片。")
+            self._append_log("❌ 生成失败或未返回图片。请查看上方的「服务器原始返回」了解原因。")
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

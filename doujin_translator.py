@@ -17,7 +17,7 @@ from PyQt5.QtGui import QPixmap
 
 # --- 读取配置文件 ---
 def load_config():
-    config_path = "config.json"
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config.json")
     if os.path.exists(config_path):
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
