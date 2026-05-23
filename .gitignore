@@ -39,6 +39,7 @@ pip-delete-this-directory.txt
 # IDE / 编辑器
 .idea/
 .vscode/
+*.lnk
 *.swp
 *.swo
 *.swn

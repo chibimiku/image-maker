@@ -4,13 +4,16 @@ import base64
 import io
 import datetime
 import re
+import hashlib
 from openai import OpenAI
 from PIL import Image, ImageGrab
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
-                             QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox)
+                             QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox,
+                             QListWidget, QListWidgetItem, QDialog)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtGui import QPixmap, QImage, QColor, QDesktopServices
+from PyQt5.QtCore import QUrl
 
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d 
 from utils.booru_tags import normalize_booru_tags
@@ -56,6 +59,27 @@ def append_extra_llm_prompt(base_prompt, extra_llm_prompt):
 def _is_timeout_error(err) -> bool:
     text = str(err).lower()
     return ("timeout" in text) or ("timed out" in text) or ("readtimeout" in text)
+
+def _clone_image_source(image_source):
+    if isinstance(image_source, str):
+        return os.path.abspath(image_source)
+    if isinstance(image_source, Image.Image):
+        try:
+            return image_source.copy()
+        except Exception:
+            return image_source
+    return image_source
+
+def _describe_image_source(image_source):
+    if isinstance(image_source, str):
+        return os.path.abspath(image_source)
+    if isinstance(image_source, Image.Image):
+        return "剪贴板图片"
+    return "未知图片源"
+
+def _generate_task_hash(image_source, submit_time, thread_no):
+    seed = f"{_describe_image_source(image_source)}|{submit_time.isoformat()}|{thread_no}"
+    return hashlib.md5(seed.encode("utf-8")).hexdigest()[:8]
 
 def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=30):
     if not isinstance(result_json, dict):
@@ -438,7 +462,7 @@ class ImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(list)
 
-    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False):
+    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False, file_prefix=None):
         super().__init__()
         self.prompt = prompt
         self.model_name = model_name
@@ -448,6 +472,7 @@ class ImageGenWorkerThread(QThread):
         self.resolution = resolution
         self.image_paths = list(image_paths or [])
         self.verbose_debug = bool(verbose_debug)
+        self.file_prefix = str(file_prefix or "").strip()
         self.last_status = "idle"
 
     def request_cancel(self):
@@ -469,6 +494,7 @@ class ImageGenWorkerThread(QThread):
                         "model": self.model_name,
                         "aspect_ratio": self.aspect_ratio,
                         "resolution": self.resolution,
+                        "file_prefix": self.file_prefix,
                         "instructions": self.instructions,
                         "prompt": self.prompt,
                         "image_paths": self.image_paths
@@ -484,6 +510,7 @@ class ImageGenWorkerThread(QThread):
                     instructions=self.instructions,
                     api_type=self.api_type,
                     resolution=self.resolution,
+                    file_prefix=self.file_prefix,
                     return_metadata=self.verbose_debug
                 )
             else:
@@ -495,6 +522,7 @@ class ImageGenWorkerThread(QThread):
                     instructions=self.instructions,
                     api_type=self.api_type,
                     resolution=self.resolution,
+                    file_prefix=self.file_prefix,
                     return_metadata=self.verbose_debug
                 )
             if isinstance(result, dict):
@@ -536,6 +564,74 @@ class ImageGenWorkerThread(QThread):
                 self.log_signal.emit(f"❌ 生图请求发生异常: {e}")
             self.finish_signal.emit([])
 
+class AnalysisHistoryDetailDialog(QDialog):
+    def __init__(self, task_record, parent=None):
+        super().__init__(parent)
+        self.task_record = dict(task_record or {})
+        self.setWindowTitle(f"分析任务详情 #{self.task_record.get('thread_no', '?')}")
+        self.resize(760, 620)
+        layout = QVBoxLayout()
+
+        header = QLabel(self._build_summary_text())
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        self.detail_text = QTextEdit()
+        self.detail_text.setReadOnly(True)
+        self.detail_text.setPlainText(self._build_detail_text())
+        layout.addWidget(self.detail_text)
+
+        action_layout = QHBoxLayout()
+        action_layout.addStretch()
+        self.open_json_btn = QPushButton("打开 JSON 文件")
+        json_path = str(self.task_record.get("saved_json_path") or "").strip()
+        self.open_json_btn.setEnabled(bool(json_path and os.path.isfile(json_path)))
+        self.open_json_btn.clicked.connect(self._open_json_file)
+        action_layout.addWidget(self.open_json_btn)
+
+        close_btn = QPushButton("关闭")
+        close_btn.clicked.connect(self.accept)
+        action_layout.addWidget(close_btn)
+        layout.addLayout(action_layout)
+        self.setLayout(layout)
+
+    def _build_summary_text(self):
+        status_text = str(self.task_record.get("status_text") or "未知状态")
+        title = str(self.task_record.get("title") or "未命名")
+        return f"线程 #{self.task_record.get('thread_no', '?')} | {status_text} | {title}"
+
+    def _build_detail_text(self):
+        lines = [
+            f"线程号: {self.task_record.get('thread_no', '?')}",
+            f"状态: {self.task_record.get('status_text', '未知状态')}",
+            f"提交时间: {self.task_record.get('submit_time_text', '-')}",
+            f"完成时间: {self.task_record.get('finish_time_text', '-')}",
+            f"任务 Hash: {self.task_record.get('task_hash', '-')}",
+            f"图片源: {self.task_record.get('source_desc', '-')}",
+            f"标题: {self.task_record.get('title', '未命名')}",
+            f"JSON 文件: {self.task_record.get('saved_json_path', '-')}",
+        ]
+        prompt_paths = self.task_record.get("saved_prompt_paths") or []
+        if prompt_paths:
+            lines.append("Prompt 文件:")
+            for path in prompt_paths:
+                lines.append(f"- {path}")
+        result_json = self.task_record.get("result_json")
+        lines.append("")
+        if result_json:
+            lines.append("结果 JSON:")
+            lines.append(_format_ui_log_json(result_json))
+        else:
+            lines.append("结果 JSON: 当前暂无结果数据。")
+        return "\n".join(lines)
+
+    def _open_json_file(self):
+        json_path = str(self.task_record.get("saved_json_path") or "").strip()
+        if not json_path or not os.path.isfile(json_path):
+            QMessageBox.warning(self, "提示", "当前任务还没有可打开的 JSON 文件。")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(json_path))
+
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
     def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None):
@@ -555,12 +651,16 @@ class SingleAnalyzerWidget(QWidget):
         self.current_aspect_ratio = "1:1"
         self.current_orig_desc = ""
         self.current_refine_desc = ""
+        self.current_task_hash = ""
+        self._active_analysis_threads = []
+        self._analysis_thread_seq = 0
+        self._image_gen_thread_seq = 0
+        self._post_thread_seq = 0
+        self._analysis_history = {}
 
         # 【新增】用来保存正在执行的生图线程池，防止被垃圾回收
         self._active_img_threads = []
-        self._auto_gen_expected = 0
-        self._auto_gen_finished = 0
-        self._auto_gen_cancelled = False
+        self._auto_gen_groups = {}
         self._img_gen_running = False
         self._img_gen_deadline = None
         self._img_gen_timeout_seconds = 0
@@ -683,8 +783,33 @@ class SingleAnalyzerWidget(QWidget):
         gen_control_layout.addWidget(self.cancel_gen_btn)
         layout.addLayout(gen_control_layout)
 
+        history_header_layout = QHBoxLayout()
+        history_header_layout.addWidget(QLabel("历史分析结果:"))
+        history_header_layout.addStretch()
+        self.apply_history_btn = QPushButton("设为当前结果")
+        self.apply_history_btn.setEnabled(False)
+        self.apply_history_btn.clicked.connect(self.apply_selected_history_result)
+        history_header_layout.addWidget(self.apply_history_btn)
+        self.open_history_btn = QPushButton("查看选中结果")
+        self.open_history_btn.setEnabled(False)
+        self.open_history_btn.clicked.connect(self.open_selected_history_detail)
+        history_header_layout.addWidget(self.open_history_btn)
+        layout.addLayout(history_header_layout)
+
+        self.history_list = QListWidget()
+        self.history_list.setMinimumHeight(150)
+        self.history_list.itemSelectionChanged.connect(self._update_history_action_buttons)
+        self.history_list.itemDoubleClicked.connect(lambda _item: self.open_selected_history_detail())
+        layout.addWidget(self.history_list)
+
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
+        log_toolbar_layout = QHBoxLayout()
+        log_toolbar_layout.addStretch()
+        self.clear_log_btn = QPushButton("清空日志")
+        self.clear_log_btn.clicked.connect(self.log_text.clear)
+        log_toolbar_layout.addWidget(self.clear_log_btn)
+        layout.addLayout(log_toolbar_layout)
         layout.addWidget(self.log_text)
 
         self.setLayout(layout)
@@ -783,8 +908,151 @@ class SingleAnalyzerWidget(QWidget):
         self.image_label.setPixmap(pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.send_btn.setEnabled(True)
 
-    def log_msg(self, text):
-        self.log_text.append(text)
+    def _next_thread_no(self, attr_name):
+        next_no = int(getattr(self, attr_name, 0)) + 1
+        setattr(self, attr_name, next_no)
+        return next_no
+
+    def _build_thread_prefix(self, thread_kind, thread_no, related_thread_no=None):
+        prefix = f"[{thread_kind}#{thread_no}]"
+        if related_thread_no is not None:
+            prefix = f"[{thread_kind}#{thread_no}|分析线程#{related_thread_no}]"
+        return prefix
+
+    def _status_to_text(self, status):
+        status_map = {
+            "running": "进行中",
+            "success": "已完成",
+            "timeout": "超时",
+            "cancelled": "已取消",
+            "error": "失败",
+            "idle": "未开始",
+        }
+        return status_map.get(str(status or "").strip().lower(), "未知状态")
+
+    def _status_to_color(self, status):
+        normalized = str(status or "").strip().lower()
+        if normalized == "success":
+            return QColor("#1b8f3a")
+        if normalized == "running":
+            return QColor("#0b63c7")
+        if normalized in ("timeout", "error", "cancelled"):
+            return QColor("#b23a2b")
+        return QColor("#444444")
+
+    def _create_history_record(self, thread_no, image_source_snapshot, submit_time, task_hash):
+        task_id = f"analysis-{thread_no}"
+        submit_time_text = submit_time.strftime("%Y-%m-%d %H:%M:%S")
+        return {
+            "task_id": task_id,
+            "thread_no": thread_no,
+            "task_hash": task_hash,
+            "status": "running",
+            "status_text": self._status_to_text("running"),
+            "submit_time_text": submit_time_text,
+            "finish_time_text": "-",
+            "source_desc": _describe_image_source(image_source_snapshot),
+            "title": "处理中",
+            "result_json": None,
+            "saved_json_path": "",
+            "saved_prompt_paths": [],
+            "aspect_ratio": "",
+            "original_prompt": "",
+            "refined_prompt": "",
+        }
+
+    def _insert_history_record(self, record):
+        task_id = record["task_id"]
+        self._analysis_history[task_id] = record
+        item = QListWidgetItem()
+        item.setData(Qt.UserRole, task_id)
+        self.history_list.insertItem(0, item)
+        self._refresh_history_item(task_id)
+        self.history_list.setCurrentItem(item)
+
+    def _refresh_history_item(self, task_id):
+        record = self._analysis_history.get(task_id)
+        if not record:
+            return
+        for row in range(self.history_list.count()):
+            item = self.history_list.item(row)
+            if item.data(Qt.UserRole) != task_id:
+                continue
+            status_text = record.get("status_text", "未知状态")
+            title = str(record.get("title") or "未命名")
+            submit_time_text = record.get("submit_time_text", "-")
+            source_desc = str(record.get("source_desc") or "-")
+            item.setText(
+                f"[{status_text}] 线程#{record.get('thread_no', '?')} / {record.get('task_hash', '--------')}  {submit_time_text}\n"
+                f"{title} | {source_desc}"
+            )
+            item.setForeground(self._status_to_color(record.get("status")))
+            break
+
+    def _update_history_record(self, task_id, **kwargs):
+        record = self._analysis_history.get(task_id)
+        if not record:
+            return
+        record.update(kwargs)
+        record["status_text"] = self._status_to_text(record.get("status"))
+        self._refresh_history_item(task_id)
+
+    def _selected_history_record(self):
+        item = self.history_list.currentItem()
+        if item is None:
+            return None
+        task_id = item.data(Qt.UserRole)
+        return self._analysis_history.get(task_id)
+
+    def _update_history_action_buttons(self):
+        record = self._selected_history_record()
+        self.open_history_btn.setEnabled(record is not None)
+        self.apply_history_btn.setEnabled(bool(record and record.get("status") == "success" and record.get("result_json")))
+
+    def _apply_history_record_to_current_state(self, record):
+        if not record:
+            return False
+        if str(record.get("status") or "").strip().lower() != "success":
+            return False
+        result_json = record.get("result_json")
+        if not isinstance(result_json, dict):
+            return False
+        self.current_task_hash = str(record.get("task_hash") or result_json.get("task_hash") or "").strip()
+        self.current_aspect_ratio = str(record.get("aspect_ratio") or result_json.get("aspect_ratio") or "1:1").strip() or "1:1"
+        self.current_orig_desc = str(record.get("original_prompt") or result_json.get("original_english_description") or "").strip()
+        self.current_refine_desc = str(record.get("refined_prompt") or result_json.get("english_description") or "").strip()
+        self.gen_orig_btn.setEnabled(bool(self.current_orig_desc))
+        self.gen_ref_btn.setEnabled(bool(self.current_refine_desc))
+        return True
+
+    def apply_selected_history_result(self):
+        record = self._selected_history_record()
+        if not record:
+            QMessageBox.information(self, "提示", "请先在历史分析结果中选择一条记录。")
+            return
+        if not self._apply_history_record_to_current_state(record):
+            QMessageBox.information(self, "提示", "只有已完成并带结果的历史记录才能设为当前结果。")
+            return
+        self.log_msg(
+            f"已将历史分析结果设为当前结果: 线程#{record.get('thread_no', '?')} / {record.get('task_hash', '--------')} / {record.get('title', '未命名')}"
+        )
+
+    def open_selected_history_detail(self):
+        record = self._selected_history_record()
+        if not record:
+            QMessageBox.information(self, "提示", "请先在历史分析结果中选择一条记录。")
+            return
+        dialog = AnalysisHistoryDetailDialog(record, self)
+        dialog.exec_()
+
+    def log_msg(self, text, prefix=None):
+        message = "" if text is None else str(text)
+        if prefix:
+            lines = message.splitlines()
+            if not lines:
+                lines = [message]
+            message = "\n".join(f"{prefix} {line}" if line else prefix for line in lines)
+        self.log_text.append(message)
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
@@ -796,22 +1064,38 @@ class SingleAnalyzerWidget(QWidget):
             QMessageBox.warning(self, "缺少配置", "文本分析 API Key 和 模型名称不能为空！")
             return
         
-        self.send_btn.setEnabled(False)
-        self.gen_orig_btn.setEnabled(False)
-        self.gen_ref_btn.setEnabled(False)
-        self.log_text.clear()
-        self.log_msg("任务已启动...\n")
+        image_source_snapshot = _clone_image_source(self.image_source)
+        analysis_thread_no = self._next_thread_no("_analysis_thread_seq")
+        thread_prefix = self._build_thread_prefix("分析线程", analysis_thread_no)
+        self.log_msg("\n" + ("=" * 72))
+        self.log_msg("任务已启动...", prefix=thread_prefix)
         timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
         submit_time = datetime.datetime.now()
         ddl = submit_time + datetime.timedelta(seconds=max(1, timeout_seconds))
-        self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）")
+        task_hash = _generate_task_hash(image_source_snapshot, submit_time, analysis_thread_no)
+        self.log_msg(f"图片源: {_describe_image_source(image_source_snapshot)}", prefix=thread_prefix)
+        self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}", prefix=thread_prefix)
+        self.log_msg(f"任务 Hash: {task_hash}", prefix=thread_prefix)
+        self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）", prefix=thread_prefix)
+        history_record = self._create_history_record(analysis_thread_no, image_source_snapshot, submit_time, task_hash)
+        self._insert_history_record(history_record)
         
         booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
-        self.thread = WorkerThread(self.image_source, api_key, base_url, model_name, booru_tag_limit=booru_tag_limit, timeout_seconds=timeout_seconds)
-        self.thread.log_signal.connect(self.log_msg)
-        self.thread.finish_signal.connect(self.on_process_finished)
-        self.thread.start()
+        thread = WorkerThread(image_source_snapshot, api_key, base_url, model_name, booru_tag_limit=booru_tag_limit, timeout_seconds=timeout_seconds)
+        thread.meta_thread_no = analysis_thread_no
+        thread.meta_source_snapshot = image_source_snapshot
+        thread.meta_task_id = history_record["task_id"]
+        thread.meta_task_hash = task_hash
+        self._active_analysis_threads.append(thread)
+        thread.log_signal.connect(
+            lambda text, t=thread: self.log_msg(
+                text,
+                prefix=self._build_thread_prefix("分析线程", getattr(t, "meta_thread_no", "?"))
+            )
+        )
+        thread.finish_signal.connect(lambda result_json, t=thread: self.on_process_finished(t, result_json))
+        thread.finished.connect(lambda t=thread: self._on_analysis_thread_stopped(t))
+        thread.start()
 
     def on_use_nsfw_toggled(self, checked):
         if self.on_nsfw_changed:
@@ -871,27 +1155,45 @@ class SingleAnalyzerWidget(QWidget):
         self.use_nsfw_cb.setChecked(bool(checked))
         self.use_nsfw_cb.blockSignals(False)
 
-    def on_process_finished(self, result_json):
-        self.send_btn.setEnabled(True)
-        task_status = getattr(self.thread, "last_status", "unknown")
+    def _on_analysis_thread_stopped(self, thread):
+        if thread in self._active_analysis_threads:
+            self._active_analysis_threads.remove(thread)
+        self.send_btn.setEnabled(bool(self.image_source))
+
+    def on_process_finished(self, thread, result_json):
+        analysis_thread_no = getattr(thread, "meta_thread_no", "?")
+        thread_prefix = self._build_thread_prefix("分析线程", analysis_thread_no)
+        task_status = getattr(thread, "last_status", "unknown")
+        task_id = getattr(thread, "meta_task_id", "")
+        finish_time_text = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if not result_json:
+            self._update_history_record(
+                task_id,
+                status=task_status,
+                title="未生成有效结果",
+                finish_time_text=finish_time_text,
+            )
             if task_status == "timeout":
-                self.log_msg("\n处理失败：请求超时，请检查“请求超时时间”配置是否足够。")
+                self.log_msg("处理失败：请求超时，请检查“请求超时时间”配置是否足够。", prefix=thread_prefix)
                 self._send_system_notification("单图分析超时", "任务因请求超时结束，请调整超时配置后重试。")
             elif task_status == "cancelled":
-                self.log_msg("\n任务已取消。")
+                self.log_msg("任务已取消。", prefix=thread_prefix)
                 self._send_system_notification("单图分析已取消", "当前任务已被取消。")
             else:
-                self.log_msg("\n处理失败，未能获取到有效的 JSON 数据。")
+                self.log_msg("处理失败，未能获取到有效的 JSON 数据。", prefix=thread_prefix)
                 self._send_system_notification("单图分析失败", "任务已结束但未获取到有效结果。")
             return
-        if isinstance(self.image_source, str):
-            result_json["source_image_path"] = os.path.abspath(self.image_source)
+        source_snapshot = getattr(thread, "meta_source_snapshot", None)
+        if isinstance(source_snapshot, str):
+            result_json["source_image_path"] = os.path.abspath(source_snapshot)
         else:
             result_json["source_image_path"] = ""
+        task_hash = str(getattr(thread, "meta_task_hash", "") or "").strip()
+        if task_hash:
+            result_json["task_hash"] = task_hash
 
-        self.log_msg("\n========== 最终处理结果 ==========\n")
-        self.log_msg(json.dumps(result_json, indent=4, ensure_ascii=False))
+        self.log_msg("========== 最终处理结果 ==========", prefix=thread_prefix)
+        self.log_msg(json.dumps(result_json, indent=4, ensure_ascii=False), prefix=thread_prefix)
         
         jp_title = result_json.get("japanese_title", "未命名")
         safe_title = re.sub(r'[\\/*?:"<>|]', "", jp_title).strip() or "未命名"
@@ -903,23 +1205,27 @@ class SingleAnalyzerWidget(QWidget):
         
         if not os.path.exists(save_dir): os.makedirs(save_dir) 
             
-        base_filename = f"{now_str}-{safe_title}"
+        safe_task_hash = task_hash or "nohash"
+        base_filename = f"{now_str}-{safe_task_hash}-{safe_title}"
         json_filename = f"{base_filename}.json"
         
         try:
+            saved_json_path = os.path.abspath(os.path.join(save_dir, json_filename))
             with open(os.path.join(save_dir, json_filename), "w", encoding="utf-8") as f:
                 json.dump(result_json, f, ensure_ascii=False, indent=4)
-            self.log_msg(f"\n✅ 成功！JSON 结果已保存至: {json_filename}")
+            self.log_msg(f"✅ 成功！JSON 结果已保存至: {json_filename}", prefix=thread_prefix)
         except Exception as e:
-            self.log_msg(f"\n❌ 保存 JSON 文件时出错: {e}")
+            saved_json_path = ""
+            self.log_msg(f"❌ 保存 JSON 文件时出错: {e}", prefix=thread_prefix)
 
         try:
             raw_ar = result_json.get("aspect_ratio", "2:3")
             self.current_aspect_ratio = self._resolve_ar_for_first_stage(raw_ar)
-            self.log_msg(f"📌 确定的图片长宽比: {self.current_aspect_ratio}")
+            self.log_msg(f"📌 确定的图片长宽比: {self.current_aspect_ratio}", prefix=thread_prefix)
 
             self.current_refine_desc = result_json.get("english_description", "")
             self.current_orig_desc = result_json.get("original_english_description", "")
+            self.current_task_hash = safe_task_hash
             
             
             selected_style_name = self.main_style_combo.currentText()
@@ -933,17 +1239,42 @@ class SingleAnalyzerWidget(QWidget):
             
             txt_filename = f"{base_filename}-prompts.txt"
             orig_txt_filename = f"{base_filename}-original-prompts.txt"
+            saved_prompt_paths = [
+                os.path.abspath(os.path.join(save_dir, txt_filename)),
+                os.path.abspath(os.path.join(save_dir, orig_txt_filename))
+            ]
             
             with open(os.path.join(save_dir, txt_filename), "w", encoding="utf-8") as f: f.write(final_prompt)
             with open(os.path.join(save_dir, orig_txt_filename), "w", encoding="utf-8") as f: f.write(orig_prompt)
                 
-            self.log_msg(f"✅ 成功！两份画幅与提示词文件已保存:\n - {txt_filename}\n - {orig_txt_filename}")
+            self.log_msg(f"✅ 成功！两份画幅与提示词文件已保存:\n - {txt_filename}\n - {orig_txt_filename}", prefix=thread_prefix)
             
-            self.gen_orig_btn.setEnabled(True)
-            self.gen_ref_btn.setEnabled(True)
-            self.log_msg("\n💡 提示: 现在可以点击下方的按钮，根据提取的描述直接生成图片了！")
+            self._apply_history_record_to_current_state({
+                "status": "success",
+                "result_json": result_json,
+                "task_hash": safe_task_hash,
+                "aspect_ratio": self.current_aspect_ratio,
+                "original_prompt": self.current_orig_desc,
+                "refined_prompt": self.current_refine_desc,
+            })
+            self.log_msg("💡 该结果已设为当前手动生图内容，可直接点击下方按钮继续生成图片。", prefix=thread_prefix)
         except Exception as e:
-            self.log_msg(f"❌ 保存提示词 txt 文件时出错: {e}")
+            saved_prompt_paths = []
+            self.log_msg(f"❌ 保存提示词 txt 文件时出错: {e}", prefix=thread_prefix)
+
+        self._update_history_record(
+            task_id,
+            status="success",
+            title=str(result_json.get("japanese_title") or result_json.get("chinese_title") or "未命名"),
+            finish_time_text=finish_time_text,
+            result_json=result_json,
+            saved_json_path=saved_json_path,
+            saved_prompt_paths=saved_prompt_paths,
+            task_hash=safe_task_hash,
+            aspect_ratio=self.current_aspect_ratio,
+            original_prompt=self.current_orig_desc,
+            refined_prompt=self.current_refine_desc,
+        )
 
         # 【新增】自动执行发图逻辑
         auto_targets = []
@@ -951,13 +1282,36 @@ class SingleAnalyzerWidget(QWidget):
             auto_targets.append("original")
         if self.auto_gen_ref_cb.isChecked() and str(self.current_refine_desc).strip():
             auto_targets.append("refined")
-        self._auto_gen_cancelled = False
-        self._auto_gen_expected = len(auto_targets)
-        self._auto_gen_finished = 0
+        prompt_bundle = {
+            "task_hash": self.current_task_hash,
+            "aspect_ratio": self.current_aspect_ratio,
+            "original_prompt": self.current_orig_desc,
+            "refined_prompt": self.current_refine_desc,
+        }
         if auto_targets:
-            self.log_msg(f"🤖 检测到自动生图任务，共 {len(auto_targets)} 项，通知将于全部生图结束后发送。")
+            auto_group_id = f"analysis-{analysis_thread_no}"
+            self._auto_gen_groups[auto_group_id] = {
+                "expected": 0,
+                "finished": 0,
+                "cancelled": False,
+                "thread_no": analysis_thread_no,
+            }
+            started_count = 0
             for prompt_type in auto_targets:
-                self.trigger_image_generation(prompt_type, is_auto=True)
+                if self.trigger_image_generation(
+                    prompt_type,
+                    is_auto=True,
+                    prompt_bundle=prompt_bundle,
+                    analysis_thread_no=analysis_thread_no,
+                    auto_group_id=auto_group_id
+                ):
+                    started_count += 1
+            if started_count > 0:
+                self._auto_gen_groups[auto_group_id]["expected"] = started_count
+                self.log_msg(f"🤖 检测到自动生图任务，共 {started_count} 项，通知将于全部生图结束后发送。", prefix=thread_prefix)
+            else:
+                self._auto_gen_groups.pop(auto_group_id, None)
+                self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
         else:
             self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
 
@@ -1002,7 +1356,8 @@ class SingleAnalyzerWidget(QWidget):
         if not self._active_img_threads:
             self.log_msg("当前没有正在执行的生图任务。")
             return
-        self._auto_gen_cancelled = True
+        for group in self._auto_gen_groups.values():
+            group["cancelled"] = True
         running_threads = list(self._active_img_threads)
         self.log_msg(f"正在终止 {len(running_threads)} 个生图任务...")
         for t in running_threads:
@@ -1027,16 +1382,29 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg("🛑 生图任务已手动终止。")
             self._send_system_notification("生图任务已终止", "当前生图任务已手动取消。")
 
-    def trigger_image_generation(self, prompt_type, is_auto=False):
+    def trigger_image_generation(self, prompt_type, is_auto=False, prompt_bundle=None, analysis_thread_no=None, auto_group_id=None):
         self.save_img_cfg()
         
         img_base_url, img_key, model_name, api_type = self.get_img_config()
         if not img_key:
-            QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空，请检查【全局配置】。")
-            return
+            if is_auto:
+                self.log_msg("自动生图已跳过：生图 API Key 不能为空，请检查【全局配置】。")
+            else:
+                QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空，请检查【全局配置】。")
+            return False
         timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
-            
-        prompt_to_use = self.current_orig_desc if prompt_type == "original" else self.current_refine_desc
+        
+        prompt_context = prompt_bundle or {
+            "task_hash": self.current_task_hash,
+            "aspect_ratio": self.current_aspect_ratio,
+            "original_prompt": self.current_orig_desc,
+            "refined_prompt": self.current_refine_desc,
+        }
+        task_hash = str(prompt_context.get("task_hash") or self.current_task_hash or "").strip()
+        prompt_to_use = prompt_context.get("original_prompt", "") if prompt_type == "original" else prompt_context.get("refined_prompt", "")
+        if not str(prompt_to_use).strip():
+            self.log_msg(f"{prompt_type} 提示词为空，已跳过本次生图。")
+            return False
         
         selected_style_name = self.main_style_combo.currentText()
         styles_data = self.get_styles()
@@ -1046,48 +1414,74 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_ref_btn.setEnabled(False)
         
         # 【修改】动态实例化线程对象存放至列表，避免并发勾选导致线程互相覆盖报错
-        final_gen_ar = self._resolve_ar_for_second_stage(self.current_aspect_ratio)
+        final_gen_ar = self._resolve_ar_for_second_stage(prompt_context.get("aspect_ratio", self.current_aspect_ratio))
 
         img_thread = ImageGenWorkerThread(
             prompt=prompt_to_use,
             model_name=model_name,
             aspect_ratio=final_gen_ar,
             instructions=active_instructions,
-            api_type=api_type
+            api_type=api_type,
+            file_prefix=task_hash
         )
+        img_thread.meta_thread_no = self._next_thread_no("_image_gen_thread_seq")
+        img_thread.meta_analysis_thread_no = analysis_thread_no
         img_thread.meta_is_auto = bool(is_auto)
         img_thread.meta_prompt_type = prompt_type
+        img_thread.meta_auto_group_id = auto_group_id
+        img_thread.meta_task_hash = task_hash
 
         self._active_img_threads.append(img_thread)
         if not self._img_gen_running:
             self._start_image_gen_runtime(timeout_seconds)
         
-        img_thread.log_signal.connect(self.log_msg)
+        img_thread.log_signal.connect(
+            lambda text, t=img_thread: self.log_msg(
+                text,
+                prefix=self._build_thread_prefix(
+                    "生图线程",
+                    getattr(t, "meta_thread_no", "?"),
+                    getattr(t, "meta_analysis_thread_no", None)
+                )
+            )
+        )
         img_thread.finish_signal.connect(lambda files, t=img_thread: self.on_image_generation_finished(t, files))
         
         # 清除完成的线程并同步按钮状态
         img_thread.finished.connect(lambda t=img_thread: self._on_image_thread_stopped(t))
         img_thread.start()
+        return True
 
     def on_image_generation_finished(self, thread, saved_files):
         prompt_type = getattr(thread, "meta_prompt_type", "unknown")
         is_auto = bool(getattr(thread, "meta_is_auto", False))
+        thread_prefix = self._build_thread_prefix(
+            "生图线程",
+            getattr(thread, "meta_thread_no", "?"),
+            getattr(thread, "meta_analysis_thread_no", None)
+        )
         
         if saved_files:
-            self.log_msg(f"\n🎉 成功生成了 {len(saved_files)} 张 {prompt_type} 图片！")
+            self.log_msg(f"🎉 成功生成了 {len(saved_files)} 张 {prompt_type} 图片！", prefix=thread_prefix)
             for file_path in saved_files:
-                self.log_msg(f" 📂 保存路径: {file_path}")
+                self.log_msg(f"📂 保存路径: {file_path}", prefix=thread_prefix)
             self._start_jpg_postprocess(saved_files, prompt_type)
         else:
             status = getattr(thread, "last_status", "unknown")
             if status == "cancelled":
-                self.log_msg(f"\n🛑 {prompt_type} 生图已取消。")
+                self.log_msg(f"🛑 {prompt_type} 生图已取消。", prefix=thread_prefix)
             else:
-                self.log_msg(f"\n⚠️ 未能生成 {prompt_type} 图片，请检查上方日志，或查看日志文件夹（log）的记录。")
-        if is_auto:
-            self._auto_gen_finished += 1
-        if is_auto and (self._auto_gen_finished >= self._auto_gen_expected) and self._auto_gen_expected > 0 and not self._auto_gen_cancelled:
-            self._send_system_notification("单图分析与自动生图完成", "分析与自动生图任务已全部完成。")
+                self.log_msg(f"⚠️ 未能生成 {prompt_type} 图片，请检查上方日志，或查看日志文件夹（log）的记录。", prefix=thread_prefix)
+        auto_group_id = getattr(thread, "meta_auto_group_id", None)
+        if is_auto and auto_group_id:
+            group = self._auto_gen_groups.get(auto_group_id)
+            if group:
+                group["finished"] += 1
+                if group["finished"] >= group["expected"] and group["expected"] > 0:
+                    should_notify = not group.get("cancelled", False)
+                    self._auto_gen_groups.pop(auto_group_id, None)
+                    if should_notify:
+                        self._send_system_notification("单图分析与自动生图完成", "分析与自动生图任务已全部完成。")
 
     def _start_jpg_postprocess(self, saved_files, prompt_type):
         if not self.enable_jpg_upscale_cb.isChecked():
@@ -1104,8 +1498,14 @@ class SingleAnalyzerWidget(QWidget):
             options=options,
             task_name=f"单图{prompt_type}后处理",
         )
+        thread.meta_thread_no = self._next_thread_no("_post_thread_seq")
         self._active_post_threads.append(thread)
-        thread.log_signal.connect(self.log_msg)
+        thread.log_signal.connect(
+            lambda text, t=thread: self.log_msg(
+                text,
+                prefix=self._build_thread_prefix("后处理线程", getattr(t, "meta_thread_no", "?"))
+            )
+        )
         thread.finish_signal.connect(lambda results, t=thread: self._on_postprocess_finished(t, results))
         thread.finished.connect(lambda t=thread: self._cleanup_post_thread(t))
         thread.start()
@@ -1119,7 +1519,10 @@ class SingleAnalyzerWidget(QWidget):
             if item.get("webp_path"):
                 webp_count += 1
         if success > 0:
-            self.log_msg(f"✅ JPG 自动处理完成，新增 fixed.png: {success} 张，WebP: {webp_count} 张")
+            self.log_msg(
+                f"✅ JPG 自动处理完成，新增 fixed.png: {success} 张，WebP: {webp_count} 张",
+                prefix=self._build_thread_prefix("后处理线程", getattr(thread, "meta_thread_no", "?"))
+            )
 
     def _cleanup_post_thread(self, thread):
         if thread in self._active_post_threads:
