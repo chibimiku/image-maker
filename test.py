@@ -38,10 +38,14 @@ if not logger.handlers:
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_DIR = os.path.join(BASE_DIR, "conf")
 
 # ================= 2. 核心功能函数 =================
-def load_config(config_path="config-image.json"):
+def load_config(config_path=None):
     """读取本地 API 配置文件"""
+    if config_path is None:
+        config_path = os.path.join(CONFIG_DIR, "config-image.json")
     if not os.path.exists(config_path):
         logger.error(f"未找到配置文件: {config_path}")
         raise FileNotFoundError(f"未找到配置文件: {config_path}，请确保其与脚本在同一目录下。")
@@ -99,8 +103,8 @@ def generate_image_whatai(
     api_key = config.get("api_key")
     
     if not api_key:
-        logger.error("配置文件 config-image.json 中缺少 'api_key' 参数。")
-        raise ValueError("配置文件 config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
+        raise ValueError("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
 
     url = f"{api_base}/chat/completions"
     headers = {

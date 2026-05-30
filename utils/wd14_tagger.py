@@ -2,9 +2,11 @@ import os
 import json
 import csv
 import importlib
+import threading
 from PIL import Image
 
 from utils.booru_tags import normalize_booru_tags
+from utils.local_inference_guard import acquire_local_onnx_inference_lock
 
 AUTOCOMPLETE_CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "conf", "config-autocomplete.json")
 DEFAULT_AUTOCOMPLETE_CSV_PATH = "data/tags/danbooru.csv"
@@ -19,6 +21,7 @@ LOCAL_TAGGER_TAGS_CANDIDATES = [
     "wd14_tagger_model/selected_tags.csv"
 ]
 _WD14_RUNTIME_CACHE = {}
+_WD14_CACHE_LOCK = threading.RLock()
 
 
 def load_autocomplete_config():
@@ -184,6 +187,16 @@ def get_local_tagger_runtime_config(booru_tag_limit=30):
     return runtime
 
 
+def release_local_booru_tagger_runtime(cache_key=None):
+    with _WD14_CACHE_LOCK:
+        if cache_key:
+            cached = _WD14_RUNTIME_CACHE.pop(cache_key, None)
+            return 1 if cached else 0
+        released = len(_WD14_RUNTIME_CACHE)
+        _WD14_RUNTIME_CACHE.clear()
+        return released
+
+
 def predict_local_booru_tags(image_source, booru_tag_limit=30, log_callback=None):
     limit = int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30
     if limit <= 0:
@@ -205,14 +218,21 @@ def predict_local_booru_tags(image_source, booru_tag_limit=30, log_callback=None
     cache_key = f"{model_path}|{tags_path}"
     session = None
     labels = None
-    cached = _WD14_RUNTIME_CACHE.get(cache_key)
+    with _WD14_CACHE_LOCK:
+        cached = _WD14_RUNTIME_CACHE.get(cache_key)
     if cached:
         session, labels = cached
     if session is None or labels is None:
         try:
-            session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
+            with acquire_local_onnx_inference_lock(
+                task_label="本地 booru tagger 初始化",
+                log_callback=log_callback,
+                probe_interval_sec=2.0,
+            ):
+                session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
             labels = load_wd14_labels(tags_path)
-            _WD14_RUNTIME_CACHE[cache_key] = (session, labels)
+            with _WD14_CACHE_LOCK:
+                _WD14_RUNTIME_CACHE[cache_key] = (session, labels)
         except Exception as e:
             if log_callback:
                 log_callback(f"本地 booru tagger 初始化失败: {e}")
@@ -221,9 +241,9 @@ def predict_local_booru_tags(image_source, booru_tag_limit=30, log_callback=None
         if log_callback:
             log_callback("本地 booru tagger 初始化失败：selected_tags.csv 为空")
         return []
-    runtime_cfg = get_local_tagger_runtime_config(booru_tag_limit=limit)
-    tag_whitelist, tag_rank_map, autocomplete_csv_path = load_autocomplete_tags_metadata()
     try:
+        runtime_cfg = get_local_tagger_runtime_config(booru_tag_limit=limit)
+        tag_whitelist, tag_rank_map, autocomplete_csv_path = load_autocomplete_tags_metadata()
         if isinstance(image_source, str):
             image = Image.open(image_source)
         else:
@@ -234,7 +254,12 @@ def predict_local_booru_tags(image_source, booru_tag_limit=30, log_callback=None
             image = base.convert("RGB")
         elif image.mode != "RGB":
             image = image.convert("RGB")
-        input_shape = session.get_inputs()[0].shape
+        with acquire_local_onnx_inference_lock(
+            task_label="本地 booru tagger 读取模型信息",
+            log_callback=log_callback,
+            probe_interval_sec=2.0,
+        ):
+            input_shape = session.get_inputs()[0].shape
         positive_dims = [dim for dim in input_shape if isinstance(dim, int) and dim > 4]
         target_size = max(positive_dims) if positive_dims else 448
         w, h = image.size
@@ -248,8 +273,13 @@ def predict_local_booru_tags(image_source, booru_tag_limit=30, log_callback=None
         image_array = np.asarray(canvas, dtype=np.float32)
         image_array = image_array[:, :, ::-1]
         image_array = np.expand_dims(image_array, axis=0)
-        input_name = session.get_inputs()[0].name
-        output = session.run(None, {input_name: image_array})[0]
+        with acquire_local_onnx_inference_lock(
+            task_label="本地 booru tagger 推理",
+            log_callback=log_callback,
+            probe_interval_sec=2.0,
+        ):
+            input_name = session.get_inputs()[0].name
+            output = session.run(None, {input_name: image_array})[0]
         if len(output.shape) == 2:
             probs = output[0]
         else:
@@ -302,3 +332,7 @@ def predict_local_booru_tags(image_source, booru_tag_limit=30, log_callback=None
         if log_callback:
             log_callback(f"本地 booru tagger 推理失败: {e}")
         return []
+    finally:
+        released = release_local_booru_tagger_runtime(cache_key)
+        if released and log_callback:
+            log_callback("本地 booru tagger 本轮分析完成，已释放本地 ONNX session")

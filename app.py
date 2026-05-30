@@ -1,3 +1,20 @@
+"""
+pythonw 兼容: pythonw.exe 无控制台窗口，stdout/stderr 写入匿名管道。
+当 onnxruntime 等底层库初始化 NPU 硬件 provider 时，
+大量 stderr 诊断输出会撑爆 Windows 管道缓冲区(4KB)导致永久阻塞。
+因此必须在任何可能产生输出的 import 之前将 stdout/stderr 重定向到 os.devnull。
+"""
+import sys as _sys
+import os as _os
+if getattr(_sys, 'frozen', False):
+    _sys.stdout = open(_os.devnull, 'w')
+    _sys.stderr = open(_os.devnull, 'w')
+else:
+    _exe = _sys.executable.lower()
+    if 'pythonw' in _exe:
+        _sys.stdout = open(_os.devnull, 'w')
+        _sys.stderr = open(_os.devnull, 'w')
+
 import os
 import json
 import hashlib

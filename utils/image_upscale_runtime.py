@@ -12,6 +12,7 @@ from typing import Any, Callable
 from PIL import Image
 from PyQt5.QtCore import QThread, pyqtSignal
 
+from utils.local_inference_guard import acquire_local_onnx_inference_lock
 from utils.upscaler import ExtrasUpscalePipeline, UpscalerHandle
 from utils.upscaler_arch import (
     ONNX_MODEL_EXTS,
@@ -21,6 +22,11 @@ from utils.upscaler_arch import (
     normalize_upscaler_arch,
 )
 from utils.upscaler_arch_match import is_arch_compatible
+
+try:
+    from webp_compressor import compress_image_to_webp_best_quality as _webp_compress
+except ImportError:
+    _webp_compress = None
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -568,6 +574,7 @@ def _build_upscaler_fn_with_onnx(
     model_name: str,
     model_path: str,
     model_arch: str = "esrgan",
+    step_logger: Callable[[str], None] | None = None,
 ) -> tuple[Callable[[Image.Image, float, Callable[[str], None] | None], Image.Image], float, str, str]:
     try:
         ort = importlib.import_module("onnxruntime")
@@ -578,6 +585,9 @@ def _build_upscaler_fn_with_onnx(
     np = importlib.import_module("numpy")
 
     available = list(getattr(ort, "get_available_providers", lambda: [])() or [])
+    if callable(step_logger):
+        step_logger(f"ONNX 运行时检测到的 providers: {available}")
+
     preferred = [
         "QNNExecutionProvider",
         "CANNExecutionProvider",
@@ -585,15 +595,60 @@ def _build_upscaler_fn_with_onnx(
         "DmlExecutionProvider",
         "CPUExecutionProvider",
     ]
-    providers = [p for p in preferred if p in available]
-    if not providers:
+    candidates = [p for p in preferred if p in available]
+    if not candidates:
         if available:
-            providers = [available[0]]
+            candidates = [available[0]]
         else:
             raise RuntimeError("onnxruntime 未检测到可用的 ExecutionProvider。")
 
-    session = ort.InferenceSession(model_path, providers=providers)
-    active_provider = ", ".join(session.get_providers() or providers)
+    if callable(step_logger):
+        step_logger(f"ONNX 候选 providers (按优先级): {candidates}")
+        non_cpu_candidates = [p for p in candidates if p != "CPUExecutionProvider"]
+        if not non_cpu_candidates and "CPUExecutionProvider" in candidates:
+            step_logger("未检测到可用的 NPU/硬件加速 provider，当前将回退到 CPUExecutionProvider")
+
+    import concurrent.futures
+
+    session = None
+    last_error = ""
+    for provider in candidates:
+        if callable(step_logger):
+            step_logger(f"尝试初始化 ONNX InferenceSession: provider={provider} ...")
+        try:
+            with acquire_local_onnx_inference_lock(
+                task_label=f"Upscaler ONNX 初始化({model_name})",
+                log_callback=step_logger,
+                probe_interval_sec=2.0,
+            ):
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(
+                        ort.InferenceSession, model_path, providers=[provider]
+                    )
+                    session = future.result(timeout=60)
+            if callable(step_logger):
+                step_logger(f"ONNX session 创建成功: provider={provider}")
+            break
+        except concurrent.futures.TimeoutError:
+            last_error = f"provider '{provider}' 初始化超时 (60s)"
+            if callable(step_logger):
+                step_logger(f"!! {last_error}，跳过并尝试下一个")
+        except Exception as e:
+            last_error = str(e)
+            if callable(step_logger):
+                step_logger(f"provider '{provider}' 初始化失败: {e}")
+
+    if session is None:
+        msg = (
+            f"所有 ONNX provider 初始化均失败，最后错误: {last_error}。"
+            "请检查: 1) onnxruntime 安装是否完整; 2) NPU 驱动是否正常; "
+            "3) 模型文件是否损坏; 4) 尝试切换为 CPU 模式"
+        )
+        if callable(step_logger):
+            step_logger(msg)
+        raise RuntimeError(msg)
+
+    active_provider = ", ".join(session.get_providers() or [candidates[0]])
     inputs = session.get_inputs()
     outputs = session.get_outputs()
     if not inputs or not outputs:
@@ -655,7 +710,12 @@ def _build_upscaler_fn_with_onnx(
         step_logger: Callable[[str], None] | None = None,
     ) -> Image.Image:
         x = _to_onnx_input(image, step_logger)
-        y = session.run([output_name], {input_name: x})[0]
+        with acquire_local_onnx_inference_lock(
+            task_label=f"Upscaler ONNX 推理({model_name})",
+            log_callback=step_logger,
+            probe_interval_sec=2.0,
+        ):
+            y = session.run([output_name], {input_name: x})[0]
         out = _to_pil(y)
         if callable(step_logger):
             step_logger(f"ONNX 推理完成: provider={active_provider}, 输出={out.width}x{out.height}")
@@ -723,6 +783,7 @@ class LocalESRGANProvider:
                         model_name=model_name,
                         model_path=model_path,
                         model_arch=self.model_arch,
+                        step_logger=self.step_logger,
                     )
                 else:
                     runtime = _build_upscaler_fn_with_spandrel(
@@ -880,8 +941,6 @@ class UpscaleResult:
 
 
 def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
-    from webp_compressor import compress_image_to_webp_best_quality
-
     try:
         opts = normalize_upscale_options(options)
         opts["model_name"] = normalize_model_name(opts.get("model_name", ""))
@@ -995,20 +1054,23 @@ def upscale_image_to_fixed_png(image_path: str, options: dict) -> UpscaleResult:
             f"体积检查完成: PNG={fixed_size / 1024 / 1024:.2f}MB, 目标WebP={target_mb:.2f}MB"
         )
         if fixed_size > target_bytes:
-            webp_path = _build_webp_path(fixed_png_path)
-            t_webp = time.perf_counter()
-            ok, final_path, final_size, _ = compress_image_to_webp_best_quality(
-                input_path=fixed_png_path,
-                target_mb=target_mb,
-                output_path=webp_path,
-            )
-            if ok:
-                result.webp_path = final_path
-                result.webp_size_bytes = final_size
-            emit_step(
-                f"WebP 压缩完成: {'成功' if ok else '失败'}, "
-                f"耗时={time.perf_counter() - t_webp:.2f}s"
-            )
+            if _webp_compress is None:
+                emit_step("WebP 压缩跳过: webp_compressor 模块未导入")
+            else:
+                webp_path = _build_webp_path(fixed_png_path)
+                t_webp = time.perf_counter()
+                ok, final_path, final_size, _ = _webp_compress(
+                    input_path=fixed_png_path,
+                    target_mb=target_mb,
+                    output_path=webp_path,
+                )
+                if ok:
+                    result.webp_path = final_path
+                    result.webp_size_bytes = final_size
+                emit_step(
+                    f"WebP 压缩完成: {'成功' if ok else '失败'}, "
+                    f"耗时={time.perf_counter() - t_webp:.2f}s"
+                )
         else:
             emit_step("WebP 压缩跳过: PNG 已低于目标体积")
         if process_dump_enabled and process_dir:
