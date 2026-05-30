@@ -5,6 +5,15 @@ from PyQt5.QtWidgets import QSystemTrayIcon, QStyle
 TRAY_ICON = QStyle.StandardPixmap.SP_ComputerIcon
 MESSAGE_ICON = QSystemTrayIcon.MessageIcon.Information
 
+TASK_STATUS_META = {
+    "idle": ("就绪", "gray"),
+    "running": ("运行中", "#0b6cff"),
+    "cancelling": ("取消中", "#b26b00"),
+    "success": ("已完成", "#2f8f2f"),
+    "cancelled": ("已取消", "#b26b00"),
+    "error": ("失败", "#c0392b"),
+}
+
 
 class SystemNotifier:
     def __init__(self, host_widget):
@@ -22,6 +31,23 @@ class SystemNotifier:
                 self._tray.showMessage(str(title), str(message), MESSAGE_ICON, int(timeout_ms))
         except Exception:
             pass
+
+
+def append_log_line(text_edit, text):
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    text_edit.append(f"[{timestamp}] {text}")
+    scrollbar = text_edit.verticalScrollBar()
+    if scrollbar is not None:
+        scrollbar.setValue(scrollbar.maximum())
+
+
+def set_task_status(status_label, state, detail=""):
+    label, color = TASK_STATUS_META.get(state, ("未知", "gray"))
+    text = f"状态: {label}"
+    if detail:
+        text += f" | {detail}"
+    status_label.setText(text)
+    status_label.setStyleSheet(f"color: {color};")
 
 
 class TaskCountdown(QObject):

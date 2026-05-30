@@ -1,14 +1,18 @@
 import os
 import json
 import shutil
-import datetime
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit, QFileDialog, QMessageBox, QLabel, QListWidget, QListWidgetItem, QAbstractItemView
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from utils.task_runtime import append_log_line, set_task_status
+
+
+class JsonBatchCancelledError(Exception):
+    pass
 
 
 class JsonBatchWorkerThread(QThread):
     log_signal = pyqtSignal(str)
-    finished_signal = pyqtSignal(bool, str)
+    finished_signal = pyqtSignal(str, str)
 
     def __init__(self, json_paths, output_directory, forced_tags_text, blacklist_tags_text):
         super().__init__()
@@ -16,8 +20,19 @@ class JsonBatchWorkerThread(QThread):
         self.output_directory = output_directory
         self.forced_tags_text = forced_tags_text
         self.blacklist_tags_text = blacklist_tags_text
+        self._cancel_requested = False
+
+    def request_cancel(self):
+        self._cancel_requested = True
+        self.requestInterruption()
+
+    def _check_cancel(self):
+        if self._cancel_requested or self.isInterruptionRequested():
+            raise JsonBatchCancelledError()
 
     def run(self):
+        success_count = 0
+        fail_count = 0
         try:
             forced_tags = self._parse_tags_input(self.forced_tags_text)
             blacklist_tags = {tag.lower() for tag in self._parse_tags_input(self.blacklist_tags_text)}
@@ -32,11 +47,11 @@ class JsonBatchWorkerThread(QThread):
             for directory in dataset_directories.values():
                 os.makedirs(directory, exist_ok=True)
 
-            success_count = 0
-            fail_count = 0
             for idx, json_path in enumerate(self.json_paths, start=1):
+                self._check_cancel()
                 try:
                     self.log_signal.emit(f"[{idx}/{len(self.json_paths)}] 开始处理: {json_path}")
+                    self._check_cancel()
                     with open(json_path, "r", encoding="utf-8") as f:
                         data = json.load(f)
 
@@ -73,6 +88,7 @@ class JsonBatchWorkerThread(QThread):
                     }
 
                     for key, text in grouped_contents.items():
+                        self._check_cancel()
                         image_dst = os.path.join(dataset_directories[key], f"{unique_stem}{src_ext}")
                         txt_dst = os.path.join(dataset_directories[key], f"{unique_stem}.txt")
                         shutil.copy2(source_image_path, image_dst)
@@ -81,14 +97,20 @@ class JsonBatchWorkerThread(QThread):
 
                     success_count += 1
                     self.log_signal.emit(f"处理成功: {json_path}")
+                except JsonBatchCancelledError:
+                    raise
                 except Exception as e:
                     fail_count += 1
                     self.log_signal.emit(f"处理失败: {json_path} | {e}")
 
             summary = f"处理完成，总数 {len(self.json_paths)}，成功 {success_count}，失败 {fail_count}"
-            self.finished_signal.emit(True, summary)
+            self.finished_signal.emit("success", summary)
+        except JsonBatchCancelledError:
+            summary = f"已取消，本次共处理 {len(self.json_paths)} 个文件，已完成 {success_count}，失败 {fail_count}"
+            self.log_signal.emit("🛑 已收到取消请求，正在结束 JSON 数据集导出...")
+            self.finished_signal.emit("cancelled", summary)
         except Exception as e:
-            self.finished_signal.emit(False, f"处理失败: {e}")
+            self.finished_signal.emit("error", f"处理失败: {e}")
 
     def _allocate_unique_stem(self, stem, ext, dataset_directories):
         index = 0
@@ -229,6 +251,9 @@ class JsonDatasetWidget(QWidget):
         action_layout = QHBoxLayout()
         self.start_btn = QPushButton("开始处理")
         self.start_btn.clicked.connect(self.start_processing)
+        self.cancel_btn = QPushButton("取消任务")
+        self.cancel_btn.clicked.connect(self.cancel_processing)
+        self.cancel_btn.setEnabled(False)
         self.open_output_btn = QPushButton("导出完成后打开输出目录")
         self.open_output_btn.clicked.connect(self.open_output_directory)
         self.quick_split_btn = QPushButton("导出完成后用于图片分类切分")
@@ -237,10 +262,15 @@ class JsonDatasetWidget(QWidget):
         self.clear_log_btn = QPushButton("清空日志")
         self.clear_log_btn.clicked.connect(lambda: self.log_text.clear())
         action_layout.addWidget(self.start_btn)
+        action_layout.addWidget(self.cancel_btn)
         action_layout.addWidget(self.open_output_btn)
         action_layout.addWidget(self.quick_split_btn)
         action_layout.addWidget(self.clear_log_btn)
         layout.addLayout(action_layout)
+
+        self.status_label = QLabel("状态: 就绪")
+        self.status_label.setStyleSheet("color: gray;")
+        layout.addWidget(self.status_label)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
@@ -269,14 +299,14 @@ class JsonDatasetWidget(QWidget):
         self.file_list.clear()
 
     def log_msg(self, text):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        self.log_text.append(f"[{timestamp}] {text}")
-        scrollbar = self.log_text.verticalScrollBar()
-        if scrollbar is not None:
-            scrollbar.setValue(scrollbar.maximum())
+        append_log_line(self.log_text, text)
 
-    def set_running_state(self, running):
+    def set_task_state(self, state, detail=""):
+        set_task_status(self.status_label, state, detail)
+
+    def set_running_state(self, running, cancelling=False):
         self.start_btn.setEnabled(not running)
+        self.cancel_btn.setEnabled(running and (not cancelling))
         self.open_output_btn.setEnabled(not running)
         self.add_files_btn.setEnabled(not running)
         self.remove_selected_btn.setEnabled(not running)
@@ -312,6 +342,7 @@ class JsonDatasetWidget(QWidget):
         self.last_completed_output_dir = ""
         self.quick_split_btn.setEnabled(False)
         self.set_running_state(True)
+        self.set_task_state("running", f"准备导出 {len(json_paths)} 个 JSON")
         self.log_msg(f"开始处理，共 {len(json_paths)} 个文件")
 
         self.worker = JsonBatchWorkerThread(
@@ -324,16 +355,33 @@ class JsonDatasetWidget(QWidget):
         self.worker.finished_signal.connect(self.on_processing_finished)
         self.worker.start()
 
-    def on_processing_finished(self, success, message):
+    def cancel_processing(self):
+        if self.worker is None:
+            self.log_msg("当前没有正在运行的 JSON 数据集导出任务。")
+            return
+        self.worker.request_cancel()
+        self.set_running_state(True, cancelling=True)
+        self.set_task_state("cancelling", "等待当前文件处理完成")
+        self.log_msg("已请求取消 JSON 数据集导出，等待当前文件处理完成...")
+
+    def on_processing_finished(self, status, message):
+        worker = self.worker
+        self.worker = None
         self.set_running_state(False)
+        if worker is not None:
+            worker.deleteLater()
         self.log_msg(message)
-        if success:
+        if status == "success":
+            self.set_task_state("success", message)
             output_dir = self.output_dir_input.text().strip()
             if output_dir and os.path.isdir(output_dir):
                 self.last_completed_output_dir = output_dir
                 self.quick_split_btn.setEnabled(True)
             QMessageBox.information(self, "完成", message)
+        elif status == "cancelled":
+            self.set_task_state("cancelled", message)
         else:
+            self.set_task_state("error", message)
             QMessageBox.warning(self, "失败", message)
 
     def prefill_for_batch(self, json_paths, output_dir):
@@ -343,6 +391,7 @@ class JsonDatasetWidget(QWidget):
         added_count = self.file_list.add_json_files(valid_paths)
         self.last_completed_output_dir = ""
         self.quick_split_btn.setEnabled(False)
+        self.set_task_state("idle", f"已载入 {added_count} 个 JSON")
         self.log_msg(f"已接收批量分析结果，共 {added_count} 个 JSON，输出目录已设置")
 
     def quick_jump_to_pic_cate(self):

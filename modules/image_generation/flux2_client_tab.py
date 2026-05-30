@@ -98,12 +98,30 @@ class Flux2ClientWorker(QThread):
             self.failed.emit(str(e))
 
 
+class Flux2HealthWorker(QThread):
+    finished_ok = pyqtSignal(dict)
+    failed = pyqtSignal(str)
+
+    def __init__(self, base_url):
+        super().__init__()
+        self.base_url = str(base_url or "").strip()
+
+    def run(self):
+        try:
+            client = WebuiImg2ImgClient(self.base_url, timeout=15)
+            health = client.health()
+            self.finished_ok.emit(health if isinstance(health, dict) else {"raw": health})
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
 class Flux2ClientWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.current_image_path = ""
         self.current_result = {}
         self.worker = None
+        self.health_worker = None
         self.init_ui()
         self.load_config()
         self.update_preview()
@@ -451,16 +469,20 @@ class Flux2ClientWidget(QWidget):
 
     def set_running(self, running):
         self.run_btn.setEnabled(not running)
-        self.health_btn.setEnabled(not running)
         self.pick_btn.setEnabled(not running)
 
     def check_health(self):
-        try:
-            client = WebuiImg2ImgClient(self.base_url_input.text().strip(), timeout=15)
-            health = client.health()
-            self.log(f"WebUI 可用: {json.dumps(health, ensure_ascii=False)}")
-        except Exception as e:
-            QMessageBox.warning(self, "检查失败", str(e))
+        if self.health_worker is not None:
+            self.log("服务检查正在进行中，请稍候...")
+            return
+        self.health_btn.setEnabled(False)
+        self.health_btn.setText("检查中...")
+        self.log("开始检查 WebUI 服务...")
+        self.health_worker = Flux2HealthWorker(self.base_url_input.text().strip())
+        self.health_worker.finished_ok.connect(self.on_health_success)
+        self.health_worker.failed.connect(self.on_health_failed)
+        self.health_worker.finished.connect(self.on_health_finished)
+        self.health_worker.start()
 
     def run_edit(self):
         try:
@@ -510,3 +532,17 @@ class Flux2ClientWidget(QWidget):
         self.log(f"请求失败: {error_text}")
         self.result_json.setPlainText(str(error_text))
         QMessageBox.warning(self, "调用失败", error_text)
+
+    def on_health_success(self, health):
+        self.log(f"WebUI 可用: {json.dumps(health, ensure_ascii=False)}")
+
+    def on_health_failed(self, error_text):
+        self.log(f"服务检查失败: {error_text}")
+        QMessageBox.warning(self, "检查失败", error_text)
+
+    def on_health_finished(self):
+        if self.health_worker is not None:
+            self.health_worker.deleteLater()
+            self.health_worker = None
+        self.health_btn.setEnabled(True)
+        self.health_btn.setText("检查服务")

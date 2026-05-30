@@ -1359,27 +1359,28 @@ class SingleAnalyzerWidget(QWidget):
         for group in self._auto_gen_groups.values():
             group["cancelled"] = True
         running_threads = list(self._active_img_threads)
-        self.log_msg(f"正在终止 {len(running_threads)} 个生图任务...")
+        self.log_msg(f"正在请求终止 {len(running_threads)} 个生图任务，等待线程自行退出...")
+        self._img_gen_running = False
+        self._img_gen_deadline = None
+        self._img_gen_timeout_seconds = 0
+        self._img_gen_countdown.stop()
+        self.cancel_gen_btn.setEnabled(False)
+        self.gen_countdown_label.setText("生图超时倒计时: 正在退出...")
+        self.gen_orig_btn.setEnabled(False)
+        self.gen_ref_btn.setEnabled(False)
         for t in running_threads:
             try:
                 if hasattr(t, "request_cancel"):
                     t.request_cancel()
                 else:
                     t.requestInterruption()
-                if not t.wait(300):
-                    t.terminate()
-                    t.wait(200)
             except Exception:
                 pass
-        self._active_img_threads = []
-        self.gen_orig_btn.setEnabled(True)
-        self.gen_ref_btn.setEnabled(True)
-        self._stop_image_gen_runtime()
         if reason == "timeout":
-            self.log_msg("⏰ 生图任务已因超时被终止。")
+            self.log_msg("⏰ 已发出生图超时终止请求，等待当前任务退出。")
             self._send_system_notification("生图任务超时", "自动生图已超时并终止。")
         else:
-            self.log_msg("🛑 生图任务已手动终止。")
+            self.log_msg("🛑 已发出生图终止请求，等待当前任务退出。")
             self._send_system_notification("生图任务已终止", "当前生图任务已手动取消。")
 
     def trigger_image_generation(self, prompt_type, is_auto=False, prompt_bundle=None, analysis_thread_no=None, auto_group_id=None):

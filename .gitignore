@@ -98,6 +98,15 @@ log/
 outputs/
 conf/config.json
 conf/config-image.json
+conf/*.json
+!conf/config-autocomplete.json
+!conf/config-styles.json
+
+# 根目录临时图片文件
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
 
 # 模型文件与缓存（保留目录结构 + 占位文件）
 models/**/*.safetensors

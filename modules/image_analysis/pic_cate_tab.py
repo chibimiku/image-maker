@@ -1,9 +1,9 @@
 import os
-import datetime
 from contextlib import redirect_stdout, redirect_stderr
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QHBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QHBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox, QLabel
 from PyQt5.QtCore import QThread, pyqtSignal
-from utils.pic_cate import do_main as pic_cate_do_main
+from utils.pic_cate import do_main as pic_cate_do_main, PicCateCancelledError
+from utils.task_runtime import append_log_line, set_task_status
 
 
 class SignalBridge:
@@ -24,7 +24,7 @@ class SignalBridge:
 
 class PicCateWorkerThread(QThread):
     log_signal = pyqtSignal(str)
-    finished_signal = pyqtSignal(bool, str)
+    finished_signal = pyqtSignal(str, str)
 
     def __init__(self, source_directory, target_directory, trimmed_directory, train_name):
         super().__init__()
@@ -32,6 +32,14 @@ class PicCateWorkerThread(QThread):
         self.target_directory = target_directory
         self.trimmed_directory = trimmed_directory
         self.train_name = train_name
+        self._cancel_requested = False
+
+    def request_cancel(self):
+        self._cancel_requested = True
+        self.requestInterruption()
+
+    def _should_cancel(self):
+        return self._cancel_requested or self.isInterruptionRequested()
 
     def run(self):
         try:
@@ -47,12 +55,19 @@ class PicCateWorkerThread(QThread):
                     self.target_directory,
                     self.trimmed_directory,
                     self.train_name,
-                    worker_count=worker_count
+                    worker_count=worker_count,
+                    should_cancel=self._should_cancel
                 )
-            self.finished_signal.emit(True, "处理完成")
+            if self._should_cancel():
+                self.finished_signal.emit("cancelled", "图片分类切分已取消")
+            else:
+                self.finished_signal.emit("success", "处理完成")
+        except PicCateCancelledError:
+            self.log_signal.emit("🛑 已收到取消请求，正在结束图片分类切分...")
+            self.finished_signal.emit("cancelled", "图片分类切分已取消")
         except Exception as e:
             self.log_signal.emit(f"处理失败: {e}")
-            self.finished_signal.emit(False, f"处理失败: {e}")
+            self.finished_signal.emit("error", f"处理失败: {e}")
 
 
 class PicCateWidget(QWidget):
@@ -69,25 +84,25 @@ class PicCateWidget(QWidget):
         self.source_input = QLineEdit()
         source_row = QHBoxLayout()
         source_row.addWidget(self.source_input)
-        source_btn = QPushButton("选择")
-        source_btn.clicked.connect(lambda: self.pick_directory(self.source_input, "选择原图目录"))
-        source_row.addWidget(source_btn)
+        self.source_btn = QPushButton("选择")
+        self.source_btn.clicked.connect(lambda: self.pick_directory(self.source_input, "选择原图目录"))
+        source_row.addWidget(self.source_btn)
         form.addRow("原图目录:", source_row)
 
         self.target_input = QLineEdit()
         target_row = QHBoxLayout()
         target_row.addWidget(self.target_input)
-        target_btn = QPushButton("选择")
-        target_btn.clicked.connect(lambda: self.pick_directory(self.target_input, "选择分类复制目录"))
-        target_row.addWidget(target_btn)
+        self.target_btn = QPushButton("选择")
+        self.target_btn.clicked.connect(lambda: self.pick_directory(self.target_input, "选择分类复制目录"))
+        target_row.addWidget(self.target_btn)
         form.addRow("分类复制目录:", target_row)
 
         self.trimmed_input = QLineEdit()
         trimmed_row = QHBoxLayout()
         trimmed_row.addWidget(self.trimmed_input)
-        trimmed_btn = QPushButton("选择")
-        trimmed_btn.clicked.connect(lambda: self.pick_directory(self.trimmed_input, "选择裁剪训练输出目录"))
-        trimmed_row.addWidget(trimmed_btn)
+        self.trimmed_btn = QPushButton("选择")
+        self.trimmed_btn.clicked.connect(lambda: self.pick_directory(self.trimmed_input, "选择裁剪训练输出目录"))
+        trimmed_row.addWidget(self.trimmed_btn)
         form.addRow("裁剪训练输出目录:", trimmed_row)
 
         self.train_name_input = QLineEdit()
@@ -98,11 +113,19 @@ class PicCateWidget(QWidget):
         actions = QHBoxLayout()
         self.start_btn = QPushButton("开始切分")
         self.start_btn.clicked.connect(self.start_processing)
+        self.cancel_btn = QPushButton("取消任务")
+        self.cancel_btn.clicked.connect(self.cancel_processing)
+        self.cancel_btn.setEnabled(False)
         self.clear_log_btn = QPushButton("清空日志")
         self.clear_log_btn.clicked.connect(lambda: self.log_text.clear())
         actions.addWidget(self.start_btn)
+        actions.addWidget(self.cancel_btn)
         actions.addWidget(self.clear_log_btn)
         layout.addLayout(actions)
+
+        self.status_label = QLabel("状态: 就绪")
+        self.status_label.setStyleSheet("color: gray;")
+        layout.addWidget(self.status_label)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
@@ -143,18 +166,21 @@ class PicCateWidget(QWidget):
             self.save_values_callback(self.get_values())
 
     def log_msg(self, text):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-        self.log_text.append(f"[{timestamp}] {text}")
-        scrollbar = self.log_text.verticalScrollBar()
-        if scrollbar is not None:
-            scrollbar.setValue(scrollbar.maximum())
+        append_log_line(self.log_text, text)
 
-    def set_running_state(self, running):
+    def set_task_state(self, state, detail=""):
+        set_task_status(self.status_label, state, detail)
+
+    def set_running_state(self, running, cancelling=False):
         self.start_btn.setEnabled(not running)
+        self.cancel_btn.setEnabled(running and (not cancelling))
         self.source_input.setEnabled(not running)
         self.target_input.setEnabled(not running)
         self.trimmed_input.setEnabled(not running)
         self.train_name_input.setEnabled(not running)
+        self.source_btn.setEnabled(not running)
+        self.target_btn.setEnabled(not running)
+        self.trimmed_btn.setEnabled(not running)
 
     def start_processing(self):
         values = self.get_values()
@@ -177,6 +203,7 @@ class PicCateWidget(QWidget):
         self.on_values_changed()
         self.log_msg("开始处理...")
         self.set_running_state(True)
+        self.set_task_state("running", "图片分类切分进行中")
 
         self.worker = PicCateWorkerThread(
             values["source_directory"],
@@ -188,10 +215,27 @@ class PicCateWidget(QWidget):
         self.worker.finished_signal.connect(self.on_processing_finished)
         self.worker.start()
 
-    def on_processing_finished(self, success, message):
+    def cancel_processing(self):
+        if self.worker is None:
+            self.log_msg("当前没有正在运行的图片分类切分任务。")
+            return
+        self.worker.request_cancel()
+        self.set_running_state(True, cancelling=True)
+        self.set_task_state("cancelling", "等待当前图片处理结束")
+        self.log_msg("已请求取消图片分类切分，等待当前图片处理结束...")
+
+    def on_processing_finished(self, status, message):
+        worker = self.worker
+        self.worker = None
         self.set_running_state(False)
+        if worker is not None:
+            worker.deleteLater()
         self.log_msg(message)
-        if success:
+        if status == "success":
+            self.set_task_state("success", message)
             QMessageBox.information(self, "完成", message)
+        elif status == "cancelled":
+            self.set_task_state("cancelled", message)
         else:
+            self.set_task_state("error", message)
             QMessageBox.warning(self, "失败", message)

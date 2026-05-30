@@ -514,7 +514,7 @@ class BatchAnalyzerWidget(QWidget):
         if self.cancel_hard_requested:
             return
         self.cancel_hard_requested = True
-        self.log_msg("收到二次取消，正在强制停止当前运行中的任务...")
+        self.log_msg("收到二次取消，正在请求停止当前运行中的任务，并等待线程自行退出...")
         running_threads = list(self.active_workers.keys())
         for thread in running_threads:
             try:
@@ -522,15 +522,13 @@ class BatchAnalyzerWidget(QWidget):
                     thread.request_cancel(force=True)
                 else:
                     thread.requestInterruption()
-                if not thread.wait(300):
-                    thread.terminate()
-                    thread.wait(200)
             except Exception:
                 pass
-        self.active_workers = {}
         self.pending_images = []
-        self.current_index = self.current_run_total
-        self.finish_batch_processing(final_reason="cancelled")
+        self.cancel_btn.setEnabled(False)
+        self.cancel_btn.setText("等待线程退出...")
+        if not self.active_workers:
+            self.finish_batch_processing(final_reason="cancelled")
 
     def retry_failed_images(self):
         self.start_batch_processing(target_images=list(self.failed_image_files), is_retry=True)
@@ -727,25 +725,25 @@ class BatchAnalyzerWidget(QWidget):
             return
         self._auto_gen_cancelled = True
         running_threads = list(self._active_image_threads)
-        self.log_msg(f"正在终止 {len(running_threads)} 个生图任务...")
+        self.log_msg(f"正在请求终止 {len(running_threads)} 个生图任务，等待线程自行退出...")
+        self._img_gen_running = False
+        self._img_gen_timeout_seconds = 0
+        self._img_gen_countdown.stop()
+        self.cancel_gen_btn.setEnabled(False)
+        self.gen_countdown_label.setText("生图超时倒计时: 正在退出...")
         for thread in running_threads:
             try:
                 if hasattr(thread, "request_cancel"):
                     thread.request_cancel()
                 else:
                     thread.requestInterruption()
-                if not thread.wait(300):
-                    thread.terminate()
-                    thread.wait(200)
             except Exception:
                 pass
-        self._active_image_threads = []
-        self._stop_image_gen_runtime()
         if reason == "timeout":
-            self.log_msg("⏰ 生图任务已因超时被终止。")
+            self.log_msg("⏰ 已发出生图超时终止请求，等待当前任务退出。")
             self._send_system_notification("批量生图超时", "自动生图任务已超时并终止。")
         else:
-            self.log_msg("🛑 生图任务已手动终止。")
+            self.log_msg("🛑 已发出生图终止请求，等待当前任务退出。")
             self._send_system_notification("批量生图已终止", "自动生图任务已手动取消。")
 
     def on_image_generation_finished(self, thread, saved_files):

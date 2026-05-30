@@ -14,9 +14,19 @@ from PIL import Image
 import cv2
 import numpy as np
 import math
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
-def crop_and_resize_image(input_path, output_path, target_width, target_height):
+
+class PicCateCancelledError(Exception):
+    pass
+
+
+def _raise_if_cancelled(should_cancel=None):
+    if callable(should_cancel) and should_cancel():
+        raise PicCateCancelledError("任务已取消")
+
+
+def crop_and_resize_image(input_path, output_path, target_width, target_height, should_cancel=None):
     """
     将输入图片裁剪并缩放到指定的目标分辨率，尽量保留人脸或人物主体。
 
@@ -27,6 +37,7 @@ def crop_and_resize_image(input_path, output_path, target_width, target_height):
         target_height: 目标分辨率高度
     """
     print("[crop_and_resize_image]Process:" + input_path + ", output:" + output_path)
+    _raise_if_cancelled(should_cancel)
     # 打开输入图片
     img = Image.open(input_path)
     original_width, original_height = img.size
@@ -58,6 +69,7 @@ def crop_and_resize_image(input_path, output_path, target_width, target_height):
     # 转换为OpenCV格式以进行人脸识别
     cv_image = cv2.cvtColor(np.array(cropped_img), cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+    _raise_if_cancelled(should_cancel)
 
     # 加载人脸检测器
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -93,6 +105,7 @@ def crop_and_resize_image(input_path, output_path, target_width, target_height):
         resized_img = resized_img.crop((0, 0, target_width, target_height))
 
     # 保存为无损压缩的PNG文件
+    _raise_if_cancelled(should_cancel)
     resized_img.save(output_path, "PNG", optimize=True, compress_level=9)
 
     print(f"图片已处理并保存到: {output_path}")
@@ -106,7 +119,8 @@ def find_closest_aspect_ratio(aspect_ratio, ratios):
     differences = [abs(aspect_ratio - ratio) for ratio in ratios]
     return ratios[differences.index(min(differences))]
 
-def process_single_image(image_file, source_directory, target_directory, trimmed_directory, save_dir_mapper, aspect_ratios):
+def process_single_image(image_file, source_directory, target_directory, trimmed_directory, save_dir_mapper, aspect_ratios, should_cancel=None):
+    _raise_if_cancelled(should_cancel)
     print("Process:" + image_file)
     img_path = os.path.join(source_directory, image_file)
     with Image.open(img_path) as img:
@@ -120,6 +134,7 @@ def process_single_image(image_file, source_directory, target_directory, trimmed
     os.makedirs(destination_folder, exist_ok=True)
     destination_path = os.path.join(destination_folder, image_file)
     shutil.copyfile(img_path, destination_path)
+    _raise_if_cancelled(should_cancel)
     if len(trimmed_directory) > 0:
         init_img_folder_path = os.path.join(trimmed_directory, find_folder_name)
         os.makedirs(init_img_folder_path, exist_ok=True)
@@ -128,7 +143,8 @@ def process_single_image(image_file, source_directory, target_directory, trimmed
             img_path,
             img_trimmed_output_path,
             save_dir_mapper[str(closest_ratio)]["width"],
-            save_dir_mapper[str(closest_ratio)]["height"]
+            save_dir_mapper[str(closest_ratio)]["height"],
+            should_cancel=should_cancel
         )
     img_file_path = Path(img_path).resolve()
     dir_path = img_file_path.parent
@@ -145,12 +161,14 @@ def process_single_image(image_file, source_directory, target_directory, trimmed
             os.makedirs(init_txt_folder_path, exist_ok=True)
             init_txt_file_path = os.path.join(init_txt_folder_path, txt_filename)
             shutil.copyfile(txt_full_path, init_txt_file_path)
+    _raise_if_cancelled(should_cancel)
     return {
         "folder_name": find_folder_name,
         "closest_ratio": closest_ratio
     }
 
-def do_main(source_directory, target_directory, trimmed_directory="", train_name = "", worker_count=1):
+def do_main(source_directory, target_directory, trimmed_directory="", train_name = "", worker_count=1, should_cancel=None):
+    _raise_if_cancelled(should_cancel)
 
     # 定义要分类的长宽比列表
 
@@ -253,7 +271,9 @@ def do_main(source_directory, target_directory, trimmed_directory="", train_name
     print("worker_count:" + str(worker_count))
     process_results = []
     if worker_count == 1:
-        for image_file in image_files:
+        for index, image_file in enumerate(image_files, start=1):
+            _raise_if_cancelled(should_cancel)
+            print(f"[{index}/{len(image_files)}] 开始处理: {image_file}")
             process_results.append(
                 process_single_image(
                     image_file,
@@ -261,12 +281,15 @@ def do_main(source_directory, target_directory, trimmed_directory="", train_name
                     target_directory,
                     trimmed_directory,
                     save_dir_mapper,
-                    aspect_ratios
+                    aspect_ratios,
+                    should_cancel=should_cancel
                 )
             )
     else:
-        with ThreadPoolExecutor(max_workers=worker_count) as executor:
-            futures = [
+        executor = ThreadPoolExecutor(max_workers=worker_count)
+        cancelled = False
+        try:
+            pending_futures = {
                 executor.submit(
                     process_single_image,
                     image_file,
@@ -274,14 +297,34 @@ def do_main(source_directory, target_directory, trimmed_directory="", train_name
                     target_directory,
                     trimmed_directory,
                     save_dir_mapper,
-                    aspect_ratios
+                    aspect_ratios,
+                    should_cancel
                 )
+                : image_file
                 for image_file in image_files
-            ]
-            for future in futures:
-                process_results.append(future.result())
+            }
+            completed_count = 0
+            while pending_futures:
+                _raise_if_cancelled(should_cancel)
+                done_futures, _ = wait(list(pending_futures.keys()), timeout=0.2, return_when=FIRST_COMPLETED)
+                if not done_futures:
+                    continue
+                for future in done_futures:
+                    image_file = pending_futures.pop(future)
+                    completed_count += 1
+                    print(f"[{completed_count}/{len(image_files)}] 完成处理: {image_file}")
+                    process_results.append(future.result())
+        except PicCateCancelledError:
+            cancelled = True
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+        finally:
+            if not cancelled:
+                executor.shutdown(wait=True)
+    _raise_if_cancelled(should_cancel)
     datasets_folder_names = set()
     for result in process_results:
+        _raise_if_cancelled(should_cancel)
         find_folder_name = result["folder_name"]
         if find_folder_name in datasets_folder_names:
             continue
@@ -305,6 +348,7 @@ def do_main(source_directory, target_directory, trimmed_directory="", train_name
     #输出 datasets_xxx.toml
     output_json = {"datasets": datasets}
     toml_string = toml.dumps(output_json)
+    _raise_if_cancelled(should_cancel)
     with open( os.path.join( trimmed_directory, "datasets.toml"), "w+") as wfp:
         wfp.write(toml_string)
 

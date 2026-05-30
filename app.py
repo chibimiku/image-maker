@@ -27,6 +27,7 @@ except Exception:
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
                              QLabel, QPushButton, QTextEdit, QLineEdit, QInputDialog,
                              QComboBox, QFormLayout, QMessageBox, QTabWidget, QCheckBox)
+from PyQt5.QtCore import QThread, pyqtSignal
 from openai import OpenAI
 
 # 引入抽离出去的独立组件
@@ -65,6 +66,27 @@ DEFAULT_STYLES = {
     "默认(无附加)": ""
 }
 
+
+class ModelFetchThread(QThread):
+    success_signal = pyqtSignal(list, str)
+    error_signal = pyqtSignal(str, str)
+
+    def __init__(self, api_key, base_url, current_text, request_key):
+        super().__init__()
+        self.api_key = api_key
+        self.base_url = base_url
+        self.current_text = current_text
+        self.request_key = request_key
+
+    def run(self):
+        try:
+            client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            models = client.models.list()
+            model_names = sorted([m.id for m in models.data])
+            self.success_signal.emit(model_names, self.current_text)
+        except Exception as e:
+            self.error_signal.emit(str(e), self.current_text)
+
 class AppWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -81,6 +103,7 @@ class AppWindow(QWidget):
         self.use_nsfw_single = False
         self.use_nsfw_batch = False
         self.upscale_options = normalize_upscale_options({})
+        self._model_fetch_threads = {}
 
         self.initUI()
         self.load_config()
@@ -926,29 +949,61 @@ class AppWindow(QWidget):
             QMessageBox.warning(self, "错误", "请先输入文本分析的 API Key")
             return
 
+        request_key = "nsfw" if fetch_btn is self.fetch_nsfw_btn else "text"
+        if request_key in self._model_fetch_threads:
+            QMessageBox.information(self, "提示", "模型列表正在获取中，请稍候。")
+            return
+
         fetch_btn.setEnabled(False)
         fetch_btn.setText("获取中...")
-        QApplication.processEvents()
+        model_combo.setEnabled(False)
+        thread = ModelFetchThread(
+            api_key=api_key,
+            base_url=base_url,
+            current_text=model_combo.currentText(),
+            request_key=request_key
+        )
+        self._model_fetch_threads[request_key] = thread
+        thread.success_signal.connect(
+            lambda model_names, current_text, combo=model_combo, btn=fetch_btn, key=request_key:
+            self._on_fetch_models_success(key, combo, btn, model_names, current_text)
+        )
+        thread.error_signal.connect(
+            lambda error_text, _current_text, combo=model_combo, btn=fetch_btn, key=request_key:
+            self._on_fetch_models_error(key, combo, btn, error_text)
+        )
+        thread.finished.connect(lambda key=request_key: self._cleanup_fetch_models_thread(key))
+        thread.start()
 
-        try:
-            client = OpenAI(api_key=api_key, base_url=base_url)
-            models = client.models.list()
-            model_names = sorted([m.id for m in models.data])
-            
-            current_text = model_combo.currentText()
-            model_combo.clear()
-            model_combo.addItems(model_names)
-            
-            index = model_combo.findText(current_text)
-            if index >= 0: model_combo.setCurrentIndex(index)
-            elif current_text: model_combo.setCurrentText(current_text)
-                
-            QMessageBox.information(self, "成功", f"成功获取 {len(model_names)} 个可用模型！")
-        except Exception as e:
-            QMessageBox.warning(self, "获取失败", f"获取模型列表失败，请检查 URL 和 Key 是否正确。\n错误信息: {e}")
-        finally:
-            fetch_btn.setEnabled(True)
-            fetch_btn.setText("获取模型列表")
+    def _on_fetch_models_success(self, request_key, model_combo, fetch_btn, model_names, current_text):
+        if request_key not in self._model_fetch_threads:
+            return
+        model_combo.clear()
+        model_combo.addItems(model_names)
+
+        index = model_combo.findText(current_text)
+        if index >= 0:
+            model_combo.setCurrentIndex(index)
+        elif current_text:
+            model_combo.setCurrentText(current_text)
+
+        model_combo.setEnabled(True)
+        fetch_btn.setEnabled(True)
+        fetch_btn.setText("获取模型列表")
+        QMessageBox.information(self, "成功", f"成功获取 {len(model_names)} 个可用模型！")
+
+    def _on_fetch_models_error(self, request_key, model_combo, fetch_btn, error_text):
+        if request_key not in self._model_fetch_threads:
+            return
+        model_combo.setEnabled(True)
+        fetch_btn.setEnabled(True)
+        fetch_btn.setText("获取模型列表")
+        QMessageBox.warning(self, "获取失败", f"获取模型列表失败，请检查 URL 和 Key 是否正确。\n错误信息: {error_text}")
+
+    def _cleanup_fetch_models_thread(self, request_key):
+        thread = self._model_fetch_threads.pop(request_key, None)
+        if thread is not None:
+            thread.deleteLater()
 
     def fetch_models(self):
         self._fetch_models_for(
