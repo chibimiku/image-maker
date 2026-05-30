@@ -2,13 +2,16 @@ import datetime
 from PyQt5.QtCore import QObject, QTimer
 from PyQt5.QtWidgets import QSystemTrayIcon, QStyle
 
+TRAY_ICON = QStyle.StandardPixmap.SP_ComputerIcon
+MESSAGE_ICON = QSystemTrayIcon.MessageIcon.Information
+
 
 class SystemNotifier:
     def __init__(self, host_widget):
         self._tray = None
         try:
             self._tray = QSystemTrayIcon(host_widget)
-            self._tray.setIcon(host_widget.style().standardIcon(QStyle.SP_ComputerIcon))
+            self._tray.setIcon(host_widget.style().standardIcon(TRAY_ICON))
             self._tray.setVisible(True)
         except Exception:
             self._tray = None
@@ -16,7 +19,7 @@ class SystemNotifier:
     def notify(self, title, message, timeout_ms=5000):
         try:
             if self._tray and QSystemTrayIcon.isSystemTrayAvailable():
-                self._tray.showMessage(str(title), str(message), QSystemTrayIcon.Information, int(timeout_ms))
+                self._tray.showMessage(str(title), str(message), MESSAGE_ICON, int(timeout_ms))
         except Exception:
             pass
 
