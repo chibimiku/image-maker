@@ -411,6 +411,54 @@ def test_sd_workflow_story_description_options_are_hierarchical(qapp):
     widget.close()
 
 
+def test_save_story_sequence_uses_short_filename(tmp_path, monkeypatch):
+    monkeypatch.setattr(sd_workflow_module, "STORY_SEQUENCE_DIR", str(tmp_path))
+    story_payload = {
+        "theme": "这是一个非常非常长的故事主题文件名测试",
+        "title_zh": "标题",
+        "title_en": "Title",
+        "pages": [
+            {
+                "page": 1,
+                "title_zh": "第一页",
+                "title_en": "Page One",
+                "prompt_zh": "中文内容",
+                "prompt_en": "english content",
+                "width": 768,
+                "height": 1024,
+            }
+        ],
+    }
+
+    saved_path, _normalized = sd_workflow_module.save_story_sequence(story_payload)
+    basename = Path(saved_path).name
+
+    assert basename.endswith(".json")
+    assert len(basename) <= 32
+
+
+def test_normalize_story_sequence_maps_old_resolution_to_recommended():
+    normalized = sd_workflow_module.normalize_story_sequence(
+        {
+            "theme": "测试故事",
+            "pages": [
+                {
+                    "page": 1,
+                    "title_zh": "第一页",
+                    "title_en": "Page One",
+                    "prompt_zh": "中文内容",
+                    "prompt_en": "english content",
+                    "width": 1024,
+                    "height": 768,
+                }
+            ],
+        }
+    )
+
+    assert normalized["pages"][0]["width"] == 1344
+    assert normalized["pages"][0]["height"] == 1024
+
+
 def test_sd_workflow_can_load_history_story_file(qapp, monkeypatch, tmp_path):
     story_path = tmp_path / "picked-story.json"
     story_payload = {

@@ -77,6 +77,16 @@ STORY_PROMPT_PRESETS = {
     "长描述": {"min_words": 400, "keyword_count": 40},
 }
 
+STORY_RESOLUTION_PRESETS = [
+    (1024, 1536),  # 2:3
+    (1536, 1024),  # 3:2
+    (1824, 1024),  # 16:9
+    (1024, 1824),  # 9:16
+    (1344, 1024),  # 4:3
+    (1024, 1344),  # 3:4
+    (1024, 1024),  # 1:1
+]
+
 DEFAULT_SD_WEBUI_SETTINGS = {
     "sd_url": "http://127.0.0.1:7860",
     "current_sd_group": "Default",
@@ -203,7 +213,28 @@ def _coerce_positive_int(value, default_value):
         return int(default_value)
 
 
-def _sanitize_filename_part(text):
+def _normalize_story_resolution(width, height):
+    parsed_width = _coerce_positive_int(width, 1024)
+    parsed_height = _coerce_positive_int(height, 1536)
+    if parsed_width == parsed_height:
+        return 1024, 1024
+
+    target_ratio = parsed_width / float(parsed_height or 1)
+    best_width, best_height = STORY_RESOLUTION_PRESETS[0]
+    best_score = None
+    for preset_width, preset_height in STORY_RESOLUTION_PRESETS:
+        preset_ratio = preset_width / float(preset_height or 1)
+        score = (
+            abs(target_ratio - preset_ratio),
+            abs(parsed_width - preset_width) + abs(parsed_height - preset_height),
+        )
+        if best_score is None or score < best_score:
+            best_score = score
+            best_width, best_height = preset_width, preset_height
+    return best_width, best_height
+
+
+def _sanitize_filename_part(text, max_length=16):
     raw = str(text or "").strip()
     safe_chars = []
     for ch in raw:
@@ -212,7 +243,7 @@ def _sanitize_filename_part(text):
         elif ch.isspace():
             safe_chars.append("_")
     safe = "".join(safe_chars).strip("_")
-    return safe[:40] or "story"
+    return safe[: max(1, int(max_length))] or "story"
 
 
 def normalize_story_sequence(sequence_data, default_theme="", expected_pages=0):
@@ -247,6 +278,9 @@ def normalize_story_sequence(sequence_data, default_theme="", expected_pages=0):
         if not prompt_zh:
             raise ValueError(f"第 {index} 页缺少中文翻译 prompt。")
 
+        normalized_width, normalized_height = _normalize_story_resolution(
+            raw_page.get("width"), raw_page.get("height")
+        )
         normalized_pages.append(
             {
                 "page": _coerce_positive_int(raw_page.get("page"), index),
@@ -254,8 +288,8 @@ def normalize_story_sequence(sequence_data, default_theme="", expected_pages=0):
                 "title_en": str(raw_page.get("title_en") or raw_page.get("scene_title_en") or "").strip(),
                 "prompt_en": prompt_en,
                 "prompt_zh": prompt_zh,
-                "width": _coerce_positive_int(raw_page.get("width"), 768),
-                "height": _coerce_positive_int(raw_page.get("height"), 1024),
+                "width": normalized_width,
+                "height": normalized_height,
             }
         )
 
@@ -282,7 +316,7 @@ def save_story_sequence(sequence_data, target_path=None):
     final_path = target_path
     if not final_path:
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"{timestamp}_{_sanitize_filename_part(normalized.get('theme', 'story'))}.json"
+        filename = f"{timestamp}_{_sanitize_filename_part(normalized.get('theme', 'story'), max_length=10)}.json"
         final_path = os.path.join(STORY_SEQUENCE_DIR, filename)
     with open(final_path, "w", encoding="utf-8") as f:
         json.dump(normalized, f, ensure_ascii=False, indent=2)
@@ -362,6 +396,9 @@ def normalize_story_outline(sequence_data, default_theme="", expected_pages=0):
     for index, raw_page in enumerate(raw_pages, start=1):
         if not isinstance(raw_page, dict):
             continue
+        normalized_width, normalized_height = _normalize_story_resolution(
+            raw_page.get("width"), raw_page.get("height")
+        )
         normalized_pages.append(
             {
                 "page": _coerce_positive_int(raw_page.get("page"), index),
@@ -379,8 +416,8 @@ def normalize_story_outline(sequence_data, default_theme="", expected_pages=0):
                     or raw_page.get("scene_en")
                     or ""
                 ).strip(),
-                "width": _coerce_positive_int(raw_page.get("width"), 768),
-                "height": _coerce_positive_int(raw_page.get("height"), 1024),
+                "width": normalized_width,
+                "height": normalized_height,
             }
         )
 
@@ -852,8 +889,9 @@ class SdStorySequenceThread(QThread):
         page_data["page"] = page_outline.get("page")
         page_data["title_zh"] = str(page_data.get("title_zh") or page_outline.get("title_zh") or "").strip()
         page_data["title_en"] = str(page_data.get("title_en") or page_outline.get("title_en") or "").strip()
-        page_data["width"] = _coerce_positive_int(page_data.get("width"), page_outline.get("width", 768))
-        page_data["height"] = _coerce_positive_int(page_data.get("height"), page_outline.get("height", 1024))
+        page_data["width"], page_data["height"] = _normalize_story_resolution(
+            page_data.get("width"), page_data.get("height")
+        )
         return page_data
 
     def run(self):
@@ -923,8 +961,8 @@ class SdStoryRenderThread(SdWorkflowThread):
 
                 prompt_en = str(page.get("prompt_en", "") or "").strip()
                 prompt_zh = str(page.get("prompt_zh", "") or "").strip()
-                width = page.get("width", 768)
-                height = page.get("height", 1024)
+                width = page.get("width", 1024)
+                height = page.get("height", 1536)
                 page_no = page.get("page", index)
                 page_title = str(page.get("title_zh") or page.get("title_en") or "").strip()
 
@@ -1079,8 +1117,8 @@ class StorySequenceEditorDialog(QDialog):
             str(page_data.get("title_en", "") or ""),
             str(page_data.get("prompt_zh", "") or ""),
             str(page_data.get("prompt_en", "") or ""),
-            str(page_data.get("width", 768)),
-            str(page_data.get("height", 1024)),
+            str(page_data.get("width", 1024)),
+            str(page_data.get("height", 1536)),
         ]
         for col, value in enumerate(values):
             item = QTableWidgetItem(value)
@@ -1129,8 +1167,8 @@ class StorySequenceEditorDialog(QDialog):
                     "title_en": self.table.item(row, 2).text().strip() if self.table.item(row, 2) else "",
                     "prompt_zh": self.table.item(row, 3).text().strip() if self.table.item(row, 3) else "",
                     "prompt_en": self.table.item(row, 4).text().strip() if self.table.item(row, 4) else "",
-                    "width": self.table.item(row, 5).text().strip() if self.table.item(row, 5) else "768",
-                    "height": self.table.item(row, 6).text().strip() if self.table.item(row, 6) else "1024",
+                    "width": self.table.item(row, 5).text().strip() if self.table.item(row, 5) else "1024",
+                    "height": self.table.item(row, 6).text().strip() if self.table.item(row, 6) else "1536",
                 }
             )
         normalized = normalize_story_sequence(
@@ -1249,7 +1287,7 @@ class StorySequencePreviewDialog(QDialog):
             return
         page = self._story_pages[row]
         self.meta_label.setText(
-            f"第 {page.get('page', row + 1)} 页 | 标题: {page.get('title_zh') or page.get('title_en') or '未命名'} | 尺寸: {page.get('width', 768)}x{page.get('height', 1024)}"
+            f"第 {page.get('page', row + 1)} 页 | 标题: {page.get('title_zh') or page.get('title_en') or '未命名'} | 尺寸: {page.get('width', 1024)}x{page.get('height', 1536)}"
         )
         self.zh_preview.setPlainText(str(page.get("prompt_zh", "") or ""))
         self.en_preview.setPlainText(str(page.get("prompt_en", "") or ""))
