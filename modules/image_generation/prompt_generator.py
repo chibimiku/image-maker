@@ -1,10 +1,10 @@
 # prompt_generator.py
 import json
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QTextEdit, QComboBox, 
                              QSpinBox, QLineEdit, QScrollArea, QGridLayout, QFrame, QMessageBox, QApplication, QCheckBox, QDoubleSpinBox)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QPixmap
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QPixmap
 from openai import OpenAI
 
 # 复用 single_analyzer 中的生图线程
@@ -76,7 +76,7 @@ class PromptCellWidget(QFrame):
         self.initUI(prompt_text)
 
     def initUI(self, prompt_text):
-        self.setFrameShape(QFrame.StyledPanel)
+        self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setLineWidth(1)
         self.setStyleSheet("QFrame { border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; }")
         
@@ -103,7 +103,7 @@ class PromptCellWidget(QFrame):
         
         # 图像展示区
         self.img_label = QLabel("暂无图片")
-        self.img_label.setAlignment(Qt.AlignCenter)
+        self.img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.img_label.setMinimumHeight(200)
         self.img_label.setStyleSheet("QLabel { background-color: #eee; border: 1px dashed #aaa; border-radius: 0px; }")
         layout.addWidget(self.img_label)
@@ -159,7 +159,13 @@ class PromptCellWidget(QFrame):
         if saved_files and len(saved_files) > 0:
             file_path = saved_files[0]
             pixmap = QPixmap(file_path)
-            self.img_label.setPixmap(pixmap.scaled(self.img_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.img_label.setPixmap(
+                pixmap.scaled(
+                    self.img_label.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
             self._start_jpg_postprocess(saved_files)
         else:
             self.img_label.setText("生成失败或超时")
@@ -275,7 +281,7 @@ class PromptGeneratorWidget(QWidget):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_widget = QWidget()
         self.grid_layout = QGridLayout()
-        self.grid_layout.setAlignment(Qt.AlignTop)
+        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.scroll_widget.setLayout(self.grid_layout)
         self.scroll_area.setWidget(self.scroll_widget)
         

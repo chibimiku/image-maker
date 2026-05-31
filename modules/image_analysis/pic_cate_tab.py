@@ -1,7 +1,7 @@
 import os
 from contextlib import redirect_stdout, redirect_stderr
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QHBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox, QLabel
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QHBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox, QLabel
+from PyQt6.QtCore import QThread, pyqtSignal
 from utils.pic_cate import do_main as pic_cate_do_main, PicCateCancelledError
 from utils.task_runtime import append_log_line, set_task_status
 

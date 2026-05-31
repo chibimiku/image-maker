@@ -1,11 +1,11 @@
 import json
 import os
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog
 )
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QPixmap
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
 
 from modules.image_analysis.single_analyzer import ImageGenWorkerThread
 
@@ -27,7 +27,7 @@ class JsonDropLabel(QLabel):
     def __init__(self):
         super().__init__()
         self.setText("拖放分析结果 JSON 文件到此处\n或点击「加载JSON」按钮选择文件")
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumHeight(52)
         self.setStyleSheet("QLabel { background-color: #f7f7f7; border: 1px dashed #aaa; color: #888; }")
         self.setAcceptDrops(True)
@@ -61,6 +61,7 @@ class SingleGenDebugWidget(QWidget):
         self.json_data = {}
         self.json_file_path = ""
         self._is_restoring_state = False
+        self._last_synced_json_field_key = ""
         self.init_ui()
         self.load_ui_state()
 
@@ -94,6 +95,7 @@ class SingleGenDebugWidget(QWidget):
         self.json_field_combo = QComboBox()
         for key, label in JSON_FIELD_OPTIONS:
             self.json_field_combo.addItem(label, key)
+        self.json_field_combo.currentIndexChanged.connect(self._on_json_field_changed)
         json_field_layout.addWidget(self.json_field_combo, stretch=1)
         json_group_layout.addLayout(json_field_layout)
 
@@ -160,7 +162,7 @@ class SingleGenDebugWidget(QWidget):
         layout.addWidget(self.status_label)
 
         self.preview_label = QLabel("暂无图片")
-        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview_label.setMinimumHeight(360)
         self.preview_label.setStyleSheet("QLabel { background-color: #eee; border: 1px dashed #aaa; }")
         layout.addWidget(self.preview_label)
@@ -199,6 +201,20 @@ class SingleGenDebugWidget(QWidget):
             self._append_log(f"JSON 已加载: {basename} | 当前字段内容为空")
         return True
 
+    def _replace_prompt_with_selected_json_field(self, reason="sync"):
+        text = self._get_selected_field_text()
+        if not text:
+            return False
+        self.prompt_edit.setPlainText(text)
+        field_label = self.json_field_combo.currentText()
+        field_key = str(self.json_field_combo.currentData() or "")
+        self._last_synced_json_field_key = field_key
+        if reason == "field_changed":
+            self._append_log(f"已切换到「{field_label}」，并自动刷新 Prompt（{len(text)} 字符）")
+        else:
+            self._append_log(f"已将「{field_label}」内容同步到 Prompt（{len(text)} 字符）")
+        return True
+
     def _get_selected_field_text(self):
         key = self.json_field_combo.currentData()
         if not self.json_data or not key:
@@ -211,10 +227,17 @@ class SingleGenDebugWidget(QWidget):
             "JSON 文件 (*.json)"
         )
         if file_path:
-            self._load_json_data(file_path)
+            if self._load_json_data(file_path):
+                self._replace_prompt_with_selected_json_field()
 
     def _on_json_file_loaded(self, file_path):
-        self._load_json_data(file_path)
+        if self._load_json_data(file_path):
+            self._replace_prompt_with_selected_json_field()
+
+    def _on_json_field_changed(self, _index):
+        if not self.json_data:
+            return
+        self._replace_prompt_with_selected_json_field(reason="field_changed")
 
     def apply_json_field(self):
         text = self._get_selected_field_text()
@@ -231,7 +254,7 @@ class SingleGenDebugWidget(QWidget):
         self._append_log(f"已将「{field_label}」内容填入 Prompt（{len(text)} 字符）")
 
     def _on_prompt_changed(self):
-        from PyQt5.QtCore import QTimer
+        from PyQt6.QtCore import QTimer
         if hasattr(self, '_save_timer'):
             self._save_timer.stop()
         self._save_timer = QTimer(self)
@@ -427,7 +450,11 @@ class SingleGenDebugWidget(QWidget):
             self._last_image_path = saved_files[0]
             pixmap = QPixmap(self._last_image_path)
             self.preview_label.setPixmap(
-                pixmap.scaled(self.preview_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pixmap.scaled(
+                    self.preview_label.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
             )
             self.status_label.setText(f"生成成功: {self._last_image_path}")
             self._append_log(f"生成完成: {self._last_image_path}")
@@ -442,5 +469,9 @@ class SingleGenDebugWidget(QWidget):
             pixmap = QPixmap(self._last_image_path)
             if not pixmap.isNull():
                 self.preview_label.setPixmap(
-                    pixmap.scaled(self.preview_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    pixmap.scaled(
+                        self.preview_label.size(),
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
                 )

@@ -2,12 +2,12 @@ import os
 import json
 import uuid
 from datetime import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QFileDialog, QLabel, QTextEdit, QMessageBox, QComboBox, 
                              QSplitter, QProgressBar, QSpinBox, QScrollArea, QGridLayout, QFrame,
                              QListWidget, QListWidgetItem, QCheckBox)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QThreadPool, QRunnable, QObject
-from PyQt5.QtGui import QPixmap, QImageReader
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QThreadPool, QRunnable, QObject
+from PyQt6.QtGui import QPixmap, QImageReader
 
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, normalize_upscale_options
@@ -21,14 +21,14 @@ class DropImageLabel(QLabel):
 
     def __init__(self, text="拖入/粘贴/点击选择图片", parent=None):
         super().__init__(text, parent)
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("QLabel { border: 2px dashed #aaa; border-radius: 5px; background-color: #f9f9f9; color: #666; }")
         self.setMinimumSize(150, 150)
         self.setAcceptDrops(True)
         self.image_path = None
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             file_path, _ = QFileDialog.getOpenFileName(self, "选择图片", "", "Images (*.png *.jpg *.jpeg *.webp *.bmp)")
             if file_path:
                 self.set_image(file_path)
@@ -48,7 +48,13 @@ class DropImageLabel(QLabel):
         self.image_path = file_path
         pixmap = QPixmap(file_path)
         if not pixmap.isNull():
-            self.setPixmap(pixmap.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.setPixmap(
+                pixmap.scaled(
+                    self.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
             self.image_changed.emit(file_path)
 
     def clear_image(self):
@@ -68,7 +74,7 @@ class MultiImageDropArea(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         
         self.drop_label = QLabel(f"拖入/粘贴/点击选择其他参考图 (最多{max_images}张)")
-        self.drop_label.setAlignment(Qt.AlignCenter)
+        self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drop_label.setStyleSheet("QLabel { border: 2px dashed #aaa; border-radius: 5px; background-color: #f9f9f9; color: #666; padding: 20px; }")
         self.drop_label.setAcceptDrops(True)
         self.layout.addWidget(self.drop_label)
@@ -78,7 +84,7 @@ class MultiImageDropArea(QWidget):
         self.scroll_area.setMaximumHeight(150)
         self.scroll_widget = QWidget()
         self.scroll_layout = QHBoxLayout(self.scroll_widget)
-        self.scroll_layout.setAlignment(Qt.AlignLeft)
+        self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.scroll_area.setWidget(self.scroll_widget)
         self.layout.addWidget(self.scroll_area)
         
@@ -87,7 +93,7 @@ class MultiImageDropArea(QWidget):
         self.drop_label.dropEvent = self.on_drop
 
     def on_mouse_press(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             files, _ = QFileDialog.getOpenFileNames(self, "选择图片", "", "Images (*.png *.jpg *.jpeg *.webp *.bmp)")
             if files:
                 self.add_images(files)
@@ -119,7 +125,14 @@ class MultiImageDropArea(QWidget):
         
         lbl = QLabel()
         pixmap = QPixmap(file_path)
-        lbl.setPixmap(pixmap.scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        lbl.setPixmap(
+            pixmap.scaled(
+                80,
+                80,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
         vbox.addWidget(lbl)
         
         btn = QPushButton("删除")
@@ -538,9 +551,9 @@ class CharDesignWidget(QWidget):
                     item_text = f"[{p.get('id', 'N/A')}] {p.get('description', '')} (比例: {p.get('aspect_ratio', '1:1')})"
                     item = QListWidgetItem(item_text)
                     item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                    item.setCheckState(Qt.Checked)
+                    item.setCheckState(Qt.CheckState.Checked)
                     # Store prompt data in the item for later use
-                    item.setData(Qt.UserRole, p)
+                    item.setData(Qt.ItemDataRole.UserRole, p)
                     self.task_list_widget.addItem(item)
         except Exception as e:
             self.log_msg(f"加载JSON失败: {e}")
@@ -629,9 +642,9 @@ class CharDesignWidget(QWidget):
         for i in range(self.task_list_widget.count()):
             item = self.task_list_widget.item(i)
             # Only process checked items
-            if item.checkState() == Qt.Checked:
-                selected_prompts.append((i, item.data(Qt.UserRole)))
-                item.setBackground(Qt.white) # Reset color for tasks we are about to run
+            if item.checkState() == Qt.CheckState.Checked:
+                selected_prompts.append((i, item.data(Qt.ItemDataRole.UserRole)))
+                item.setBackground(Qt.GlobalColor.white) # Reset color for tasks we are about to run
                 
         if not selected_prompts:
             QMessageBox.warning(self, "警告", "请至少勾选一个生成任务")
@@ -716,13 +729,13 @@ class CharDesignWidget(QWidget):
         # Find checked items that have failed or haven't been run
         for i in range(self.task_list_widget.count()):
             item = self.task_list_widget.item(i)
-            if item.checkState() == Qt.Checked:
+            if item.checkState() == Qt.CheckState.Checked:
                 # Find corresponding task in results
                 for task in self.results.values():
                     if task.get('list_idx') == i:
                         if task['status'] == 'error':
                             failed_tasks.append(task)
-                            item.setBackground(Qt.white) # Reset color for retry
+                            item.setBackground(Qt.GlobalColor.white) # Reset color for retry
                         break
                 
         if not failed_tasks:
@@ -758,8 +771,8 @@ class CharDesignWidget(QWidget):
         list_idx = task_info.get('list_idx')
         if list_idx is not None and list_idx < self.task_list_widget.count():
             item = self.task_list_widget.item(list_idx)
-            item.setBackground(Qt.green)
-            item.setCheckState(Qt.Unchecked)
+            item.setBackground(Qt.GlobalColor.green)
+            item.setCheckState(Qt.CheckState.Unchecked)
         
         try:
             today_str = datetime.now().strftime("%Y%m%d")
@@ -788,7 +801,7 @@ class CharDesignWidget(QWidget):
             # Update list item color to red
             list_idx = task_info.get('list_idx')
             if list_idx is not None and list_idx < self.task_list_widget.count():
-                self.task_list_widget.item(list_idx).setBackground(Qt.red)
+                self.task_list_widget.item(list_idx).setBackground(Qt.GlobalColor.red)
         
         self.current_batch_completed += 1
         self.update_progress()
@@ -808,13 +821,13 @@ class CharDesignWidget(QWidget):
         """全选所有任务"""
         for i in range(self.task_list_widget.count()):
             item = self.task_list_widget.item(i)
-            item.setCheckState(Qt.Checked)
+            item.setCheckState(Qt.CheckState.Checked)
     
     def deselect_all_tasks(self):
         """全不选所有任务"""
         for i in range(self.task_list_widget.count()):
             item = self.task_list_widget.item(i)
-            item.setCheckState(Qt.Unchecked)
+            item.setCheckState(Qt.CheckState.Unchecked)
 
     def select_missing_tasks_from_output_dir(self):
         """根据输出目录中缺失的图片文件，自动勾选对应任务。"""
@@ -846,7 +859,7 @@ class CharDesignWidget(QWidget):
 
         for i in range(total_count):
             item = self.task_list_widget.item(i)
-            prompt_item = item.data(Qt.UserRole) or {}
+            prompt_item = item.data(Qt.ItemDataRole.UserRole) or {}
             prompt_id = str(prompt_item.get("id", "")).strip()
             if not prompt_id:
                 continue
@@ -865,7 +878,7 @@ class CharDesignWidget(QWidget):
                     break
 
             if not has_image:
-                item.setCheckState(Qt.Checked)
+                item.setCheckState(Qt.CheckState.Checked)
                 missing_count += 1
 
         self.log_msg(

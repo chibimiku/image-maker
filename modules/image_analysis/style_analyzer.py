@@ -6,11 +6,11 @@ from openai import OpenAI
 from utils.task_runtime import append_log_line, set_task_status
 from utils.prompt_loader import read_prompt_file, find_missing_prompt_files
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QTextEdit, QListWidget, QListWidgetItem, QFileDialog, 
                              QMessageBox, QLabel, QAbstractItemView)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt6.QtGui import QIcon, QPixmap
 
 def compress_and_encode_image(image_source, max_dim=2048):
     try:
@@ -126,10 +126,10 @@ class ImageDropListWidget(QListWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
-        self.setViewMode(QListWidget.IconMode)
+        self.setViewMode(QListWidget.ViewMode.IconMode)
         self.setIconSize(QSize(100, 100))
-        self.setResizeMode(QListWidget.Adjust)
-        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -139,7 +139,7 @@ class ImageDropListWidget(QListWidget):
 
     def dragMoveEvent(self, event):
         if event.mimeData().hasUrls():
-            event.setDropAction(Qt.CopyAction)
+            event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
         else:
             event.ignore()
@@ -163,11 +163,11 @@ class ImageDropListWidget(QListWidget):
 
     def add_image_item(self, file_path):
         for i in range(self.count()):
-            if self.item(i).data(Qt.UserRole) == file_path:
+            if self.item(i).data(Qt.ItemDataRole.UserRole) == file_path:
                 return
                 
         item = QListWidgetItem(self)
-        item.setData(Qt.UserRole, file_path) 
+        item.setData(Qt.ItemDataRole.UserRole, file_path) 
         
         filename = os.path.basename(file_path)
         item.setText(self.truncate_text(filename)) # 使用截断后的文件名
@@ -175,7 +175,16 @@ class ImageDropListWidget(QListWidget):
         
         pixmap = QPixmap(file_path)
         if not pixmap.isNull():
-            item.setIcon(QIcon(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)))
+            item.setIcon(
+                QIcon(
+                    pixmap.scaled(
+                        100,
+                        100,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+            )
         self.addItem(item)
 
 
@@ -260,7 +269,10 @@ class StyleAnalyzerWidget(QWidget):
         self.cancel_btn.setEnabled(running and (not cancelling))
 
     def start_analysis(self):
-        image_paths = [self.image_list.item(i).data(Qt.UserRole) for i in range(self.image_list.count())]
+        image_paths = [
+            self.image_list.item(i).data(Qt.ItemDataRole.UserRole)
+            for i in range(self.image_list.count())
+        ]
         missing_prompt_files = get_style_analyzer_missing_prompt_files()
         if missing_prompt_files:
             missing_text = "\n".join(missing_prompt_files)

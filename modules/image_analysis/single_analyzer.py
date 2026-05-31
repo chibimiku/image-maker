@@ -8,12 +8,12 @@ import hashlib
 from openai import OpenAI
 from PIL import Image, ImageGrab
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
                              QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox, QCompleter,
                              QListWidget, QListWidgetItem, QDialog)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QStringListModel
-from PyQt5.QtGui import QPixmap, QImage, QColor, QDesktopServices
-from PyQt5.QtCore import QUrl
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel
+from PyQt6.QtGui import QPixmap, QImage, QColor, QDesktopServices
+from PyQt6.QtCore import QUrl
 
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d 
 from utils.booru_tags import normalize_booru_tags
@@ -804,11 +804,11 @@ class SingleAnalyzerWidget(QWidget):
         
     def initUI(self):
         self.setAcceptDrops(True)
-        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         layout = QVBoxLayout()
 
         self.image_label = QLabel("请将图片拖拽至此，\n或在窗口内按 Ctrl+V 粘贴")
-        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setStyleSheet("QLabel { background-color : #f0f0f0; border: 2px dashed #aaa; font-size: 16px; }")
         self.image_label.setMinimumHeight(220)
         layout.addWidget(self.image_label)
@@ -844,12 +844,12 @@ class SingleAnalyzerWidget(QWidget):
         outfit_style_layout.addWidget(QLabel("服装风格覆盖:"))
         self.outfit_style_combo = QComboBox()
         self.outfit_style_combo.setEditable(True)
-        self.outfit_style_combo.setInsertPolicy(QComboBox.NoInsert)
+        self.outfit_style_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.outfit_style_completer_model = QStringListModel(self)
         self.outfit_style_completer = QCompleter(self.outfit_style_completer_model, self)
-        self.outfit_style_completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self.outfit_style_completer.setFilterMode(Qt.MatchContains)
-        self.outfit_style_completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.outfit_style_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.outfit_style_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.outfit_style_completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         self.outfit_style_combo.setCompleter(self.outfit_style_completer)
         if self.outfit_style_combo.lineEdit() is not None:
             self.outfit_style_combo.lineEdit().setPlaceholderText("留空则不覆盖，例如：维多利亚风格")
@@ -1042,7 +1042,10 @@ class SingleAnalyzerWidget(QWidget):
                 self.log_msg("不支持的文件格式，请拖入图片。")
 
     def keyPressEvent(self, event):
-        if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_V:
+        if (
+            event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            and event.key() == Qt.Key.Key_V
+        ):
             clipboard_img = ImageGrab.grabclipboard()
             if isinstance(clipboard_img, Image.Image):
                 self.image_source = clipboard_img
@@ -1053,7 +1056,13 @@ class SingleAnalyzerWidget(QWidget):
 
     def show_preview(self, filepath):
         pixmap = QPixmap(filepath)
-        self.image_label.setPixmap(pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.image_label.setPixmap(
+            pixmap.scaled(
+                self.image_label.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
         self.send_btn.setEnabled(True)
 
     def show_clipboard_preview(self, pil_image):
@@ -1063,7 +1072,13 @@ class SingleAnalyzerWidget(QWidget):
         image = QImage()
         image.loadFromData(img_byte_arr)
         pixmap = QPixmap.fromImage(image)
-        self.image_label.setPixmap(pixmap.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.image_label.setPixmap(
+            pixmap.scaled(
+                self.image_label.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
         self.send_btn.setEnabled(True)
 
     def _next_thread_no(self, attr_name):
@@ -1123,7 +1138,7 @@ class SingleAnalyzerWidget(QWidget):
         task_id = record["task_id"]
         self._analysis_history[task_id] = record
         item = QListWidgetItem()
-        item.setData(Qt.UserRole, task_id)
+        item.setData(Qt.ItemDataRole.UserRole, task_id)
         self.history_list.insertItem(0, item)
         self._refresh_history_item(task_id)
         self.history_list.setCurrentItem(item)
@@ -1134,7 +1149,7 @@ class SingleAnalyzerWidget(QWidget):
             return
         for row in range(self.history_list.count()):
             item = self.history_list.item(row)
-            if item.data(Qt.UserRole) != task_id:
+            if item.data(Qt.ItemDataRole.UserRole) != task_id:
                 continue
             status_text = record.get("status_text", "未知状态")
             title = str(record.get("title") or "未命名")
@@ -1159,7 +1174,7 @@ class SingleAnalyzerWidget(QWidget):
         item = self.history_list.currentItem()
         if item is None:
             return None
-        task_id = item.data(Qt.UserRole)
+        task_id = item.data(Qt.ItemDataRole.UserRole)
         return self._analysis_history.get(task_id)
 
     def _update_history_action_buttons(self):
@@ -1201,7 +1216,7 @@ class SingleAnalyzerWidget(QWidget):
             QMessageBox.information(self, "提示", "请先在历史分析结果中选择一条记录。")
             return
         dialog = AnalysisHistoryDetailDialog(record, self)
-        dialog.exec_()
+        dialog.exec()
 
     def log_msg(self, text, prefix=None):
         message = "" if text is None else str(text)

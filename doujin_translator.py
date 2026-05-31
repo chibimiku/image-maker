@@ -6,15 +6,16 @@ import time
 from openai import OpenAI
 from PIL import Image
 
-# --- PyQt5 界面相关库 ---
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
+# --- PyQt6 界面相关库 ---
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QTextEdit, QFileDialog, 
                              QListWidget, QListWidgetItem, QCheckBox, 
                              QSpinBox, QSplitter, QLineEdit, QMessageBox,
                              QScrollArea, QGroupBox, QFormLayout)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QSize
-from PyQt5.QtGui import QPixmap
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt6.QtGui import QPixmap
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
+from utils.gui_entry import configure_qt_application_attributes
 
 # --- 读取配置文件 ---
 def load_config():
@@ -289,7 +290,7 @@ class TranslateWorker(QThread):
         self.is_running = False
 
 
-# --- PyQt5 主界面 ---
+# --- PyQt6 主界面 ---
 class AppWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -334,7 +335,7 @@ class AppWindow(QWidget):
 
         main_layout.addLayout(top_layout)
 
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
 
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
@@ -342,7 +343,7 @@ class AppWindow(QWidget):
 
         self.list_widget = QListWidget()
         self.list_widget.setIconSize(QSize(100, 100))
-        self.list_widget.setResizeMode(QListWidget.Adjust)
+        self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.list_widget.itemClicked.connect(self.on_item_clicked)
         left_layout.addWidget(self.list_widget)
 
@@ -378,7 +379,7 @@ class AppWindow(QWidget):
         right_layout.addWidget(self.check_show_translation)
 
         self.lbl_preview_image = QLabel("选择左侧图片进行预览")
-        self.lbl_preview_image.setAlignment(Qt.AlignCenter)
+        self.lbl_preview_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_preview_image.setStyleSheet("background-color: #222; color: white;")
         self.lbl_preview_image.setMinimumSize(400, 300)
         right_layout.addWidget(self.lbl_preview_image, 5) 
@@ -439,7 +440,7 @@ class AppWindow(QWidget):
                 
                 item.setSizeHint(item_widget.sizeHint())
                 self.list_widget.setItemWidget(item, item_widget)
-                item.setData(Qt.UserRole, filepath) 
+                item.setData(Qt.ItemDataRole.UserRole, filepath) 
 
                 base_name = os.path.splitext(filename)[0]
                 json_path = os.path.join(self.current_dir, f"{base_name}_translation.json")
@@ -469,7 +470,7 @@ class AppWindow(QWidget):
             if checkbox: checkbox.setChecked(False)
 
     def on_item_clicked(self, item):
-        self.current_preview_path = item.data(Qt.UserRole)
+        self.current_preview_path = item.data(Qt.ItemDataRole.UserRole)
         self.refresh_preview()
 
     def refresh_preview(self):
@@ -480,7 +481,11 @@ class AppWindow(QWidget):
         
         pixmap = QPixmap(filepath)
         if not pixmap.isNull():
-            scaled_pixmap = pixmap.scaled(self.lbl_preview_image.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            scaled_pixmap = pixmap.scaled(
+                self.lbl_preview_image.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
             self.lbl_preview_image.setPixmap(scaled_pixmap)
 
         while self.scroll_layout.count():
@@ -689,7 +694,7 @@ class AppWindow(QWidget):
             widget = self.list_widget.itemWidget(item)
             checkbox = widget.findChild(QCheckBox)
             if checkbox and checkbox.isChecked():
-                selected_files.append(item.data(Qt.UserRole))
+                selected_files.append(item.data(Qt.ItemDataRole.UserRole))
 
         if not selected_files:
             QMessageBox.warning(self, "警告", "请至少选择一张需要翻译的图片！")
@@ -716,7 +721,7 @@ class AppWindow(QWidget):
         
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            if item.data(Qt.UserRole) == filepath:
+            if item.data(Qt.ItemDataRole.UserRole) == filepath:
                 widget = self.list_widget.itemWidget(item)
                 lbl_name = widget.findChild(QLabel)
                 filename = os.path.basename(filepath)
@@ -735,7 +740,8 @@ class AppWindow(QWidget):
 
 if __name__ == '__main__':
     import sys
+    configure_qt_application_attributes(QApplication, Qt)
     app = QApplication(sys.argv)
     window = AppWindow()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

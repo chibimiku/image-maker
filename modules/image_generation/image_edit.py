@@ -5,11 +5,12 @@ import re
 import traceback
 from functools import partial
 from datetime import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QListWidget, QListWidgetItem, QFileDialog, QLabel, 
-                             QTextEdit, QMessageBox, QComboBox, QSplitter, QProgressBar, QSpinBox, QApplication)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QImageReader
+                             QTextEdit, QMessageBox, QComboBox, QSplitter, QProgressBar, QSpinBox, QApplication,
+                             QAbstractItemView)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QImageReader
 from openai import OpenAI
 
 # 复用已有的工具函数
@@ -121,6 +122,7 @@ class ImageEditWidget(QWidget):
         self.active_workers = {}
         self.results = {}  # 记录处理结果
         self._is_restoring_state = False
+        self._is_initializing = True
         self._pending_main_style = ""
         self._pending_template = ""
         self._md5_cache = {}
@@ -132,6 +134,7 @@ class ImageEditWidget(QWidget):
         self.initUI()
         self.load_prompt_templates()
         self.load_ui_state()
+        self._is_initializing = False
         app = QApplication.instance()
         if app is not None:
             app.aboutToQuit.connect(self._on_app_about_to_quit)
@@ -175,7 +178,7 @@ class ImageEditWidget(QWidget):
         layout.addLayout(top_layout)
         
         # 中间：分割器 (左侧图片列表，右侧提示词编辑和日志)
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # 左侧：图片列表
         left_widget = QWidget()
@@ -195,7 +198,7 @@ class ImageEditWidget(QWidget):
         left_layout.addLayout(btn_layout)
         
         self.image_list = QListWidget()
-        self.image_list.setSelectionMode(QListWidget.ExtendedSelection)
+        self.image_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.image_list.itemChanged.connect(self._update_action_buttons)
         left_layout.addWidget(self.image_list)
         
@@ -285,22 +288,24 @@ class ImageEditWidget(QWidget):
 
             template_name = state.get("template_name")
             if isinstance(template_name, str) and template_name:
-                if self.template_combo.findText(template_name) >= 0:
-                    self.template_combo.setCurrentText(template_name)
+                template_index = self.template_combo.findText(template_name)
+                if template_index >= 0:
+                    self.template_combo.setCurrentIndex(template_index)
                 else:
                     self._pending_template = template_name
 
             style_name = state.get("main_style")
             if isinstance(style_name, str) and style_name:
-                if self.main_style_combo.findText(style_name) >= 0:
-                    self.main_style_combo.setCurrentText(style_name)
+                style_index = self.main_style_combo.findText(style_name)
+                if style_index >= 0:
+                    self.main_style_combo.setCurrentIndex(style_index)
                 else:
                     self._pending_main_style = style_name
         finally:
             self._is_restoring_state = False
 
     def save_ui_state(self):
-        if self._is_restoring_state:
+        if self._is_restoring_state or self._is_initializing:
             return
         state = {
             "thread_count": int(self.thread_spin.value()),
@@ -337,7 +342,7 @@ class ImageEditWidget(QWidget):
             QMessageBox.warning(self, "警告", "提示词不能为空")
             return
             
-        from PyQt5.QtWidgets import QInputDialog
+        from PyQt6.QtWidgets import QInputDialog
         name, ok = QInputDialog.getText(self, "保存模板", "请输入模板名称:")
         if ok and name:
             filepath = os.path.join(PROMPT_DIR, f"{name}.md")
@@ -404,9 +409,9 @@ class ImageEditWidget(QWidget):
                 continue
             self.image_paths.append(norm_path)
             item = QListWidgetItem(os.path.basename(norm_path))
-            item.setData(Qt.UserRole, norm_path)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Unchecked)
+            item.setData(Qt.ItemDataRole.UserRole, norm_path)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Unchecked)
             self.image_list.addItem(item)
             self._cache_md5(norm_path)
             added_count += 1
@@ -553,15 +558,15 @@ class ImageEditWidget(QWidget):
         missing_count = 0
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
-            image_path = item.data(Qt.UserRole)
+            image_path = item.data(Qt.ItemDataRole.UserRole)
             image_md5 = self._cache_md5(image_path).lower()
             is_missing_by_files = image_md5 and image_md5 not in found_md5
             is_missing_by_json = image_md5 and image_md5 in broken_json_md5
             if is_missing_by_files or is_missing_by_json:
-                item.setCheckState(Qt.Checked)
+                item.setCheckState(Qt.CheckState.Checked)
                 missing_count += 1
             else:
-                item.setCheckState(Qt.Unchecked)
+                item.setCheckState(Qt.CheckState.Unchecked)
 
         total = self.image_list.count()
         self.log_msg(
@@ -648,9 +653,9 @@ class ImageEditWidget(QWidget):
         checked_paths = []
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
-            if item.checkState() != Qt.Checked:
+            if item.checkState() != Qt.CheckState.Checked:
                 continue
-            path = item.data(Qt.UserRole)
+            path = item.data(Qt.ItemDataRole.UserRole)
             checked_paths.append(path)
 
         if not checked_paths:
@@ -660,14 +665,14 @@ class ImageEditWidget(QWidget):
         for path in checked_paths:
             if path in self.results:
                 del self.results[path]
-            self.update_item_status(path, Qt.white)
+            self.update_item_status(path, Qt.GlobalColor.white)
         self.log_msg(f"将执行 {len(checked_paths)} 个勾选任务")
         self._start_processing_with_scope(set(checked_paths))
 
     def _get_next_unprocessed_path(self):
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
-            path = item.data(Qt.UserRole)
+            path = item.data(Qt.ItemDataRole.UserRole)
             if self._run_scope_paths is not None and path not in self._run_scope_paths:
                 continue
             if path in self.results or path in self.active_workers:
@@ -680,7 +685,7 @@ class ImageEditWidget(QWidget):
             return
         has_errors = any(status == "error" for status in self.results.values())
         has_checked = any(
-            self.image_list.item(i).checkState() == Qt.Checked
+            self.image_list.item(i).checkState() == Qt.CheckState.Checked
             for i in range(self.image_list.count())
         )
         self.retry_btn.setEnabled(has_errors)
@@ -700,8 +705,8 @@ class ImageEditWidget(QWidget):
                 # 更新UI状态
                 for i in range(self.image_list.count()):
                     item = self.image_list.item(i)
-                    if item.data(Qt.UserRole) == next_path:
-                        item.setBackground(Qt.yellow)
+                    if item.data(Qt.ItemDataRole.UserRole) == next_path:
+                        item.setBackground(Qt.GlobalColor.yellow)
                         self.image_list.scrollToItem(item)
                         break
 
@@ -748,7 +753,7 @@ class ImageEditWidget(QWidget):
 
     def on_worker_finished(self, result_json, image_path):
         self.results[image_path] = "success"
-        self.update_item_status(image_path, Qt.green)
+        self.update_item_status(image_path, Qt.GlobalColor.green)
         self.log_msg(f"处理成功: {os.path.basename(image_path)}")
         
         # 保存结果
@@ -758,7 +763,7 @@ class ImageEditWidget(QWidget):
 
     def on_worker_error(self, error_msg, image_path):
         self.results[image_path] = "error"
-        self.update_item_status(image_path, Qt.red)
+        self.update_item_status(image_path, Qt.GlobalColor.red)
         self.log_msg(f"处理失败: {os.path.basename(image_path)} - {error_msg}")
         
         self.update_progress()
@@ -772,7 +777,7 @@ class ImageEditWidget(QWidget):
     def update_item_status(self, image_path, color):
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
-            if item.data(Qt.UserRole) == image_path:
+            if item.data(Qt.ItemDataRole.UserRole) == image_path:
                 item.setBackground(color)
                 break
 

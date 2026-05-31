@@ -1,6 +1,6 @@
 import datetime
-from PyQt5.QtCore import QObject, QTimer
-from PyQt5.QtWidgets import QSystemTrayIcon, QStyle
+from PyQt6.QtCore import QObject, QTimer
+from PyQt6.QtWidgets import QSystemTrayIcon, QStyle
 
 TRAY_ICON = QStyle.StandardPixmap.SP_ComputerIcon
 MESSAGE_ICON = QSystemTrayIcon.MessageIcon.Information

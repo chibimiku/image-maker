@@ -5,9 +5,9 @@ import os
 from datetime import datetime
 from PIL import Image
 
-from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QTimer
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QGroupBox,
@@ -1027,14 +1027,14 @@ class DiffCgTabWidget(QWidget):
         webui_right_layout.setContentsMargins(0, 0, 0, 0)
         webui_right_layout.addWidget(QLabel("原图预览:"))
         self.preview_input_label = QLabel("原图预览")
-        self.preview_input_label.setAlignment(Qt.AlignCenter)
+        self.preview_input_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview_input_label.setMinimumHeight(220)
         self.preview_input_label.setMinimumWidth(320)
         self.preview_input_label.setStyleSheet("QLabel { border: 1px solid #ccc; background: #f7f7f7; }")
         webui_right_layout.addWidget(self.preview_input_label)
         webui_right_layout.addWidget(QLabel("掩码预览:"))
         self.preview_mask_label = QLabel("掩码预览")
-        self.preview_mask_label.setAlignment(Qt.AlignCenter)
+        self.preview_mask_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview_mask_label.setMinimumHeight(220)
         self.preview_mask_label.setMinimumWidth(320)
         self.preview_mask_label.setStyleSheet("QLabel { border: 1px solid #ccc; background: #f7f7f7; }")
@@ -1285,7 +1285,11 @@ class DiffCgTabWidget(QWidget):
             label_widget.setPixmap(QPixmap())
             return
         label_widget.setPixmap(
-            pix.scaled(label_widget.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix.scaled(
+                label_widget.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         )
         label_widget.setText("")
 

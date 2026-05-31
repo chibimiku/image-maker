@@ -7,13 +7,13 @@
 1. 安装 Python 依赖：
 
 ```bash
-pip install numpy onnxruntime
+pip install -r requirements.txt
 ```
 
 如需运行本地测试，请额外安装：
 
 ```bash
-pip install pytest
+pip install -r requirements-dev.txt
 ```
 
 2. 下载 WD14 模型文件（任选一个系列，如 ConvNextV2）：
@@ -83,6 +83,67 @@ pip install torch spandrel spandrel-extra-arches onnxruntime
 - 如果代码所需的 Prompt 文件缺失，界面或脚本会直接报错并中止，不再使用代码内置默认 Prompt 兜底
 - 目前 `prompts/` 下包含单图分析、画风提取、同人翻译、booru tag 翻译、差分 CG、SD 提示词生成、角色设计和图片编辑等相关模板
 
+## SD 批量工作流
+
+当前 `图片生成 -> SD 批量工作流` 的流程已经调整为“统一走主设置页配置接口，再在工作流页执行任务”。
+
+### 1. 先完成设置
+
+在 `设置` 页中，先准备两类配置：
+
+- `文本分析 API`
+  - 配置常规大模型的 `Base URL`、`API Key`、`分析模型`
+- `文本分析（NSFW）`
+  - 如果题材需要更宽松的分析接口，可单独配置一套 NSFW 专用大模型
+- `SD-WebUI接口配置`
+  - 配置 `SD API URL`
+  - 管理 `配置组`
+  - 为每个配置组设置 `Checkpoint`、`VAE`、`Sampler`、`Scheduler`、`Steps`、`CFG`
+  - 如有需要，可填写 `WebUI 附加 Payload`
+
+说明：
+
+- `SD-WebUI接口配置` 已从 `SD 批量工作流` 页面移出，统一放到 `设置` 中管理
+- 旧的 Cohere 分支已移除，`SD 批量工作流` 现在只复用 `文本分析 API` / `文本分析（NSFW）`
+
+### 2. 再进入 SD 批量工作流
+
+进入 `图片生成 -> SD 批量工作流` 后，按以下顺序操作：
+
+1. 填写 `绘画主题`
+2. 选择 `Prompt 风格预设`
+3. 选择或编辑 `正向模板`
+4. 选择或编辑 `反向模板`
+5. 视需要勾选 `使用文本分析（NSFW）配置`
+6. 视需要勾选 `启用 System Prompt 兼容模式`
+7. 设置：
+   - `大模型请求轮数(Y)`
+   - `单次返回组数(X)`
+   - `附加固定正向提示词`
+   - `附加固定反向提示词`
+8. 点击 `保存配置并开始生成`
+
+### 3. 当前执行逻辑
+
+工作流运行时会按下面的顺序处理：
+
+1. 读取 `prompts/sd-make-system_prompt.md`
+2. 将 `绘画主题 + 正向模板` 发给文本分析大模型
+3. 让大模型一次返回多组差异化的 SD 提示词及尺寸
+4. 把返回结果缓存到 `cache/sd-req/`
+5. 将 `固定正向提示词 + LLM 返回提示词 + 画风预设` 拼成最终正向提示词
+6. 将 `反向模板 + 固定反向提示词` 拼成最终反向提示词
+7. 读取 `设置 -> SD-WebUI接口配置` 中当前选中的配置组
+8. 调用本地 `Stable Diffusion WebUI /sdapi/v1/txt2img`
+9. 将生成图片保存到 `data/<日期>/sdmake/`
+
+### 4. 使用建议
+
+- 先在 `设置 -> SD-WebUI接口配置` 中把常用模型整理成多个配置组，再在工作流里频繁切换主题
+- 如果是普通题材，默认走 `文本分析 API`
+- 只有在确实需要时，再勾选 `使用文本分析（NSFW）配置`
+- 如果 `WebUI 附加 Payload` 填写了 JSON，开始运行前会先校验格式
+
 ## 本地测试
 
 - 已添加 `pytest` 基础测试配置：`pytest.ini`
@@ -95,11 +156,60 @@ pip install torch spandrel spandrel-extra-arches onnxruntime
 - 关键 Prompt 文件是否存在
 - Python 代码中是否还残留 `data/prompts` 引用
 - `prompts/tmp.txt` 是否已清理
+- GUI 入口与 PyQt6 迁移相关的库存检查与 smoke 测试
 
 运行命令：
 
 ```bash
 pytest
+```
+
+## PyQt6 人工冒烟
+
+建议在真实桌面环境下额外做一轮主界面人工冒烟，重点验证 `app.py`。
+
+启动命令：
+
+```powershell
+python app.py
+```
+
+如需跳过启动阶段的 `onnxruntime` 预热，可使用：
+
+```powershell
+$env:IMAGE_MAKER_SKIP_ONNXRUNTIME_PRELOAD=1
+python app.py
+```
+
+建议检查项：
+
+- 主窗口是否正常打开，是否存在启动即崩溃或空白界面
+- 主界面多组 Tab 来回切换是否流畅，是否出现卡死、焦点异常、内容空白
+- `单图分析` 中拖拽本地图片后，预览、按钮状态、日志是否正常更新
+- `单图分析` 中复制图片到剪贴板后按 `Ctrl+V`，预览和日志是否正常更新
+- 托盘通知相关路径在系统托盘可用或不可用时都不应导致程序崩溃
+
+通过标准：
+
+- 不崩溃
+- 拖拽可用
+- 剪贴板粘贴可用
+- 多 Tab 切换可用
+- 托盘通知路径不崩溃
+
+建议记录模板：
+
+```md
+### app.py 人工冒烟记录
+
+- 日期：
+- 环境：Windows 桌面 / 是否跳过 onnxruntime 预热
+- 启动：通过 / 失败
+- 多 Tab 切换：通过 / 异常
+- 单图分析拖拽：通过 / 异常
+- 单图分析剪贴板 Ctrl+V：通过 / 异常
+- 托盘通知：通过 / 不可见但不崩 / 异常
+- 备注：
 ```
 
 ## config-autocomplete.json 配置项（中文）

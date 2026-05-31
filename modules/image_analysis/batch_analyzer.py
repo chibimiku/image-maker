@@ -2,8 +2,8 @@ import os
 import json
 import datetime
 import re
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem, QAbstractItemView, QProgressBar, QSpinBox, QDoubleSpinBox, QCompleter)
-from PyQt5.QtCore import Qt, pyqtSignal, QStringListModel
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem, QAbstractItemView, QProgressBar, QSpinBox, QDoubleSpinBox, QCompleter)
+from PyQt6.QtCore import Qt, pyqtSignal, QStringListModel
 
 from modules.image_analysis.single_analyzer import WorkerThread, ImageGenWorkerThread, get_single_analyzer_missing_prompt_files
 from utils.task_runtime import SystemNotifier, TaskCountdown
@@ -86,7 +86,7 @@ class BatchAnalyzerWidget(QWidget):
         list_layout.addWidget(QLabel("已添加的图片:"))
         
         self.image_list = QListWidget()
-        self.image_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.image_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.image_list.setMinimumHeight(150)
         list_layout.addWidget(self.image_list)
         
@@ -123,12 +123,12 @@ class BatchAnalyzerWidget(QWidget):
         outfit_style_layout.addWidget(QLabel("服装风格覆盖:"))
         self.outfit_style_combo = QComboBox()
         self.outfit_style_combo.setEditable(True)
-        self.outfit_style_combo.setInsertPolicy(QComboBox.NoInsert)
+        self.outfit_style_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.outfit_style_completer_model = QStringListModel(self)
         self.outfit_style_completer = QCompleter(self.outfit_style_completer_model, self)
-        self.outfit_style_completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self.outfit_style_completer.setFilterMode(Qt.MatchContains)
-        self.outfit_style_completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.outfit_style_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.outfit_style_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.outfit_style_completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         self.outfit_style_combo.setCompleter(self.outfit_style_completer)
         if self.outfit_style_combo.lineEdit() is not None:
             self.outfit_style_combo.lineEdit().setPlaceholderText("留空则不覆盖，例如：维多利亚风格")
@@ -247,7 +247,7 @@ class BatchAnalyzerWidget(QWidget):
         layout.addWidget(self.retry_failed_btn)
 
         self.failed_list = QListWidget()
-        self.failed_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.failed_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.failed_list.setMinimumHeight(80)
         layout.addWidget(QLabel("失败文件列表:"))
         layout.addWidget(self.failed_list)

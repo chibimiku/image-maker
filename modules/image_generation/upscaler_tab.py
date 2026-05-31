@@ -1,8 +1,8 @@
 import os
 import importlib
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
@@ -52,13 +52,13 @@ class UpscalerTabWidget(QWidget):
         main_layout = QVBoxLayout()
 
         drag_label = QLabel("请将图片拖拽至此（支持多图），输出为同名 -fixed.png")
-        drag_label.setAlignment(Qt.AlignCenter)
+        drag_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         drag_label.setStyleSheet("QLabel { background-color: #f0f0f0; border: 2px dashed #aaa; padding: 16px; }")
         drag_label.setMinimumHeight(88)
         main_layout.addWidget(drag_label)
 
         self.image_list = QListWidget()
-        self.image_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.image_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.image_list.setMinimumHeight(140)
         main_layout.addWidget(self.image_list)
 

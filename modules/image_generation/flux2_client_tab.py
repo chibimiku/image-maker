@@ -3,9 +3,9 @@ import json
 import os
 from datetime import datetime
 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QKeySequence, QPixmap
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QPixmap, QShortcut
+from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
     QDoubleSpinBox,
@@ -18,7 +18,6 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
-    QShortcut,
     QSpinBox,
     QTextEdit,
     QVBoxLayout,
@@ -38,7 +37,7 @@ class ImageDropLabel(QLabel):
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumHeight(180)
         self.setStyleSheet(
             "QLabel { border: 2px dashed #999; background: #fafafa; color: #666; padding: 8px; }"
@@ -256,7 +255,7 @@ class Flux2ClientWidget(QWidget):
         layout.addWidget(self.log_text)
 
         self.result_preview = QLabel("暂无返回图片")
-        self.result_preview.setAlignment(Qt.AlignCenter)
+        self.result_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.result_preview.setMinimumHeight(220)
         self.result_preview.setStyleSheet("QLabel { border: 1px solid #ccc; background: #f7f7f7; }")
         layout.addWidget(self.result_preview)
@@ -423,7 +422,11 @@ class Flux2ClientWidget(QWidget):
             self.drop_area.setText("图片加载失败")
         else:
             self.drop_area.setPixmap(
-                pix.scaled(self.drop_area.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pix.scaled(
+                    self.drop_area.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
             )
 
     def resizeEvent(self, event):
@@ -515,14 +518,22 @@ class Flux2ClientWidget(QWidget):
                     pix = QPixmap()
                     pix.loadFromData(raw, "PNG")
                     self.result_preview.setPixmap(
-                        pix.scaled(self.result_preview.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                        pix.scaled(
+                            self.result_preview.size(),
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
                     )
                 except Exception:
                     self.result_preview.setText("base64 预览失败")
             elif file_path and os.path.isfile(file_path):
                 pix = QPixmap(file_path)
                 self.result_preview.setPixmap(
-                    pix.scaled(self.result_preview.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    pix.scaled(
+                        self.result_preview.size(),
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
                 )
             else:
                 self.result_preview.setText("无可预览图片")

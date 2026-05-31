@@ -1,33 +1,15 @@
-"""
-pythonw 兼容: pythonw.exe 无控制台窗口，stdout/stderr 写入匿名管道。
-当 onnxruntime 等底层库初始化 NPU 硬件 provider 时，
-大量 stderr 诊断输出会撑爆 Windows 管道缓冲区(4KB)导致永久阻塞。
-因此必须在任何可能产生输出的 import 之前将 stdout/stderr 重定向到 os.devnull。
-"""
-import sys as _sys
-import os as _os
-if getattr(_sys, 'frozen', False):
-    _sys.stdout = open(_os.devnull, 'w')
-    _sys.stderr = open(_os.devnull, 'w')
-else:
-    _exe = _sys.executable.lower()
-    if 'pythonw' in _exe:
-        _sys.stdout = open(_os.devnull, 'w')
-        _sys.stderr = open(_os.devnull, 'w')
-
 import os
 import json
 import hashlib
 import datetime
-import importlib
-try:
-    importlib.import_module("onnxruntime")
-except Exception:
-    pass
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
+from utils.gui_entry import redirect_stdio_for_windows_gui_entry, warm_up_optional_module
+
+redirect_stdio_for_windows_gui_entry()
+warm_up_optional_module("onnxruntime", skip_env_var="IMAGE_MAKER_SKIP_ONNXRUNTIME_PRELOAD")
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
                              QLabel, QPushButton, QTextEdit, QLineEdit, QInputDialog,
                              QComboBox, QFormLayout, QMessageBox, QTabWidget, QCheckBox)
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 from openai import OpenAI
 
 # 引入抽离出去的独立组件
@@ -41,13 +23,13 @@ from modules.image_analysis.batch_analyzer import BatchAnalyzerWidget
 from modules.image_generation.image_edit import ImageEditWidget
 # 【新增】引入角色设计组件
 from modules.image_generation.char_design import CharDesignWidget
-from modules.image_generation.z_image_edit_tab import ZImageEditWidget
 from modules.image_analysis.pic_cate_tab import PicCateWidget
 from modules.image_analysis.json_dataset_tab import JsonDatasetWidget
 from modules.image_generation.webp_compressor import DragDropCompressor
 from modules.image_generation.flux2_client_tab import Flux2ClientWidget
 from modules.image_generation.upscaler_tab import UpscalerTabWidget
 from modules.image_generation.single_gen_debug_tab import SingleGenDebugWidget
+from modules.image_generation.sd_workflow_tab import SdWebuiSettingsWidget, SdWorkflowWidget
 from modules.others.booru_tag_generator import BooruTagGeneratorWidget
 from modules.image_generation.diff_cg_tab import DiffCgTabWidget
 from utils.image_upscale_runtime import normalize_upscale_options
@@ -217,7 +199,8 @@ class AppWindow(QWidget):
             ar_policy_getter_func=self.get_ar_policy_config
         )
         self.single_gen_debug_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
-        self.z_image_edit_tab = ZImageEditWidget()
+        # z-image 当前默认不展示，避免主窗口启动时提前触发重型环境探测
+        self.z_image_edit_tab = None
 
         # 【Tab 2: 多图画风提取】
         self.style_analyzer_tab = StyleAnalyzerWidget(
@@ -238,6 +221,14 @@ class AppWindow(QWidget):
             options_changed_callback=self.update_upscale_options
         )
         self.flux2_client_tab = Flux2ClientWidget()
+        self.sd_webui_settings_tab = SdWebuiSettingsWidget()
+        self.sd_workflow_tab = SdWorkflowWidget(
+            text_config_getter_func=self.get_text_config,
+            sd_webui_settings_getter_func=self.get_sd_webui_settings,
+            styles_getter_func=lambda: self.styles_data,
+            current_style_name_getter_func=lambda: self.last_used_style,
+            style_changed_callback=self.sync_selected_style,
+        )
         self.diff_cg_tab = DiffCgTabWidget(
             text_config_getter_func=self.get_text_config
         )
@@ -271,6 +262,7 @@ class AppWindow(QWidget):
         self.generation_tabs.addTab(self.compressor_tab, "PNG/WebP压缩")
         self.generation_tabs.addTab(self.upscaler_tab, "图片Upscaler")
         self.generation_tabs.addTab(self.flux2_client_tab, "WebUI Img2Img")
+        self.generation_tabs.addTab(self.sd_workflow_tab, "SD 批量工作流")
         self.generation_tabs.addTab(self.diff_cg_tab, "差分CG生成")
 
         self.others_tabs.addTab(self.booru_tag_generator_tab, "生成booru-tag")
@@ -289,7 +281,7 @@ class AppWindow(QWidget):
         text_layout.addRow("Base URL:", self.url_input)
         
         self.key_input = QLineEdit()
-        self.key_input.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+        self.key_input.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         text_layout.addRow("API Key:", self.key_input)
         
         model_layout = QHBoxLayout()
@@ -319,7 +311,7 @@ class AppWindow(QWidget):
         text_nsfw_layout.addRow("Base URL:", self.nsfw_url_input)
 
         self.nsfw_key_input = QLineEdit()
-        self.nsfw_key_input.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+        self.nsfw_key_input.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         self.nsfw_key_input.editingFinished.connect(lambda: self.save_text_config(silent=True))
         text_nsfw_layout.addRow("API Key:", self.nsfw_key_input)
 
@@ -354,7 +346,7 @@ class AppWindow(QWidget):
         image_layout.addRow("Base URL:", self.img_url_input)
         
         self.img_key_input = QLineEdit()
-        self.img_key_input.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+        self.img_key_input.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         image_layout.addRow("API Key:", self.img_key_input)
         
         self.img_model_combo = QComboBox()
@@ -455,6 +447,7 @@ class AppWindow(QWidget):
         self.config_tabs.addTab(tab_text, "文本分析 API")
         self.config_tabs.addTab(tab_text_nsfw, "文本分析（NSFW）")
         self.config_tabs.addTab(tab_image, "图片生成 API")
+        self.config_tabs.addTab(self.sd_webui_settings_tab, "SD-WebUI接口配置")
         self.config_tabs.addTab(tab_style, "画风预设管理")
 
         settings_layout = QVBoxLayout()
@@ -468,6 +461,23 @@ class AppWindow(QWidget):
         self.setLayout(main_layout)
 
     def get_text_config(self, use_nsfw=False):
+        if not hasattr(self, "url_input") or not hasattr(self, "model_combo"):
+            try:
+                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+            except Exception:
+                config = {}
+            if use_nsfw:
+                return (
+                    str(config.get("nsfw_base_url", config.get("base_url", "")) or "").strip(),
+                    str(config.get("nsfw_api_key", "") or "").strip(),
+                    str(config.get("nsfw_model", config.get("model", "")) or "").strip(),
+                )
+            return (
+                str(config.get("base_url", "") or "").strip(),
+                str(config.get("api_key", "") or "").strip(),
+                str(config.get("model", "") or "").strip(),
+            )
         if use_nsfw:
             return (
                 self.nsfw_url_input.text().strip(),
@@ -485,6 +495,11 @@ class AppWindow(QWidget):
             return int(self.booru_tag_limit_spin.value())
         except Exception:
             return DEFAULT_BOORU_TAG_LIMIT
+
+    def get_sd_webui_settings(self):
+        if hasattr(self, "sd_webui_settings_tab"):
+            return self.sd_webui_settings_tab.get_settings()
+        return {}
 
     def get_request_timeout_seconds(self):
         try:
@@ -578,7 +593,15 @@ class AppWindow(QWidget):
         self.last_used_style = style_name
         
         # 阻断信号避免死循环
-        for combo in [self.single_analyzer_tab.main_style_combo, self.prompt_generator_tab.main_style_combo, self.batch_analyzer_tab.main_style_combo, self.image_edit_tab.main_style_combo, self.char_design_tab.main_style_combo, self.single_gen_debug_tab.main_style_combo]:
+        for combo in [
+            self.single_analyzer_tab.main_style_combo,
+            self.prompt_generator_tab.main_style_combo,
+            self.batch_analyzer_tab.main_style_combo,
+            self.image_edit_tab.main_style_combo,
+            self.char_design_tab.main_style_combo,
+            self.single_gen_debug_tab.main_style_combo,
+            self.sd_workflow_tab.style_combo,
+        ]:
             if combo.currentText() != style_name:
                 combo.blockSignals(True)
                 combo.setCurrentText(style_name)
@@ -783,6 +806,8 @@ class AppWindow(QWidget):
             self.single_gen_debug_tab.update_styles(keys)
             if self.last_used_style in keys:
                 self.single_gen_debug_tab.main_style_combo.setCurrentText(self.last_used_style)
+        if hasattr(self, 'sd_workflow_tab'):
+            self.sd_workflow_tab.update_styles(keys, self.last_used_style)
 
     def on_manage_style_changed(self, style_name):
         if style_name in self.styles_data:
@@ -819,8 +844,14 @@ class AppWindow(QWidget):
         if not style_name or style_name == "默认(无附加)":
             QMessageBox.warning(self, "提示", "无法删除默认预设！")
             return
-        reply = QMessageBox.question(self, '确认删除', f"确定要删除 '{style_name}' 吗？", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
+        reply = QMessageBox.question(
+            self,
+            '确认删除',
+            f"确定要删除 '{style_name}' 吗？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
             del self.styles_data[style_name]
             self.save_styles_to_disk()
 
@@ -1123,4 +1154,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = AppWindow()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

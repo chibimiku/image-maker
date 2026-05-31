@@ -1,0 +1,20 @@
+# Core GUI and API runtime
+PyQt6>=6.7,<7
+openai>=1.0,<2
+requests>=2.31,<3
+Pillow>=10,<12
+
+# Common numeric / image runtime
+numpy>=1.26,<3
+opencv-python>=4.9,<5
+onnxruntime>=1.18,<2
+
+# Optional local inference / upscale runtime
+# Required by z-image, local upscale, or some heavy image processing paths.
+torch>=2.2,<3
+diffusers>=0.30,<1
+transformers>=4.44,<5
+huggingface-hub>=0.24,<1
+spandrel>=0.4,<1
+spandrel-extra-arches>=0.2,<1
+Wand>=0.6,<1

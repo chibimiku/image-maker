@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from PIL import Image
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 
 from utils.local_inference_guard import acquire_local_onnx_inference_lock
 from utils.upscaler import ExtrasUpscalePipeline, UpscalerHandle

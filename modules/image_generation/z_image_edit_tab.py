@@ -7,12 +7,12 @@ import traceback
 import inspect
 from datetime import datetime
 from PIL import Image
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QListWidget, QListWidgetItem,
     QFileDialog, QLabel, QTextEdit, QMessageBox, QLineEdit, QProgressBar,
-    QSpinBox, QDoubleSpinBox
+    QSpinBox, QDoubleSpinBox, QAbstractItemView
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 
 DEFAULT_PROMPTS = [
@@ -407,7 +407,7 @@ class ZImageEditWidget(QWidget):
         left_layout.addLayout(btn_row)
 
         self.image_list = QListWidget()
-        self.image_list.setSelectionMode(QListWidget.ExtendedSelection)
+        self.image_list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         left_layout.addWidget(self.image_list)
         body_layout.addLayout(left_layout, stretch=1)
 
@@ -527,7 +527,7 @@ class ZImageEditWidget(QWidget):
             if file_path not in self.image_paths:
                 self.image_paths.append(file_path)
                 item = QListWidgetItem(os.path.basename(file_path))
-                item.setData(Qt.UserRole, file_path)
+                item.setData(Qt.ItemDataRole.UserRole, file_path)
                 self.image_list.addItem(item)
         self.log(f"已添加 {len(files)} 张图片")
 

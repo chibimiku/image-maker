@@ -7,18 +7,19 @@ import threading
 import logging
 from io import BytesIO
 
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
                              QPushButton, QTextEdit, QLabel, QTabWidget, 
                              QScrollArea, QComboBox, QLineEdit, QCheckBox, 
                              QMessageBox, QGridLayout, QFileDialog,
                              QDialog, QFormLayout, QListWidget, QListWidgetItem, QAbstractItemView,
                              QSizePolicy, QInputDialog)
-from PyQt5.QtCore import pyqtSignal, QObject, Qt, QSize
-from PyQt5.QtGui import QPixmap, QIcon, QImage
+from PyQt6.QtCore import pyqtSignal, QObject, Qt, QSize
+from PyQt6.QtGui import QPixmap, QIcon, QImage
 
 from PIL import Image
 # 导入我们独立出去的 API 请求模块
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d, get_api_config, load_config
+from utils.gui_entry import configure_qt_application_attributes
 
 # ================== 初始化目录与日志 ==================
 os.makedirs("log", exist_ok=True)
@@ -101,7 +102,7 @@ class APIConfigDialog(QDialog):
         layout = QVBoxLayout()
         form_layout = QFormLayout()
         self.api_key_input = QLineEdit()
-        self.api_key_input.setEchoMode(QLineEdit.PasswordEchoOnEdit)
+        self.api_key_input.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         form_layout.addRow("API Key:", self.api_key_input)
         self.base_url_input = QLineEdit()
         self.base_url_input.setPlaceholderText("API Base URL")
@@ -165,11 +166,11 @@ class HistoryManagerDialog(QDialog):
     def initUI(self):
         layout = QVBoxLayout()
         self.list_widget = QListWidget()
-        self.list_widget.setViewMode(QListWidget.IconMode)
+        self.list_widget.setViewMode(QListWidget.ViewMode.IconMode)
         self.list_widget.setIconSize(QSize(100, 100))
-        self.list_widget.setResizeMode(QListWidget.Adjust)
+        self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
         self.list_widget.setSpacing(10)
-        self.list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.list_widget.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.list_widget.itemDoubleClicked.connect(self.on_item_double_clicked)
         layout.addWidget(self.list_widget)
 
@@ -197,16 +198,16 @@ class HistoryManagerDialog(QDialog):
             if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
                 path = os.path.join(self.history_dir, filename)
                 item = QListWidgetItem(QIcon(path), filename)
-                item.setData(Qt.UserRole, path)
+                item.setData(Qt.ItemDataRole.UserRole, path)
                 self.list_widget.addItem(item)
 
     def on_item_double_clicked(self, item):
-        self.selected_path = item.data(Qt.UserRole)
+        self.selected_path = item.data(Qt.ItemDataRole.UserRole)
         self.accept()
     def select_and_close(self):
         item = self.list_widget.currentItem()
         if item:
-            self.selected_path = item.data(Qt.UserRole)
+            self.selected_path = item.data(Qt.ItemDataRole.UserRole)
             self.accept()
         else:
             QMessageBox.warning(self, "提示", "请先选中一张图片。")
@@ -214,26 +215,31 @@ class HistoryManagerDialog(QDialog):
         item = self.list_widget.currentItem()
         if item:
             try:
-                os.remove(item.data(Qt.UserRole))
+                os.remove(item.data(Qt.ItemDataRole.UserRole))
                 self.list_widget.takeItem(self.list_widget.row(item))
             except Exception as e:
                 QMessageBox.warning(self, "错误", f"删除失败: {e}")
     def clear_all(self):
-        if QMessageBox.question(self, '确认', '确定清空所有图片吗？', QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+        if QMessageBox.question(
+            self,
+            '确认',
+            '确定清空所有图片吗？',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes:
             for filename in os.listdir(self.history_dir):
                 os.remove(os.path.join(self.history_dir, filename))
             self.list_widget.clear()
 
 # ================== UI 核心组件 ==================
-# 请在文件顶部的 PyQt5.QtWidgets 导入列表中补充 QFileDialog
-from PyQt5.QtWidgets import QFileDialog
+# 请在文件顶部的 PyQt6.QtWidgets 导入列表中补充 QFileDialog
+from PyQt6.QtWidgets import QFileDialog
 
 class DropImageLabel(QLabel):
     imageChanged = pyqtSignal(str)
     
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
-        self.setAlignment(Qt.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("border: 1px dashed #aaa; background-color: transparent; color: #888; font-size: 10px;")
         self.setFixedSize(80, 80)
         
@@ -257,7 +263,7 @@ class DropImageLabel(QLabel):
 
     # 【修复 Bug 2】增加点击事件，弹出文件选择框
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             file_path, _ = QFileDialog.getOpenFileName(
                 self, "选择图片", "", "Images (*.png *.jpg *.jpeg *.webp)"
             )
@@ -287,7 +293,12 @@ class DropImageLabel(QLabel):
 
         self.current_image_path = file_path
         pixmap = QPixmap(file_path)
-        scaled_pixmap = pixmap.scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scaled_pixmap = pixmap.scaled(
+            80,
+            80,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
         self.setPixmap(scaled_pixmap)
         self.setStyleSheet("border: none; background-color: transparent;")
         self.imageChanged.emit(file_path)
@@ -307,11 +318,11 @@ class ImageSlotWidget(QWidget):
         self.history_dir = os.path.join("cache", "history", category_name)
         os.makedirs(self.history_dir, exist_ok=True)
         
-        self.setFocusPolicy(Qt.ClickFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.setObjectName("SlotWidget")
 
         # 【关键修复】：允许自定义 QWidget 应用背景和边框样式
-        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         # 默认加上 2px 透明边框，防止高亮时组件大小变化导致 UI 抖动
         self.setStyleSheet("#SlotWidget { background-color: #f5f5f5; border-radius: 4px; border: 2px solid transparent; }")
 
@@ -326,7 +337,7 @@ class ImageSlotWidget(QWidget):
         
         self.title_label = QLabel(f"<b style='font-size:11px;'>{category_name}</b>")
         # 【修复 Bug 1】让鼠标点击穿透文本标签，使整个 Slot 获取焦点以支持 Ctrl+V
-        self.title_label.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         title_layout.addWidget(self.title_label)
         title_layout.addStretch()
         
@@ -347,7 +358,7 @@ class ImageSlotWidget(QWidget):
 
         # ... (保留原有的 image_label, prompt_input, save_cb 初始化代码) ...
         self.image_label = DropImageLabel(f"点击/粘贴\n添加图片")
-        layout.addWidget(self.image_label, alignment=Qt.AlignCenter)
+        layout.addWidget(self.image_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.prompt_input = QLineEdit()
         self.prompt_input.setPlaceholderText("附加描述")
@@ -365,7 +376,7 @@ class ImageSlotWidget(QWidget):
     # 补充唤起历史弹窗的方法
     def open_history_dialog(self):
         dialog = HistoryManagerDialog(self.category_name, self.history_dir, self)
-        if dialog.exec_() == QDialog.Accepted and dialog.selected_path:
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.selected_path:
             self.image_label.set_image(dialog.selected_path)
 
     # 获取焦点时高亮边框和底色
@@ -380,7 +391,10 @@ class ImageSlotWidget(QWidget):
 
     # 支持 Ctrl+V 粘贴
     def keyPressEvent(self, event):
-        if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_V:
+        if (
+            event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            and event.key() == Qt.Key.Key_V
+        ):
             clipboard = QApplication.clipboard()
             if clipboard.mimeData().hasImage():
                 image = clipboard.image()
@@ -456,10 +470,10 @@ class CyberNikiTab(QWidget):
         # 中间预览
         center_layout = QVBoxLayout()
         self.preview_label = QLabel("产出结果预览")
-        self.preview_label.setAlignment(Qt.AlignCenter)
+        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview_label.setStyleSheet("border: 1px solid #ccc; background-color: #fff;")
         self.preview_label.setMinimumSize(250, 350)
-        self.preview_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored) 
+        self.preview_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored) 
         self.preview_label.setScaledContents(True)
         center_layout.addWidget(self.preview_label, 1)
         
@@ -529,7 +543,7 @@ class CyberNikiTab(QWidget):
         
         edit_config_btn = QPushButton("⚙️ 编辑 API 配置")
         edit_config_btn.setStyleSheet("font-size: 11px;")
-        edit_config_btn.clicked.connect(lambda: APIConfigDialog(self).exec_())
+        edit_config_btn.clicked.connect(lambda: APIConfigDialog(self).exec())
         bottom_config_layout.addWidget(edit_config_btn)
         config_layout.addLayout(bottom_config_layout)
 
@@ -777,9 +791,8 @@ class ImageGeneratorGUI(QWidget):
         super().closeEvent(event)
 
 if __name__ == '__main__':
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    configure_qt_application_attributes(QApplication, Qt)
     app = QApplication(sys.argv)
     gui = ImageGeneratorGUI()
     gui.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

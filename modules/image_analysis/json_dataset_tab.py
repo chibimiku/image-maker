@@ -1,8 +1,8 @@
 import os
 import json
 import shutil
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit, QFileDialog, QMessageBox, QLabel, QListWidget, QListWidgetItem, QAbstractItemView
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLineEdit, QPushButton, QTextEdit, QFileDialog, QMessageBox, QLabel, QListWidget, QListWidgetItem, QAbstractItemView
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from utils.task_runtime import append_log_line, set_task_status
 
 
@@ -158,7 +158,7 @@ class JsonFileDropListWidget(QListWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
-        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -181,22 +181,23 @@ class JsonFileDropListWidget(QListWidget):
         event.acceptProposedAction()
 
     def add_json_files(self, file_paths):
-        existing = {self.item(i).data(Qt.UserRole) for i in range(self.count())}
+        existing = {self.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.count())}
         added_count = 0
         for path in file_paths:
-            if not path:
+            norm_path = os.path.normpath(str(path))
+            if not norm_path:
                 continue
-            if os.path.isfile(path) and path.lower().endswith(".json") and path not in existing:
-                item = QListWidgetItem(os.path.basename(path))
-                item.setToolTip(path)
-                item.setData(Qt.UserRole, path)
+            if os.path.isfile(norm_path) and norm_path.lower().endswith(".json") and norm_path not in existing:
+                item = QListWidgetItem(os.path.basename(norm_path))
+                item.setToolTip(norm_path)
+                item.setData(Qt.ItemDataRole.UserRole, norm_path)
                 self.addItem(item)
-                existing.add(path)
+                existing.add(norm_path)
                 added_count += 1
         return added_count
 
     def get_all_paths(self):
-        return [self.item(i).data(Qt.UserRole) for i in range(self.count())]
+        return [self.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.count())]
 
 
 class JsonDatasetWidget(QWidget):

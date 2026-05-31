@@ -1,10 +1,11 @@
 import sys
 import os
 import io
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, 
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, 
                              QLineEdit, QPushButton, QFileDialog, QMessageBox)
-from PyQt5.QtCore import Qt, QObject, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
 from PIL import Image
+from utils.gui_entry import configure_qt_application_attributes
 
 
 def compress_image_to_webp_best_quality(input_path, target_mb, output_path=None, max_iters=10):
@@ -141,7 +142,7 @@ class DragDropCompressor(QWidget):
 
         # 拖拽提示区域
         self.drop_label = QLabel('请将图片拖拽到此窗口内\n(支持 JPG, PNG, BMP 等常见格式)')
-        self.drop_label.setAlignment(Qt.AlignCenter)
+        self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drop_label.setStyleSheet("""
             QLabel {
                 border: 2px dashed #aaa;
@@ -200,7 +201,7 @@ class DragDropCompressor(QWidget):
         if running:
             self.drop_label.setText("处理中，请稍候...\n(处理完成后会弹窗提示)")
             self.status_label.setText("状态: 处理中 0/0")
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         else:
             self.drop_label.setText("请将图片拖拽到此窗口内\n(支持 JPG, PNG, BMP 等常见格式)")
             self.status_label.setText("状态: 空闲")
@@ -266,7 +267,8 @@ class DragDropCompressor(QWidget):
         self.worker_thread = None
 
 if __name__ == '__main__':
+    configure_qt_application_attributes(QApplication, Qt)
     app = QApplication(sys.argv)
     ex = DragDropCompressor()
     ex.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
