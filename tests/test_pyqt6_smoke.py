@@ -1,5 +1,6 @@
 import importlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 
@@ -152,9 +153,298 @@ def test_app_window_contains_sd_workflow_tab(qapp):
     setting_labels = [window.config_tabs.tabText(i) for i in range(window.config_tabs.count())]
     assert "SD-WebUI接口配置" in setting_labels
     assert hasattr(window.sd_workflow_tab, "use_nsfw_text_api_cb")
+    assert hasattr(window.sd_workflow_tab, "story_page_count_input")
+    assert hasattr(window.sd_workflow_tab, "story_prompt_preset_combo")
+    assert hasattr(window.sd_workflow_tab, "story_prompt_min_words_input")
+    assert hasattr(window.sd_workflow_tab, "story_prompt_keyword_count_input")
+    assert hasattr(window.sd_workflow_tab, "story_no_appearance_description_cb")
+    assert hasattr(window.sd_workflow_tab, "story_no_outfit_description_cb")
+    assert hasattr(window.sd_workflow_tab, "open_payload_editor_btn")
+    assert hasattr(window.sd_workflow_tab, "webui_extra_payload_summary_label")
+    assert hasattr(window.sd_workflow_tab, "load_story_file_btn")
+    assert hasattr(window.sd_workflow_tab, "render_story_btn")
+    assert hasattr(window.sd_workflow_tab, "open_story_preview_btn")
     assert not hasattr(window.sd_workflow_tab, "use_cohere_cb")
+    assert not hasattr(window.sd_webui_settings_tab, "extra_payload_input")
     assert window.sd_workflow_tab.style_combo.currentText() == window.last_used_style
     window.close()
+
+
+def test_story_sequence_editor_table_and_preview(qapp, tmp_path):
+    story_path = tmp_path / "story-sequence.json"
+    story_payload = {
+        "theme": "测试主题",
+        "title_zh": "中文标题",
+        "title_en": "English Title",
+        "pages": [
+            {
+                "page": 1,
+                "title_zh": "第一页",
+                "title_en": "Page One",
+                "prompt_zh": "中文提示词一",
+                "prompt_en": "english prompt one",
+                "width": 768,
+                "height": 1024,
+            },
+            {
+                "page": 2,
+                "title_zh": "第二页",
+                "title_en": "Page Two",
+                "prompt_zh": "中文提示词二",
+                "prompt_en": "english prompt two",
+                "width": 832,
+                "height": 1216,
+            },
+        ],
+    }
+    story_path.write_text(json.dumps(story_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    dialog = sd_workflow_module.StorySequenceEditorDialog(str(story_path))
+    dialog.show()
+    qapp.processEvents()
+
+    assert dialog.table.rowCount() == 2
+    assert dialog.theme_input.text() == "测试主题"
+    assert dialog.preview_zh.toPlainText() == "中文提示词一"
+
+    dialog.table.selectRow(1)
+    qapp.processEvents()
+    assert dialog.preview_en.toPlainText() == "english prompt two"
+
+    dialog.table.item(1, 4).setText("updated english prompt")
+    normalized = dialog.get_normalized_data()
+    assert normalized["pages"][1]["prompt_en"] == "updated english prompt"
+    dialog.close()
+
+
+def test_story_sequence_preview_dialog_loads_pages(qapp, tmp_path):
+    story_path = tmp_path / "story-preview.json"
+    story_payload = {
+        "theme": "预览主题",
+        "title_zh": "预览标题",
+        "title_en": "Preview Title",
+        "pages": [
+            {
+                "page": 1,
+                "title_zh": "预览第一页",
+                "title_en": "Preview One",
+                "prompt_zh": "预览中文提示词",
+                "prompt_en": "preview english prompt",
+                "width": 768,
+                "height": 1024,
+            }
+        ],
+    }
+    story_path.write_text(json.dumps(story_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    dialog = sd_workflow_module.StorySequencePreviewDialog(str(story_path))
+    dialog.show()
+    qapp.processEvents()
+
+    assert dialog.page_list.count() == 1
+    assert "预览第一页" in dialog.page_list.item(0).text()
+    assert dialog.zh_preview.toPlainText() == "预览中文提示词"
+    assert dialog.en_preview.toPlainText() == "preview english prompt"
+    dialog.close()
+
+
+def test_fetch_llm_reply_with_continuation_concatenates_length_responses(monkeypatch):
+    responses = [
+        {
+            "choices": [
+                {
+                    "message": {"content": '{"page":1,"title_en":"Page 1","title_zh":"第一页","prompt_en":"first half '},
+                    "finish_reason": "length",
+                }
+            ]
+        },
+        {
+            "choices": [
+                {
+                    "message": {"content": 'second half","prompt_zh":"中文","width":768,"height":1024}'},
+                    "finish_reason": "stop",
+                }
+            ]
+        },
+    ]
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_post(*args, **kwargs):
+        return FakeResponse(responses.pop(0))
+
+    monkeypatch.setattr(sd_workflow_module.requests, "post", fake_post)
+    reply_text = sd_workflow_module.fetch_llm_reply_with_continuation(
+        base_url="http://example.com/v1",
+        api_key="test-key",
+        model="test-model",
+        system_prompt="system",
+        user_content="user",
+        force_json=False,
+        merge_system_prompt=False,
+    )
+    parsed = sd_workflow_module._parse_json_reply(reply_text)
+    assert parsed["prompt_en"] == "first half second half"
+    assert parsed["prompt_zh"] == "中文"
+
+
+def test_webui_extra_payload_editor_dialog_parses_nested_values(qapp):
+    payload_text = json.dumps(
+        {
+            "override_settings": {"sd_model_checkpoint": "model-a", "forge_additional_modules": ["vae-a"]},
+            "cfg_scale": 7.5,
+            "enable_hr": True,
+            "note": "plain text",
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    dialog = sd_workflow_module.WebuiExtraPayloadEditorDialog(payload_text)
+    dialog.show()
+    qapp.processEvents()
+
+    assert dialog.table.rowCount() == 4
+    assert "sd_model_checkpoint" in dialog._get_row_value_text(0)
+
+    dialog.table.selectRow(0)
+    qapp.processEvents()
+    dialog.value_editor.setPlainText('{"nested": {"value": 1}}')
+    dialog.apply_value_to_selected_row()
+    dialog.table.selectRow(3)
+    qapp.processEvents()
+    dialog.value_editor.setPlainText("updated note")
+    dialog.apply_value_to_selected_row()
+
+    payload = dialog.get_payload_dict()
+    assert payload["override_settings"] == {"nested": {"value": 1}}
+    assert payload["cfg_scale"] == 7.5
+    assert payload["enable_hr"] is True
+    assert payload["note"] == "updated note"
+    dialog.close()
+
+
+def test_sd_workflow_existing_story_enables_story_actions(qapp, tmp_path):
+    story_path = tmp_path / "existing-story.json"
+    story_payload = {
+        "theme": "已有故事",
+        "title_zh": "已有标题",
+        "title_en": "Existing Title",
+        "pages": [
+            {
+                "page": 1,
+                "title_zh": "第一页",
+                "title_en": "Page One",
+                "prompt_zh": "中文内容",
+                "prompt_en": "english content",
+                "width": 768,
+                "height": 1024,
+            }
+        ],
+    }
+    story_path.write_text(json.dumps(story_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    widget = sd_workflow_module.SdWorkflowWidget()
+    widget._set_story_file_path(str(story_path))
+
+    assert widget.generate_story_btn.isEnabled()
+    assert widget.load_story_file_btn.isEnabled()
+    assert widget.open_story_preview_btn.isEnabled()
+    assert widget.open_story_editor_btn.isEnabled()
+    assert widget.render_story_btn.isEnabled()
+    widget.close()
+
+
+def test_sd_workflow_story_prompt_settings_persist_in_state(qapp):
+    widget = sd_workflow_module.SdWorkflowWidget()
+    widget.story_prompt_min_words_input.setValue(320)
+    widget.story_prompt_keyword_count_input.setValue(24)
+    widget.story_no_outfit_description_cb.setChecked(True)
+    widget.update_config_from_ui()
+
+    assert widget.config["story_prompt_preset"] == "自定义"
+    assert widget.config["story_prompt_min_words"] == 320
+    assert widget.config["story_prompt_keyword_count"] == 24
+    assert widget.config["story_no_appearance_description"] is True
+    assert widget.config["story_no_outfit_description"] is True
+    assert widget.config["story_no_character_description"] is True
+    widget.close()
+
+
+def test_sd_workflow_story_prompt_preset_updates_values(qapp):
+    widget = sd_workflow_module.SdWorkflowWidget()
+    widget.story_prompt_preset_combo.setCurrentText("保守")
+
+    assert widget.story_prompt_min_words_input.value() == 180
+    assert widget.story_prompt_keyword_count_input.value() == 16
+
+    widget.story_prompt_min_words_input.setValue(333)
+    assert widget.story_prompt_preset_combo.currentText() == "自定义"
+    widget.close()
+
+
+def test_sd_workflow_story_description_options_are_hierarchical(qapp):
+    widget = sd_workflow_module.SdWorkflowWidget()
+    widget.story_no_appearance_description_cb.setChecked(False)
+    widget.story_no_outfit_description_cb.setChecked(False)
+    widget.sync_story_description_options()
+
+    assert widget.story_no_appearance_description_cb.isChecked() is False
+    assert widget.story_no_outfit_description_cb.isEnabled() is False
+
+    widget.story_no_outfit_description_cb.setChecked(True)
+    assert widget.story_no_appearance_description_cb.isChecked() is True
+    assert widget.story_no_outfit_description_cb.isChecked() is True
+    assert widget.story_no_outfit_description_cb.isEnabled() is True
+
+    widget.story_no_appearance_description_cb.setChecked(False)
+    assert widget.story_no_appearance_description_cb.isChecked() is False
+    assert widget.story_no_outfit_description_cb.isChecked() is False
+    assert widget.story_no_outfit_description_cb.isEnabled() is False
+    widget.close()
+
+
+def test_sd_workflow_can_load_history_story_file(qapp, monkeypatch, tmp_path):
+    story_path = tmp_path / "picked-story.json"
+    story_payload = {
+        "theme": "载入故事",
+        "title_zh": "载入标题",
+        "title_en": "Loaded Title",
+        "pages": [
+            {
+                "page": 1,
+                "title_zh": "第一页",
+                "title_en": "Page One",
+                "prompt_zh": "中文内容",
+                "prompt_en": "english content",
+                "width": 768,
+                "height": 1024,
+            }
+        ],
+    }
+    story_path.write_text(json.dumps(story_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    widget = sd_workflow_module.SdWorkflowWidget()
+    monkeypatch.setattr(
+        sd_workflow_module.QFileDialog,
+        "getOpenFileName",
+        lambda *args, **kwargs: (str(story_path), "JSON Files (*.json)"),
+    )
+
+    widget.choose_story_sequence_file()
+
+    assert widget.config["last_story_json_path"] == str(story_path)
+    assert widget.open_story_preview_btn.isEnabled()
+    assert widget.open_story_editor_btn.isEnabled()
+    assert widget.render_story_btn.isEnabled()
+    widget.close()
 
 
 def test_sd_workflow_style_combo_shares_main_style_state(qapp):
