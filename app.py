@@ -102,6 +102,11 @@ class AppWindow(QWidget):
         self.last_used_style = "默认(无附加)"
         self.use_nsfw_single = False
         self.use_nsfw_batch = False
+        self.enable_outfit_check_single = False
+        self.enable_outfit_check_batch = False
+        self.outfit_style_override_single = ""
+        self.outfit_style_override_batch = ""
+        self.outfit_style_override_history = []
         self.upscale_options = normalize_upscale_options({})
         self._model_fetch_threads = {}
 
@@ -139,7 +144,13 @@ class AppWindow(QWidget):
             booru_tag_limit_getter_func=self.get_booru_tag_limit,
             timeout_getter_func=self.get_request_timeout_seconds,
             upscale_options_getter_func=self.get_upscale_options,
-            upscale_options_changed_callback=self.update_upscale_options
+            upscale_options_changed_callback=self.update_upscale_options,
+            outfit_check_default_getter_func=lambda: self.enable_outfit_check_single,
+            outfit_check_changed_callback=self.on_single_outfit_check_changed,
+            outfit_style_history_getter_func=self.get_outfit_style_history,
+            outfit_style_default_getter_func=self.get_single_outfit_style_override,
+            outfit_style_changed_callback=self.update_single_outfit_style_override,
+            outfit_style_delete_callback=self.delete_outfit_style_history_item
         )
 
         # 【新增】监听画风切换信号以实现多端同步和记忆
@@ -170,7 +181,13 @@ class AppWindow(QWidget):
             booru_tag_limit_getter_func=self.get_booru_tag_limit,
             timeout_getter_func=self.get_request_timeout_seconds,
             upscale_options_getter_func=self.get_upscale_options,
-            upscale_options_changed_callback=self.update_upscale_options
+            upscale_options_changed_callback=self.update_upscale_options,
+            outfit_check_default_getter_func=lambda: self.enable_outfit_check_batch,
+            outfit_check_changed_callback=self.on_batch_outfit_check_changed,
+            outfit_style_history_getter_func=self.get_outfit_style_history,
+            outfit_style_default_getter_func=self.get_batch_outfit_style_override,
+            outfit_style_changed_callback=self.update_batch_outfit_style_override,
+            outfit_style_delete_callback=self.delete_outfit_style_history_item
         )
 
         self.batch_analyzer_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
@@ -483,6 +500,68 @@ class AppWindow(QWidget):
         self.use_nsfw_batch = bool(checked)
         self.save_text_config(silent=True)
 
+    def get_outfit_style_history(self):
+        return list(getattr(self, "outfit_style_override_history", []))
+
+    def get_single_outfit_style_override(self):
+        return str(getattr(self, "outfit_style_override_single", "") or "").strip()
+
+    def get_batch_outfit_style_override(self):
+        return str(getattr(self, "outfit_style_override_batch", "") or "").strip()
+
+    def _normalize_outfit_style_history(self, values):
+        normalized = []
+        for value in (values or []):
+            text = str(value or "").strip()
+            if text and text not in normalized:
+                normalized.append(text)
+        return normalized[:100]
+
+    def _refresh_outfit_style_widgets(self):
+        history = self.get_outfit_style_history()
+        if hasattr(self, "single_analyzer_tab"):
+            self.single_analyzer_tab.set_outfit_style_options(history, self.get_single_outfit_style_override())
+        if hasattr(self, "batch_analyzer_tab"):
+            self.batch_analyzer_tab.set_outfit_style_options(history, self.get_batch_outfit_style_override())
+
+    def _update_outfit_style_override(self, attr_name, text, add_to_history=False):
+        value = str(text or "").strip()
+        setattr(self, attr_name, value)
+        history = self._normalize_outfit_style_history(getattr(self, "outfit_style_override_history", []))
+        if add_to_history and value:
+            history = [item for item in history if item != value]
+            history.insert(0, value)
+        self.outfit_style_override_history = self._normalize_outfit_style_history(history)
+        self._refresh_outfit_style_widgets()
+        self.save_text_config(silent=True)
+
+    def update_single_outfit_style_override(self, text, add_to_history=False):
+        self._update_outfit_style_override("outfit_style_override_single", text, add_to_history=add_to_history)
+
+    def update_batch_outfit_style_override(self, text, add_to_history=False):
+        self._update_outfit_style_override("outfit_style_override_batch", text, add_to_history=add_to_history)
+
+    def delete_outfit_style_history_item(self, text):
+        value = str(text or "").strip()
+        if not value:
+            return
+        history = [item for item in self.get_outfit_style_history() if item != value]
+        self.outfit_style_override_history = self._normalize_outfit_style_history(history)
+        if self.get_single_outfit_style_override() == value:
+            self.outfit_style_override_single = ""
+        if self.get_batch_outfit_style_override() == value:
+            self.outfit_style_override_batch = ""
+        self._refresh_outfit_style_widgets()
+        self.save_text_config(silent=True)
+
+    def on_single_outfit_check_changed(self, checked):
+        self.enable_outfit_check_single = bool(checked)
+        self.save_text_config(silent=True)
+
+    def on_batch_outfit_check_changed(self, checked):
+        self.enable_outfit_check_batch = bool(checked)
+        self.save_text_config(silent=True)
+
     def get_upscale_options(self):
         return normalize_upscale_options(getattr(self, "upscale_options", {}))
 
@@ -520,6 +599,11 @@ class AppWindow(QWidget):
     def load_config(self):
         self.use_nsfw_single = False
         self.use_nsfw_batch = False
+        self.enable_outfit_check_single = False
+        self.enable_outfit_check_batch = False
+        self.outfit_style_override_single = ""
+        self.outfit_style_override_batch = ""
+        self.outfit_style_override_history = []
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -532,6 +616,11 @@ class AppWindow(QWidget):
                     self.last_used_style = config.get("last_used_style", "默认(无附加)")
                     self.use_nsfw_single = bool(config.get("use_nsfw_single", False))
                     self.use_nsfw_batch = bool(config.get("use_nsfw_batch", False))
+                    self.enable_outfit_check_single = bool(config.get("enable_outfit_check_single", False))
+                    self.enable_outfit_check_batch = bool(config.get("enable_outfit_check_batch", False))
+                    self.outfit_style_override_single = str(config.get("outfit_style_override_single", "") or "").strip()
+                    self.outfit_style_override_batch = str(config.get("outfit_style_override_batch", "") or "").strip()
+                    self.outfit_style_override_history = self._normalize_outfit_style_history(config.get("outfit_style_override_history", []))
                     self.upscale_options = normalize_upscale_options(config.get("upscale_options", {}))
                     saved_booru_tag_limit = config.get("booru_tag_limit", DEFAULT_BOORU_TAG_LIMIT)
                     try:
@@ -561,10 +650,13 @@ class AppWindow(QWidget):
                 print(f"加载 {CONFIG_FILE} 失败: {e}")
         if hasattr(self, "single_analyzer_tab"):
             self.single_analyzer_tab.set_use_nsfw_default(self.use_nsfw_single)
+            self.single_analyzer_tab.set_outfit_check_default(self.enable_outfit_check_single)
             self.single_analyzer_tab.set_upscale_options_defaults(self.upscale_options)
         if hasattr(self, "batch_analyzer_tab"):
             self.batch_analyzer_tab.set_use_nsfw_default(self.use_nsfw_batch)
+            self.batch_analyzer_tab.set_outfit_check_default(self.enable_outfit_check_batch)
             self.batch_analyzer_tab.set_upscale_options_defaults(self.upscale_options)
+        self._refresh_outfit_style_widgets()
         if hasattr(self, "prompt_generator_tab"):
             self.prompt_generator_tab.set_upscale_options_defaults(self.upscale_options)
         if hasattr(self, "char_design_tab"):
@@ -744,6 +836,11 @@ class AppWindow(QWidget):
             "nsfw_model": self.nsfw_model_combo.currentText().strip(),
             "use_nsfw_single": bool(getattr(self, "use_nsfw_single", False)),
             "use_nsfw_batch": bool(getattr(self, "use_nsfw_batch", False)),
+            "enable_outfit_check_single": bool(getattr(self, "enable_outfit_check_single", False)),
+            "enable_outfit_check_batch": bool(getattr(self, "enable_outfit_check_batch", False)),
+            "outfit_style_override_single": self.get_single_outfit_style_override(),
+            "outfit_style_override_batch": self.get_batch_outfit_style_override(),
+            "outfit_style_override_history": self._normalize_outfit_style_history(getattr(self, "outfit_style_override_history", [])),
             "booru_tag_limit": int(self.get_booru_tag_limit()),
             "last_used_style": getattr(self, "last_used_style", "默认(无附加)"),
             "upscale_options": normalize_upscale_options(getattr(self, "upscale_options", {})),

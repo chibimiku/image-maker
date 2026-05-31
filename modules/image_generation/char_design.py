@@ -11,8 +11,9 @@ from PyQt5.QtGui import QPixmap, QImageReader
 
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, normalize_upscale_options
+from utils.prompt_loader import PROMPTS_DIR
 
-CHAR_PROMPT_DIR = "data/prompts/char"
+CHAR_PROMPT_DIR = os.path.join(PROMPTS_DIR, "char")
 CHAR_DESIGN_UI_STATE_FILE = "data/char_design_ui_state.json"
 
 class DropImageLabel(QLabel):

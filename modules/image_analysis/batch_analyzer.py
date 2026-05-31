@@ -2,17 +2,17 @@ import os
 import json
 import datetime
 import re
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem, QAbstractItemView, QProgressBar, QSpinBox, QDoubleSpinBox)
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem, QAbstractItemView, QProgressBar, QSpinBox, QDoubleSpinBox, QCompleter)
+from PyQt5.QtCore import Qt, pyqtSignal, QStringListModel
 
-from modules.image_analysis.single_analyzer import WorkerThread, ImageGenWorkerThread
+from modules.image_analysis.single_analyzer import WorkerThread, ImageGenWorkerThread, get_single_analyzer_missing_prompt_files
 from utils.task_runtime import SystemNotifier, TaskCountdown
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 
 class BatchAnalyzerWidget(QWidget):
     quick_export_requested = pyqtSignal(list)
 
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -25,6 +25,12 @@ class BatchAnalyzerWidget(QWidget):
         self.get_timeout_seconds = timeout_getter_func
         self.get_upscale_options = upscale_options_getter_func
         self.on_upscale_options_changed = upscale_options_changed_callback
+        self.get_outfit_check_default = outfit_check_default_getter_func
+        self.on_outfit_check_changed = outfit_check_changed_callback
+        self.get_outfit_style_history = outfit_style_history_getter_func
+        self.get_outfit_style_default = outfit_style_default_getter_func
+        self.on_outfit_style_changed = outfit_style_changed_callback
+        self.on_outfit_style_deleted = outfit_style_delete_callback
         
         self.target_directory = ""
         self.image_files = []
@@ -57,6 +63,8 @@ class BatchAnalyzerWidget(QWidget):
         self._pending_finish_reason = "completed"
         self._pending_completion_notice = False
         self._active_post_threads = []
+        self._updating_outfit_style_combo = False
+        self._outfit_style_history_cache = []
         
         self.initUI()
     
@@ -103,8 +111,39 @@ class BatchAnalyzerWidget(QWidget):
         self.enable_refine_cb = QCheckBox("启用 refine 二次优化")
         self.enable_refine_cb.setChecked(False)
         refine_layout.addWidget(self.enable_refine_cb)
+        self.enable_outfit_check_cb = QCheckBox("服装搭配检查")
+        self.enable_outfit_check_cb.setToolTip("分析出 prompts 后，再额外检查人物服装搭配是否协调；若修订，仅覆盖 prompts 相关字段并保留原值备用。")
+        self.enable_outfit_check_cb.setChecked(bool(self.get_outfit_check_default()) if self.get_outfit_check_default else False)
+        self.enable_outfit_check_cb.toggled.connect(self.on_enable_outfit_check_toggled)
+        refine_layout.addWidget(self.enable_outfit_check_cb)
         refine_layout.addStretch()
         options_layout.addLayout(refine_layout)
+
+        outfit_style_layout = QHBoxLayout()
+        outfit_style_layout.addWidget(QLabel("服装风格覆盖:"))
+        self.outfit_style_combo = QComboBox()
+        self.outfit_style_combo.setEditable(True)
+        self.outfit_style_combo.setInsertPolicy(QComboBox.NoInsert)
+        self.outfit_style_completer_model = QStringListModel(self)
+        self.outfit_style_completer = QCompleter(self.outfit_style_completer_model, self)
+        self.outfit_style_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.outfit_style_completer.setFilterMode(Qt.MatchContains)
+        self.outfit_style_completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.outfit_style_combo.setCompleter(self.outfit_style_completer)
+        if self.outfit_style_combo.lineEdit() is not None:
+            self.outfit_style_combo.lineEdit().setPlaceholderText("留空则不覆盖，例如：维多利亚风格")
+            self.outfit_style_combo.lineEdit().setClearButtonEnabled(True)
+            self.outfit_style_combo.lineEdit().editingFinished.connect(self._commit_outfit_style_from_editor)
+            self.outfit_style_combo.lineEdit().textEdited.connect(self._filter_outfit_style_history_live)
+        self.outfit_style_combo.currentTextChanged.connect(self._on_outfit_style_text_changed)
+        self.outfit_style_combo.activated.connect(lambda _idx: self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=False))
+        outfit_style_layout.addWidget(self.outfit_style_combo, stretch=1)
+        self.delete_outfit_style_btn = QPushButton("x")
+        self.delete_outfit_style_btn.setFixedWidth(28)
+        self.delete_outfit_style_btn.setToolTip("删除当前历史项")
+        self.delete_outfit_style_btn.clicked.connect(self._delete_current_outfit_style_history)
+        outfit_style_layout.addWidget(self.delete_outfit_style_btn)
+        options_layout.addLayout(outfit_style_layout)
 
         extra_prompt_layout = QVBoxLayout()
         extra_prompt_layout.addWidget(QLabel("请求附加 prompts（可选，识别时重点关注）:"))
@@ -227,6 +266,10 @@ class BatchAnalyzerWidget(QWidget):
         self.setLayout(layout)
         self._reload_upscale_models()
         self.set_upscale_options_defaults(self.get_upscale_options() if self.get_upscale_options else {})
+        self.set_outfit_style_options(
+            self.get_outfit_style_history() if self.get_outfit_style_history else [],
+            self.get_outfit_style_default() if self.get_outfit_style_default else ""
+        )
 
     def _send_system_notification(self, title, message):
         self._notifier.notify(title, message)
@@ -330,6 +373,16 @@ class BatchAnalyzerWidget(QWidget):
         self.log_msg(f"已移除 {removed_count} 个选中的图片文件")
     
     def start_batch_processing(self, checked=False, target_images=None, is_retry=False):
+        self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=True)
+        missing_prompt_files = get_single_analyzer_missing_prompt_files(
+            enable_refine=self.enable_refine_cb.isChecked(),
+            enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
+        )
+        if missing_prompt_files:
+            missing_text = "\n".join(missing_prompt_files)
+            QMessageBox.warning(self, "缺少 Prompt 文件", f"以下 Prompt 文件不存在，请补齐后再执行：\n{missing_text}")
+            self.log_msg(f"❌ 缺少 Prompt 文件，已中止批量分析：\n{missing_text}")
+            return
         if target_images is None and isinstance(checked, (list, tuple, set)):
             target_images = list(checked)
         elif target_images is None and isinstance(checked, str) and checked.strip():
@@ -419,7 +472,9 @@ class BatchAnalyzerWidget(QWidget):
                 enable_refine=self.enable_refine_cb.isChecked(),
                 booru_tag_limit=booru_tag_limit,
                 extra_llm_prompt=extra_llm_prompt,
-                timeout_seconds=timeout_seconds
+                timeout_seconds=timeout_seconds,
+                enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
+                outfit_style_override=self.outfit_style_combo.currentText().strip()
             )
             thread.log_signal.connect(lambda text, wid=worker_id: self.log_msg(f"[线程-{wid}] {text}"))
             thread.finish_signal.connect(lambda result, t=thread, wid=worker_id, path=image_path: self.on_worker_finished(t, wid, path, result))
@@ -785,10 +840,83 @@ class BatchAnalyzerWidget(QWidget):
         if self.on_nsfw_changed:
             self.on_nsfw_changed(bool(checked))
 
+    def on_enable_outfit_check_toggled(self, checked):
+        if self.on_outfit_check_changed:
+            self.on_outfit_check_changed(bool(checked))
+
     def set_use_nsfw_default(self, checked):
         self.use_nsfw_cb.blockSignals(True)
         self.use_nsfw_cb.setChecked(bool(checked))
         self.use_nsfw_cb.blockSignals(False)
+
+    def set_outfit_check_default(self, checked):
+        self.enable_outfit_check_cb.blockSignals(True)
+        self.enable_outfit_check_cb.setChecked(bool(checked))
+        self.enable_outfit_check_cb.blockSignals(False)
+
+    def set_outfit_style_options(self, history_items, current_text=""):
+        items = []
+        for item in (history_items or []):
+            text = str(item or "").strip()
+            if text and text not in items:
+                items.append(text)
+        current_text = str(current_text or "").strip()
+        self._outfit_style_history_cache = list(items)
+        self._apply_outfit_style_combo_items(items, current_text)
+
+    def _apply_outfit_style_combo_items(self, items, current_text):
+        self._updating_outfit_style_combo = True
+        self.outfit_style_combo.blockSignals(True)
+        self.outfit_style_combo.clear()
+        self.outfit_style_combo.addItems(items)
+        self.outfit_style_combo.setCurrentText(current_text)
+        self.outfit_style_combo.blockSignals(False)
+        self._updating_outfit_style_combo = False
+        self.outfit_style_completer_model.setStringList(list(items))
+        self._refresh_outfit_style_delete_btn()
+
+    def _filter_outfit_style_history_live(self, text):
+        if self._updating_outfit_style_combo:
+            return
+        keyword = str(text or "").strip().lower()
+        if keyword:
+            filtered_items = [item for item in self._outfit_style_history_cache if keyword in item.lower()]
+        else:
+            filtered_items = list(self._outfit_style_history_cache)
+        self._apply_outfit_style_combo_items(filtered_items, text)
+        if filtered_items:
+            self.outfit_style_combo.showPopup()
+        else:
+            self.outfit_style_combo.hidePopup()
+
+    def _refresh_outfit_style_delete_btn(self):
+        current_text = str(self.outfit_style_combo.currentText() or "").strip()
+        history_items = self.get_outfit_style_history() if self.get_outfit_style_history else []
+        normalized_history = {str(item or "").strip() for item in (history_items or []) if str(item or "").strip()}
+        self.delete_outfit_style_btn.setEnabled(bool(current_text and current_text in normalized_history))
+
+    def _on_outfit_style_text_changed(self, _text):
+        if self._updating_outfit_style_combo:
+            return
+        self._refresh_outfit_style_delete_btn()
+
+    def _commit_outfit_style_from_editor(self):
+        self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=True)
+
+    def _commit_outfit_style_text(self, text, add_to_history):
+        if self._updating_outfit_style_combo:
+            return
+        value = str(text or "").strip()
+        if self.on_outfit_style_changed:
+            self.on_outfit_style_changed(value, add_to_history=bool(add_to_history and value))
+        self._refresh_outfit_style_delete_btn()
+
+    def _delete_current_outfit_style_history(self):
+        value = str(self.outfit_style_combo.currentText() or "").strip()
+        if not value:
+            return
+        if self.on_outfit_style_deleted:
+            self.on_outfit_style_deleted(value)
 
     def _reload_upscale_models(self):
         current = self.upscale_model_combo.currentText().strip()

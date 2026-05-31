@@ -1,0 +1,238 @@
+{
+  "common_prompt": {
+    "id": "COMMON",
+    "description": "公共Prompt，用于所有角色生成。",
+    "prompt": "请使用提供的四张参考图片来确定人物外观和一致性：第一张为角色头像（面部与表情参考），第二张为角色正面视图（服装和体态结构），第三张为侧面视图（身体比例与造型结构），第四张为背面视图（背部服饰和整体比例）。生成新的图像时请严格保持这些视觉特征一致，不改变人物外观，仅在构图、动作、角度、光照等方面进行多样化变化。输出画面需要清晰、构图协调、光照合理，风格保持一致，可用于形成稳定的角色形象训练素材。"
+  },
+
+  "specialized_prompts": [
+    {
+      "id": "P01",
+      "category": "base_pose",
+      "description": "正面站立，全身展示。",
+      "prompt": "full body front standing pose, neutral posture, simple background, soft daylight, clear outline",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "P02",
+      "category": "base_pose",
+      "description": "自然站姿，略微侧身。",
+      "prompt": "standing pose slightly turned sideways, balanced composition, natural daylight, full body view",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P03",
+      "category": "base_pose",
+      "description": "背面全身展示。",
+      "prompt": "back view standing pose, uniform light, balanced framing, subtle environment hint",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P04",
+      "category": "base_pose",
+      "description": "坐姿，自然放松姿态。",
+      "prompt": "sitting relaxed pose, balanced composition, natural posture, even lighting, visible environment ground",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P05",
+      "category": "base_pose",
+      "description": "蹲下半蹲姿势。",
+      "prompt": "crouching posture on ground, visible balance, dynamic composition, soft daylight, neutral expression",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P06",
+      "category": "side_view",
+      "description": "半身侧视姿态。",
+      "prompt": "half-body side view pose, simple background, soft lighting, clear contour edges",
+      "aspect_ratio": "4:5"
+    },
+    {
+      "id": "P07",
+      "category": "low_angle",
+      "description": "低角度仰视，全身。",
+      "prompt": "low-angle upward shot, full body perspective, dynamic frame, strong light direction",
+      "aspect_ratio": "9:16"
+    },
+    {
+      "id": "P08",
+      "category": "top_view",
+      "description": "俯视角度，全身。",
+      "prompt": "top-down perspective full body, balanced depth, soft background, overhead composition",
+      "aspect_ratio": "16:9"
+    },
+    {
+      "id": "P09",
+      "category": "expression",
+      "description": "半身特写，自然微笑。",
+      "prompt": "half-body portrait with gentle smile, neutral light, shallow depth of field, uncluttered backdrop",
+      "aspect_ratio": "4:5"
+    },
+    {
+      "id": "P10",
+      "category": "expression",
+      "description": "面部表情变化，思考神态。",
+      "prompt": "facial close-up, thoughtful expression, frontal composition, diffuse lighting",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "P11",
+      "category": "action_pose",
+      "description": "行走姿态。",
+      "prompt": "walking mid-step pose, soft environment light, full body, sense of motion",
+      "aspect_ratio": "9:16"
+    },
+    {
+      "id": "P12",
+      "category": "action_pose",
+      "description": "奔跑姿势。",
+      "prompt": "running dynamic motion, clear limb positioning, directional lighting, wide frame",
+      "aspect_ratio": "16:9"
+    },
+    {
+      "id": "P13",
+      "category": "action_pose",
+      "description": "跳跃姿势。",
+      "prompt": "mid-air jumping pose, balanced mid-action, cinematic shadow, neutral background",
+      "aspect_ratio": "9:16"
+    },
+    {
+      "id": "P14",
+      "category": "action_pose",
+      "description": "伸展身体姿态。",
+      "prompt": "stretching upward pose, side view composition, sharp contrast, natural daylight",
+      "aspect_ratio": "4:5"
+    },
+    {
+      "id": "P15",
+      "category": "action_pose",
+      "description": "转身回头瞬间。",
+      "prompt": "turning back with shoulder glance, soft motion blur implied, environmental tone",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P16",
+      "category": "action_pose",
+      "description": "双手张开姿势。",
+      "prompt": "open arm stance, balanced frame, clear gesture visibility, front light source",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P17",
+      "category": "action_pose",
+      "description": "蹬地起步姿态。",
+      "prompt": "starting to move, one foot lifted, dynamic foreshortening, soft light contrast",
+      "aspect_ratio": "9:16"
+    },
+    {
+      "id": "P18",
+      "category": "action_pose",
+      "description": "双手交叉站立。",
+      "prompt": "crossed-arm stance, centered composition, soft front light, stable pose",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "P19",
+      "category": "action_pose",
+      "description": "单膝跪地姿势。",
+      "prompt": "one-knee pose, balanced center of gravity, clean background, rim light accent",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P20",
+      "category": "action_pose",
+      "description": "下蹲观察姿势。",
+      "prompt": "kneeling close to ground, forward body lean, top light source",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "P21",
+      "category": "action_pose",
+      "description": "张臂旋转姿态。",
+      "prompt": "turning with arms extended, sense of rotation, smooth motion composition",
+      "aspect_ratio": "9:16"
+    },
+    {
+      "id": "P22",
+      "category": "angle_variation",
+      "description": "45度俯视全身。",
+      "prompt": "45-degree top-down perspective, balanced spatial depth, soft tone background",
+      "aspect_ratio": "3:2"
+    },
+    { "id": "P23", "category": "angle_variation", "description": "仰视半身。", "prompt": "upward half-body low angle, clear silhouette, consistent lighting", "aspect_ratio": "3:4" },
+    { "id": "P24", "category": "angle_variation", "description": "前侧斜角肩部视角。", "prompt": "three-quarter shoulder view, soft rim light, balanced geometry", "aspect_ratio": "4:5" },
+    { "id": "P25", "category": "angle_variation", "description": "后上方视角。", "prompt": "rear-top perspective, clear posture mapping, shallow focus", "aspect_ratio": "16:9" },
+    { "id": "P26", "category": "angle_variation", "description": "俯拍近景。", "prompt": "close top-down crop composition, implied overhead view", "aspect_ratio": "4:5" },
+    { "id": "P27", "category": "angle_variation", "description": "低视角仰视全身。", "prompt": "low-angle full height, structured environment floor view", "aspect_ratio": "9:16" },
+    { "id": "P28", "category": "angle_variation", "description": "偏侧仰拍姿态。", "prompt": "off-axis low camera angle, dynamic expression, visible background", "aspect_ratio": "9:16" },
+    { "id": "P29", "category": "angle_variation", "description": "平视腰部构图。", "prompt": "eye-level mid-torso frame, simple setup, natural posture", "aspect_ratio": "1:1" },
+    { "id": "P30", "category": "angle_variation", "description": "头部仰拍特写。", "prompt": "head close-up from below, subtle light contrast, shallow focus", "aspect_ratio": "4:5" },
+    { "id": "P31", "category": "angle_variation", "description": "远景高角俯拍。", "prompt": "wide high-angle environment composition, small figure placement", "aspect_ratio": "16:9" },
+    { "id": "P32", "category": "expression", "description": "平静表情半身。", "prompt": "calm expression, half-body framing, soft diffused light", "aspect_ratio": "4:5" },
+    { "id": "P33", "category": "expression", "description": "惊讶表情特写。", "prompt": "close face, surprised emotion, neutral background", "aspect_ratio": "1:1" },
+    { "id": "P34", "category": "expression", "description": "微笑面部柔光。", "prompt": "face smiling gently, soft front light", "aspect_ratio": "1:1" },
+    { "id": "P35", "category": "expression", "description": "专注表情半身。", "prompt": "focused mid-shot, simple tone background", "aspect_ratio": "4:5" },
+    { "id": "P36", "category": "expression", "description": "闭眼平静表情。", "prompt": "portrait closed-eye, neutral mood", "aspect_ratio": "4:5" },
+    { "id": "P37", "category": "expression", "description": "轻微皱眉表情。", "prompt": "face close-up frown subtle, neutral color light", "aspect_ratio": "1:1" },
+    { "id": "P38", "category": "expression", "description": "笑出声表情。", "prompt": "expression laughing mid body, natural posture", "aspect_ratio": "4:5" },
+    { "id": "P39", "category": "expression", "description": "严肃平视构图。", "prompt": "serious frontal portrait, balanced tone", "aspect_ratio": "4:5" },
+    { "id": "P40", "category": "lighting", "description": "日光直照光线。", "prompt": "strong daylight high contrast shadow, clear edges", "aspect_ratio": "3:4" },
+    { "id": "P41", "category": "lighting", "description": "逆光剪影。", "prompt": "silhouette under backlight, soft rim glow", "aspect_ratio": "3:2" },
+    { "id": "P42", "category": "lighting", "description": "晨光柔光。", "prompt": "soft warm morning light, subtle shadow", "aspect_ratio": "3:4" },
+    { "id": "P43", "category": "lighting", "description": "夕阳暖色。", "prompt": "orangish sunset lighting, balanced exposure", "aspect_ratio": "3:4" },
+    { "id": "P44", "category": "lighting", "description": "夜色月光照明。", "prompt": "cool moonlight tone, gentle highlight edges", "aspect_ratio": "9:16" },
+    { "id": "P45", "category": "lighting", "description": "荧光环境低饱和度。", "prompt": "low saturation indoor fluorescent lighting", "aspect_ratio": "4:5" },
+    { "id": "P46", "category": "lighting", "description": "逆光轮廓高对比。", "prompt": "strong silhouette contrast backlight", "aspect_ratio": "16:9" },
+    { "id": "P47", "category": "lighting", "description": "漫射均匀光。", "prompt": "even diffuse ambient light, minimal shadows", "aspect_ratio": "1:1" },
+    { "id": "P48", "category": "lighting", "description": "光影斑驳场景。", "prompt": "patterned shadow lighting, sunlight filtering", "aspect_ratio": "3:4" },
+    { "id": "P49", "category": "lighting", "description": "高对比戏剧光。", "prompt": "dramatic high contrast stage light, centered composition", "aspect_ratio": "3:4" },
+    { "id": "P50", "category": "scene", "description": "空白背景全身构图。", "prompt": "plain neutral background, full body isolated, balanced pose", "aspect_ratio": "1:1" },
+    { "id": "P51", "category": "scene", "description": "浅景深前景模糊效果。", "prompt": "foreground blur effect shallow depth of field, subject centered", "aspect_ratio": "3:4" },
+    { "id": "P52", "category": "scene", "description": "宽场景远景。", "prompt": "wide environment background, small person composition", "aspect_ratio": "16:9" },
+    { "id": "P53", "category": "scene", "description": "半身近景居中。", "prompt": "tight half body crop, centered composition", "aspect_ratio": "4:5" },
+    { "id": "P54", "category": "scene", "description": "侧光空间感明显。", "prompt": "side light on mid close composition, background contrast", "aspect_ratio": "3:4" },
+    { "id": "P55", "category": "scene", "description": "环境反射光。", "prompt": "light reflected from surface, ambient balanced light", "aspect_ratio": "3:4" },
+    { "id": "P56", "category": "scene", "description": "极简灰底。", "prompt": "minimal gray background, neutral composition focus", "aspect_ratio": "1:1" },
+    { "id": "P57", "category": "scene", "description": "地面阴影显著。", "prompt": "visible ground shadow, perspective visible floor lines", "aspect_ratio": "3:4" },
+    { "id": "P58", "category": "scene", "description": "画面左侧主视角。", "prompt": "subject positioned left third, empty space right", "aspect_ratio": "16:9" },
+    { "id": "P59", "category": "scene", "description": "画面右侧主视角。", "prompt": "subject positioned right third, open background", "aspect_ratio": "16:9" },
+    { "id": "P60", "category": "interaction", "description": "伸手触地姿态。", "prompt": "reaching toward ground, bent knee pose", "aspect_ratio": "3:4" },
+    { "id": "P61", "category": "interaction", "description": "双手举物姿态。", "prompt": "raising both hands holding shape, dynamic forearm", "aspect_ratio": "3:4" },
+    { "id": "P62", "category": "interaction", "description": "手放胸前姿态。", "prompt": "hand placed near chest, calm posture", "aspect_ratio": "3:4" },
+    { "id": "P63", "category": "interaction", "description": "一手腰部结构姿态。", "prompt": "hand resting on waist, contrapposto pose", "aspect_ratio": "3:4" },
+    { "id": "P64", "category": "interaction", "description": "走动举手姿势。", "prompt": "walking gesture waving hand natural motion", "aspect_ratio": "9:16" },
+    { "id": "P65", "category": "interaction", "description": "伸臂前指姿势。", "prompt": "pointing forward arm extended, perspective foreshortening", "aspect_ratio": "3:4" },
+    { "id": "P66", "category": "interaction", "description": "持物侧视半身。", "prompt": "side half body holding object, clean background", "aspect_ratio": "4:5" },
+    { "id": "P67", "category": "interaction", "description": "靠墙站立姿态。", "prompt": "leaned against wall, shadow separation, street-like setup", "aspect_ratio": "3:4" },
+    { "id": "P68", "category": "interaction", "description": "蹲下观察物体。", "prompt": "crouched investigating near floor, side composition", "aspect_ratio": "3:4" },
+    { "id": "P69", "category": "interaction", "description": "两手张开交谈姿势。", "prompt": "open hand conversational posture, neutral mid-frame", "aspect_ratio": "4:5" },
+    { "id": "P70", "category": "distance_variation", "description": "面部极近景。", "prompt": "extreme facial close-up, subtle focus, soft edges", "aspect_ratio": "1:1" },
+    { "id": "P71", "category": "distance_variation", "description": "中近景半身。", "prompt": "medium close-up half frame, soft shadow, neutral mood", "aspect_ratio": "4:5" },
+    { "id": "P72", "category": "distance_variation", "description": "中远景。", "prompt": "medium-wide framing, visible ground space", "aspect_ratio": "3:2" },
+    { "id": "P73", "category": "distance_variation", "description": "远景环境衬托。", "prompt": "wide shot full composition environment balance", "aspect_ratio": "16:9" },
+    { "id": "P74", "category": "distance_variation", "description": "极远景比例缩小。", "prompt": "tiny figure in large background, clear horizon", "aspect_ratio": "21:9" },
+    { "id": "P75", "category": "distance_variation", "description": "腰部特写。", "prompt": "waist-up framing, front view, diffuse light", "aspect_ratio": "3:4" },
+    { "id": "P76", "category": "distance_variation", "description": "膝盖以上半身。", "prompt": "three-quarter framing, natural stance", "aspect_ratio": "3:4" },
+    { "id": "P77", "category": "distance_variation", "description": "脚部特写。", "prompt": "focus on leg and feet posture, shallow depth", "aspect_ratio": "4:3" },
+    { "id": "P78", "category": "distance_variation", "description": "背影远景含地面阴影。", "prompt": "rear view distant, visible long shadow composition", "aspect_ratio": "16:9" },
+    { "id": "P79", "category": "distance_variation", "description": "肩部近景。", "prompt": "shoulder-focused frame, soft background blur", "aspect_ratio": "1:1" },
+    { "id": "P80", "category": "gaze_direction", "description": "正视镜头。", "prompt": "eye contact with camera, neutral expression", "aspect_ratio": "4:5" },
+    { "id": "P81", "category": "gaze_direction", "description": "向左看。", "prompt": "gaze toward left side, side profile visible", "aspect_ratio": "4:5" },
+    { "id": "P82", "category": "gaze_direction", "description": "向右看。", "prompt": "gaze toward right, visible shoulder outline", "aspect_ratio": "4:5" },
+    { "id": "P83", "category": "gaze_direction", "description": "仰视头部视线。", "prompt": "eyes looking upward slight tilt", "aspect_ratio": "4:5" },
+    { "id": "P84", "category": "gaze_direction", "description": "低头注视。", "prompt": "downward gaze, calm emotion", "aspect_ratio": "4:5" },
+    { "id": "P85", "category": "gaze_direction", "description": "转头回望。", "prompt": "looking over shoulder backward glance", "aspect_ratio": "3:4" },
+    { "id": "P86", "category": "gaze_direction", "description": "远眺场景。", "prompt": "gazing into distance, wide environment", "aspect_ratio": "16:9" },
+    { "id": "P87", "category": "gaze_direction", "description": "视线朝下半身角度。", "prompt": "looking downward mid shot, lighting from top", "aspect_ratio": "3:4" },
+    { "id": "P88", "category": "gaze_direction", "description": "闭眼画面。", "prompt": "closed eyes quiet mood portrait", "aspect_ratio": "1:1" },
+    { "id": "P89", "category": "gaze_direction", "description": "视线朝上特写。", "prompt": "face looking upward close-up composition", "aspect_ratio": "4:5" },
+    { "id": "P90", "category": "misc", "description": "舞动姿态。", "prompt": "dancing motion, balanced pose, smooth lines", "aspect_ratio": "9:16" },
+    { "id": "P91", "category": "misc", "description": "转身走远背影。", "prompt": "walking away back view, environment perspective", "aspect_ratio": "16:9" },
+    { "id": "P92", "category": "misc", "description": "自然伸懒腰姿势。", "prompt": "stretch upper body, soft morning lighting", "aspect_ratio": "3:4" },
+    { "id": "P93", "category": "misc", "description": "悬空半坐姿态。", "prompt": "floating seated composition, mid-air framing", "aspect_ratio": "9:16" },
+    { "id": "P94", "category": "misc", "description": "俯身弯腰姿势。", "prompt": "bending torso forward, side view", "aspect_ratio": "3:4" },
+    { "id": "P95", "category": "misc", "description": "动态旋转半身。", "prompt": "turning torso motion blur implied", "aspect_ratio": "4:5" },
+    { "id": "P96", "category": "misc", "description": "伸展双臂平衡姿势。", "prompt": "arms spread balanced pose, clear silhouette", "aspect_ratio": "1:1" }
+  ]
+}

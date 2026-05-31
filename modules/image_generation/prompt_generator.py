@@ -10,6 +10,15 @@ from openai import OpenAI
 # 复用 single_analyzer 中的生图线程
 from modules.image_analysis.single_analyzer import ImageGenWorkerThread
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
+from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
+
+
+PROMPT_GENERATOR_SYSTEM_FILE = "prompt-generator-system.md"
+PROMPT_GENERATOR_USER_FILE = "prompt-generator-user.md"
+
+
+def get_prompt_generator_missing_prompt_files():
+    return find_missing_prompt_files([PROMPT_GENERATOR_SYSTEM_FILE, PROMPT_GENERATOR_USER_FILE])
 
 class TextPromptGenThread(QThread):
     log_signal = pyqtSignal(str)
@@ -28,8 +37,15 @@ class TextPromptGenThread(QThread):
         self.log_signal.emit("开始生成提示词，请稍候...")
         try:
             client = OpenAI(api_key=self.api_key, base_url=self.base_url)
-            system_prompt = "You are an expert prompt engineer for AI image generators. You must respond strictly in JSON format. Return an object with a single key 'prompts' containing an array of strings."
-            user_prompt = f"Generate {self.count} unique English prompts for image generation based on the keywords: '{self.keywords}'. The length of each prompt should be '{self.length_str}'. Return JSON format: {{'prompts': ['prompt1', 'prompt2', ...]}}"
+            system_prompt = read_prompt_file(PROMPT_GENERATOR_SYSTEM_FILE).strip()
+            user_prompt = render_prompt_file(
+                PROMPT_GENERATOR_USER_FILE,
+                {
+                    "count": self.count,
+                    "keywords": self.keywords,
+                    "length_str": self.length_str,
+                }
+            ).strip()
             
             response = client.chat.completions.create(
                 model=self.model_name,
@@ -279,6 +295,11 @@ class PromptGeneratorWidget(QWidget):
         self.main_style_combo.blockSignals(False)
 
     def generate_prompts(self):
+        missing_prompt_files = get_prompt_generator_missing_prompt_files()
+        if missing_prompt_files:
+            missing_text = "\n".join(missing_prompt_files)
+            QMessageBox.warning(self, "缺少 Prompt 文件", f"以下 Prompt 文件不存在，请补齐后再执行：\n{missing_text}")
+            return
         base_url, api_key, model_name = self.get_text_config()
         if not api_key:
             QMessageBox.warning(self, "错误", "请先在全局配置中填写文本分析 API Key")

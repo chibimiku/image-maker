@@ -28,6 +28,7 @@ from PyQt5.QtWidgets import (
 from openai import OpenAI
 
 from utils.webui_img2img_client import WebuiImg2ImgClient
+from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "conf", "config-image.json")
@@ -41,6 +42,19 @@ HF_CACHE_DIR = os.path.join(SEG_ROOT, "hf-cache")
 SAM2_CONFIG_PATH = os.path.join(SEG_ROOT, "sam2", "sam2.1_hiera_l.yaml")
 SAM2_WEIGHT_PATH = os.path.join(SEG_ROOT, "sam2", "sam2.1_hiera_large.pt")
 _GDINO_SAM2_CACHE = {}
+DIFF_CG_SCRIPT_SYSTEM_FILE = "diff-cg-script-system.md"
+DIFF_CG_SCRIPT_USER_FILE = "diff-cg-script-user.md"
+DIFF_CG_ANCHOR_SYSTEM_FILE = "diff-cg-anchor-system.md"
+DIFF_CG_ANCHOR_USER_FILE = "diff-cg-anchor-user.md"
+
+
+def get_diff_cg_missing_prompt_files():
+    return find_missing_prompt_files([
+        DIFF_CG_SCRIPT_SYSTEM_FILE,
+        DIFF_CG_SCRIPT_USER_FILE,
+        DIFF_CG_ANCHOR_SYSTEM_FILE,
+        DIFF_CG_ANCHOR_USER_FILE,
+    ])
 
 
 def _load_full_image_config():
@@ -449,23 +463,16 @@ class DiffCgScriptThread(QThread):
             client = OpenAI(api_key=api_key, base_url=base_url)
             image_data_url = _to_data_url(self.image_path)
 
-            system_prompt = (
-                "你是资深分镜导演和 SD 提示词工程师。"
-                "必须输出严格 JSON 对象，顶层包含 title、summary、shots。"
-                "shots 必须是数组，长度等于用户要求。"
-                "每个 shot 必须包含: index,title,scene,prompt,negative_prompt,steps,cfg_scale,denoising_strength,extra_payload。"
-                "其中 prompt 必须为英文可直接用于 SD WebUI img2img。"
-                "extra_payload 是 JSON 对象，可放 alwayson_scripts、override_settings 等插件参数；不需要时给空对象。"
-                "请保证镜头之间有连续变化，适合作为差分CG序列。"
-            )
-            user_text = (
-                f"请基于输入CG图，生成 {int(self.shot_count)} 张差分CG分镜脚本。\n"
-                f"可选剧情描述：{self.story_desc or '无'}\n"
-                "要求：变化平滑、每镜头主体一致但动作/表情/构图有递进变化。\n"
-                f"原图已有正向prompt（用于保留lora等加载）：{self.base_prompt or '无'}\n"
-                f"原图已有负向prompt：{self.base_negative or '无'}\n"
-                "请在构图变化描述基础上输出每个镜头的增量 prompt（也可完整prompt），最终会和原图prompt合并。"
-            )
+            system_prompt = read_prompt_file(DIFF_CG_SCRIPT_SYSTEM_FILE).strip()
+            user_text = render_prompt_file(
+                DIFF_CG_SCRIPT_USER_FILE,
+                {
+                    "shot_count": int(self.shot_count),
+                    "story_desc": self.story_desc or "无",
+                    "base_prompt": self.base_prompt or "无",
+                    "base_negative": self.base_negative or "无",
+                }
+            ).strip()
 
             resp = client.chat.completions.create(
                 model=model,
@@ -516,18 +523,14 @@ class DiffCgAnchorThread(QThread):
             self.log.emit("开始智能提取人物锚点 prompt ...")
             client = OpenAI(api_key=api_key, base_url=base_url)
             image_data_url = _to_data_url(self.image_path)
-            system_prompt = (
-                "你是 Stable Diffusion 提示词精简专家。"
-                "请从原始 prompt/negative 中提取“人物身份锚点”，保留角色稳定性和lora能力，删除构图和场景限制。"
-                "必须返回 JSON 对象，包含 keep_positive, keep_negative, removed_notes。"
-                "keep_positive 重点保留：<lora:...>、角色名、发色、瞳色、服饰关键词、核心风格触发词。"
-                "尽量删除：camera angle、background、pose、lighting、composition、shot size 等镜头约束。"
-            )
-            user_text = (
-                f"原始正向prompt:\n{self.source_prompt or '无'}\n\n"
-                f"原始负向prompt:\n{self.source_negative or '无'}\n\n"
-                "请输出适合“差分CG多镜头变化”的锚点版本。"
-            )
+            system_prompt = read_prompt_file(DIFF_CG_ANCHOR_SYSTEM_FILE).strip()
+            user_text = render_prompt_file(
+                DIFF_CG_ANCHOR_USER_FILE,
+                {
+                    "source_prompt": self.source_prompt or "无",
+                    "source_negative": self.source_negative or "无",
+                }
+            ).strip()
             resp = client.chat.completions.create(
                 model=model,
                 response_format={"type": "json_object"},
@@ -1168,6 +1171,10 @@ class DiffCgTabWidget(QWidget):
             self.log("已读取原图 prompt 信息。")
 
     def extract_anchor_with_llm(self):
+        missing_prompt_files = get_diff_cg_missing_prompt_files()
+        if missing_prompt_files:
+            QMessageBox.warning(self, "缺少 Prompt 文件", "以下 Prompt 文件不存在，请补齐后再执行：\n" + "\n".join(missing_prompt_files))
+            return
         image_path = self.image_input.text().strip()
         if not image_path or not os.path.isfile(image_path):
             QMessageBox.warning(self, "提示", "请先选择有效的基础CG图片")
@@ -1402,6 +1409,10 @@ class DiffCgTabWidget(QWidget):
         self.extract_anchor_btn.setEnabled(not running)
 
     def generate_script(self):
+        missing_prompt_files = get_diff_cg_missing_prompt_files()
+        if missing_prompt_files:
+            QMessageBox.warning(self, "缺少 Prompt 文件", "以下 Prompt 文件不存在，请补齐后再执行：\n" + "\n".join(missing_prompt_files))
+            return
         image_path = self.image_input.text().strip()
         if not image_path or not os.path.isfile(image_path):
             QMessageBox.warning(self, "提示", "请先选择有效的基础CG图片")

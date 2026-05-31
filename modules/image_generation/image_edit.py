@@ -15,8 +15,9 @@ from openai import OpenAI
 # 复用已有的工具函数
 from modules.image_analysis.single_analyzer import compress_and_encode_image, calculate_closest_aspect_ratio
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
+from utils.prompt_loader import PROMPTS_DIR
 
-PROMPT_DIR = "data/prompts/image-edit"
+PROMPT_DIR = os.path.join(PROMPTS_DIR, "image-edit")
 IMAGE_EDIT_UI_STATE_FILE = "data/image_edit_ui_state.json"
 MD5_TAIL_RE = re.compile(r"^[0-9a-fA-F]{32}$")
 SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}

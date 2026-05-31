@@ -9,9 +9,9 @@ from openai import OpenAI
 from PIL import Image, ImageGrab
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
-                             QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox,
+                             QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox, QCompleter,
                              QListWidget, QListWidgetItem, QDialog)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QStringListModel
 from PyQt5.QtGui import QPixmap, QImage, QColor, QDesktopServices
 from PyQt5.QtCore import QUrl
 
@@ -20,35 +20,44 @@ from utils.booru_tags import normalize_booru_tags
 from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags
 from utils.task_runtime import SystemNotifier, TaskCountdown
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
+from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SYSTEM_PROMPT_FILE = "single-analyzer-system.md"
+STYLE_ANALY_PROMPT_FILE = "style-analy.md"
+REFINE_DESC_PROMPT_FILE = "refine-desc.md"
+OUTFIT_CHECK_PROMPT_FILE = "single-analyzer-outfit-check.md"
 
-system_prompt = """
-You are an expert image analyzer and illustrator assistant. 
-You must respond strictly in JSON format.
-"""
 
-# 新增读取 Prompt 的函数
-def load_prompt_from_file(filepath):
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return f.read().strip()
-    except Exception as e:
-        print(f"读取 Prompt 文件失败: {e}")
-        # 如果读取失败，返回一个保底的简单提示词以防程序崩溃
-        return "Please analyze the provided image and generate a detailed description in English. Return strict JSON."
+def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_check=False):
+    files = [
+        SYSTEM_PROMPT_FILE,
+        STYLE_ANALY_PROMPT_FILE,
+    ]
+    if enable_refine:
+        files.append(REFINE_DESC_PROMPT_FILE)
+    if enable_outfit_check:
+        files.append(OUTFIT_CHECK_PROMPT_FILE)
+    return files
 
-# 动态构建文件路径并读取
-PROMPT_DIR = os.path.join(BASE_DIR, 'data', 'prompts')
-STYLE_ANALY_PATH = os.path.join(PROMPT_DIR, 'style-analy.md')
 
-style_analyze_prompt_template = load_prompt_from_file(STYLE_ANALY_PATH)
+def get_single_analyzer_missing_prompt_files(enable_refine=True, enable_outfit_check=False):
+    return find_missing_prompt_files(
+        get_single_analyzer_required_prompt_files(
+            enable_refine=enable_refine,
+            enable_outfit_check=enable_outfit_check,
+        )
+    )
+
+
+def _load_system_prompt():
+    return read_prompt_file(SYSTEM_PROMPT_FILE).strip()
 
 def get_style_analyze_prompt(booru_tag_limit):
     limit = int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30
     if limit <= 0:
         limit = 30
-    return style_analyze_prompt_template.replace("{booru_tag_limit}", str(limit))
+    return render_prompt_file(STYLE_ANALY_PROMPT_FILE, {"booru_tag_limit": str(limit)}).strip()
 
 def append_extra_llm_prompt(base_prompt, extra_llm_prompt):
     extra_text = str(extra_llm_prompt or "").strip()
@@ -80,6 +89,20 @@ def _describe_image_source(image_source):
 def _generate_task_hash(image_source, submit_time, thread_no):
     seed = f"{_describe_image_source(image_source)}|{submit_time.isoformat()}|{thread_no}"
     return hashlib.md5(seed.encode("utf-8")).hexdigest()[:8]
+
+def _to_bool(value, default=False):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return value != 0
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return default
 
 def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=30):
     if not isinstance(result_json, dict):
@@ -249,6 +272,7 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
         analyze_prompt = get_style_analyze_prompt(booru_tag_limit)
         analyze_prompt = merge_prompt_with_local_booru_tags(analyze_prompt, local_booru_tags)
         analyze_prompt = append_extra_llm_prompt(analyze_prompt, extra_llm_prompt)
+        system_prompt = _load_system_prompt()
         response = client.chat.completions.create(
             model=model_name, 
             response_format={ "type": "json_object" },
@@ -292,15 +316,16 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
     tags_str = json.dumps(tags, ensure_ascii=False)
     
     # 构建模板文件路径并读取
-    REFINE_DESC_PATH = os.path.join(BASE_DIR, 'data', 'prompts', 'refine-desc.md')
-    template = load_prompt_from_file(REFINE_DESC_PATH)
-    
-    # 安全替换占位符（避免 f-string 遇到 JSON 大括号报错）
-    refine_prompt = template.replace("{jp_title}", jp_title) \
-                            .replace("{cn_title}", cn_title) \
-                            .replace("{original_description}", original_description) \
-                            .replace("{tags_str}", tags_str) \
-                            .replace("{booru_tag_limit}", str(int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30))
+    refine_prompt = render_prompt_file(
+        REFINE_DESC_PROMPT_FILE,
+        {
+            "jp_title": jp_title,
+            "cn_title": cn_title,
+            "original_description": original_description,
+            "tags_str": tags_str,
+            "booru_tag_limit": str(int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30),
+        }
+    ).strip()
     seed_text = ", ".join(normalize_booru_tags(booru_seed_tags, limit=booru_tag_limit))
     if seed_text:
         refine_prompt = (
@@ -312,6 +337,7 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
     refine_prompt = append_extra_llm_prompt(refine_prompt, extra_llm_prompt)
     
     try:
+        system_prompt = _load_system_prompt()
         response = client.chat.completions.create(
             model=model_name, 
             response_format={ "type": "json_object" },
@@ -332,11 +358,69 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
             status_callback("timeout" if _is_timeout_error(e) else "error")
         return None
 
+def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout_seconds=120, outfit_style_override="", status_callback=None):
+    fallback_data = dict(final_json_data or {})
+    refine_prompt = str(fallback_data.get("english_description") or "").strip()
+    original_prompt = str(fallback_data.get("original_english_description") or "").strip()
+    outfit_style_override = str(outfit_style_override or "").strip()
+    if not refine_prompt and not original_prompt:
+        return fallback_data
+
+    prompt_payload = {
+        "english_description": refine_prompt,
+        "original_english_description": original_prompt,
+    }
+    user_prompt = render_prompt_file(
+        OUTFIT_CHECK_PROMPT_FILE,
+        {
+            "input_json": json.dumps(prompt_payload, ensure_ascii=False, indent=2),
+            "outfit_style_override": outfit_style_override,
+        }
+    ).strip()
+
+    try:
+        system_prompt = _load_system_prompt()
+        response = client.chat.completions.create(
+            model=model_name,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_completion_tokens=8192,
+            timeout=timeout_seconds
+        )
+        parsed = json.loads(response.choices[0].message.content)
+        checked_refine = str(parsed.get("english_description") or refine_prompt).strip()
+        checked_original = str(parsed.get("original_english_description") or original_prompt).strip()
+        has_person = _to_bool(parsed.get("has_person"), default=bool(refine_prompt or original_prompt))
+        modified = _to_bool(parsed.get("modified"), default=False)
+        if checked_refine == refine_prompt and checked_original == original_prompt:
+            modified = False
+
+        result = dict(fallback_data)
+        result["outfit_check_has_person"] = has_person
+        result["outfit_check_modified"] = modified
+        result["outfit_check_reason"] = str(parsed.get("reason") or "").strip()
+
+        if modified:
+            result["english_description_before_outfit_check"] = refine_prompt
+            result["original_english_description_before_outfit_check"] = original_prompt
+            result["english_description"] = checked_refine
+            result["original_english_description"] = checked_original
+        return result
+    except Exception as e:
+        print(f"Step 3 服装搭配检查时发生错误: {e}")
+        if status_callback:
+            status_callback("timeout" if _is_timeout_error(e) else "error")
+        return None
+
 class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
 
-    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120):
+    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override=""):
         super().__init__()
         self.image_source = image_source
         self.api_key = api_key
@@ -350,6 +434,8 @@ class WorkerThread(QThread):
         self.timeout_seconds = int(timeout_seconds) if str(timeout_seconds).strip().isdigit() else 120
         if self.timeout_seconds <= 0:
             self.timeout_seconds = 120
+        self.enable_outfit_check = bool(enable_outfit_check)
+        self.outfit_style_override = str(outfit_style_override or "").strip()
         self.last_status = "idle"
         self._force_cancel_requested = False
 
@@ -447,6 +533,35 @@ class WorkerThread(QThread):
                 final_result["pixiv_tags_second"] = []
                 if local_booru_tags:
                     final_result["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=self.booru_tag_limit, output_style="space")
+            if final_result and self.enable_outfit_check:
+                if self.isInterruptionRequested():
+                    self.last_status = "cancelled"
+                    self.log_signal.emit("任务已取消（服装搭配检查未执行）。")
+                    self.finish_signal.emit({})
+                    return
+                if self.outfit_style_override:
+                    self.log_signal.emit(f"Step 3 已启用服装风格覆盖目标: {self.outfit_style_override}")
+                self.log_signal.emit("正在开始 Step 3: 检查人物服装搭配是否协调，并按需修订 prompts...")
+                outfit_stage_status = {"value": "ok"}
+                outfit_checked_result = step_3_check_outfit_consistency(
+                    final_result,
+                    client,
+                    self.model_name,
+                    timeout_seconds=self.timeout_seconds,
+                    outfit_style_override=self.outfit_style_override,
+                    status_callback=lambda status: outfit_stage_status.update({"value": status})
+                )
+                if outfit_checked_result:
+                    if outfit_checked_result.get("outfit_check_modified"):
+                        self.log_signal.emit("Step 3 完成。已检测到人物并修订 prompts 中的服装搭配。")
+                    else:
+                        if outfit_checked_result.get("outfit_check_has_person"):
+                            self.log_signal.emit("Step 3 完成。存在人物，但当前服装搭配无需修订。")
+                        else:
+                            self.log_signal.emit("Step 3 完成。未检测到人物，prompts 保持不变。")
+                    final_result = outfit_checked_result
+                else:
+                    self.log_signal.emit("Step 3 执行失败，已保留 Step 2 的 prompts 结果。")
             if final_result:
                 self.last_status = "success"
             self.finish_signal.emit(final_result if final_result else {})
@@ -634,7 +749,7 @@ class AnalysisHistoryDetailDialog(QDialog):
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -646,6 +761,12 @@ class SingleAnalyzerWidget(QWidget):
         self.get_timeout_seconds = timeout_getter_func
         self.get_upscale_options = upscale_options_getter_func
         self.on_upscale_options_changed = upscale_options_changed_callback
+        self.get_outfit_check_default = outfit_check_default_getter_func
+        self.on_outfit_check_changed = outfit_check_changed_callback
+        self.get_outfit_style_history = outfit_style_history_getter_func
+        self.get_outfit_style_default = outfit_style_default_getter_func
+        self.on_outfit_style_changed = outfit_style_changed_callback
+        self.on_outfit_style_deleted = outfit_style_delete_callback
         
         self.image_source = None
         self.current_aspect_ratio = "1:1"
@@ -673,6 +794,8 @@ class SingleAnalyzerWidget(QWidget):
         self.get_ar_policy = ar_policy_getter_func
         self._notifier = SystemNotifier(self)
         self._active_post_threads = []
+        self._updating_outfit_style_combo = False
+        self._outfit_style_history_cache = []
         
         self.initUI()
 
@@ -709,8 +832,39 @@ class SingleAnalyzerWidget(QWidget):
         self.use_nsfw_cb.setChecked(bool(self.get_nsfw_default()) if self.get_nsfw_default else False)
         self.use_nsfw_cb.toggled.connect(self.on_use_nsfw_toggled)
         nsfw_layout.addWidget(self.use_nsfw_cb)
+        self.enable_outfit_check_cb = QCheckBox("服装搭配检查")
+        self.enable_outfit_check_cb.setToolTip("分析出 prompts 后，再额外检查人物服装搭配是否协调；若修订，仅覆盖 prompts 相关字段并保留原值备用。")
+        self.enable_outfit_check_cb.setChecked(bool(self.get_outfit_check_default()) if self.get_outfit_check_default else False)
+        self.enable_outfit_check_cb.toggled.connect(self.on_enable_outfit_check_toggled)
+        nsfw_layout.addWidget(self.enable_outfit_check_cb)
         nsfw_layout.addStretch()
         layout.addLayout(nsfw_layout)
+
+        outfit_style_layout = QHBoxLayout()
+        outfit_style_layout.addWidget(QLabel("服装风格覆盖:"))
+        self.outfit_style_combo = QComboBox()
+        self.outfit_style_combo.setEditable(True)
+        self.outfit_style_combo.setInsertPolicy(QComboBox.NoInsert)
+        self.outfit_style_completer_model = QStringListModel(self)
+        self.outfit_style_completer = QCompleter(self.outfit_style_completer_model, self)
+        self.outfit_style_completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self.outfit_style_completer.setFilterMode(Qt.MatchContains)
+        self.outfit_style_completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.outfit_style_combo.setCompleter(self.outfit_style_completer)
+        if self.outfit_style_combo.lineEdit() is not None:
+            self.outfit_style_combo.lineEdit().setPlaceholderText("留空则不覆盖，例如：维多利亚风格")
+            self.outfit_style_combo.lineEdit().setClearButtonEnabled(True)
+            self.outfit_style_combo.lineEdit().editingFinished.connect(self._commit_outfit_style_from_editor)
+            self.outfit_style_combo.lineEdit().textEdited.connect(self._filter_outfit_style_history_live)
+        self.outfit_style_combo.currentTextChanged.connect(self._on_outfit_style_text_changed)
+        self.outfit_style_combo.activated.connect(lambda _idx: self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=False))
+        outfit_style_layout.addWidget(self.outfit_style_combo, stretch=1)
+        self.delete_outfit_style_btn = QPushButton("x")
+        self.delete_outfit_style_btn.setFixedWidth(28)
+        self.delete_outfit_style_btn.setToolTip("删除当前历史项")
+        self.delete_outfit_style_btn.clicked.connect(self._delete_current_outfit_style_history)
+        outfit_style_layout.addWidget(self.delete_outfit_style_btn)
+        layout.addLayout(outfit_style_layout)
 
         upscale_layout = QHBoxLayout()
         self.enable_jpg_upscale_cb = QCheckBox("生图后自动处理 JPG")
@@ -815,6 +969,10 @@ class SingleAnalyzerWidget(QWidget):
         self.setLayout(layout)
         self._reload_upscale_models()
         self.set_upscale_options_defaults(self.get_upscale_options() if self.get_upscale_options else {})
+        self.set_outfit_style_options(
+            self.get_outfit_style_history() if self.get_outfit_style_history else [],
+            self.get_outfit_style_default() if self.get_outfit_style_default else ""
+        )
 
     def _resolve_ar_for_first_stage(self, original_ar: str) -> str:
         """第一次：分析完成后用于保存 prompts 的长宽比"""
@@ -1058,6 +1216,16 @@ class SingleAnalyzerWidget(QWidget):
 
     def process_image(self):
         if not self.image_source: return
+        self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=True)
+        missing_prompt_files = get_single_analyzer_missing_prompt_files(
+            enable_refine=True,
+            enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
+        )
+        if missing_prompt_files:
+            missing_text = "\n".join(missing_prompt_files)
+            QMessageBox.warning(self, "缺少 Prompt 文件", f"以下 Prompt 文件不存在，请补齐后再执行：\n{missing_text}")
+            self.log_msg(f"❌ 缺少 Prompt 文件，已中止分析：\n{missing_text}")
+            return
             
         base_url, api_key, model_name = self.get_text_config(self.use_nsfw_cb.isChecked())
         if not api_key or not model_name:
@@ -1081,7 +1249,16 @@ class SingleAnalyzerWidget(QWidget):
         self._insert_history_record(history_record)
         
         booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
-        thread = WorkerThread(image_source_snapshot, api_key, base_url, model_name, booru_tag_limit=booru_tag_limit, timeout_seconds=timeout_seconds)
+        thread = WorkerThread(
+            image_source_snapshot,
+            api_key,
+            base_url,
+            model_name,
+            booru_tag_limit=booru_tag_limit,
+            timeout_seconds=timeout_seconds,
+            enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
+            outfit_style_override=self.outfit_style_combo.currentText().strip()
+        )
         thread.meta_thread_no = analysis_thread_no
         thread.meta_source_snapshot = image_source_snapshot
         thread.meta_task_id = history_record["task_id"]
@@ -1100,6 +1277,10 @@ class SingleAnalyzerWidget(QWidget):
     def on_use_nsfw_toggled(self, checked):
         if self.on_nsfw_changed:
             self.on_nsfw_changed(bool(checked))
+
+    def on_enable_outfit_check_toggled(self, checked):
+        if self.on_outfit_check_changed:
+            self.on_outfit_check_changed(bool(checked))
 
     def _reload_upscale_models(self):
         current = self.upscale_model_combo.currentText().strip()
@@ -1154,6 +1335,75 @@ class SingleAnalyzerWidget(QWidget):
         self.use_nsfw_cb.blockSignals(True)
         self.use_nsfw_cb.setChecked(bool(checked))
         self.use_nsfw_cb.blockSignals(False)
+
+    def set_outfit_check_default(self, checked):
+        self.enable_outfit_check_cb.blockSignals(True)
+        self.enable_outfit_check_cb.setChecked(bool(checked))
+        self.enable_outfit_check_cb.blockSignals(False)
+
+    def set_outfit_style_options(self, history_items, current_text=""):
+        items = []
+        for item in (history_items or []):
+            text = str(item or "").strip()
+            if text and text not in items:
+                items.append(text)
+        self._outfit_style_history_cache = list(items)
+        current_text = str(current_text or "").strip()
+        self._apply_outfit_style_combo_items(items, current_text)
+
+    def _apply_outfit_style_combo_items(self, items, current_text):
+        self._updating_outfit_style_combo = True
+        self.outfit_style_combo.blockSignals(True)
+        self.outfit_style_combo.clear()
+        self.outfit_style_combo.addItems(items)
+        self.outfit_style_combo.setCurrentText(current_text)
+        self.outfit_style_combo.blockSignals(False)
+        self._updating_outfit_style_combo = False
+        self.outfit_style_completer_model.setStringList(list(items))
+        self._refresh_outfit_style_delete_btn()
+
+    def _filter_outfit_style_history_live(self, text):
+        if self._updating_outfit_style_combo:
+            return
+        keyword = str(text or "").strip().lower()
+        if keyword:
+            filtered_items = [item for item in self._outfit_style_history_cache if keyword in item.lower()]
+        else:
+            filtered_items = list(self._outfit_style_history_cache)
+        self._apply_outfit_style_combo_items(filtered_items, text)
+        if filtered_items:
+            self.outfit_style_combo.showPopup()
+        else:
+            self.outfit_style_combo.hidePopup()
+
+    def _refresh_outfit_style_delete_btn(self):
+        current_text = str(self.outfit_style_combo.currentText() or "").strip()
+        history_items = self.get_outfit_style_history() if self.get_outfit_style_history else []
+        normalized_history = {str(item or "").strip() for item in (history_items or []) if str(item or "").strip()}
+        self.delete_outfit_style_btn.setEnabled(bool(current_text and current_text in normalized_history))
+
+    def _on_outfit_style_text_changed(self, _text):
+        if self._updating_outfit_style_combo:
+            return
+        self._refresh_outfit_style_delete_btn()
+
+    def _commit_outfit_style_from_editor(self):
+        self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=True)
+
+    def _commit_outfit_style_text(self, text, add_to_history):
+        if self._updating_outfit_style_combo:
+            return
+        value = str(text or "").strip()
+        if self.on_outfit_style_changed:
+            self.on_outfit_style_changed(value, add_to_history=bool(add_to_history and value))
+        self._refresh_outfit_style_delete_btn()
+
+    def _delete_current_outfit_style_history(self):
+        value = str(self.outfit_style_combo.currentText() or "").strip()
+        if not value:
+            return
+        if self.on_outfit_style_deleted:
+            self.on_outfit_style_deleted(value)
 
     def _on_analysis_thread_stopped(self, thread):
         if thread in self._active_analysis_threads:

@@ -1,0 +1,12 @@
+【质量与画质设定】
+masterpiece, best quality, ultra-detailed, highres, 8k wallpaper, highly detailed CG unity 8k wallpaper, @puracotte, @fuzichoco, @kishida_mel, 
+ <lora:anima-preview2-masterpieces-e50:0.8>
+
+【核心主体与服饰框架】
+1girl, solo, highly detailed beautiful face and eyes.
+wearing gorgeous detailed dress, intricate lace, elegant shoes, beautiful stockings.
+dynamic pose, elegant movements, lolita fashion, 
+
+【光影与环境渲染】
+cinematic lighting, dramatic lighting, soft subsurface scattering, beautifully illuminated.
+detailed background, depth of field.

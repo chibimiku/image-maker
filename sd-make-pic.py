@@ -13,13 +13,15 @@ from PyQt6.QtCore import QThread, pyqtSignal
 import traceback
 from modules.others.api_backend import fetch_llm_json, fetch_cohere_json
 from modules.others.tag_completer import TagAutocompleteManager
+from utils.prompt_loader import get_prompt_path
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config-sd.json")
-PROMPTS_DIR = "data/prompts"
+PROMPTS_DIR = os.path.join(BASE_DIR, "prompts")
 NEG_PROMPTS_DIR = "data/negative_prompts"  # 新增：反向提示词目录
 OUTPUT_DIR = "outputs"
 CACHE_DIR = "cache/sd-req"
-SYSTEM_PROMPT_FILE = "data/prompts/sd-make-system_prompt.md"
+SYSTEM_PROMPT_FILE = get_prompt_path("sd-make-system_prompt.md")
 
 class GuiLogHandler(logging.Handler):
     """将 api_backend 的 logging 日志抓取并转发到 PyQt 界面的信号"""
@@ -118,33 +120,10 @@ class WorkerThread(QThread):
             self.finished_signal.emit()
 
     def fetch_llm_prompt(self, generate_count):
-        # 1. 如果系统提示词文件不存在，则自动创建并写入优化后的内容
-        if not os.path.exists(SYSTEM_PROMPT_FILE):
-            os.makedirs(os.path.dirname(SYSTEM_PROMPT_FILE), exist_ok=True)
-            default_prompt = """你是一个 Stable Diffusion 提示词编写专家。
-请基于用户提供的【绘画主题】和【基础模板】，发挥想象力进行扩写，添加丰富的细节。
+        if not os.path.isfile(SYSTEM_PROMPT_FILE):
+            self.log_signal.emit(f"❌ 缺少 System Prompt 文件：{SYSTEM_PROMPT_FILE}")
+            return None
 
-【核心要求：极度差异化】
-本次需要生成 {generate_count} 组提示词。请确保在符合【绘画主题】的前提下，每一组的场景、人物特征（发色、瞳色、发型、衣装细节）、姿势、动作、环境、图片视角等因素都必须各自不同。例如：第一张图片中要求人物是金发、仰视视角，第二张人物必须变为银发、俯视视角，依此类推。尽最大可能展现多样的视觉效果，杜绝千篇一律的设定。
-
-【最高指令：强制纯 JSON 输出】
-你必须且只能输出一个合法的 JSON 对象。绝对禁止输出任何问候语、解释性文字、Markdown 标记（如 ```json）以及任何代码注释（如 // ）。
-
-请严格参照以下格式输出（务必确保 width 和 height 是纯数字整数，不要带任何其他字符）：
-{
-  "results": [
-    {
-      "prompt": "your positive prompt here...",
-      "width": 768,
-      "height": 1024
-    }
-  ]
-}
-注意：results 数组内必须准确包含 {generate_count} 个对象，且整个输出必须能被标准的 JSON 解析器直接解析。"""
-            with open(SYSTEM_PROMPT_FILE, "w", encoding="utf-8") as f:
-                f.write(default_prompt)
-
-        # 2. 从文件中读取 System Prompt
         try:
             with open(SYSTEM_PROMPT_FILE, "r", encoding="utf-8") as f:
                 raw_system_prompt = f.read()

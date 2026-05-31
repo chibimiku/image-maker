@@ -7,6 +7,7 @@ import time
 from typing import Dict, List
 
 from openai import OpenAI
+from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,13 +17,8 @@ OUTPUT_CSV_PATH = os.path.join(BASE_DIR, "data", "tags", "danbooru_e621_merged_z
 PROGRESS_PATH = os.path.join(BASE_DIR, "data", "tags", "danbooru_e621_merged_zh.progress.json")
 
 
-SYSTEM_PROMPT = (
-    "你是 booru tag 翻译助手。"
-    "把英文 tag 翻译成简洁准确的中文，适合 UI 展示。"
-    "不要输出解释。"
-    "必须严格返回 JSON 对象，键为原始英文 tag，值为中文翻译。"
-    "若无法翻译则保留原词。"
-)
+SYSTEM_PROMPT_FILE = "translate-booru-tags-system.md"
+USER_PROMPT_FILE = "translate-booru-tags-user.md"
 
 
 def load_config(path: str) -> Dict[str, str]:
@@ -93,11 +89,10 @@ def save_translations(path: str, data: Dict[str, str]):
 
 
 def build_user_prompt(batch_tags: List[str]) -> str:
-    return (
-        "请把下面 booru tags 翻译为中文，返回 JSON 对象。"
-        "仅返回 JSON，不要 markdown，不要代码块。\n\n"
-        + json.dumps(batch_tags, ensure_ascii=False)
-    )
+    return render_prompt_file(
+        USER_PROMPT_FILE,
+        {"batch_tags_json": json.dumps(batch_tags, ensure_ascii=False)}
+    ).strip()
 
 
 def translate_batch(
@@ -116,7 +111,7 @@ def translate_batch(
                 temperature=0.2,
                 timeout=request_timeout,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": read_prompt_file(SYSTEM_PROMPT_FILE).strip()},
                     {"role": "user", "content": user_prompt},
                 ],
             )
@@ -154,6 +149,9 @@ def main():
     args = parser.parse_args()
 
     cfg = load_config(CONFIG_PATH)
+    missing_prompt_files = find_missing_prompt_files([SYSTEM_PROMPT_FILE, USER_PROMPT_FILE])
+    if missing_prompt_files:
+        raise RuntimeError("缺少 Prompt 文件:\n" + "\n".join(missing_prompt_files))
     if args.model.strip():
         cfg["model"] = args.model.strip()
     if not cfg["api_key"] or not cfg["base_url"] or not cfg["model"]:

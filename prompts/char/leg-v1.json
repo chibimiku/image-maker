@@ -1,0 +1,233 @@
+{
+  "common_prompt": {
+    "id": "COMMON_LOWER_BODY",
+    "description": "下半身与腿部特写专用公共Prompt（纯白背景版），用于强化下装、腿部线条、袜子及鞋履细节的结构化约束。",
+    "prompt": "请使用提供的参考图片来确定人物下半身及腿部的视觉特征。生成新的图像时，必须严格保持角色下半身的视觉一致性。请仅在腿部动作、姿态、构图、视角方面进行多样化变化，绝对保持下装、袜子与鞋子的细节与质感不变。\n\n【环境与背景限制】\n所有画面强制使用纯白背景（pure white background），完全去除任何环境、背景元素以及诸如漂浮物、装饰或遮挡元素，仅保留人物腰部以下的下半身主体。\n\n【外观与下装细节保留要求】（生成时必须严格提取并复刻以下层级的细节）：\n1. 构图聚焦：画面必须将焦点完全集中在腰部以下、腿部或足部，切断上半身的展示。\n2. 下装剪裁：严格遵守裙子或裤子的长度与剪裁样式。复刻服装的整体版型与分层结构，准确表现裙摆的褶皱层次、裤腿的缝线或特定印花。\n3. 腿部细节：保留袜子的精确高度（如：过膝袜、连裤袜、脚踝袜）与材质质感（如：半透明材质的透视效果、边缘的蕾丝或条纹）。\n4. 足部与鞋履：精准还原鞋型（如：搭扣小皮鞋、长筒绑带靴）、鞋跟高度、鞋底厚度，以及鞋面的蝴蝶结、金属搭扣或绑带走向。\n\n输出画面要求清晰、构图协调、光照均匀。整体画风需高度统一，用于形成高质量的腿部及下装细节训练素材。"
+  },
+  "specialized_prompts": [
+    {
+      "id": "L001",
+      "category": "standing_pose",
+      "description": "正面站立，腰部以下视角，双腿自然并拢。",
+      "prompt": "waist down shot, front standing pose, legs straight and together, pure white background, isolated on white, soft studio lighting, clear outline",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L002",
+      "category": "standing_pose",
+      "description": "正面自然站姿，重心偏向一侧，单腿微屈。",
+      "prompt": "waist down shot, standing pose weight shifted to one leg, one knee slightly bent, balanced composition, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L003",
+      "category": "standing_pose",
+      "description": "正面站立，双脚呈现内八字（微微向内倾斜）的可爱姿态。",
+      "prompt": "waist down shot, standing with toes pointing slightly inward, pigeon-toed stance, cute posture, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L004",
+      "category": "standing_pose",
+      "description": "侧面站立，腰部以下视角，展现腿部侧面线条。",
+      "prompt": "side view waist down, standing straight, clear side profile of legs and footwear, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L005",
+      "category": "standing_pose",
+      "description": "背面站立，腰部以下视角，展现大腿后侧与小腿线条。",
+      "prompt": "back view waist down, standing straight, highlighting back of legs and shoes, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L006",
+      "category": "standing_pose",
+      "description": "双腿交叉站立姿势，展现放松感。",
+      "prompt": "waist down shot, standing with legs crossed at the ankles, relaxed leaning posture, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L007",
+      "category": "standing_pose",
+      "description": "双脚分开与肩同宽的稳固站姿。",
+      "prompt": "waist down shot, legs spread shoulder-width apart, confident and stable stance, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L008",
+      "category": "dynamic_action",
+      "description": "侧面大步快走的姿态，展现双腿迈开的动作。",
+      "prompt": "side view waist down, walking mid-step, large stride, dynamic leg movement, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L009",
+      "category": "dynamic_action",
+      "description": "正面奔跑姿态，双腿前后交替的瞬间定格。",
+      "prompt": "front view waist down, running motion, legs scissoring, dynamic foreshortening, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L010",
+      "category": "dynamic_action",
+      "description": "腾空跳跃，双膝弯曲向上的腿部特写。",
+      "prompt": "mid-air jumping legs, knees bent upward, waist down action shot, floating motion, pure white background, isolated on white",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "L011",
+      "category": "dynamic_action",
+      "description": "侧身高扫腿动作，展现腿部的极度延展。",
+      "prompt": "waist down side view, high roundhouse kick motion, extreme leg extension and athletic balance, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L012",
+      "category": "dynamic_action",
+      "description": "单脚独立，另一只脚抬起悬空的平衡姿态。",
+      "prompt": "waist down shot, balancing on one leg, the other knee raised high, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L013",
+      "category": "dynamic_action",
+      "description": "单脚踩在台阶或高处隐形障碍物上的姿态。",
+      "prompt": "waist down, one foot stepping up resting on an invisible elevated surface, bent knee detail, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L014",
+      "category": "sitting_pose",
+      "description": "坐姿腰以下视角，双腿自然交叠（二郎腿）。",
+      "prompt": "waist down seated pose, legs elegantly crossed at the knees, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L015",
+      "category": "sitting_pose",
+      "description": "坐在地上，双腿向前笔直伸展。",
+      "prompt": "seated on floor, legs stretched out perfectly straight forward, low angle perspective, pure white background, isolated on white",
+      "aspect_ratio": "16:9"
+    },
+    {
+      "id": "L016",
+      "category": "sitting_pose",
+      "description": "坐在地上，双膝弯曲并拢收拢在胸前的腿部特写。",
+      "prompt": "seated on floor waist down, knees pulled up closely together toward chest, curled up lower body, pure white background, isolated on white",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "L017",
+      "category": "sitting_pose",
+      "description": "坐在地上，双腿呈现W型（鸭子坐）的姿势。",
+      "prompt": "seated on floor waist down, W-sitting position, knees together and lower legs splayed outward, pure white background, isolated on white",
+      "aspect_ratio": "4:3"
+    },
+    {
+      "id": "L018",
+      "category": "kneeling_squatting",
+      "description": "双膝跪地，大腿与小腿重叠的侧面特写。",
+      "prompt": "kneeling on both knees, side view waist down, resting weight on heels, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L019",
+      "category": "kneeling_squatting",
+      "description": "单膝跪地，另一条腿弯曲支撑的标准骑士跪姿态（仅下半身）。",
+      "prompt": "kneeling on one knee waist down, proposal stance, dynamic thigh and lower leg framing, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L020",
+      "category": "kneeling_squatting",
+      "description": "深度下蹲（亚洲蹲），腰部以下视角。",
+      "prompt": "deep squatting posture waist down, knees fully bent, compact lower body shape, pure white background, isolated on white",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "L021",
+      "category": "angle_variation",
+      "description": "极低仰视角度，从脚尖向上拍摄直至大腿。",
+      "prompt": "extreme low angle waist down, looking up from toes towards thighs, prominent shoe details, dynamic perspective, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L022",
+      "category": "angle_variation",
+      "description": "俯视视角，从上方看向自己的双脚和腿部（第一人称视角）。",
+      "prompt": "top-down high angle waist down, looking down directly at own legs and feet, first-person perspective, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L023",
+      "category": "angle_variation",
+      "description": "45度等距斜角俯视，展现双腿的立体空间感。",
+      "prompt": "45-degree isometric high angle waist down, standing legs, excellent depth and structural mapping, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L024",
+      "category": "macro_closeup",
+      "description": "大腿与下装裙摆/裤管边缘的微距特写。",
+      "prompt": "macro close-up on mid-thigh and clothing hemline, fine fabric and skin/sock texture details, pure white background, isolated on white",
+      "aspect_ratio": "16:9"
+    },
+    {
+      "id": "L025",
+      "category": "macro_closeup",
+      "description": "膝盖部位的微距特写，正面构图。",
+      "prompt": "macro close-up strictly on knees, precise joint and fabric mapping, pure white background, isolated on white",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "L026",
+      "category": "macro_closeup",
+      "description": "脚踝与鞋履的极近距离特写，侧面视角。",
+      "prompt": "macro close-up on ankles and shoes, side profile, detailed footwear straps and heel design, pure white background, isolated on white",
+      "aspect_ratio": "4:3"
+    },
+    {
+      "id": "L027",
+      "category": "macro_closeup",
+      "description": "抬起单脚，鞋底朝向镜头的极度特写。",
+      "prompt": "extreme close-up of shoe sole facing the camera, lifted foot dynamic angle, deep depth of field, pure white background, isolated on white",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "L028",
+      "category": "interaction",
+      "description": "单手放在大腿上的局部特写画面。",
+      "prompt": "close-up of leg, one hand resting gently on thigh, interaction between hand and clothing/leg, pure white background, isolated on white",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "L029",
+      "category": "interaction",
+      "description": "手部正在整理袜子边缘或鞋带的动作特写。",
+      "prompt": "close-up of ankles, hand adjusting edge of sock or tying shoelaces, precise interaction details, pure white background, isolated on white",
+      "aspect_ratio": "4:3"
+    },
+    {
+      "id": "L030",
+      "category": "reclining_pose",
+      "description": "平躺姿态下，双腿向上抬起伸直的下半身画面。",
+      "prompt": "waist down lying on back, both legs raised straight up into the air, pure white background, isolated on white",
+      "aspect_ratio": "3:4"
+    },
+    {
+      "id": "L031",
+      "category": "reclining_pose",
+      "description": "趴在地上，小腿向上翘起交替晃动的特写。",
+      "prompt": "waist down lying on stomach, calves bent upward and crossing playfully, relaxed horizontal posture, pure white background, isolated on white",
+      "aspect_ratio": "16:9"
+    },
+    {
+      "id": "L032",
+      "category": "angle_variation",
+      "description": "从正后方极低视角跟拍步行的脚跟与小腿后侧。",
+      "prompt": "tracking shot from behind at ground level, focus on heels and back of calves walking away, low depth, pure white background, isolated on white",
+      "aspect_ratio": "16:9"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "common_prompt": {
+    "id": "COMMON",
+    "description": "公共Prompt，用于所有角色生成。",
+    "prompt": "请使用提供的四张参考图片（头像、正面、侧面、背面）来确定人物外观和一致性，生成一个新的图像。新图像必须严格保持这些视觉特征一致，不改变人物外观。图像生成要求：仅在人物动作、姿态、构图、角度等方面进行多样化变化。必须使用纯白背景（pure white background），去除任何环境与背景元素，集中展现角色本身的形态。去除画面中添加的蝴蝶、水滴等漂浮、装饰、遮挡元素，只保留人物和服装。服装尤其关注必须要保留上面的印花、裁剪、服装版型、装饰品。如果存在鞋子、袜子要注意保留鞋型、印花和装饰。输出画面需要清晰、构图协调、光照均匀且风格保持一致，可用于形成稳定的角色形象训练素材。标注生成要求：同时，你必须根据所生成的图像内容，生成以下三种格式的详细标注信息，并将其作为一个 JSON 格式的数据结构返回。所有描述和标签都必须严格符合生成的画面内容，并且不包含任何环境和背景描述（例如不得出现 white background、simple background 等环境或背景标签）。JSON 数据应包含以下三个键：\nlong_description: 约 500 词。详细、深入地描述人物的每一个视觉细节。重点着重描述人物外貌（瞳色、发色、发型、眼睛、睫毛、脸型）和衣装（衣服、帽子、手套、袜子、鞋子、配饰、手持物，包括其印花、裁剪、版型、装饰）。同时描述动作、状态、表情。如果存在半透明情况，需要明确说明。\nshort_description: 约 100 词。简明扼要地概括人物、主要特征、动作和表情。重点着重描述人物外貌和衣装。如果存在半透明情况，需要明确说明。\nbooru-tags: 50 个词以内。使用标准的 Booru-style 标签（半角逗号分隔）。标签应涵盖人物的关键特征、服装（包括细节）、动作、表情。排除所有环境和背景标签。如果存在半透明情况，需要使用对应标签明确说明。以下为需要返回的 JSON 格式示例（内容仅供参考结构，实际输出需严格匹配您生成的画面）：{\"long_description\": \"画面中是一位年轻女性角色，站立姿态，表情平静。她拥有及腰的银色长发，发丝质感柔软，边缘带有微微的光泽，瞳孔为清澈的天蓝色，眼睫毛修长浓密，脸型圆润。她身穿一件设计繁复的纯白色连衣长裙，裙摆边缘有金色的刺绣印花。特别需要注意的是，她的长裙一直延伸到地面，长裙完全盖住了脚和鞋子，呈现出优雅的垂坠感和A字版型。她的双手戴着半透明的白色蕾丝手套，手套边缘有细小的荷叶边装饰。领口处系着一条深蓝色的丝带领结。没有携带任何手持物或头部配饰。整体光照均匀，清晰展现了所有的服装版型与裁剪细节。\",\"short_description\": \"一位银发蓝瞳的年轻女性，表情平静，呈站立姿态。身穿带有金色印花和裁剪收腰设计的纯白连衣长裙，长裙完全盖住了脚和鞋子。双手戴有半透明的白色蕾丝手套，领口有深蓝色丝带领结。整体形象清晰，无多余装饰物。\",\"booru-tags\": \"1girl, solo, silver hair, long hair, blue eyes, calm, standing, white dress, gold embroidery, long skirt, covered feet, opaque dress, translucent gloves, white lace gloves, blue ribbon, collar ribbon\"}"
+  },
+
+  "specialized_prompts": [
+    {
+      "id": "P01",
+      "category": "base_pose",
+      "description": "正面站立，全身展示。",
+      "prompt": "full body front standing pose, neutral posture, simple background, soft daylight, clear outline",
+      "aspect_ratio": "1:1"
+    },
+    {
+      "id": "P02",
+      "category": "base_pose",
+      "description": "自然站姿，略微侧身。",
+      "prompt": "standing pose slightly turned sideways, balanced composition, natural daylight, full body view",
+      "aspect_ratio": "3:4"
+    }    
+  ]
+}

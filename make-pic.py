@@ -637,13 +637,12 @@ class CyberNikiTab(QWidget):
 
     def run_generation_task(self, active_items, instructions, extra_prompt, aspect_ratio):
         try:
-            PROMPT_DIR = os.path.join("data", "prompts")
-            os.makedirs(PROMPT_DIR, exist_ok=True)
+            PROMPT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
             template_path = os.path.join(PROMPT_DIR, "default_template.txt")
             
             if not os.path.exists(template_path):
-                with open(template_path, 'w', encoding='utf-8') as f:
-                    f.write("【生成任务约束】\n1. 严格参考提供的图片元素或文本描述特征。画面要求纯净无水印。\n2. 图片整体生成风格必须是非照片的艺术风格，具体请参考 Instructions。\n")
+                logging.error(f"缺少 Prompt 模板文件: {template_path}")
+                return
             
             with open(template_path, 'r', encoding='utf-8') as f:
                 text_prompt = f.read()

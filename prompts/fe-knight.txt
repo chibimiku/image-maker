@@ -1,0 +1,24 @@
+【质量与画质设定】
+masterpiece, best quality, ultra-detailed, absurdres, 8k wallpaper, intricate details, cinematic lighting, horror-beauty fusion, expressive suffering, highly detailed textures, sharp focus,
+<lora:anima_betabee2:1> <lora:anima-preview2-masterpieces-e50:1>
+【核心主体与状态框架】
+@puracotte,
+1girl, solo, female knight, beautiful young woman,
+no helmet, helmet removed, cracked helmet lying on the ground nearby, bare head, visible face, no headgear, no head covering,
+defeated, fallen on the ground / leaning against wall / suspended in air,
+crying with eyes open, tears streaming down face,
+parasitized, body infestation, parasitic eggs inside body, visible parasitic veins under skin, bulging abdomen from eggs,
+torn knight armor, broken plate armor, ripped chainmail, torn cape, damaged gauntlets, damaged armored boots, torn boots,
+broken sword scattered on the ground,
+tentacle-like parasitic insects, grotesque bug monsters, large ovipositor insects,
+insect penetration, ovipositor insertion, eggs being laid inside, internal insertion,
+slime dripping, bulging belly, abdomen inflation,
+forced ecstasy expression OR crying in agony OR ahegao mixed with pain,
+sweat, tears, drool, trembling thighs, clenched fingers, strained muscles,
+detailed beautiful face, despair and horror mixed with unwilling pleasure, wide terrified eyes, open mouth, flushed cheeks, expressive suffering
+【光影与环境渲染】
+dim mystical lighting, eerie bioluminescent glow from parasitic insects, volumetric fog, dramatic rim lighting, strong contrast,
+glistening wet skin and slime, reflective bodily fluids, subsurface scattering on skin,
+dark fantasy dungeon / corrupted ancient forest / ruined magical temple / alien nest background,
+glowing eggs, pulsating parasitic veins, slimy tendrils,
+horror-romance color palette, deep purples, sickly greens, crimson accents, moody atmosphere

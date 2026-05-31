@@ -10,6 +10,12 @@
 pip install numpy onnxruntime
 ```
 
+如需运行本地测试，请额外安装：
+
+```bash
+pip install pytest
+```
+
 2. 下载 WD14 模型文件（任选一个系列，如 ConvNextV2）：
    - `model.onnx`
    - `selected_tags.csv`
@@ -68,6 +74,32 @@ pip install numpy onnxruntime
 
 ```bash
 pip install torch spandrel spandrel-extra-arches onnxruntime
+```
+
+## Prompt 目录说明
+
+- 运行时使用的系统 Prompt、模板 Prompt 统一放在项目根目录的 `prompts/`
+- 代码不再读取 `data/prompts/`
+- 如果代码所需的 Prompt 文件缺失，界面或脚本会直接报错并中止，不再使用代码内置默认 Prompt 兜底
+- 目前 `prompts/` 下包含单图分析、画风提取、同人翻译、booru tag 翻译、差分 CG、SD 提示词生成、角色设计和图片编辑等相关模板
+
+## 本地测试
+
+- 已添加 `pytest` 基础测试配置：`pytest.ini`
+- 已添加测试目录：`tests/`
+- 已添加 mock 数据目录：`tests/mock_data/`
+
+当前测试重点：
+
+- `utils/prompt_loader.py` 的路径解析、读取、模板替换、缺失文件检测
+- 关键 Prompt 文件是否存在
+- Python 代码中是否还残留 `data/prompts` 引用
+- `prompts/tmp.txt` 是否已清理
+
+运行命令：
+
+```bash
+pytest
 ```
 
 ## config-autocomplete.json 配置项（中文）
