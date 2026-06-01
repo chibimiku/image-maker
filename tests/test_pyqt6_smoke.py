@@ -151,7 +151,9 @@ def test_app_window_contains_sd_workflow_tab(qapp):
     assert "SD 批量工作流" in labels
     assert isinstance(window.sd_workflow_tab, sd_workflow_module.SdWorkflowWidget)
     setting_labels = [window.config_tabs.tabText(i) for i in range(window.config_tabs.count())]
+    other_labels = [window.others_tabs.tabText(i) for i in range(window.others_tabs.count())]
     assert "SD-WebUI接口配置" in setting_labels
+    assert "服饰素材采集" in other_labels
     assert hasattr(window.sd_workflow_tab, "use_nsfw_text_api_cb")
     assert hasattr(window.sd_workflow_tab, "story_page_count_input")
     assert hasattr(window.sd_workflow_tab, "story_prompt_preset_combo")

@@ -31,6 +31,7 @@ from modules.image_generation.upscaler_tab import UpscalerTabWidget
 from modules.image_generation.single_gen_debug_tab import SingleGenDebugWidget
 from modules.image_generation.sd_workflow_tab import SdWebuiSettingsWidget, SdWorkflowWidget
 from modules.others.booru_tag_generator import BooruTagGeneratorWidget
+from modules.fashion_collection.collector_tab import FashionCollectorWidget
 from modules.image_generation.diff_cg_tab import DiffCgTabWidget
 from utils.image_upscale_runtime import normalize_upscale_options
 
@@ -233,6 +234,7 @@ class AppWindow(QWidget):
             text_config_getter_func=self.get_text_config
         )
         self.booru_tag_generator_tab = BooruTagGeneratorWidget()
+        self.fashion_collector_tab = FashionCollectorWidget(project_root=BASE_DIR)
 
         analysis_layout = QVBoxLayout()
         analysis_layout.addWidget(self.analysis_tabs)
@@ -266,6 +268,7 @@ class AppWindow(QWidget):
         self.generation_tabs.addTab(self.diff_cg_tab, "差分CG生成")
 
         self.others_tabs.addTab(self.booru_tag_generator_tab, "生成booru-tag")
+        self.others_tabs.addTab(self.fashion_collector_tab, "服饰素材采集")
 
         self.main_tabs.addTab(self.analysis_root_tab, "图片分析")
         self.main_tabs.addTab(self.generation_root_tab, "图片生成")

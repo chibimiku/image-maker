@@ -164,6 +164,153 @@ pip install torch spandrel spandrel-extra-arches onnxruntime
 pytest
 ```
 
+## 网页抓取 CLI
+
+项目根目录新增了一个轻量命令行工具：`web-probe.py`。
+
+适合这些场景：
+
+- 快速抓网页 HTML
+- 提取 `__NEXT_DATA__`
+- 跑正则拿链接或字段
+- 批量提取 `href/src`
+- 把结果直接落盘成文本或 JSON
+
+### 1. 抓取网页原文
+
+```bash
+python web-probe.py fetch "https://wear.jp/women-category/onepiece/dress/" --print-chars 1000
+```
+
+保存到文件：
+
+```bash
+python web-probe.py fetch "https://wear.jp/women-category/onepiece/dress/" --out cache/wear_dress.html
+```
+
+### 2. 提取 Next.js `__NEXT_DATA__`
+
+抓整段 JSON：
+
+```bash
+python web-probe.py next-data "https://wear.jp/women-category/onepiece/dress/" --out cache/wear_dress_next_data.json
+```
+
+只取某个路径：
+
+```bash
+python web-probe.py next-data "https://wear.jp/yyuk1101a/26674416/" --query "props.pageProps.coordinateItems[0]"
+```
+
+### 3. 正则提取
+
+提取页面中的图片链接：
+
+```bash
+python web-probe.py regex "https://lolibrary.org/items/ap-delicious-lemonade-jsk" "https://[^\"']+\\.(jpg|jpeg|png|webp)[^\"']*" --limit 20
+```
+
+提取第一个捕获组并去重：
+
+```bash
+python web-probe.py regex "https://wear.jp/women-category/shoes/sandal/" "https://images\\.wear2\\.jp/[^\"']+" --group 0 --unique
+```
+
+### 4. 提取 href/src 链接
+
+提取绝对链接：
+
+```bash
+python web-probe.py links "https://lolibrary.org/search?brands[]=angelic-pretty" --attr href --contains "/items/" --absolute --limit 20
+```
+
+提取图片源：
+
+```bash
+python web-probe.py links "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp"
+```
+
+### 5. 读取本地文件再处理
+
+如果你已经先把 HTML 存到本地，也可以继续分析：
+
+```bash
+python web-probe.py next-data cache/wear_dress.html --from-file
+python web-probe.py regex cache/wear_dress.html "coordinate/[^\"']+" --from-file
+```
+
+### 6. 附加 Header
+
+```bash
+python web-probe.py fetch "https://example.com" --header "Accept: text/html" --header "X-Test: 1"
+```
+
+### 7. Cookie 与登录态
+
+如果目标站点需要登录态，可以直接传 Cookie：
+
+```bash
+python web-probe.py fetch "https://example.com/private" --cookie "sessionid=abc; csrftoken=xyz"
+```
+
+也可以从文件读取 Cookie：
+
+```bash
+python web-probe.py fetch "https://example.com/private" --cookie-file cache/cookies.txt
+```
+
+`--cookie-file` 支持三种格式：
+
+- 浏览器插件导出的 JSON
+- Netscape cookie jar 格式
+- 纯 `Cookie` 字符串文本
+
+例如：
+
+```bash
+python web-probe.py next-data "https://wear.jp/some/private/page" --cookie-file cache/wear_cookies.json
+```
+
+也可以指定一个目录，按域名自动寻找 cookies 文件：
+
+```bash
+python web-probe.py fetch "https://wear.jp/some/private/page" --cookie-dir-auto cache/browser-cookies
+```
+
+例如目录里存在这些文件之一即可自动命中：
+
+- `wear.jp.json`
+- `wear.jp.txt`
+- `www.wear.jp.json`
+- `www.wear.jp.cookies.txt`
+
+### 8. 直接下载链接
+
+从页面里提取图片链接并直接下载：
+
+```bash
+python web-probe.py download "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp" --download-dir cache/downloads
+```
+
+### 9. 为什么不能直接复用当前浏览器身份
+
+当前这个本地 Agent 运行环境默认没有直接控制你正在使用的浏览器，也不会自动读取你的浏览器 Profile、Cookie 数据库或登录会话。
+
+主要原因有两类：
+
+- 权限与安全：浏览器 Cookie、登录态、Profile 数据属于敏感凭据，默认不应该被自动读取
+- 工具边界：当前项目里可直接复用的是 Python/文件系统/HTTP 请求能力，没有现成的“附着到你当前浏览器会话并代发请求”的安全工具链
+
+所以这里不是“只能 Python 才能爬”，而是：
+
+- 当前 Agent 最稳定、最可审计、最容易复现的方式，是 Python 发 HTTP 请求
+- 如果你希望复用浏览器身份，最现实的做法是先从浏览器导出 cookies，再交给 `web-probe.py`
+
+后续如果你想继续扩展，也可以做两种方向：
+
+- 增加“读取浏览器导出的 cookies 文件并自动请求”
+- 再进一步接入独立浏览器自动化方案（如 Playwright / Selenium），但那就不再是现在这种轻量 CLI 了
+
 ## PyQt6 人工冒烟
 
 建议在真实桌面环境下额外做一轮主界面人工冒烟，重点验证 `app.py`。
