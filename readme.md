@@ -164,6 +164,15 @@ pip install torch spandrel spandrel-extra-arches onnxruntime
 pytest
 ```
 
+## 服饰采集策略文档
+
+服饰采集与少女生图相关的当前基线、站点策略、配置来源、产物路径和后续 `theme/style/hybrid` 扩展规划，统一记录在：
+
+- `docs/fashion-pipeline-strategy.md`
+- `docs/fashion-theme-spec-template.md`
+
+建议在调整服饰采集策略前，先更新这两份文档，再落代码。
+
 ## 网页抓取 CLI
 
 项目根目录新增了一个轻量命令行工具：`web-probe.py`。

@@ -826,27 +826,32 @@ class DiffCgTabWidget(QWidget):
         script_form.addRow("差分张数:", self.shot_count_spin)
 
         self.story_desc_edit = QTextEdit()
-        self.story_desc_edit.setMinimumHeight(70)
+        self.story_desc_edit.setMinimumHeight(80)
+        self.story_desc_edit.setMaximumHeight(100)
         self.story_desc_edit.setPlaceholderText("可选：简单描述剧情方向、情绪递进、动作变化等")
         script_form.addRow("剧情描述(可选):", self.story_desc_edit)
 
         self.base_prompt_edit = QTextEdit()
-        self.base_prompt_edit.setMinimumHeight(70)
+        self.base_prompt_edit.setMinimumHeight(80)
+        self.base_prompt_edit.setMaximumHeight(120)
         self.base_prompt_edit.setPlaceholderText("从原图读取到的正向 prompt（可手动编辑，用于保留lora等）")
         script_form.addRow("原图正向Prompt:", self.base_prompt_edit)
 
         self.base_negative_edit = QTextEdit()
-        self.base_negative_edit.setMinimumHeight(55)
+        self.base_negative_edit.setMinimumHeight(65)
+        self.base_negative_edit.setMaximumHeight(90)
         self.base_negative_edit.setPlaceholderText("从原图读取到的负向 prompt（可手动编辑）")
         script_form.addRow("原图负向Prompt:", self.base_negative_edit)
 
         self.anchor_prompt_edit = QTextEdit()
-        self.anchor_prompt_edit.setMinimumHeight(70)
+        self.anchor_prompt_edit.setMinimumHeight(80)
+        self.anchor_prompt_edit.setMaximumHeight(120)
         self.anchor_prompt_edit.setPlaceholderText("智能锚点正向（建议仅保留人物身份+lora触发词）")
         script_form.addRow("智能锚点正向:", self.anchor_prompt_edit)
 
         self.anchor_negative_edit = QTextEdit()
-        self.anchor_negative_edit.setMinimumHeight(55)
+        self.anchor_negative_edit.setMinimumHeight(65)
+        self.anchor_negative_edit.setMaximumHeight(90)
         self.anchor_negative_edit.setPlaceholderText("智能锚点负向（可选）")
         script_form.addRow("智能锚点负向:", self.anchor_negative_edit)
 
@@ -888,7 +893,8 @@ class DiffCgTabWidget(QWidget):
         webui_form.addRow("请求超时:", self.timeout_spin)
 
         self.global_negative_edit = QTextEdit()
-        self.global_negative_edit.setMinimumHeight(55)
+        self.global_negative_edit.setMinimumHeight(65)
+        self.global_negative_edit.setMaximumHeight(90)
         self.global_negative_edit.setPlaceholderText("全局负面词（若分镜里有 negative_prompt 则优先用分镜值）")
         webui_form.addRow("全局Negative:", self.global_negative_edit)
 
@@ -945,7 +951,8 @@ class DiffCgTabWidget(QWidget):
         webui_form.addRow("VAE:", self.sd_vae_input)
 
         self.global_extra_payload_edit = QTextEdit()
-        self.global_extra_payload_edit.setMinimumHeight(80)
+        self.global_extra_payload_edit.setMinimumHeight(85)
+        self.global_extra_payload_edit.setMaximumHeight(130)
         self.global_extra_payload_edit.setPlaceholderText(
             "可选：全局附加 payload JSON，可放 alwayson_scripts / override_settings 等插件参数"
         )

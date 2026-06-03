@@ -13,6 +13,8 @@ MAKE_PIC_SLOT_MAP = {
     "dress": "衣服1",
     "shoes": "鞋子",
     "socks": "袜子",
+    "hair_accessory": "发饰",
+    "bag": "手持物",
 }
 
 

@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 import requests
 
 from .models import CatalogItem
+from .networking import request_with_proxy_fallback
 from .site_base import FashionCatalogSiteAdapter, SearchRequest
 
 
@@ -45,21 +46,41 @@ class LolibraryAdapter(FashionCatalogSiteAdapter):
         self.timeout = max(5, int(timeout))
         self.session.headers.update(DEFAULT_HEADERS)
 
-    def build_search_url(self, brand_slug: str) -> str:
-        return SEARCH_URL_TEMPLATE.format(brand_slug=brand_slug, page=1)
+    def build_search_url(self, brand_slug: str, categories: list[str] | None = None) -> str:
+        url = SEARCH_URL_TEMPLATE.format(brand_slug=brand_slug, page=1)
+        for cat in (categories or []):
+            url = url + f"&categories[]={cat}&categories_matcher=OR"
+        return url
+
+    def _net(self):
+        """Get proxy and log callbacks for internal use."""
+        proxy = getattr(self, 'proxy_url', None)
+        log = getattr(self, 'log_callback', None)
+        return proxy, log
 
     def search_items(self, request: SearchRequest) -> list[CatalogItem]:
         results: list[CatalogItem] = []
         seen_ids: set[str] = set()
-        for page in range(1, max(1, request.max_pages) + 1):
+        categories = request.categories if hasattr(request, 'categories') else []
+        max_page = max(1, request.max_pages)
+        proxy, log = self._net()
+        for page in range(1, max_page + 1):
+            if log:
+                log(f"[Lolibrary] 抓取第 {page}/{max_page} 页...")
             url = SEARCH_URL_TEMPLATE.format(brand_slug=request.brand_slug, page=page)
-            response = self.session.get(url, timeout=self.timeout)
+            for cat in categories:
+                url = url + f"&categories[]={cat}&categories_matcher=OR"
+            response = request_with_proxy_fallback(self.session, "GET", url, timeout=self.timeout, proxy_url=proxy, log_callback=log)
             response.raise_for_status()
-            results.extend(self.parse_search_html(response.text, base_url="https://lolibrary.org", seen_ids=seen_ids))
+            page_items = self.parse_search_html(response.text, base_url="https://lolibrary.org", seen_ids=seen_ids)
+            if log:
+                log(f"[Lolibrary] 第 {page} 页解析到 {len(page_items)} 件商品 (累计 {len(results) + len(page_items)})")
+            results.extend(page_items)
         return results
 
     def fetch_item_detail(self, item_url: str) -> CatalogItem:
-        response = self.session.get(item_url, timeout=self.timeout)
+        proxy, log = self._net()
+        response = request_with_proxy_fallback(self.session, "GET", item_url, timeout=self.timeout, proxy_url=proxy, log_callback=log)
         response.raise_for_status()
         return self.parse_item_html(response.text, item_url=item_url)
 
@@ -67,39 +88,35 @@ class LolibraryAdapter(FashionCatalogSiteAdapter):
     def parse_search_html(cls, html_text: str, base_url: str = "https://lolibrary.org", seen_ids: set[str] | None = None) -> list[CatalogItem]:
         seen_ids = seen_ids or set()
         items: list[CatalogItem] = []
-        card_pattern = re.compile(r'<div class="card">(.*?)</ul>\s*</div>', re.I | re.S)
-        for block in card_pattern.findall(html_text):
-            item_href = _extract_first(r'<a href="(https://lolibrary\.org/items/[^"]+)"', block)
-            if not item_href:
-                rel_href = _extract_first(r'<a href="(/items/[^"]+)"', block)
-                item_href = urljoin(base_url, rel_href) if rel_href else ""
-            if not item_href:
-                continue
-
+        item_link_pattern = re.compile(
+            r'<a\s+href="(?P<href>https://lolibrary\.org/items/[^"]+|/items/[^"]+)"[^>]*>(?P<title>.*?)</a>',
+            re.I | re.S,
+        )
+        for match in item_link_pattern.finditer(html_text):
+            raw_href = match.group("href")
+            item_href = urljoin(base_url, raw_href)
             item_id = item_href.rstrip("/").split("/")[-1]
             if item_id in seen_ids:
                 continue
-
-            title = _strip_tags(_extract_first(r'<p class="mb-0".*?<a [^>]*>(.*?)</a>', block))
-            item_number = _strip_tags(_extract_first(r'<p class="text-muted itemnum mb-0".*?>(.*?)</p>', block))
-            thumbnail_url = html.unescape(_extract_first(r'<img src="([^"]+)"', block))
-            brand = _strip_tags(_extract_first(r'<a href="https://lolibrary\.org/brands/[^"]+"[^>]*title="([^"]+)"', block))
-            category_label = _strip_tags(_extract_first(r'<a href="https://lolibrary\.org/categories/[^"]+"[^>]*title="([^"]+)"', block))
-            category_slug = ""
-            category_href = _extract_first(r'<a href="https://lolibrary\.org/categories/([^"]+)"', block)
-            if category_href:
-                category_slug = category_href.split("?")[0].strip("/")
-
+            title = _strip_tags(match.group("title"))
+            context = html_text[match.start() : match.start() + 1200]
+            thumbnail_url = html.unescape(_extract_first(r'<img src="([^"]+)"', context))
+            brand = _strip_tags(
+                _extract_first(r'<a href="https://lolibrary\.org/brands/[^"]+"[^>]*title="([^"]+)"', context)
+            )
+            category_label = _strip_tags(
+                _extract_first(r'<a href="https://lolibrary\.org/categories/[^"]+"[^>]*title="([^"]+)"', context)
+            )
+            category_href = _extract_first(r'<a href="https://lolibrary\.org/categories/([^"]+)"', context)
             items.append(
                 CatalogItem(
                     source_site="lolibrary",
                     item_id=item_id,
                     item_url=item_href,
                     title=title or item_id,
-                    category_slug=category_slug,
+                    category_slug=(category_href or "").split("?")[0].strip("/"),
                     category_label=category_label,
                     brand=brand,
-                    item_number=item_number,
                     thumbnail_url=thumbnail_url,
                 )
             )

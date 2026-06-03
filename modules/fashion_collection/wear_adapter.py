@@ -6,7 +6,8 @@ from urllib.parse import urljoin
 
 import requests
 
-from .models import CatalogItem, PART_DRESS, PART_SHOES, PART_SOCKS
+from .models import CatalogItem, PART_BAG, PART_DRESS, PART_HAIR_ACCESSORY, PART_SHOES, PART_SOCKS
+from .networking import request_with_proxy_fallback
 
 
 DEFAULT_HEADERS = {
@@ -18,6 +19,8 @@ PART_SEARCH_URLS = {
     PART_DRESS: "https://wear.jp/women-category/onepiece/dress/",
     PART_SHOES: "https://wear.jp/women-category/shoes/sandal/",
     PART_SOCKS: "https://wear.jp/women-category/leg-wear/socks/",
+    PART_HAIR_ACCESSORY: "https://wear.jp/women-category/hair-accessory/",
+    PART_BAG: "https://wear.jp/women-category/bag/handbag/",
 }
 
 
@@ -66,19 +69,33 @@ class WearAdapter:
     def get_part_search_url(self, part: str) -> str:
         return PART_SEARCH_URLS.get(part, "https://wear.jp/women-coordinate/")
 
+    def _net(self):
+        """Get proxy and log callbacks for internal use."""
+        proxy = getattr(self, 'proxy_url', None)
+        log = getattr(self, 'log_callback', None)
+        return proxy, log
+
     def search_coordinates(self, part: str, max_pages: int = 1) -> list[dict]:
         results: list[dict] = []
         seen_urls: set[str] = set()
         base_url = self.get_part_search_url(part)
-        for page in range(1, max(1, max_pages) + 1):
+        max_page = max(1, max_pages)
+        proxy, log = self._net()
+        for page in range(1, max_page + 1):
+            if log:
+                log(f"[WEAR] 抓取第 {page}/{max_page} 页: {part}")
             page_url = base_url if page == 1 else f"{base_url}?pageno={page}"
-            response = self.session.get(page_url, timeout=self.timeout)
+            response = request_with_proxy_fallback(self.session, "GET", page_url, timeout=self.timeout, proxy_url=proxy, log_callback=log)
             response.raise_for_status()
-            results.extend(self.parse_search_html(response.text, part=part, base_url="https://wear.jp", seen_urls=seen_urls))
+            page_items = self.parse_search_html(response.text, part=part, base_url="https://wear.jp", seen_urls=seen_urls)
+            if log:
+                log(f"[WEAR] 第 {page} 页解析到 {len(page_items)} 个穿搭 (累计 {len(results) + len(page_items)})")
+            results.extend(page_items)
         return results
 
     def fetch_coordinate_items(self, coordinate_url: str) -> list[CatalogItem]:
-        response = self.session.get(coordinate_url, timeout=self.timeout)
+        proxy, log = self._net()
+        response = request_with_proxy_fallback(self.session, "GET", coordinate_url, timeout=self.timeout, proxy_url=proxy, log_callback=log)
         response.raise_for_status()
         return self.parse_coordinate_html(response.text, coordinate_url=coordinate_url)
 

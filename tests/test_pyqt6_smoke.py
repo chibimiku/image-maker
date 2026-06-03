@@ -30,6 +30,7 @@ from modules.image_generation.prompt_generator import PromptGeneratorWidget
 from modules.image_generation.sd_workflow_tab import SdWorkflowWidget
 from modules.image_generation.single_gen_debug_tab import SingleGenDebugWidget
 from modules.image_generation.upscaler_tab import UpscalerTabWidget
+from modules.fashion_collection.collector_tab import FashionCollectorWidget
 from PIL import Image
 
 
@@ -133,12 +134,29 @@ def test_standalone_pyqt6_widgets_construct(qapp):
         Flux2ClientWidget(),
         UpscalerTabWidget(),
         SdWorkflowWidget(),
+        FashionCollectorWidget(project_root=str(REPO_ROOT)),
     ]
 
     for widget in widgets:
         widget.show()
         qapp.processEvents()
         widget.close()
+
+
+def test_fashion_collector_widget_has_generation_controls(qapp):
+    widget = FashionCollectorWidget(project_root=str(REPO_ROOT))
+    widget.show()
+    qapp.processEvents()
+
+    assert widget.site_combo.count() >= 3
+    assert hasattr(widget, "theme_input")
+    assert hasattr(widget, "style_combo")
+    assert hasattr(widget, "character_count_combo")
+    assert hasattr(widget, "generate_btn")
+    assert hasattr(widget, "hair_accessory_cb")
+    assert hasattr(widget, "bag_cb")
+    assert widget.generate_btn.text() == "生成少女图"
+    widget.close()
 
 
 def test_app_window_contains_sd_workflow_tab(qapp):

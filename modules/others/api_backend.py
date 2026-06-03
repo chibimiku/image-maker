@@ -1723,13 +1723,17 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
             logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False) -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None) -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
     入参跟 generate_image_whatai 保持完全一致
     """
     # 从统一配置文件中加载 aigc2d 配置
     config = get_api_config(api_type="aigc2d" if not api_type else api_type)
+
+    def _log(msg: str) -> None:
+        if log_callback:
+            log_callback(msg)
 
     api_base = str(config.get("base_url", "https://next.aigc2d.com/v1beta/models/") or "https://next.aigc2d.com/v1beta/models/").strip()
     api_key = config.get("api_key")
@@ -1741,8 +1745,12 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         resolution = config.get("resolution", "1K")
 
     if not api_key:
+        _log("[生成/api] 错误: conf/config-image.json 中缺少 api_key")
         logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
         return []
+
+    _log(f"[生成/api] 接口: {api_base.rstrip('/')}")
+    _log(f"[生成/api] 模型: {model}, 分辨率: {resolution}, 超时: {timeout_val}s")
 
     # AIGC2D 接口 URL 统一规范：/v1beta/models/{model}:generateContent
     url = _build_aigc2d_generate_content_url(api_base, model)
@@ -1796,6 +1804,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     logger.info(f"请求 URL: {url}")
     logger.info(f"请求 Headers: {_headers_for_log(headers)}")
     logger.info(f"请求数据:\n{json.dumps(safe_payload, ensure_ascii=False, indent=2)}")
+    _log(f"[生成/api] 发送请求: {url}")
+    _log(f"[生成/api] 图片参考: {len(image_paths or [])} 张, Prompt: {len(combined_prompt)} chars")
 
     # ================= 阶段1：请求并获取 JSON 响应 =================
     stage_json_start = time.perf_counter()
@@ -1803,17 +1813,19 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     for attempt in range(max_retries + 1):
         try:
             if attempt > 0:
-                logger.info(f"正在进行第 {attempt} 次重试 (最大重试次数: {max_retries})...")
+                _log(f"[生成/api] 第 {attempt} 次重试...")
             
             resp = requests.post(url, headers=headers, json=payload, timeout=timeout_val)
             resp.raise_for_status()
+            _log(f"[生成/api] 响应: {resp.status_code}, 耗时 {time.perf_counter() - stage_json_start:.1f}s")
             break  
         except requests.exceptions.RequestException as e:
-            logger.warning(f"网络请求发生异常 (尝试 {attempt + 1}/{max_retries + 1}): {e}")
+            _log(f"[生成/api] 请求异常 ({attempt + 1}/{max_retries + 1}): {e}")
             if attempt < max_retries:
                 time.sleep(2)
             else:
                 logger.error("达到最大重试次数，AIGC2D 图片生成请求最终失败。")
+                _log(f"[生成/api] 请求最终失败: {e}")
                 fail_today = datetime.now().strftime("%Y%m%d")
                 fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
                 if debug_dump_full_http:

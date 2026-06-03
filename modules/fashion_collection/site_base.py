@@ -12,6 +12,7 @@ class SearchRequest:
     per_part_limit: int = 8
     preferred_parts: list[str] = field(default_factory=list)
     site_key: str = "lolibrary"
+    categories: list[str] = field(default_factory=list)
 
 
 class FashionCatalogSiteAdapter:

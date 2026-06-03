@@ -7,8 +7,10 @@ from typing import Any
 PART_DRESS = "dress"
 PART_SHOES = "shoes"
 PART_SOCKS = "socks"
+PART_HAIR_ACCESSORY = "hair_accessory"
+PART_BAG = "bag"
 
-SUPPORTED_PARTS = (PART_DRESS, PART_SHOES, PART_SOCKS)
+SUPPORTED_PARTS = (PART_DRESS, PART_SHOES, PART_SOCKS, PART_HAIR_ACCESSORY, PART_BAG)
 
 
 def _clean_text(value: str) -> str:
