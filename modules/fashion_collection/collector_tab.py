@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 import datetime
 import json
 import os
@@ -20,6 +21,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSizePolicy,
+    QSpinBox,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -33,6 +35,7 @@ from .generation_plan import (
     PART_LABELS,
     build_reference_prompt,
     build_scene_and_character_description,
+    generate_random_composition,
     load_styles_config,
     resolve_prompt_and_instructions,
     resolve_style_bundle,
@@ -80,6 +83,11 @@ class FashionCollectorWidget(QWidget):
     generate_error = pyqtSignal(str)
     analysis_done = pyqtSignal(dict)
     analysis_error = pyqtSignal(str)
+    # 批量流水线信号
+    batch_progress_signal = pyqtSignal(int, int)   # completed, total
+    batch_image_signal = pyqtSignal(str, int)      # image_path, index
+    batch_done_signal = pyqtSignal(int)             # total_completed
+    batch_error_signal = pyqtSignal(str, int)       # error_msg, index
     def __init__(self, project_root: str | None = None):
         super().__init__()
         self.project_root = os.path.abspath(project_root or os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -90,6 +98,9 @@ class FashionCollectorWidget(QWidget):
         self._generate_worker = None
         self._analysis_worker = None
         self._char_analysis_worker = None
+        self._batch_worker = None
+        self._batch_running = False
+        self._batch_lock = threading.Lock()
         self.char_image_path: str | None = None
         self.char_analysis: dict | None = None  # Vision analysis result for character ref
         self.init_ui()
@@ -154,7 +165,14 @@ class FashionCollectorWidget(QWidget):
         form.addRow("主角人数:", self.character_count_combo)
 
         self.aspect_ratio_input = QLineEdit("3:4")
-        form.addRow("导出比例:", self.aspect_ratio_input)
+        ratio_row = QHBoxLayout()
+        ratio_row.setSpacing(6)
+        ratio_row.addWidget(self.aspect_ratio_input, stretch=1)
+        self.auto_ratio_cb = QCheckBox("构图决定比例")
+        self.auto_ratio_cb.setToolTip("随机生成 instructions 时自动根据构图类型设置合适的画幅比例")
+        self.auto_ratio_cb.toggled.connect(lambda _: self._save_collector_config())
+        ratio_row.addWidget(self.auto_ratio_cb)
+        form.addRow("导出比例:", ratio_row)
 
         self.resolution_input = QLineEdit("")
         self.resolution_input.setPlaceholderText("可选，例如 2K；为空时沿用配置")
@@ -163,48 +181,25 @@ class FashionCollectorWidget(QWidget):
         self.file_prefix_input = QLineEdit("fashion_gui")
         form.addRow("输出前缀:", self.file_prefix_input)
 
+        instructions_row = QHBoxLayout()
+        instructions_row.setSpacing(6)
         self.instructions_input = QTextEdit()
         self.instructions_input.setMaximumHeight(90)
         self.instructions_input.setPlaceholderText("这里填额外的系统约束，例如构图、镜头、质感要求。")
         self.instructions_input.textChanged.connect(lambda: self._save_collector_config())
-        form.addRow("Instructions:", self.instructions_input)
+        instructions_row.addWidget(self.instructions_input, stretch=1)
+        self.random_composition_btn = QPushButton("随机生成")
+        self.random_composition_btn.setMaximumWidth(80)
+        self.random_composition_btn.setToolTip("随机生成一套人物动作构图指令")
+        self.random_composition_btn.clicked.connect(self._on_random_composition)
+        instructions_row.addWidget(self.random_composition_btn)
+        form.addRow("Instructions:", instructions_row)
 
         self.extra_prompt_input = QTextEdit()
         self.extra_prompt_input.setMaximumHeight(80)
         self.extra_prompt_input.setPlaceholderText("这里填额外人物/镜头提示；系统会自动补场景和主角描述。")
         self.extra_prompt_input.textChanged.connect(lambda: self._save_collector_config())
         form.addRow("额外 Prompt:", self.extra_prompt_input)
-
-        # --- Character reference image drop zone ---
-        char_img_wrapper = QWidget()
-        char_img_wrapper.setMaximumHeight(148)
-        char_img_layout = QVBoxLayout()
-        char_img_layout.setContentsMargins(0, 0, 0, 0)
-        char_img_layout.setSpacing(2)
-        char_img_top = QHBoxLayout()
-        char_img_top.setContentsMargins(0, 0, 0, 0)
-        self.char_img_label = self._DropLabel("拖入角色参考图\n（可选，用于固定女主角形象）", self)
-        self.char_img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.char_img_label.setFixedSize(160, 120)
-        self.char_img_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.char_img_label.setStyleSheet(
-            "QLabel { border: 2px dashed #888; border-radius: 6px; background: #f5f5f5; color: #666; font-size: 11px; }"
-        )
-        self.char_img_label.set_on_drop(self._set_character_image)
-        self.char_img_clear_btn = QPushButton("清除")
-        self.char_img_clear_btn.setMaximumWidth(50)
-        self.char_img_clear_btn.clicked.connect(self._clear_character_image)
-        self.char_img_clear_btn.setVisible(False)
-        char_img_top.addWidget(self.char_img_label)
-        char_img_top.addWidget(self.char_img_clear_btn, alignment=Qt.AlignmentFlag.AlignTop)
-        char_img_layout.addLayout(char_img_top)
-        self.char_img_status = QLabel("")
-        self.char_img_status.setStyleSheet("color: #888; font-size: 10px;")
-        self.char_img_status.setWordWrap(True)
-        self.char_img_status.setMaximumHeight(28)
-        char_img_layout.addWidget(self.char_img_status)
-        char_img_wrapper.setLayout(char_img_layout)
-        form.addRow("角色参考:", char_img_wrapper)
 
         part_row = QHBoxLayout()
         self.dress_cb = QCheckBox("连衣裙")
@@ -226,7 +221,38 @@ class FashionCollectorWidget(QWidget):
         form.addRow("采集部位:", part_row)
 
         config_group.setLayout(form)
-        main_layout.addWidget(config_group)
+
+        # -- 顶部：配置在左 + 角色参考在右 --
+        top_row = QHBoxLayout()
+        top_row.setSpacing(12)
+        top_row.addWidget(config_group, stretch=3)
+
+        # 角色参考
+        char_img_group = QGroupBox("角色参考")
+        char_img_inner = QVBoxLayout()
+        char_img_inner.setSpacing(6)
+        self.char_img_label = self._DropLabel("拖入角色参考图\n（可选，用于固定女主角形象）", self)
+        self.char_img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.char_img_label.setMaximumSize(280, 280)
+        self.char_img_label.setMinimumSize(120, 100)
+        self.char_img_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.char_img_label.setStyleSheet(
+            "QLabel { border: 2px dashed #888; border-radius: 6px; background: #f5f5f5; color: #666; font-size: 11px; }"
+        )
+        self.char_img_label.set_on_drop(self._set_character_image)
+        char_img_inner.addWidget(self.char_img_label, stretch=1)
+        self.char_img_status = QLabel("")
+        self.char_img_status.setStyleSheet("color: #888; font-size: 10px;")
+        self.char_img_status.setWordWrap(True)
+        char_img_inner.addWidget(self.char_img_status)
+        self.char_img_clear_btn = QPushButton("清除参考图")
+        self.char_img_clear_btn.clicked.connect(self._clear_character_image)
+        self.char_img_clear_btn.setVisible(False)
+        char_img_inner.addWidget(self.char_img_clear_btn)
+        char_img_group.setLayout(char_img_inner)
+        top_row.addWidget(char_img_group, stretch=1)
+
+        main_layout.addLayout(top_row)
 
         self.status_label = QLabel("状态: 就绪")
         main_layout.addWidget(self.status_label)
@@ -265,6 +291,32 @@ class FashionCollectorWidget(QWidget):
         button_row.addWidget(self.color_match_cb)
         main_layout.addLayout(button_row)
 
+        # ---- 批量流水线生成 ----
+        batch_group = QGroupBox("批量流水线生成")
+        batch_layout = QHBoxLayout()
+        batch_layout.addWidget(QLabel("并行线程数:"))
+        self.batch_threads_spin = QSpinBox()
+        self.batch_threads_spin.setRange(1, 10)
+        self.batch_threads_spin.setValue(3)
+        self.batch_threads_spin.setToolTip("同时运行的流水线线程数")
+        batch_layout.addWidget(self.batch_threads_spin)
+        batch_layout.addWidget(QLabel("总生成张数:"))
+        self.batch_total_spin = QSpinBox()
+        self.batch_total_spin.setRange(1, 999)
+        self.batch_total_spin.setValue(10)
+        self.batch_total_spin.setToolTip("一共要生成多少张少女图片")
+        batch_layout.addWidget(self.batch_total_spin)
+        self.batch_btn = QPushButton("开始批量生成")
+        self.batch_btn.setStyleSheet("QPushButton { background: #d9534f; color: white; font-weight: bold; } QPushButton:disabled { background: #ccc; }")
+        self.batch_btn.clicked.connect(self._on_batch_pipeline)
+        batch_layout.addWidget(self.batch_btn)
+        self.batch_stop_btn = QPushButton("停止")
+        self.batch_stop_btn.setEnabled(False)
+        self.batch_stop_btn.clicked.connect(self._on_stop_batch)
+        batch_layout.addWidget(self.batch_stop_btn)
+        batch_group.setLayout(batch_layout)
+        main_layout.addWidget(batch_group)
+
         self.result_label = QLabel("尚未采集素材")
         self.result_label.setWordWrap(True)
         main_layout.addWidget(self.result_label)
@@ -273,6 +325,7 @@ class FashionCollectorWidget(QWidget):
         self.log_output.setReadOnly(True)
         self.log_output.setMinimumHeight(220)
         main_layout.addWidget(self.log_output, 1)
+
         self.log_signal.connect(lambda msg: append_log_line(self.log_output, msg))
         self.collect_done.connect(self._on_collect_success)
         self.collect_error.connect(self._on_collect_error)
@@ -280,6 +333,10 @@ class FashionCollectorWidget(QWidget):
         self.generate_error.connect(self._on_generate_error)
         self.analysis_done.connect(self._on_analysis_success)
         self.analysis_error.connect(self._on_analysis_error)
+        self.batch_progress_signal.connect(self._on_batch_progress)
+        self.batch_image_signal.connect(self._on_batch_image)
+        self.batch_done_signal.connect(self._on_batch_done)
+        self.batch_error_signal.connect(self._on_batch_error)
         self.setLayout(main_layout)
         self.on_site_changed()
         self._load_collector_config()
@@ -287,15 +344,40 @@ class FashionCollectorWidget(QWidget):
     # ---- character reference image ----
 
     class _DropLabel(QLabel):
-        """QLabel subclass that accepts image drag-and-drop."""
+        """QLabel subclass that accepts image drag-and-drop and auto-scales on resize."""
 
         def __init__(self, text: str = "", parent=None):
             super().__init__(text, parent)
             self.setAcceptDrops(True)
             self._on_drop = None
+            self._original_pixmap: QPixmap | None = None
 
         def set_on_drop(self, callback):
             self._on_drop = callback
+
+        def set_original_pixmap(self, pixmap: QPixmap):
+            """Store original full-res pixmap and scale to current label size."""
+            self._original_pixmap = pixmap
+            self._apply_scaled_pixmap()
+
+        def _apply_scaled_pixmap(self):
+            if self._original_pixmap and not self._original_pixmap.isNull():
+                w = max(self.width(), 1)
+                h = max(self.height(), 1)
+                scaled = self._original_pixmap.scaled(
+                    w, h,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self.setPixmap(scaled)
+
+        def clear_pixmap(self):
+            self._original_pixmap = None
+            self.setPixmap(QPixmap())
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)
+            self._apply_scaled_pixmap()
 
         def dragEnterEvent(self, event):
             if event.mimeData().hasUrls():
@@ -327,11 +409,11 @@ class FashionCollectorWidget(QWidget):
         if not os.path.isfile(image_path):
             return
         self.char_image_path = image_path
-        # Show thumbnail
+        # Show thumbnail — clear text so pixmap renders properly
+        self.char_img_label.setText("")
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
-            pixmap = pixmap.scaled(156, 116, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            self.char_img_label.setPixmap(pixmap)
+            self.char_img_label.set_original_pixmap(pixmap)
             self.char_img_label.setStyleSheet(
                 "QLabel { border: 2px solid #66b; border-radius: 6px; }"
             )
@@ -345,13 +427,13 @@ class FashionCollectorWidget(QWidget):
     def _clear_character_image(self) -> None:
         self.char_image_path = None
         self.char_analysis = None
-        self.char_img_label.clear()
+        self.char_img_label.clear_pixmap()
         self.char_img_label.setText("拖入角色参考图\n（可选，用于固定女主角形象）")
         self.char_img_label.setStyleSheet(
             "QLabel { border: 2px dashed #888; border-radius: 6px; background: #f5f5f5; color: #666; font-size: 11px; }"
         )
         self.char_img_clear_btn.setVisible(False)
-        self.char_img_status.setText("")
+        self.char_img_status.clear()
         self._save_collector_config()
         append_log_line(self.log_output, "[角色图] 角色参考图已清除")
 
@@ -454,6 +536,7 @@ class FashionCollectorWidget(QWidget):
                     self.extra_prompt_input.setPlainText(extra_prompt)
                 self.auto_gen_cb.setChecked(bool(data.get("auto_generate", False)))
                 self.auto_analyze_cb.setChecked(bool(data.get("auto_analyze", True)))
+                self.auto_ratio_cb.setChecked(bool(data.get("auto_ratio", False)))
                 self.color_match_cb.setChecked(bool(data.get("color_match", False)))
                 char_img = str(data.get("char_image_path", "")).strip()
                 if char_img and os.path.isfile(char_img):
@@ -469,6 +552,7 @@ class FashionCollectorWidget(QWidget):
             "extra_prompt": self.extra_prompt_input.toPlainText(),
             "auto_generate": self.auto_gen_cb.isChecked(),
             "auto_analyze": self.auto_analyze_cb.isChecked(),
+            "auto_ratio": self.auto_ratio_cb.isChecked(),
             "color_match": self.color_match_cb.isChecked(),
             "char_image_path": self.char_image_path or "",
         }
@@ -518,7 +602,11 @@ class FashionCollectorWidget(QWidget):
         return parts
 
     def _is_busy(self) -> bool:
-        return bool((self._worker and self._worker.is_alive()) or (self._generate_worker and self._generate_worker.is_alive()))
+        return bool(
+            (self._worker and self._worker.is_alive())
+            or (self._generate_worker and self._generate_worker.is_alive())
+            or self._batch_running
+        )
 
     def _current_style_value(self) -> str:
         value = self.style_combo.currentText().strip()
@@ -637,6 +725,405 @@ class FashionCollectorWidget(QWidget):
             "composed_extra_prompt": composed_extra_prompt,
         }
 
+    def _on_random_composition(self):
+        """随机生成一套人物动作构图指令，填入 Instructions 框。"""
+        text, aspect_ratio = generate_random_composition()
+        self.instructions_input.setPlainText(text)
+        if self.auto_ratio_cb.isChecked():
+            self.aspect_ratio_input.setText(aspect_ratio)
+            append_log_line(self.log_output, f"[构图] 已随机生成一套构图指令，比例: {aspect_ratio}")
+        else:
+            append_log_line(self.log_output, "[构图] 已随机生成一套构图指令")
+        self._save_collector_config()
+
+    # ---- 批量流水线生成 ----
+
+    def _on_batch_pipeline(self):
+        """批量流水线：每条流水线 随机生成instructions → 采集 → 生成图片，多线程并行。"""
+        if self._is_busy():
+            QMessageBox.information(self, "提示", "当前已有任务在运行，请稍候。")
+            return
+        parts = self._selected_parts()
+        if not parts:
+            QMessageBox.warning(self, "提示", "请至少勾选一个目标部位。")
+            return
+
+        site_key = self.current_site_key()
+        brand_slug = self.brand_slug_input.text().strip()
+        if site_key == "lolibrary" and not brand_slug:
+            QMessageBox.warning(self, "提示", "Lolibrary 模式请填写品牌 slug。")
+            return
+
+        try:
+            max_pages = max(1, int(self.page_count_input.text().strip() or "1"))
+        except ValueError:
+            QMessageBox.warning(self, "提示", "扫描页数必须是整数。")
+            return
+
+        thread_count = self.batch_threads_spin.value()
+        total_images = self.batch_total_spin.value()
+
+        reply = QMessageBox.question(
+            self,
+            "确认批量生成",
+            f"将使用 {thread_count} 条并行流水线\n共生成 {total_images} 张少女图\n每条流水线会随机生成构图指令并独立采集素材\n\n确认开始？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        self._batch_running = True
+        self.batch_btn.setEnabled(False)
+        self.collect_btn.setEnabled(False)
+        self.generate_btn.setEnabled(False)
+        self.export_btn.setEnabled(False)
+        self.launch_btn.setEnabled(False)
+        self.batch_stop_btn.setEnabled(True)
+        set_task_status(self.status_label, "running", f"批量生成 0/{total_images}")
+
+        append_log_line(self.log_output, f"[批量] 开始批量流水线生成: {thread_count}线程 x {total_images}张")
+        append_log_line(self.log_output, f"[批量] 站点: {SITE_OPTIONS.get(site_key, {}).get('label', site_key)}, 主题: {self.theme_input.text().strip() or '未设置'}")
+        auto_analyze_enabled = self.auto_analyze_cb.isChecked()
+        auto_ratio_enabled = self.auto_ratio_cb.isChecked()
+        append_log_line(self.log_output, f"[批量] 自动分析: {'启用' if auto_analyze_enabled else '未启用'}, 构图比例: {'自动' if auto_ratio_enabled else '固定'}, 角色图: {'已加载' if self.char_image_path else '未设置'}")
+
+        # Snapshot config for thread workers (avoid Qt cross-thread access)
+        snapshot = {
+            "site_key": site_key,
+            "brand_slug": brand_slug,
+            "max_pages": max_pages,
+            "parts": parts,
+            "theme_text": self.theme_input.text().strip(),
+            "style_value": self._current_style_value(),
+            "character_count": int(self.character_count_combo.currentData() or 1),
+            "aspect_ratio": self.aspect_ratio_input.text().strip() or "3:4",
+            "resolution": self.resolution_input.text().strip() or None,
+            "file_prefix": self._default_file_prefix(),
+            "extra_prompt": self.extra_prompt_input.toPlainText(),
+            "base_instructions": self.instructions_input.toPlainText(),  # 会被随机覆盖
+            "char_image_path": self.char_image_path,
+            "char_analysis": self.char_analysis,
+            "proxy_url": self._get_active_proxy_url(),
+            "color_match": self.color_match_cb.isChecked(),
+            "auto_analyze": auto_analyze_enabled,
+            "auto_ratio": auto_ratio_enabled,
+        }
+
+        self._batch_worker = threading.Thread(
+            target=self._run_batch_pipeline,
+            args=(thread_count, total_images, snapshot),
+            daemon=True,
+        )
+        self._batch_worker.start()
+
+    def _on_stop_batch(self):
+        """用户主动停止批量流水线。"""
+        self._batch_running = False
+        self.batch_stop_btn.setEnabled(False)
+        append_log_line(self.log_output, "[批量] 用户请求停止，当前进行中的流水线完成后将不再启动新任务")
+        set_task_status(self.status_label, "running", "正在停止...")
+
+    def _run_batch_pipeline(self, thread_count: int, total_images: int, snapshot: dict):
+        """在后台线程中运行批量流水线。"""
+        completed = 0
+        saved_files = []
+
+        # 共享排除集：防止并行流水线采集同一件商品
+        claimed_item_ids: set[str] = set()
+        claimed_lock = threading.Lock()
+
+        def _run_single_pipeline(index: int) -> str | None:
+            """单条流水线：随机构图 → 采集 → 生图 → 返回图片路径。"""
+            if not self._batch_running:
+                return None
+            try:
+                # 1) 随机生成构图指令 + 推荐比例
+                instructions_text, composition_ratio = generate_random_composition()
+                # 若启用构图决定比例，则覆盖 snapshot 中的固定比例
+                pipeline_ratio = composition_ratio if snapshot.get("auto_ratio") else snapshot["aspect_ratio"]
+                self.batch_progress_signal.emit(completed + 1, total_images)
+                has_char = bool(
+                    snapshot.get("char_image_path")
+                    and os.path.isfile(snapshot["char_image_path"])
+                    and snapshot.get("char_analysis")
+                )
+                self.log_signal.emit(
+                    f"[批量 {index+1}/{total_images}] 开始流水线，已随机生成构图，比例: {pipeline_ratio}"
+                    f"{'，角色:' + str(snapshot.get('char_analysis', {}).get('character_description', '')[:30]) + '...' if has_char else '，无角色参考'}"
+                )
+
+                # 2) 创建独立的 Service 实例（避免线程间共享 session 冲突）
+                service = FashionCollectionService(timeout=8)
+                service.set_shared_claimed(claimed_item_ids, claimed_lock)
+                if snapshot["proxy_url"]:
+                    service.set_proxy_url(snapshot["proxy_url"])
+                service.enable_color_match = bool(snapshot.get("color_match", False))
+
+                # 3) 采集
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_") + str(index + 1).zfill(3)
+                output_dir = os.path.join(
+                    self.project_root, "data", "fashion-collector",
+                    snapshot["site_key"], timestamp,
+                )
+                bundle = service.collect_bundle(
+                    site_key=snapshot["site_key"],
+                    brand_slug=snapshot["brand_slug"],
+                    output_dir=output_dir,
+                    max_pages=snapshot["max_pages"],
+                    preferred_parts=list(snapshot["parts"]),
+                    theme=snapshot["theme_text"],
+                    log_callback=lambda msg: self.log_signal.emit(msg),
+                )
+                if not bundle.assets:
+                    self.batch_error_signal.emit(f"流水线 {index+1}: 未采集到素材", index + 1)
+                    return None
+
+                # 4) 构建生成上下文（每条流水线使用随机 instructions）
+                theme_profile = get_theme_profile(snapshot["theme_text"])
+                resolved_style_names, style_text = resolve_style_bundle(
+                    snapshot["style_value"], self.styles_data, theme_profile=theme_profile,
+                )
+                final_prompt_base, final_instructions = resolve_prompt_and_instructions(
+                    snapshot["extra_prompt"],
+                    instructions_text,  # 用随机构图覆盖
+                    theme_profile=theme_profile,
+                    style_text=style_text,
+                )
+                scene_text, character_text = build_scene_and_character_description(
+                    bundle,
+                    theme_profile=theme_profile,
+                    character_count=snapshot["character_count"],
+                )
+
+                # 5) 处理角色参考图
+                char_analysis = snapshot.get("char_analysis")
+                if char_analysis and isinstance(char_analysis, dict):
+                    char_desc = char_analysis.get("character_description", "")
+                    hair_color = char_analysis.get("hair_color", "")
+                    eye_color = char_analysis.get("eye_color", "")
+                    hair_style = char_analysis.get("hair_style", "")
+                    hair_length = char_analysis.get("hair_length", "")
+                    hair_accessory = char_analysis.get("hair_accessory", "")
+                    skin = char_analysis.get("skin_tone", "")
+                    distinctive = char_analysis.get("distinctive_features", "")
+                    vibe = char_analysis.get("overall_vibe", "")
+
+                    char_parts = [char_desc] if char_desc else []
+                    if hair_color and hair_style:
+                        char_parts.append(f"发色: {hair_color}{hair_length}({hair_style})")
+                    elif hair_color:
+                        char_parts.append(f"发色: {hair_color}")
+                    if hair_accessory and hair_accessory not in ("无", "无", "none", "None"):
+                        char_parts.append(f"发饰: {hair_accessory}")
+                    if eye_color:
+                        char_parts.append(f"瞳色: {eye_color}")
+                    if skin and skin != "无":
+                        char_parts.append(f"肤色: {skin}")
+                    if distinctive and distinctive not in ("无", "无", "none", "None"):
+                        char_parts.append(f"特征: {distinctive}")
+                    if vibe:
+                        char_parts.append(f"气质: {vibe}")
+                    analysis_char_text = "\n".join(char_parts)
+                    if analysis_char_text:
+                        character_text = (
+                            "主角描述: 最后一张参考图是该角色原型，必须严格复制以下辨识特征以让观众认出这个角色: "
+                            f"{analysis_char_text}。"
+                            "发型、发色、头发上的装饰物以及瞳色必须与参考图完全一致。"
+                            "但该角色穿着的服装必须换成前面参考图所提供的新服饰套装。"
+                        )
+                        conflict_patterns = [
+                            r'粉色头发', r'金色头发', r'黑色长发', r'黑色短发', r'棕色头发',
+                            r'蓝色头发', r'紫色头发', r'白色头发', r'红色头发', r'绿色头发',
+                            r'粉发', r'金发', r'黑发', r'棕发', r'蓝发', r'紫发', r'白发', r'红发', r'绿发',
+                            r'pink\s*hair', r'blonde?\s*hair', r'black\s*hair', r'brown\s*hair',
+                            r'blue\s*hair', r'purple\s*hair', r'white\s*hair', r'red\s*hair',
+                            r'碧眼', r'蓝瞳', r'绿瞳', r'红瞳', r'棕瞳', r'金瞳', r'紫瞳',
+                            r'双马尾', r'单马尾', r'短发', r'长发', r'卷发', r'直发',
+                        ]
+                        for pat in conflict_patterns:
+                            final_prompt_base = re.sub(pat, '', final_prompt_base, flags=re.IGNORECASE)
+                        final_prompt_base = re.sub(r'\n{3,}', '\n\n', final_prompt_base).strip()
+                        final_prompt_base = (
+                            "角色原型设定: 最后一张参考图是女主角的原型图，必须100%复制以下物理特征以保证角色可辨识: "
+                            f"{analysis_char_text}。"
+                            "发型、发色、头发上的装饰物（蝴蝶结/发箍/发夹等）以及瞳色，必须与参考图严格一致，这是角色辨识的关键。"
+                            "但是，全身服装穿搭必须全部替换为前面参考图中展示的连衣裙、鞋袜、发饰（服装类）、包袋等。"
+                            "切勿复制参考图中的衣服、鞋子、袜子或包袋。\n\n"
+                            + final_prompt_base
+                        )
+                        final_instructions = (
+                            "角色辨识度要求: 最后一张参考图的用途仅限于角色外貌辨识——"
+                            "必须严格保留其发型、发色、头发上的饰物以及瞳色，让观众一看就知道是同一个角色。"
+                            "但该图中的服装穿搭完全忽略，角色必须穿着前面参考图提供的服饰套装"
+                            "（连衣裙、鞋子、袜子、服装类发饰、包袋等）。"
+                            "忽略Prompt中任何与参考图角色外貌冲突的头发/眼睛描述。\n\n"
+                            + final_instructions
+                        )
+
+                final_prompt = build_reference_prompt(
+                    final_prompt_base, bundle,
+                    scene_text=scene_text, character_text=character_text,
+                )
+
+                # 6) 素材图列表
+                image_paths = [asset.local_path for asset in bundle.assets if os.path.isfile(asset.local_path)]
+                char_img = snapshot["char_image_path"]
+                if char_img and os.path.isfile(char_img):
+                    image_paths.append(char_img)
+                    self.log_signal.emit(f"[批量 #{index+1}] 角色参考图: {os.path.basename(char_img)}")
+                else:
+                    if snapshot.get("char_image_path") and not os.path.isfile(str(snapshot.get("char_image_path", ""))):
+                        self.log_signal.emit(f"[批量 #{index+1}] 角色参考图不存在: {snapshot['char_image_path']}")
+                    elif not snapshot.get("char_image_path"):
+                        self.log_signal.emit(f"[批量 #{index+1}] 未设置角色参考图")
+
+                # 7) 调用生图 API
+                self.log_signal.emit(
+                    f"[批量 #{index+1}] 开始生成，比例: {pipeline_ratio}，参考图: {len(image_paths)} 张(素材{len(image_paths)-(1 if char_img and os.path.isfile(char_img) else 0)} + 角色{1 if char_img and os.path.isfile(char_img) else 0}), "
+                    f"Prompt: {len(final_prompt)} chars"
+                )
+                self.log_signal.emit(f"[批量 #{index+1}] 构图指令:\n{instructions_text}")
+                if scene_text:
+                    self.log_signal.emit(f"[批量 #{index+1}] {scene_text}")
+                if character_text:
+                    self.log_signal.emit(f"[批量 #{index+1}] {character_text}")
+                result = generate_image_aigc2d(
+                    prompt=final_prompt,
+                    image_paths=image_paths,
+                    aspect_ratio=pipeline_ratio,
+                    instructions=final_instructions,
+                    resolution=snapshot["resolution"],
+                    api_type="aigc2d",
+                    save_sub_dir="fashion-generate",
+                    file_prefix=f"{snapshot['file_prefix']}_batch{index + 1}",
+                    return_metadata=True,
+                    log_callback=lambda msg: self.log_signal.emit(msg),
+                )
+
+                # 8) 提取保存的图片路径
+                image_path = None
+                if isinstance(result, dict):
+                    files = result.get("saved_files") or []
+                    if files:
+                        image_path = files[0]
+                    # 保存原始结果
+                    raw_path = os.path.join(output_dir, f"{snapshot['file_prefix']}_batch{index + 1}_result.json")
+                    with open(raw_path, "w", encoding="utf-8") as f:
+                        json.dump(result, f, ensure_ascii=False, indent=2)
+                elif isinstance(result, list) and result:
+                    image_path = result[0]
+
+                if image_path:
+                    self.batch_image_signal.emit(image_path, index + 1)
+                    # 9) 自动分析（如果勾选了出图后自动分析）
+                    if snapshot.get("auto_analyze"):
+                        self.log_signal.emit(f"[批量 #{index+1}] 触发自动分析: {image_path}")
+                        self._analyze_single_image(image_path, index + 1)
+                    else:
+                        self.log_signal.emit(f"[批量 #{index+1}] 自动分析未启用，跳过")
+                else:
+                    self.batch_error_signal.emit(f"流水线 {index+1}: 生图未返回图片", index + 1)
+
+                # 保存 bundle
+                export_bundle_manifest(bundle, output_dir)
+
+                return image_path
+
+            except Exception as exc:
+                self.batch_error_signal.emit(f"流水线 {index+1}: {exc}", index + 1)
+                return None
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
+                futures = {executor.submit(_run_single_pipeline, i): i for i in range(total_images)}
+                for future in concurrent.futures.as_completed(futures):
+                    idx = futures[future]
+                    try:
+                        img_path = future.result()
+                        if img_path:
+                            saved_files.append(img_path)
+                    except Exception:
+                        pass
+                    with self._batch_lock:
+                        completed += 1
+                        self.batch_progress_signal.emit(completed, total_images)
+                    if not self._batch_running:
+                        # Cancel remaining futures
+                        for f in futures:
+                            f.cancel()
+                        break
+        except Exception as exc:
+            self.log_signal.emit(f"[批量] 流水线异常: {exc}")
+        finally:
+            self._batch_running = False
+            self.batch_done_signal.emit(len(saved_files))
+
+    def _analyze_single_image(self, image_path: str, index: int):
+        """在批量流水线中分析单张图片并保存结果到图片同目录下。"""
+        import traceback
+        try:
+            self.log_signal.emit(f"[批量 #{index}] 开始自动分析...")
+            cfg = get_api_config(api_type="aigc2d")
+            api_base = str(cfg.get("base_url", "") or "").strip()
+            api_key = cfg.get("api_key", "")
+            if not api_key:
+                self.log_signal.emit(f"[批量 #{index}] 分析跳过: api_key 缺失")
+                return
+            if "/v1beta/models/" in api_base:
+                api_base = api_base.split("/v1beta/models/")[0] + "/v1"
+            model = "gemini-2.5-flash"
+            timeout_val = int(cfg.get("timeout", 120))
+
+            from openai import OpenAI
+            from modules.image_analysis.single_analyzer import step_1_analyze_image
+
+            client = OpenAI(api_key=api_key, base_url=api_base, timeout=timeout_val)
+            self.log_signal.emit(f"[批量 #{index}] 分析API: {api_base}, 模型: {model}, 图片: {os.path.basename(image_path)}")
+            result = step_1_analyze_image(
+                image_source=image_path,
+                client=client,
+                model_name=model,
+                log_callback=lambda msg: self.log_signal.emit(f"[批量 #{index}] {msg}"),
+                booru_tag_limit=30,
+                timeout_seconds=timeout_val,
+            )
+            # 保存分析结果到图片同目录，文件名关联
+            base = os.path.splitext(image_path)[0]
+            analysis_path = f"{base}_analysis.json"
+            with open(analysis_path, "w", encoding="utf-8") as f:
+                json.dump(result or {}, f, ensure_ascii=False, indent=2)
+
+            desc = str(result.get("english_description", "") or "")[:60] if result else ""
+            tags = result.get("pixiv_tags", []) if result else []
+            tag_str = ", ".join(tags[:8]) if tags else ""
+            self.log_signal.emit(
+                f"[批量 #{index}] 分析完成: {desc}... | tags: {tag_str}"
+            )
+            self.log_signal.emit(f"[批量 #{index}] 分析保存: {analysis_path}")
+        except Exception as exc:
+            self.log_signal.emit(f"[批量 #{index}] 分析失败: {exc}")
+            self.log_signal.emit(f"[批量 #{index}] 分析traceback: {traceback.format_exc()}")
+
+    # ---- 批量信号回调 ----
+
+    def _on_batch_progress(self, completed: int, total: int):
+        set_task_status(self.status_label, "running", f"批量生成 {completed}/{total}")
+        if completed % 3 == 0 or completed == total:
+            append_log_line(self.log_output, f"[批量] 进度: {completed}/{total}")
+
+    def _on_batch_image(self, image_path: str, index: int):
+        append_log_line(self.log_output, f"[批量 #{index}] 图片已保存: {image_path}")
+
+    def _on_batch_done(self, total_saved: int):
+        self._batch_running = False
+        self._set_busy_state(False)
+        set_task_status(self.status_label, "success", f"批量完成 {total_saved}张")
+        append_log_line(self.log_output, f"[批量] 全部完成，共成功生成 {total_saved} 张图片")
+
+    def _on_batch_error(self, message: str, index: int):
+        append_log_line(self.log_output, f"[批量 #{index}] 错误: {message}")
+
     def _default_file_prefix(self) -> str:
         value = self.file_prefix_input.text().strip()
         return value or "fashion_gui"
@@ -646,6 +1133,9 @@ class FashionCollectorWidget(QWidget):
         self.generate_btn.setEnabled((not busy) and bool(self.latest_bundle and self.latest_bundle.assets))
         self.export_btn.setEnabled((not busy) and bool(self.latest_bundle and self.latest_bundle.assets))
         self.launch_btn.setEnabled((not busy) and bool(self.latest_bundle and self.latest_bundle.assets))
+        if not busy:
+            self.batch_btn.setEnabled(True)
+            self.batch_stop_btn.setEnabled(False)
 
     def start_collection(self):
         if self._is_busy():

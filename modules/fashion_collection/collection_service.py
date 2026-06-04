@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import re
+import threading
 from typing import Callable
 from urllib.parse import parse_qs, urlparse
 
@@ -450,6 +451,26 @@ class FashionCollectionService:
         self.proxy_url = proxy_url
         self.max_theme_candidates_per_part = 8
         self.enable_color_match = False
+        # 批量流水线共享引用，防止多线程撞衫
+        self.claimed_item_ids: set[str] | None = None
+        self.claimed_lock: threading.Lock | None = None
+
+    def set_shared_claimed(self, claimed_item_ids: set[str], claimed_lock: threading.Lock) -> None:
+        """注入批量流水线的共享物品排除集及其锁。"""
+        self.claimed_item_ids = claimed_item_ids
+        self.claimed_lock = claimed_lock
+
+    def _try_claim_item(self, item_id: str, log_callback: Callable[[str], None] | None = None) -> bool:
+        """原子地检查并占用一个 item_id。返回 True=成功占用, False=已被其他线程占用。"""
+        if self.claimed_lock is None or self.claimed_item_ids is None:
+            return True
+        with self.claimed_lock:
+            if item_id in self.claimed_item_ids:
+                if log_callback:
+                    log_callback(f"[共享排除] item_id={item_id} 已被其他线程占用，跳过")
+                return False
+            self.claimed_item_ids.add(item_id)
+            return True
 
     def set_proxy_url(self, proxy_url: str | None) -> None:
         self.proxy_url = str(proxy_url).strip() if proxy_url else None
@@ -628,6 +649,11 @@ class FashionCollectionService:
                             primary = dress_llm_colors.get("primary_color", "") if dress_llm_colors else ""
                             logger.info("Lolibrary颜色检查: 通过, 裙子=%s, 配件=%s", primary or sorted(dress_colors or []), sorted(item_colors))
                             _log(f"[Lolibrary/{part}] 颜色协调通过: 裙子={primary or sorted(dress_colors or [])}, 配件={sorted(item_colors)}")
+
+                    # 共享排除：防止多线程撞衫
+                    item_id = str(getattr(part_candidate.item, "item_id", "") or "")
+                    if not self._try_claim_item(item_id, log_callback=_log):
+                        continue  # 已被其他线程占用，跳过此候选
 
                     for image_url in img_candidates:
                         try:
@@ -816,6 +842,9 @@ class FashionCollectionService:
                 if not image_url:
                     _log(f"[WEAR/{part}] 无可用图片，跳过")
                     continue
+                # 共享排除：防止多线程撞衫
+                if not self._try_claim_item(str(item.item_id), log_callback=_log):
+                    continue
                 try:
                     local_path = self.download_image(image_url, os.path.join(output_dir, part), f"{item.item_id}_{part}")
                     _log(f"[WEAR/{part}] 下载成功: {os.path.basename(local_path)}")
@@ -917,6 +946,9 @@ class FashionCollectionService:
                 image_url = select_primary_image(item.image_urls, item.thumbnail_url or product.get("thumbnail_url", ""))
                 if not image_url:
                     _log(f"[MAYLA/{part}] 无可用图片，跳过")
+                    continue
+                # 共享排除：防止多线程撞衫
+                if not self._try_claim_item(str(item.item_id), log_callback=_log):
                     continue
                 try:
                     local_path = self.download_image(image_url, os.path.join(output_dir, part), f"{item.item_id}_{part}")
