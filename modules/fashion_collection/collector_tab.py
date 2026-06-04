@@ -31,6 +31,7 @@ from modules.others.api_backend import generate_image_aigc2d, get_api_config
 from utils.task_runtime import append_log_line, set_task_status
 
 from .collection_service import FashionCollectionService
+from .brand_scraper import pick_random_brands
 from .generation_plan import (
     PART_LABELS,
     build_reference_prompt,
@@ -314,6 +315,11 @@ class FashionCollectorWidget(QWidget):
         self.batch_stop_btn.setEnabled(False)
         self.batch_stop_btn.clicked.connect(self._on_stop_batch)
         batch_layout.addWidget(self.batch_stop_btn)
+        self.random_brand_cb = QCheckBox("随机品牌")
+        self.random_brand_cb.setToolTip("每条流水线从品牌库随机选取不同品牌，避免固定 angelic-pretty")
+        self.random_brand_cb.setChecked(True)
+        self.random_brand_cb.toggled.connect(lambda _: self._save_collector_config())
+        batch_layout.addWidget(self.random_brand_cb)
         batch_group.setLayout(batch_layout)
         main_layout.addWidget(batch_group)
 
@@ -537,6 +543,7 @@ class FashionCollectorWidget(QWidget):
                 self.auto_gen_cb.setChecked(bool(data.get("auto_generate", False)))
                 self.auto_analyze_cb.setChecked(bool(data.get("auto_analyze", True)))
                 self.auto_ratio_cb.setChecked(bool(data.get("auto_ratio", False)))
+                self.random_brand_cb.setChecked(bool(data.get("random_brand", True)))
                 self.color_match_cb.setChecked(bool(data.get("color_match", False)))
                 char_img = str(data.get("char_image_path", "")).strip()
                 if char_img and os.path.isfile(char_img):
@@ -553,6 +560,7 @@ class FashionCollectorWidget(QWidget):
             "auto_generate": self.auto_gen_cb.isChecked(),
             "auto_analyze": self.auto_analyze_cb.isChecked(),
             "auto_ratio": self.auto_ratio_cb.isChecked(),
+            "random_brand": self.random_brand_cb.isChecked(),
             "color_match": self.color_match_cb.isChecked(),
             "char_image_path": self.char_image_path or "",
         }
@@ -786,6 +794,15 @@ class FashionCollectorWidget(QWidget):
         append_log_line(self.log_output, f"[批量] 站点: {SITE_OPTIONS.get(site_key, {}).get('label', site_key)}, 主题: {self.theme_input.text().strip() or '未设置'}")
         auto_analyze_enabled = self.auto_analyze_cb.isChecked()
         auto_ratio_enabled = self.auto_ratio_cb.isChecked()
+        random_brand_enabled = self.random_brand_cb.isChecked()
+
+        # 随机品牌列表
+        random_brand_slugs: list[str] = []
+        if random_brand_enabled:
+            random_brand_slugs = pick_random_brands(total_images)
+            append_log_line(self.log_output, f"[批量] 随机品牌: 已从品牌库选取 {len(set(random_brand_slugs))} 个不同品牌 (共 {len(random_brand_slugs)} 个)")
+        else:
+            append_log_line(self.log_output, f"[批量] 固定品牌: {brand_slug}")
         append_log_line(self.log_output, f"[批量] 自动分析: {'启用' if auto_analyze_enabled else '未启用'}, 构图比例: {'自动' if auto_ratio_enabled else '固定'}, 角色图: {'已加载' if self.char_image_path else '未设置'}")
 
         # Snapshot config for thread workers (avoid Qt cross-thread access)
@@ -808,6 +825,7 @@ class FashionCollectorWidget(QWidget):
             "color_match": self.color_match_cb.isChecked(),
             "auto_analyze": auto_analyze_enabled,
             "auto_ratio": auto_ratio_enabled,
+            "random_brand_slugs": random_brand_slugs,
         }
 
         self._batch_worker = threading.Thread(
@@ -849,7 +867,7 @@ class FashionCollectorWidget(QWidget):
                     and snapshot.get("char_analysis")
                 )
                 self.log_signal.emit(
-                    f"[批量 {index+1}/{total_images}] 开始流水线，已随机生成构图，比例: {pipeline_ratio}"
+                    f"[批量 {index+1}/{total_images}] 开始流水线，已随机生成构图，品牌: {pipeline_brand}，比例: {pipeline_ratio}"
                     f"{'，角色:' + str(snapshot.get('char_analysis', {}).get('character_description', '')[:30]) + '...' if has_char else '，无角色参考'}"
                 )
 
@@ -860,7 +878,9 @@ class FashionCollectorWidget(QWidget):
                     service.set_proxy_url(snapshot["proxy_url"])
                 service.enable_color_match = bool(snapshot.get("color_match", False))
 
-                # 3) 采集
+                # 3) 采集 —— 随机品牌 vs 固定品牌
+                random_brand_slugs = snapshot.get("random_brand_slugs") or []
+                pipeline_brand = random_brand_slugs[index % len(random_brand_slugs)] if random_brand_slugs else snapshot["brand_slug"]
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_") + str(index + 1).zfill(3)
                 output_dir = os.path.join(
                     self.project_root, "data", "fashion-collector",
@@ -868,7 +888,7 @@ class FashionCollectorWidget(QWidget):
                 )
                 bundle = service.collect_bundle(
                     site_key=snapshot["site_key"],
-                    brand_slug=snapshot["brand_slug"],
+                    brand_slug=pipeline_brand,
                     output_dir=output_dir,
                     max_pages=snapshot["max_pages"],
                     preferred_parts=list(snapshot["parts"]),
