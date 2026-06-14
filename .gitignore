@@ -100,7 +100,6 @@ conf/config.json
 conf/config-image.json
 conf/*.json
 !conf/config-autocomplete.json
-!conf/config-styles.json
 
 # 根目录临时图片文件
 /*.png
