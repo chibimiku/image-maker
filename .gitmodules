@@ -1,4 +1,0 @@
-[submodule "submodules/image-maker-artstyle"]
-	path = submodules/image-maker-artstyle
-	url = https://github.com/chibimiku/image-maker-artstyle.git
-	branch = main

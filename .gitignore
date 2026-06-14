@@ -101,6 +101,10 @@ conf/config-image.json
 conf/*.json
 !conf/config-autocomplete.json
 
+# 私有 submodules（本地版本管理，不公开）
+.gitmodules
+submodules/
+
 # 根目录临时图片文件
 /*.png
 /*.jpg
