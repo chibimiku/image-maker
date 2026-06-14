@@ -504,7 +504,7 @@ class BatchAnalyzerWidget(QWidget):
             if output_json_path:
                 self.current_run_json_paths.append(output_json_path)
             if self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked():
-                self.generate_images(result_json)
+                self.generate_images(result_json, analysis_json_path=output_json_path)
             self.remove_failed_image(image_path)
         self.current_index += 1
         self.update_progress()
@@ -679,7 +679,7 @@ class BatchAnalyzerWidget(QWidget):
             self.log_msg(f"❌ 保存结果时出错: {e}")
             return ""
 
-    def generate_images(self, result_json):
+    def generate_images(self, result_json, analysis_json_path=None):
         self.save_img_cfg()
         
         img_base_url, img_key, model_name, api_type = self.get_img_config()
@@ -709,6 +709,7 @@ class BatchAnalyzerWidget(QWidget):
                     api_type=api_type
                 )
                 img_thread.meta_prompt_type = "original"
+                img_thread.meta_analysis_json_path = analysis_json_path
                 img_thread.log_signal.connect(self.log_msg)
                 img_thread.finish_signal.connect(lambda files, t=img_thread: self.on_image_generation_finished(t, files))
                 img_thread.finished.connect(lambda t=img_thread: self._on_image_thread_stopped(t))
@@ -731,6 +732,7 @@ class BatchAnalyzerWidget(QWidget):
                     api_type=api_type
                 )
                 img_thread.meta_prompt_type = "refined"
+                img_thread.meta_analysis_json_path = analysis_json_path
                 img_thread.log_signal.connect(self.log_msg)
                 img_thread.finish_signal.connect(lambda files, t=img_thread: self.on_image_generation_finished(t, files))
                 img_thread.finished.connect(lambda t=img_thread: self._on_image_thread_stopped(t))
@@ -808,6 +810,7 @@ class BatchAnalyzerWidget(QWidget):
             self.log_msg(f"🎉 成功生成了 {len(saved_files)} 张 {prompt_type} 图片！")
             for file_path in saved_files:
                 self.log_msg(f" 📂 保存路径: {file_path}")
+            self._sync_analysis_mtimes(thread, saved_files)
             self._start_jpg_postprocess(saved_files, prompt_type)
         else:
             status = getattr(thread, "last_status", "unknown")
@@ -815,6 +818,47 @@ class BatchAnalyzerWidget(QWidget):
                 self.log_msg(f"🛑 已取消 {prompt_type} 图片生成")
             else:
                 self.log_msg(f"⚠️ 未能生成 {prompt_type} 图片")
+
+    def _sync_analysis_mtimes(self, thread, saved_files):
+        """将分析文件（json、两个txt）的修改时间同步到与生成的第一张图片一致"""
+        analysis_json_path = getattr(thread, "meta_analysis_json_path", None)
+        if not analysis_json_path:
+            self.log_msg("⏭ 同步 mtime 跳过：未关联分析 JSON 路径（meta_analysis_json_path 为空）")
+            return
+        if not saved_files:
+            self.log_msg("⏭ 同步 mtime 跳过：saved_files 为空，无生成图片")
+            return
+
+        first_img = saved_files[0]
+        self.log_msg(f"🕐 开始同步分析文件 mtime，基准图片: {os.path.basename(first_img)}")
+        try:
+            if not os.path.exists(first_img):
+                self.log_msg(f"⚠️ 同步 mtime 跳过：图片文件不存在 {first_img}")
+                return
+            if not os.path.exists(analysis_json_path):
+                self.log_msg(f"⚠️ 同步 mtime 跳过：分析 JSON 文件不存在 {analysis_json_path}")
+                return
+
+            img_mtime = os.stat(first_img).st_mtime
+            img_mtime_str = datetime.datetime.fromtimestamp(img_mtime).strftime("%H:%M:%S")
+            self.log_msg(f"  基准图片 mtime: {img_mtime_str}")
+
+            synced = 0
+            for fpath, label in ((analysis_json_path, "JSON"),
+                                  (analysis_json_path.rsplit(".json", 1)[0] + "-prompts.txt", "优化提示词"),
+                                  (analysis_json_path.rsplit(".json", 1)[0] + "-original-prompts.txt", "原始提示词")):
+                if os.path.exists(fpath):
+                    old_mtime = os.stat(fpath).st_mtime
+                    old_str = datetime.datetime.fromtimestamp(old_mtime).strftime("%H:%M:%S")
+                    os.utime(fpath, (os.stat(fpath).st_atime, img_mtime))
+                    synced += 1
+                    self.log_msg(f"  ✓ {label} : {old_str} → {img_mtime_str}  ({os.path.basename(fpath)})")
+                else:
+                    self.log_msg(f"  ✗ {label} 文件不存在，跳过 ({fpath})")
+
+            self.log_msg(f"🕐 同步完成: {synced}/3 个文件已同步 mtime")
+        except Exception as e:
+            self.log_msg(f"⚠️ 同步分析文件 mtime 失败: {e}")
     
     def _resolve_ar_for_first_stage(self, original_ar: str) -> str:
         """第一次：分析完成后用于保存 prompts 的长宽比"""

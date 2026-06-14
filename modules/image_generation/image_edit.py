@@ -827,6 +827,37 @@ class ImageEditWidget(QWidget):
                 
             self.log_msg(f"✅ 成功！两份提示词文件已保存:\n - {txt_filename}\n - {orig_txt_filename}")
             
+            # 将分析文件的修改时间同步到与生成的第一张图片一致
+            if renamed_images:
+                try:
+                    first_img = renamed_images[0]
+                    self.log_msg(f"🕐 开始同步分析文件 mtime，基准图片: {os.path.basename(first_img)}")
+                    if not os.path.exists(first_img):
+                        self.log_msg(f"⚠️ 同步 mtime 跳过：图片文件不存在 {first_img}")
+                    else:
+                        img_mtime = os.stat(first_img).st_mtime
+                        img_mtime_str = datetime.fromtimestamp(img_mtime).strftime("%H:%M:%S")
+                        self.log_msg(f"  基准图片 mtime: {img_mtime_str}")
+
+                        synced = 0
+                        for fpath, label in ((save_path, "JSON"),
+                                              (os.path.join(save_dir, txt_filename), "优化提示词"),
+                                              (os.path.join(save_dir, orig_txt_filename), "原始提示词")):
+                            if os.path.exists(fpath):
+                                old_mtime = os.stat(fpath).st_mtime
+                                old_str = datetime.fromtimestamp(old_mtime).strftime("%H:%M:%S")
+                                os.utime(fpath, (os.stat(fpath).st_atime, img_mtime))
+                                synced += 1
+                                self.log_msg(f"  ✓ {label} : {old_str} → {img_mtime_str}  ({os.path.basename(fpath)})")
+                            else:
+                                self.log_msg(f"  ✗ {label} 文件不存在，跳过 ({fpath})")
+
+                        self.log_msg(f"🕐 同步完成: {synced}/3 个文件已同步 mtime")
+                except Exception as e:
+                    self.log_msg(f"⚠️ 同步分析文件 mtime 失败: {e}")
+            else:
+                self.log_msg("⏭ 同步 mtime 跳过：renamed_images 为空，无生成图片")
+            
             # 打印生成的图片路径
             generated_images = result_json.get("generated_images", [])
             if generated_images:

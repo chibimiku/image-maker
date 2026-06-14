@@ -1476,11 +1476,13 @@ class SingleAnalyzerWidget(QWidget):
         
         try:
             saved_json_path = os.path.abspath(os.path.join(save_dir, json_filename))
+            self._last_saved_json_path = saved_json_path
             with open(os.path.join(save_dir, json_filename), "w", encoding="utf-8") as f:
                 json.dump(result_json, f, ensure_ascii=False, indent=4)
             self.log_msg(f"✅ 成功！JSON 结果已保存至: {json_filename}", prefix=thread_prefix)
         except Exception as e:
             saved_json_path = ""
+            self._last_saved_json_path = ""
             self.log_msg(f"❌ 保存 JSON 文件时出错: {e}", prefix=thread_prefix)
 
         try:
@@ -1508,6 +1510,7 @@ class SingleAnalyzerWidget(QWidget):
                 os.path.abspath(os.path.join(save_dir, txt_filename)),
                 os.path.abspath(os.path.join(save_dir, orig_txt_filename))
             ]
+            self._last_saved_prompt_paths = saved_prompt_paths
             
             with open(os.path.join(save_dir, txt_filename), "w", encoding="utf-8") as f: f.write(final_prompt)
             with open(os.path.join(save_dir, orig_txt_filename), "w", encoding="utf-8") as f: f.write(orig_prompt)
@@ -1525,6 +1528,7 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg("💡 该结果已设为当前手动生图内容，可直接点击下方按钮继续生成图片。", prefix=thread_prefix)
         except Exception as e:
             saved_prompt_paths = []
+            self._last_saved_prompt_paths = []
             self.log_msg(f"❌ 保存提示词 txt 文件时出错: {e}", prefix=thread_prefix)
 
         self._update_history_record(
@@ -1696,6 +1700,7 @@ class SingleAnalyzerWidget(QWidget):
         img_thread.meta_prompt_type = prompt_type
         img_thread.meta_auto_group_id = auto_group_id
         img_thread.meta_task_hash = task_hash
+        img_thread.meta_analysis_json_path = getattr(self, "_last_saved_json_path", "")
 
         self._active_img_threads.append(img_thread)
         if not self._img_gen_running:
@@ -1731,6 +1736,7 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"🎉 成功生成了 {len(saved_files)} 张 {prompt_type} 图片！", prefix=thread_prefix)
             for file_path in saved_files:
                 self.log_msg(f"📂 保存路径: {file_path}", prefix=thread_prefix)
+            self._sync_analysis_mtimes(thread, saved_files)
             self._start_jpg_postprocess(saved_files, prompt_type)
         else:
             status = getattr(thread, "last_status", "unknown")
@@ -1748,6 +1754,47 @@ class SingleAnalyzerWidget(QWidget):
                     self._auto_gen_groups.pop(auto_group_id, None)
                     if should_notify:
                         self._send_system_notification("单图分析与自动生图完成", "分析与自动生图任务已全部完成。")
+
+    def _sync_analysis_mtimes(self, thread, saved_files):
+        """将分析文件（json、两个txt）的修改时间同步到与生成的第一张图片一致"""
+        analysis_json_path = getattr(thread, "meta_analysis_json_path", None)
+        if not analysis_json_path:
+            self.log_msg("⏭ 同步 mtime 跳过：未关联分析 JSON 路径（meta_analysis_json_path 为空）")
+            return
+        if not saved_files:
+            self.log_msg("⏭ 同步 mtime 跳过：saved_files 为空，无生成图片")
+            return
+
+        first_img = saved_files[0]
+        self.log_msg("🕐 开始同步分析文件 mtime，基准图片: %s" % os.path.basename(first_img))
+        try:
+            if not os.path.exists(first_img):
+                self.log_msg("⚠️ 同步 mtime 跳过：图片文件不存在 %s" % first_img)
+                return
+            if not os.path.exists(analysis_json_path):
+                self.log_msg("⚠️ 同步 mtime 跳过：分析 JSON 文件不存在 %s" % analysis_json_path)
+                return
+
+            img_mtime = os.stat(first_img).st_mtime
+            img_mtime_str = datetime.datetime.fromtimestamp(img_mtime).strftime("%H:%M:%S")
+            self.log_msg("  基准图片 mtime: %s" % img_mtime_str)
+
+            synced = 0
+            for fpath, label in ((analysis_json_path, "JSON"),
+                                  (analysis_json_path.rsplit(".json", 1)[0] + "-prompts.txt", "优化提示词"),
+                                  (analysis_json_path.rsplit(".json", 1)[0] + "-original-prompts.txt", "原始提示词")):
+                if os.path.exists(fpath):
+                    old_mtime = os.stat(fpath).st_mtime
+                    old_str = datetime.datetime.fromtimestamp(old_mtime).strftime("%H:%M:%S")
+                    os.utime(fpath, (os.stat(fpath).st_atime, img_mtime))
+                    synced += 1
+                    self.log_msg("  ✓ %s : %s → %s  (%s)" % (label, old_str, img_mtime_str, os.path.basename(fpath)))
+                else:
+                    self.log_msg("  ✗ %s 文件不存在，跳过 (%s)" % (label, fpath))
+
+            self.log_msg("🕐 同步完成: %d/3 个文件已同步 mtime" % synced)
+        except Exception as e:
+            self.log_msg("⚠️ 同步分析文件 mtime 失败: %s" % e)
 
     def _start_jpg_postprocess(self, saved_files, prompt_type):
         if not self.enable_jpg_upscale_cb.isChecked():
