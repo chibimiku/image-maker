@@ -16,7 +16,7 @@ from PyQt6.QtGui import QPixmap, QImage, QColor, QDesktopServices
 from PyQt6.QtCore import QUrl
 
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d 
-from utils.booru_tags import normalize_booru_tags
+from utils.booru_tags import normalize_booru_tags, filter_facial_degrading_tags, filter_facial_degrading_from_text
 from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags
 from utils.task_runtime import SystemNotifier, TaskCountdown
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
@@ -154,8 +154,55 @@ def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=
     normalized["chinese_title"] = str(chinese_title).strip()
     normalized["pixiv_tags"] = [str(tag).strip() for tag in pixiv_tags if str(tag).strip()]
     normalized["short_description"] = str(short_description).strip()
-    normalized["booru-tags"] = normalize_booru_tags(booru_tags, limit=limit)
+    booru_tags_normalized = normalize_booru_tags(booru_tags, limit=limit)
+    normalized["booru-tags"] = filter_facial_degrading_tags(booru_tags_normalized)
+    # 清理描述文本中的面部模糊/打码/遮挡相关短语
+    normalized["english_description"] = filter_facial_degrading_from_text(normalized["english_description"])
+    normalized["short_description"] = filter_facial_degrading_from_text(normalized["short_description"])
     return normalized
+
+def _safe_json_from_response(response, log_callback=None, step_label="Step"):
+    """安全地从 API response 中解析 JSON，并在失败时记录原始响应信息用于调试。"""
+    try:
+        choice = response.choices[0]
+    except (IndexError, AttributeError) as e:
+        raw_str = str(response)[:2000]
+        msg = f"{step_label} 响应异常 (无法获取 choices[0]): {e}\n原始响应(截断): {raw_str}"
+        if log_callback:
+            log_callback(msg)
+        print(msg)
+        raise ValueError(msg) from e
+
+    finish_reason = getattr(choice, "finish_reason", "unknown")
+    if log_callback:
+        log_callback(f"{step_label} finish_reason: {finish_reason}")
+
+    content = getattr(choice.message, "content", None)
+    if content is None:
+        refusal = getattr(choice.message, "refusal", None)
+        details = []
+        if refusal:
+            details.append(f"refusal: {repr(refusal)}")
+        details.append(f"finish_reason: {finish_reason}")
+        details.append("content 为 None，可能是 API 安全过滤或模型拒绝响应")
+        msg = f"{step_label} 响应 content 为 None ({', '.join(details)})"
+        if log_callback:
+            log_callback(msg)
+        print(msg)
+        raise ValueError(msg)
+
+    content_preview = str(content)[:2000]
+    if log_callback:
+        log_callback(f"{step_label} 原始响应内容(截断): {content_preview}")
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        msg = f"{step_label} JSON 解析失败: {e}\n原始内容(截断): {content_preview}"
+        if log_callback:
+            log_callback(msg)
+        print(msg)
+        raise
 
 def calculate_closest_aspect_ratio(image_source):
     """根据输入图片尺寸，从预设列表中计算最贴近的长宽比"""
@@ -291,7 +338,7 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
             ],
             temperature=0.7, max_completion_tokens=16384, timeout=timeout_seconds
         )
-        parsed = json.loads(response.choices[0].message.content)
+        parsed = _safe_json_from_response(response, log_callback=log_callback, step_label="Step 1")
         fallback_data = {"booru-tags": normalize_booru_tags(local_booru_tags or [], limit=booru_tag_limit)}
         normalized = _normalize_analysis_result(parsed, fallback_data=fallback_data, booru_tag_limit=booru_tag_limit)
         if local_booru_tags:
@@ -347,7 +394,7 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
             ],
             temperature=0.7, max_completion_tokens=16384, timeout=timeout_seconds
         )
-        final_result_json = json.loads(response.choices[0].message.content)
+        final_result_json = _safe_json_from_response(response, log_callback=None, step_label="Step 2")
         final_result_json = _normalize_analysis_result(final_result_json, fallback_data=original_json_data, booru_tag_limit=booru_tag_limit)
         # 将原始描述也存入最终结果，方便后续对比或同时生成
         final_result_json["original_english_description"] = original_description
@@ -391,7 +438,7 @@ def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout
             max_completion_tokens=8192,
             timeout=timeout_seconds
         )
-        parsed = json.loads(response.choices[0].message.content)
+        parsed = _safe_json_from_response(response, log_callback=None, step_label="Step 3")
         checked_refine = str(parsed.get("english_description") or refine_prompt).strip()
         checked_original = str(parsed.get("original_english_description") or original_prompt).strip()
         has_person = _to_bool(parsed.get("has_person"), default=bool(refine_prompt or original_prompt))
@@ -626,7 +673,8 @@ class ImageGenWorkerThread(QThread):
                     api_type=self.api_type,
                     resolution=self.resolution,
                     file_prefix=self.file_prefix,
-                    return_metadata=self.verbose_debug
+                    return_metadata=self.verbose_debug,
+                    cancel_check=lambda: self.isInterruptionRequested()
                 )
             else:
                 result = generate_image_whatai(
@@ -638,7 +686,8 @@ class ImageGenWorkerThread(QThread):
                     api_type=self.api_type,
                     resolution=self.resolution,
                     file_prefix=self.file_prefix,
-                    return_metadata=self.verbose_debug
+                    return_metadata=self.verbose_debug,
+                    cancel_check=lambda: self.isInterruptionRequested()
                 )
             if isinstance(result, dict):
                 saved_files = result.get("saved_files", []) or []
@@ -1501,8 +1550,12 @@ class SingleAnalyzerWidget(QWidget):
             
             # 在风格标签和描述之间添加两个回车
             style_part = f"--ar {self.current_aspect_ratio} {current_fixed_tags}".strip()
-            final_prompt = f"{style_part}\n\n{self.current_refine_desc}".strip()
-            orig_prompt = f"{style_part}\n\n{self.current_orig_desc}".strip()
+            # 添加面部质量保护后缀，防止因原图打码等原因导致生成模糊面部
+            _face_quality_suffix = "detailed face, clear facial features, sharp focus on face"
+            refine_desc_with_face = f"{self.current_refine_desc}, {_face_quality_suffix}" if self.current_refine_desc else self.current_refine_desc
+            orig_desc_with_face = f"{self.current_orig_desc}, {_face_quality_suffix}" if self.current_orig_desc else self.current_orig_desc
+            final_prompt = f"{style_part}\n\n{refine_desc_with_face}".strip()
+            orig_prompt = f"{style_part}\n\n{orig_desc_with_face}".strip()
             
             txt_filename = f"{base_filename}-prompts.txt"
             orig_txt_filename = f"{base_filename}-original-prompts.txt"
@@ -1675,6 +1728,9 @@ class SingleAnalyzerWidget(QWidget):
         if not str(prompt_to_use).strip():
             self.log_msg(f"{prompt_type} 提示词为空，已跳过本次生图。")
             return False
+        # 添加面部质量保护后缀，防止因原图打码等原因导致生成模糊面部
+        _face_quality_suffix = "detailed face, clear facial features, sharp focus on face"
+        prompt_to_use = f"{prompt_to_use}, {_face_quality_suffix}"
         
         selected_style_name = self.main_style_combo.currentText()
         styles_data = self.get_styles()

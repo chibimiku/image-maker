@@ -208,7 +208,8 @@ class CharDesignWorker(QRunnable):
                     save_sub_dir=save_dir,
                     file_prefix=prompt_item.get('id', ''),
                     resolution=resolution if resolution != "默认" else "",
-                    return_metadata=True
+                    return_metadata=True,
+                    cancel_check=lambda: self.is_stopped_func()
                 )
             else:
                 generation_result = generate_image_whatai(
@@ -221,8 +222,14 @@ class CharDesignWorker(QRunnable):
                     save_sub_dir=save_dir,
                     file_prefix=prompt_item.get('id', ''),
                     resolution=resolution if resolution != "默认" else "",
-                    return_metadata=True
+                    return_metadata=True,
+                    cancel_check=lambda: self.is_stopped_func()
                 )
+            if self.is_stopped_func():
+                self.signals.log.emit(f"任务已被取消: {prompt_item.get('id', 'unknown')}")
+                self.task_info['status'] = 'cancelled'
+                self.signals.error.emit("任务被用户停止", self.task_info)
+                return
             if isinstance(generation_result, dict):
                 saved_files = generation_result.get("saved_files", [])
                 annotation_json = generation_result.get("annotation", {})

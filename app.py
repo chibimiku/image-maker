@@ -50,6 +50,86 @@ DEFAULT_STYLES = {
 }
 
 
+class FilterableComboBox(QComboBox):
+    """支持输入文字实时筛选下拉列表的 QComboBox"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self._all_items = []
+        self._filter_text = ""
+        self.lineEdit().textEdited.connect(self._on_text_edited)
+
+    def setItems(self, items):
+        """一次性设置所有候选项"""
+        self._all_items = list(items) if items else []
+        self._rebuild_popup()
+
+    def addItem(self, text, userData=None):
+        if text not in self._all_items:
+            self._all_items.append(text)
+        self._rebuild_popup()
+
+    def addItems(self, items):
+        """追加候选项（同时更新全量列表）"""
+        if not isinstance(items, (list, tuple)):
+            super().addItems(items)
+            return
+        for item in items:
+            if item not in self._all_items:
+                self._all_items.append(item)
+        self._rebuild_popup()
+
+    def clear(self):
+        self._all_items.clear()
+        self._filter_text = ""
+        super().clear()
+
+    def _rebuild_popup(self):
+        """根据当前筛选文字重建下拉列表"""
+        self.blockSignals(True)
+        super().clear()
+        self.blockSignals(False)
+        current = self.currentText()
+        filter_lower = self._filter_text.lower()
+        if filter_lower:
+            filtered = [item for item in self._all_items if filter_lower in item.lower()]
+        else:
+            filtered = list(self._all_items)
+        if filtered:
+            self.addItems_to_popup(filtered)
+            if current and self.findText(current) >= 0:
+                pass  # keep current
+        elif self._all_items:
+            # 无匹配项时显示全部
+            self.addItems_to_popup(list(self._all_items))
+
+    def addItems_to_popup(self, items):
+        """直接向底层 QComboBox 添加条目（绕过 addItems 重写）"""
+        super().addItems(items)
+
+    def _on_text_edited(self, text):
+        self._filter_text = text
+        self._rebuild_popup()
+        self.showPopup()
+
+    def showPopup(self):
+        self._rebuild_popup()
+        super().showPopup()
+
+    def currentText(self):
+        return self.lineEdit().text() if self.lineEdit() else super().currentText()
+
+    def setCurrentText(self, text):
+        self.lineEdit().setText(text)
+
+    def findText(self, text, flags=None):
+        # 在全量列表中查找
+        for i, item in enumerate(self._all_items):
+            if item == text:
+                return i
+        return -1
+
+
 class ModelFetchThread(QThread):
     success_signal = pyqtSignal(list, str)
     error_signal = pyqtSignal(str, str)
@@ -288,8 +368,7 @@ class AppWindow(QWidget):
         text_layout.addRow("API Key:", self.key_input)
         
         model_layout = QHBoxLayout()
-        self.model_combo = QComboBox()
-        self.model_combo.setEditable(True) 
+        self.model_combo = FilterableComboBox()
         model_layout.addWidget(self.model_combo, stretch=1)
         self.fetch_btn = QPushButton("获取模型列表")
         self.fetch_btn.clicked.connect(self.fetch_models)
@@ -319,8 +398,7 @@ class AppWindow(QWidget):
         text_nsfw_layout.addRow("API Key:", self.nsfw_key_input)
 
         nsfw_model_layout = QHBoxLayout()
-        self.nsfw_model_combo = QComboBox()
-        self.nsfw_model_combo.setEditable(True)
+        self.nsfw_model_combo = FilterableComboBox()
         self.nsfw_model_combo.currentTextChanged.connect(lambda: self.save_text_config(silent=True))
         nsfw_model_layout.addWidget(self.nsfw_model_combo, stretch=1)
         self.fetch_nsfw_btn = QPushButton("获取模型列表")
@@ -352,8 +430,7 @@ class AppWindow(QWidget):
         self.img_key_input.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
         image_layout.addRow("API Key:", self.img_key_input)
         
-        self.img_model_combo = QComboBox()
-        self.img_model_combo.setEditable(True)
+        self.img_model_combo = FilterableComboBox()
         self.img_model_combo.addItem("nano-banana-2") 
         image_layout.addRow("生图模型:", self.img_model_combo)
 
@@ -664,14 +741,16 @@ class AppWindow(QWidget):
                     
                     saved_model = config.get("model", "")
                     if saved_model:
-                        self.model_combo.clear()
                         self.model_combo.addItem(saved_model)
                         self.model_combo.setCurrentText(saved_model)
                     saved_nsfw_model = config.get("nsfw_model", saved_model)
                     if saved_nsfw_model:
-                        self.nsfw_model_combo.clear()
                         self.nsfw_model_combo.addItem(saved_nsfw_model)
                         self.nsfw_model_combo.setCurrentText(saved_nsfw_model)
+                    # 恢复缓存的模型列表
+                    self._cached_models = config.get("cached_models", [])
+                    self._cached_nsfw_models = config.get("cached_nsfw_models", [])
+                    self._restore_cached_models()
             except Exception as e:
                 print(f"加载 {CONFIG_FILE} 失败: {e}")
         if hasattr(self, "single_analyzer_tab"):
@@ -752,6 +831,11 @@ class AppWindow(QWidget):
                     if self.img_resolution_combo.findText(saved_resolution) == -1:
                         self.img_resolution_combo.addItem(saved_resolution)
                     self.img_resolution_combo.setCurrentText(saved_resolution)
+                    # =====================================================
+                    # 恢复缓存的图片生成模型列表
+                    self._cached_image_models = config.get("cached_image_models", [])
+                    if self._cached_image_models:
+                        self.img_model_combo.setItems(self._cached_image_models)
                     # =====================================================
             except Exception as e:
                 print(f"加载 {CONFIG_IMAGE_FILE} 失败: {e}")
@@ -878,7 +962,9 @@ class AppWindow(QWidget):
             "booru_tag_limit": int(self.get_booru_tag_limit()),
             "last_used_style": getattr(self, "last_used_style", "默认(无附加)"),
             "upscale_options": normalize_upscale_options(getattr(self, "upscale_options", {})),
-            "pic_cate": self.pic_cate_state
+            "pic_cate": self.pic_cate_state,
+            "cached_models": getattr(self, "_cached_models", []),
+            "cached_nsfw_models": getattr(self, "_cached_nsfw_models", []),
         }
         try:
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -897,6 +983,30 @@ class AppWindow(QWidget):
             "train_name": ""
         }
         self.save_text_config(silent=True)
+
+    def _save_model_cache(self, model_names, request_key):
+        """将模型列表缓存在内存并触发配置保存"""
+        if request_key == "text":
+            self._cached_models = list(model_names or [])
+            self.save_text_config(silent=True)
+        elif request_key == "nsfw":
+            self._cached_nsfw_models = list(model_names or [])
+            self.save_text_config(silent=True)
+        elif request_key == "image":
+            self._cached_image_models = list(model_names or [])
+            self.save_image_config(silent=True)
+
+    def _restore_cached_models(self):
+        """从配置文件中恢复缓存的模型列表到 FilterableComboBox"""
+        # 文本分析模型
+        if hasattr(self, "_cached_models") and self._cached_models:
+            self.model_combo.setItems(self._cached_models)
+        # NSFW 分析模型
+        if hasattr(self, "_cached_nsfw_models") and self._cached_nsfw_models:
+            self.nsfw_model_combo.setItems(self._cached_nsfw_models)
+        # 图片生成模型
+        if hasattr(self, "_cached_image_models") and self._cached_image_models:
+            self.img_model_combo.setItems(self._cached_image_models)
 
     def handle_batch_quick_export(self, json_paths):
         valid_paths = [os.path.abspath(path) for path in (json_paths or []) if os.path.isfile(path) and str(path).lower().endswith(".json")]
@@ -1066,6 +1176,7 @@ class AppWindow(QWidget):
         config["current_api"] = current_api_global
         # 【修改】将数据保存到正确的节点 target_api_node 下
         config["apis"][target_api_node] = api_config
+        config["cached_image_models"] = getattr(self, "_cached_image_models", [])
         try:
             with open(CONFIG_IMAGE_FILE, "w", encoding="utf-8") as f:
                 json.dump(config, f, ensure_ascii=False, indent=4)
@@ -1112,16 +1223,15 @@ class AppWindow(QWidget):
         model_combo.clear()
         model_combo.addItems(model_names)
 
-        index = model_combo.findText(current_text)
-        if index >= 0:
-            model_combo.setCurrentIndex(index)
-        elif current_text:
+        if current_text and any(current_text == m for m in model_names):
             model_combo.setCurrentText(current_text)
 
         model_combo.setEnabled(True)
         fetch_btn.setEnabled(True)
         fetch_btn.setText("获取模型列表")
-        QMessageBox.information(self, "成功", f"成功获取 {len(model_names)} 个可用模型！")
+        # 保存缓存
+        self._save_model_cache(model_names, request_key)
+        QMessageBox.information(self, "成功", f"成功获取 {len(model_names)} 个可用模型！（已缓存到本地）")
 
     def _on_fetch_models_error(self, request_key, model_combo, fetch_btn, error_text):
         if request_key not in self._model_fetch_threads:

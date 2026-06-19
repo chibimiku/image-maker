@@ -9,16 +9,19 @@
 6. 如果人物有穿着高跟鞋的描述，则把鞋跟高度的描述修改得更高，并带有小饰品。
 7. 增加人物姿势中大腿分开的描述。
 8. 根据当前描述的构图和场景内容，推断最合适的画幅长宽比（例如竖图推荐 9:16 或 2:3，横图推荐 16:9 或 3:2，正方形推荐 1:1）。
+9. CRITICAL: 如果原描述中存在面部模糊、打码（mosaic）、像素化（pixelation）或被遮挡（obscured）等受审查影响的描述，必须将其完全删除，改为清晰、细致、正面的面部特征描述。绝不保留任何面部质量退化的词语或标签。
 
 约束条件：
 - 输出的图片描述必须全为英文，字数维持在约 600-750 词。
 - 维持设定的安全与风格限制（禁止使用'cleavage'、'nude'，若符合'lolita'概念请替换为'rococo'）。
 - 标签总数必须严格保持在 12 个，请根据新增的描述替换部分原有标签。
+- CRITICAL: pixiv_tags 中每个标签必须是日语（日文），禁止使用英文或中文标签。标签格式如：「女の子」「青い空」等。可以在原标签基础上修改、替换，但绝不能翻译成英文。
 - 额外返回 short_description（约 100 词英文简述）和 booru-tags（标签数组，最多 {booru_tag_limit} 个，聚焦人物/服装/动作/表情，不含环境标签）。
 - booru-tags 必须按重要性从前到后排序（最重要的在最前）。
 - booru-tags 中每个标签都必须是 Danbooru 网站可检索到结果的有效标签。
 - booru-tags 中每个标签必须使用小写英文，词与词之间使用下划线（例如 long_hair），不要输出自然语言短句。
 - booru-tags 风格示例（仅用于风格参考，不要照抄）：["1girl", "solo", "long_hair", "blue_eyes", "looking_at_viewer", "smile", "hair_ornament", "frilled_dress", "thighhighs", "lace_gloves"]。
+- booru-tags 黑名单：绝不输出 "mosaic"、"blurry"、"censored"、"pixelated"、"lowres"、"bad_face" 等表示面部质量退化的标签。
 - 必须输出严格的 JSON 格式，保留原有标题，并新增 "aspect_ratio" 字段。
 
 以下是 Step 1 已经生成好的基础数据，请在最终输出的 JSON 中直接保留这两个标题：
@@ -34,6 +37,6 @@
     "booru-tags": ["<tag1>", "<tag2>", "<tag3>"],
     "japanese_title": "{jp_title}",
     "chinese_title": "{cn_title}",
-    "pixiv_tags": ["<更新后的12个标签>"],
+    "pixiv_tags": ["<日文标签1>", "<日文标签2>", "<日文标签3>", "<日文标签4>", "<日文标签5>", "<日文标签6>", "<日文标签7>", "<日文标签8>", "<日文标签9>", "<日文标签10>", "<日文标签11>", "<日文标签12>"],
     "aspect_ratio": "<例如 2:3>"
 }}

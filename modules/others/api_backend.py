@@ -1320,7 +1320,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         }
     return saved_files
 
-def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False) -> list:
+def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, cancel_check: callable = None) -> list:
     """
     独立出来的图片生成核心逻辑
     """
@@ -1386,7 +1386,8 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     }
 
     # 将用户保存的 Instructions 和具体的 prompt 拼接传入
-    combined_prompt = f"--ar {aspect_ratio} ,  {instructions}  {prompt}"
+    _face_quality_boost = "detailed face, clear facial features, sharp focus on face"
+    combined_prompt = f"--ar {aspect_ratio} ,  {instructions}  {prompt}, {_face_quality_boost}"
     content_list = [{"type": "text", "text": combined_prompt}]
 
     if image_paths:
@@ -1432,6 +1433,16 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
             
         except requests.exceptions.RequestException as e:
             logger.warning(f"网络请求发生异常 (尝试 {attempt + 1}/{max_retries + 1}): {e}")
+            if callable(cancel_check) and cancel_check():
+                logger.info("收到外部取消请求，停止重试。")
+                if return_metadata:
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": str(e),
+                        "server_response_raw": {"error": "cancelled", "raw_text": str(e)[:2000]},
+                    }
+                return []
             if attempt < max_retries:
                 time.sleep(2)  # 重试前稍微休息2秒，避免频繁打满后端
             else:
@@ -1723,7 +1734,7 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
             logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None) -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None) -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
     入参跟 generate_image_whatai 保持完全一致
@@ -1760,7 +1771,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     }
 
     # 组合提示词
-    combined_prompt = f"{instructions} \n {prompt}".strip() if instructions else prompt
+    _face_quality_boost = ", detailed face, clear facial features, sharp focus on face"
+    combined_prompt = f"{instructions} \n {prompt}{_face_quality_boost}".strip() if instructions else f"{prompt}{_face_quality_boost}"
     parts = [{"text": combined_prompt}]
 
     # 处理传入的参考图片（支持多图，按照入参列表追加）
@@ -1821,6 +1833,17 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
             break  
         except requests.exceptions.RequestException as e:
             _log(f"[生成/api] 请求异常 ({attempt + 1}/{max_retries + 1}): {e}")
+            if callable(cancel_check) and cancel_check():
+                logger.info("收到外部取消请求，停止 AIGC2D 重试。")
+                _log("[生成/api] 收到取消请求，停止重试。")
+                if return_metadata:
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": str(e),
+                        "server_response_raw": {"error": "cancelled", "raw_text": str(e)[:2000]},
+                    }
+                return []
             if attempt < max_retries:
                 time.sleep(2)
             else:

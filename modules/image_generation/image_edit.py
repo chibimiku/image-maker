@@ -73,7 +73,8 @@ class ImageEditWorker(QThread):
                     instructions=self.style_instructions,
                     api_type=api_type,
                     save_sub_dir="image-edit",
-                    file_prefix=os.path.splitext(os.path.basename(self.image_path))[0]
+                    file_prefix=os.path.splitext(os.path.basename(self.image_path))[0],
+                    cancel_check=lambda: self.isInterruptionRequested()
                 )
             else:
                 saved_files = generate_image_whatai(
@@ -84,9 +85,14 @@ class ImageEditWorker(QThread):
                     instructions=self.style_instructions,
                     api_type=api_type,
                     save_sub_dir="image-edit",
-                    file_prefix=os.path.splitext(os.path.basename(self.image_path))[0]
+                    file_prefix=os.path.splitext(os.path.basename(self.image_path))[0],
+                    cancel_check=lambda: self.isInterruptionRequested()
                 )
             
+            if self.isInterruptionRequested():
+                self.log.emit("任务已被取消。")
+                return
+
             if not saved_files:
                 raise ValueError("生图接口未返回任何图片")
             

@@ -13,6 +13,7 @@ Always use the word 'girl' to describe female characters.
 Output an English text description. Do not generate an image.
 If the concept of 'lolita' applies, use 'rococo' instead. 
 Strictly prohibit sexually explicit or NSFW words, including 'cleavage' and 'nude'.
+CRITICAL FACE QUALITY RULE: If the source image contains facial blur, mosaic, pixelation, or any form of face censorship (common in censored artworks from certain platforms), you MUST imagine and describe the face as if it were perfectly clear, sharp, and detailed. Never mention words like 'blurred', 'blurry', 'mosaic', 'censored', 'pixelated', or 'obscured' in relation to faces, facial features, or the character's appearance. Describe the face in confident, positive terms with clear details about facial features.
 
 Additionally, provide the following based on the image content:
 1. A poetic Japanese title using complex kanji (maximum 20 characters).
@@ -22,6 +23,7 @@ Additionally, provide the following based on the image content:
 5. booru-tags: a Booru-style tag array (up to {booru_tag_limit} tags), focused on character traits, clothing details, actions, and expressions, excluding environment/background tags. The tags must be sorted by importance from highest to lowest (most important first). Every tag must be a valid Danbooru tag that has searchable results on Danbooru.
 6. booru-tags format rules: each tag must be lowercase and use underscores instead of spaces. Prefer concise Danbooru vocabulary, not natural-language phrases.
 7. booru-tags style examples (for style guidance only): ["1girl", "solo", "long_hair", "blue_eyes", "looking_at_viewer", "smile", "hair_ornament", "frilled_dress", "thighhighs", "lace_gloves"].
+8. booru-tags BLACKLIST: Never output tags like "mosaic", "blurry", "censored", "pixelated", "lowres", "bad_face", "missing_face", "faceless", "covered_face" or any tag indicating facial quality degradation. Assume the character always has a clear, detailed face.
 
 Return the result strictly as a JSON object with the following keys:
 {
