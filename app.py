@@ -739,6 +739,11 @@ class AppWindow(QWidget):
                     if hasattr(self, "pic_cate_tab"):
                         self.pic_cate_tab.set_values(self.pic_cate_state)
                     
+                    # 恢复缓存的模型列表（先恢复缓存列表，再设置选中值，避免 setItems 覆盖选中）
+                    self._cached_models = config.get("cached_models", [])
+                    self._cached_nsfw_models = config.get("cached_nsfw_models", [])
+                    self._restore_cached_models()
+
                     saved_model = config.get("model", "")
                     if saved_model:
                         self.model_combo.addItem(saved_model)
@@ -747,10 +752,6 @@ class AppWindow(QWidget):
                     if saved_nsfw_model:
                         self.nsfw_model_combo.addItem(saved_nsfw_model)
                         self.nsfw_model_combo.setCurrentText(saved_nsfw_model)
-                    # 恢复缓存的模型列表
-                    self._cached_models = config.get("cached_models", [])
-                    self._cached_nsfw_models = config.get("cached_nsfw_models", [])
-                    self._restore_cached_models()
             except Exception as e:
                 print(f"加载 {CONFIG_FILE} 失败: {e}")
         if hasattr(self, "single_analyzer_tab"):
