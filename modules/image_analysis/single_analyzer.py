@@ -27,9 +27,10 @@ SYSTEM_PROMPT_FILE = "single-analyzer-system.md"
 STYLE_ANALY_PROMPT_FILE = "style-analy.md"
 REFINE_DESC_PROMPT_FILE = "refine-desc.md"
 OUTFIT_CHECK_PROMPT_FILE = "single-analyzer-outfit-check.md"
+REMOVE_PHOTO_STYLE_PROMPT_FILE = "remove-photo-style.md"
 
 
-def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_check=False):
+def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_check=False, enable_remove_photo_style=False):
     files = [
         SYSTEM_PROMPT_FILE,
         STYLE_ANALY_PROMPT_FILE,
@@ -38,14 +39,17 @@ def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_
         files.append(REFINE_DESC_PROMPT_FILE)
     if enable_outfit_check:
         files.append(OUTFIT_CHECK_PROMPT_FILE)
+    if enable_remove_photo_style:
+        files.append(REMOVE_PHOTO_STYLE_PROMPT_FILE)
     return files
 
 
-def get_single_analyzer_missing_prompt_files(enable_refine=True, enable_outfit_check=False):
+def get_single_analyzer_missing_prompt_files(enable_refine=True, enable_outfit_check=False, enable_remove_photo_style=False):
     return find_missing_prompt_files(
         get_single_analyzer_required_prompt_files(
             enable_refine=enable_refine,
             enable_outfit_check=enable_outfit_check,
+            enable_remove_photo_style=enable_remove_photo_style,
         )
     )
 
@@ -409,6 +413,7 @@ def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout
     fallback_data = dict(final_json_data or {})
     refine_prompt = str(fallback_data.get("english_description") or "").strip()
     original_prompt = str(fallback_data.get("original_english_description") or "").strip()
+    pixiv_tags = fallback_data.get("pixiv_tags", [])
     outfit_style_override = str(outfit_style_override or "").strip()
     if not refine_prompt and not original_prompt:
         return fallback_data
@@ -416,6 +421,7 @@ def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout
     prompt_payload = {
         "english_description": refine_prompt,
         "original_english_description": original_prompt,
+        "pixiv_tags": pixiv_tags,
     }
     user_prompt = render_prompt_file(
         OUTFIT_CHECK_PROMPT_FILE,
@@ -441,9 +447,12 @@ def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout
         parsed = _safe_json_from_response(response, log_callback=None, step_label="Step 3")
         checked_refine = str(parsed.get("english_description") or refine_prompt).strip()
         checked_original = str(parsed.get("original_english_description") or original_prompt).strip()
+        checked_pixiv_tags = parsed.get("pixiv_tags")
+        if not isinstance(checked_pixiv_tags, list):
+            checked_pixiv_tags = pixiv_tags
         has_person = _to_bool(parsed.get("has_person"), default=bool(refine_prompt or original_prompt))
         modified = _to_bool(parsed.get("modified"), default=False)
-        if checked_refine == refine_prompt and checked_original == original_prompt:
+        if checked_refine == refine_prompt and checked_original == original_prompt and checked_pixiv_tags == pixiv_tags:
             modified = False
 
         result = dict(fallback_data)
@@ -454,8 +463,10 @@ def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout
         if modified:
             result["english_description_before_outfit_check"] = refine_prompt
             result["original_english_description_before_outfit_check"] = original_prompt
+            result["pixiv_tags_before_outfit_check"] = list(pixiv_tags)
             result["english_description"] = checked_refine
             result["original_english_description"] = checked_original
+            result["pixiv_tags"] = checked_pixiv_tags
         return result
     except Exception as e:
         print(f"Step 3 服装搭配检查时发生错误: {e}")
@@ -463,11 +474,86 @@ def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout
             status_callback("timeout" if _is_timeout_error(e) else "error")
         return None
 
+
+def step_4_remove_photo_style(final_json_data, client, model_name, timeout_seconds=120, status_callback=None):
+    fallback_data = dict(final_json_data or {})
+    english_description = str(fallback_data.get("english_description") or "").strip()
+    original_english_description = str(fallback_data.get("original_english_description") or "").strip()
+    short_description = str(fallback_data.get("short_description") or "").strip()
+    booru_tags = fallback_data.get("booru-tags", [])
+    japanese_title = str(fallback_data.get("japanese_title") or "").strip()
+    chinese_title = str(fallback_data.get("chinese_title") or "").strip()
+    pixiv_tags = fallback_data.get("pixiv_tags", [])
+    aspect_ratio = str(fallback_data.get("aspect_ratio") or "").strip()
+
+    prompt_payload = {
+        "english_description": english_description,
+        "original_english_description": original_english_description,
+        "short_description": short_description,
+        "booru-tags": booru_tags,
+        "japanese_title": japanese_title,
+        "chinese_title": chinese_title,
+        "pixiv_tags": pixiv_tags,
+        "aspect_ratio": aspect_ratio,
+    }
+    user_prompt = render_prompt_file(
+        REMOVE_PHOTO_STYLE_PROMPT_FILE,
+        {
+            "input_json": json.dumps(prompt_payload, ensure_ascii=False, indent=2),
+        }
+    ).strip()
+
+    try:
+        system_prompt = _load_system_prompt()
+        response = client.chat.completions.create(
+            model=model_name,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_completion_tokens=8192,
+            timeout=timeout_seconds
+        )
+        parsed = _safe_json_from_response(response, log_callback=None, step_label="Step 4")
+
+        result = dict(fallback_data)
+        result["english_description_before_remove_photo"] = english_description
+        result["original_english_description_before_remove_photo"] = original_english_description
+        result["short_description_before_remove_photo"] = short_description
+        result["booru_tags_before_remove_photo"] = list(booru_tags)
+        result["pixiv_tags_before_remove_photo"] = list(pixiv_tags)
+
+        new_desc = str(parsed.get("english_description") or english_description).strip()
+        new_orig_desc = str(parsed.get("original_english_description") or original_english_description).strip()
+        new_short = str(parsed.get("short_description") or short_description).strip()
+        new_booru = parsed.get("booru-tags")
+        if not isinstance(new_booru, list):
+            new_booru = booru_tags
+        new_pixiv_tags = parsed.get("pixiv_tags")
+        if not isinstance(new_pixiv_tags, list):
+            new_pixiv_tags = pixiv_tags
+
+        result["english_description"] = new_desc
+        result["original_english_description"] = new_orig_desc
+        result["short_description"] = new_short
+        result["booru-tags"] = new_booru
+        result["pixiv_tags"] = new_pixiv_tags
+
+        return result
+    except Exception as e:
+        print(f"Step 4 去除照片风格时发生错误: {e}")
+        if status_callback:
+            status_callback("timeout" if _is_timeout_error(e) else "error")
+        return None
+
+
 class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
 
-    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override=""):
+    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override="", remove_photo_style=False):
         super().__init__()
         self.image_source = image_source
         self.api_key = api_key
@@ -483,6 +569,7 @@ class WorkerThread(QThread):
             self.timeout_seconds = 120
         self.enable_outfit_check = bool(enable_outfit_check)
         self.outfit_style_override = str(outfit_style_override or "").strip()
+        self.remove_photo_style = bool(remove_photo_style)
         self.last_status = "idle"
         self._force_cancel_requested = False
 
@@ -559,13 +646,10 @@ class WorkerThread(QThread):
                     refined_tags = final_result.get("pixiv_tags", [])
                     final_result["pixiv_tags_first"] = initial_tags
                     final_result["pixiv_tags_second"] = refined_tags
-                    if initial_tags and refined_tags:
-                        initial_tags_lower = [tag.lower() for tag in initial_tags]
-                        intersection_tags = []
-                        for tag in refined_tags:
-                            if tag.lower() in initial_tags_lower:
-                                intersection_tags.append(tag)
-                        final_result["pixiv_tags"] = intersection_tags if intersection_tags else refined_tags
+                    if refined_tags:
+                        final_result["pixiv_tags"] = refined_tags
+                    elif initial_tags:
+                        final_result["pixiv_tags"] = initial_tags
                     if local_booru_tags:
                         final_result["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=self.booru_tag_limit, output_style="space")
                 else:
@@ -609,6 +693,26 @@ class WorkerThread(QThread):
                     final_result = outfit_checked_result
                 else:
                     self.log_signal.emit("Step 3 执行失败，已保留 Step 2 的 prompts 结果。")
+            if final_result and self.remove_photo_style:
+                if self.isInterruptionRequested():
+                    self.last_status = "cancelled"
+                    self.log_signal.emit("任务已取消（去除照片风格未执行）。")
+                    self.finish_signal.emit({})
+                    return
+                self.log_signal.emit("正在开始 Step 4: 去除照片风格相关提示词...")
+                photo_style_stage_status = {"value": "ok"}
+                photo_style_result = step_4_remove_photo_style(
+                    final_result,
+                    client,
+                    self.model_name,
+                    timeout_seconds=self.timeout_seconds,
+                    status_callback=lambda status: photo_style_stage_status.update({"value": status})
+                )
+                if photo_style_result:
+                    self.log_signal.emit("Step 4 完成。已移除照片风格相关提示词。")
+                    final_result = photo_style_result
+                else:
+                    self.log_signal.emit("Step 4 执行失败，已保留之前的 prompts 结果。")
             if final_result:
                 self.last_status = "success"
             self.finish_signal.emit(final_result if final_result else {})
@@ -798,7 +902,7 @@ class AnalysisHistoryDetailDialog(QDialog):
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -816,6 +920,7 @@ class SingleAnalyzerWidget(QWidget):
         self.get_outfit_style_default = outfit_style_default_getter_func
         self.on_outfit_style_changed = outfit_style_changed_callback
         self.on_outfit_style_deleted = outfit_style_delete_callback
+        self.on_styles_reload = styles_reload_callback
         
         self.image_source = None
         self.current_aspect_ratio = "1:1"
@@ -886,6 +991,9 @@ class SingleAnalyzerWidget(QWidget):
         self.enable_outfit_check_cb.setChecked(bool(self.get_outfit_check_default()) if self.get_outfit_check_default else False)
         self.enable_outfit_check_cb.toggled.connect(self.on_enable_outfit_check_toggled)
         nsfw_layout.addWidget(self.enable_outfit_check_cb)
+        self.remove_photo_style_cb = QCheckBox("去除照片风格")
+        self.remove_photo_style_cb.setToolTip("勾选后，在最终产生 prompts 前，再次提交分析模型，去除所有照片类提示词（如 realistic, photo-like 等），但保持原文其他内容不变。")
+        nsfw_layout.addWidget(self.remove_photo_style_cb)
         nsfw_layout.addStretch()
         layout.addLayout(nsfw_layout)
 
@@ -1061,13 +1169,16 @@ class SingleAnalyzerWidget(QWidget):
     def reload_styles(self):
         """重新加载 config-styles.json 配置文件"""
         try:
-            import json
-            config_path = os.path.join(BASE_DIR, 'conf', 'config-styles.json')
-            with open(config_path, 'r', encoding='utf-8') as f:
-                styles_data = json.load(f)
-            style_keys = list(styles_data.keys())
-            self.update_styles(style_keys)
-            self.log_msg(f"✅ 已重新加载配置文件，共 {len(style_keys)} 个画风预设")
+            if self.on_styles_reload:
+                self.on_styles_reload()
+            else:
+                import json
+                config_path = os.path.join(BASE_DIR, 'conf', 'config-styles.json')
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    styles_data = json.load(f)
+                style_keys = list(styles_data.keys())
+                self.update_styles(style_keys)
+            self.log_msg(f"✅ 已重新加载配置文件")
         except Exception as e:
             self.log_msg(f"❌ 重新加载配置文件失败: {e}")
 
@@ -1284,6 +1395,7 @@ class SingleAnalyzerWidget(QWidget):
         missing_prompt_files = get_single_analyzer_missing_prompt_files(
             enable_refine=True,
             enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
+            enable_remove_photo_style=self.remove_photo_style_cb.isChecked(),
         )
         if missing_prompt_files:
             missing_text = "\n".join(missing_prompt_files)
@@ -1321,7 +1433,8 @@ class SingleAnalyzerWidget(QWidget):
             booru_tag_limit=booru_tag_limit,
             timeout_seconds=timeout_seconds,
             enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
-            outfit_style_override=self.outfit_style_combo.currentText().strip()
+            outfit_style_override=self.outfit_style_combo.currentText().strip(),
+            remove_photo_style=self.remove_photo_style_cb.isChecked()
         )
         thread.meta_thread_no = analysis_thread_no
         thread.meta_source_snapshot = image_source_snapshot

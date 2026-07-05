@@ -432,7 +432,7 @@ def test_sd_workflow_story_description_options_are_hierarchical(qapp):
 
 
 def test_save_story_sequence_uses_short_filename(tmp_path, monkeypatch):
-    monkeypatch.setattr(sd_workflow_module, "STORY_SEQUENCE_DIR", str(tmp_path))
+    monkeypatch.setattr(sd_workflow_module.sd_workflow_core, "STORY_SEQUENCE_DIR", str(tmp_path))
     story_payload = {
         "theme": "这是一个非常非常长的故事主题文件名测试",
         "title_zh": "标题",

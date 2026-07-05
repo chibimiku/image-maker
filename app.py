@@ -213,7 +213,8 @@ class AppWindow(QWidget):
             outfit_style_history_getter_func=self.get_outfit_style_history,
             outfit_style_default_getter_func=self.get_single_outfit_style_override,
             outfit_style_changed_callback=self.update_single_outfit_style_override,
-            outfit_style_delete_callback=self.delete_outfit_style_history_item
+            outfit_style_delete_callback=self.delete_outfit_style_history_item,
+            styles_reload_callback=self.load_styles_config
         )
 
         # 【新增】监听画风切换信号以实现多端同步和记忆
@@ -686,7 +687,10 @@ class AppWindow(QWidget):
                 combo.blockSignals(True)
                 combo.setCurrentText(style_name)
                 combo.blockSignals(False)
-        
+
+        if hasattr(self, 'sd_workflow_tab') and hasattr(self.sd_workflow_tab, 'sync_style_from_external'):
+            self.sd_workflow_tab.sync_style_from_external(style_name)
+
         self.save_text_config(silent=True) # 利用基础配置表保存这个状态
 
 
