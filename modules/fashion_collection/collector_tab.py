@@ -8,11 +8,12 @@ import re
 import subprocess
 import threading
 
-from PyQt6.QtCore import QTimer, pyqtSignal, Qt
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt, QStringListModel
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QCompleter,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -104,6 +105,7 @@ class FashionCollectorWidget(QWidget):
         self._batch_lock = threading.Lock()
         self.char_image_path: str | None = None
         self.char_analysis: dict | None = None  # Vision analysis result for character ref
+        self._analysis_image_path: str | None = None  # 当前正在分析的图片路径，用于导出匹配文件名JSON
         self.init_ui()
 
     def init_ui(self):
@@ -129,8 +131,26 @@ class FashionCollectorWidget(QWidget):
         self.search_url_input.setReadOnly(True)
         form.addRow("示例搜索页:", self.search_url_input)
 
+        brand_row = QHBoxLayout()
+        brand_row.setSpacing(6)
         self.brand_slug_input = QLineEdit("angelic-pretty")
-        form.addRow("品牌 slug/key:", self.brand_slug_input)
+        self.brand_slug_input.setPlaceholderText("输入品牌 slug 或名称，支持自动补全")
+        brand_row.addWidget(self.brand_slug_input, stretch=1)
+        self.refresh_brands_btn = QPushButton("刷新品牌")
+        self.refresh_brands_btn.setMaximumWidth(80)
+        self.refresh_brands_btn.setToolTip("从 Lolibrary 重新爬取品牌列表（使用代理）")
+        self.refresh_brands_btn.clicked.connect(self._refresh_brands)
+        brand_row.addWidget(self.refresh_brands_btn)
+        form.addRow("品牌 slug/key:", brand_row)
+
+        # 品牌自动补全
+        self._brand_completer_model = QStringListModel(self)
+        self._brand_completer = QCompleter(self._brand_completer_model, self)
+        self._brand_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self._brand_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self._brand_completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+        self.brand_slug_input.setCompleter(self._brand_completer)
+
         self.brand_help_label = QLabel("Lolibrary 使用品牌 slug。")
         self.brand_help_label.setWordWrap(True)
         form.addRow("品牌说明:", self.brand_help_label)
@@ -285,6 +305,11 @@ class FashionCollectorWidget(QWidget):
         self.auto_analyze_cb.setChecked(True)
         self.auto_analyze_cb.toggled.connect(lambda _: self._save_collector_config())
         button_row.addWidget(self.auto_analyze_cb)
+        self.export_analysis_json_cb = QCheckBox("导出单图分析JSON(匹配文件名)")
+        self.export_analysis_json_cb.setChecked(False)
+        self.export_analysis_json_cb.setToolTip("勾选后，生成的图片会走单图分析逻辑，在图片同目录产生与图片文件名匹配的 JSON，包含标题、prompts、pixiv tags 等数据，方便上传时使用。")
+        self.export_analysis_json_cb.toggled.connect(lambda _: self._save_collector_config())
+        button_row.addWidget(self.export_analysis_json_cb)
         self.color_match_cb = QCheckBox("颜色协调适配")
         self.color_match_cb.setChecked(False)
         self.color_match_cb.setToolTip("启用后先选连衣裙，后续配件颜色需与裙子色调协调")
@@ -346,6 +371,7 @@ class FashionCollectorWidget(QWidget):
         self.setLayout(main_layout)
         self.on_site_changed()
         self._load_collector_config()
+        self._load_brands()
 
     # ---- character reference image ----
 
@@ -490,11 +516,18 @@ class FashionCollectorWidget(QWidget):
                         ]
                     }],
                     temperature=0.3,
-                    response_format={"type": "json_object"},
                 )
                 raw = response.choices[0].message.content or ""
-                self.log_signal.emit(f"[角色图] Vision 原始返回: {raw[:300]}")
-                result = json.loads(raw) if isinstance(raw, str) else (raw or {})
+                finish_reason = getattr(response.choices[0], "finish_reason", "unknown")
+                if not raw:
+                    self.log_signal.emit(f"[角色图] API 返回空内容，finish_reason={finish_reason}，可能被安全过滤或模型不支持此请求")
+                    return
+                try:
+                    result = json.loads(raw) if isinstance(raw, str) else (raw or {})
+                except Exception as json_err:
+                    self.log_signal.emit(f"[角色图] JSON 解析失败: {json_err}\n原始返回: {str(raw)[:2000]}")
+                    return
+                self.log_signal.emit(f"[角色图] Vision 返回 (finish_reason={finish_reason}): {raw[:500]}")
                 if isinstance(result, dict) and result.get("hair_color"):
                     self.char_analysis = result
                     desc = result.get("character_description", "")
@@ -510,7 +543,7 @@ class FashionCollectorWidget(QWidget):
                             status += f" 发饰={hair_acc[:15]}"
                         self.char_img_status.setText(status[:100])
                 else:
-                    self.log_signal.emit("[角色图] Vision 未返回有效分析结果")
+                    self.log_signal.emit(f"[角色图] Vision 未返回有效分析结果\n原始返回: {str(raw)[:2000]}")
             except Exception as exc:
                 self.log_signal.emit(f"[角色图] 分析失败: {exc}")
         self._char_analysis_worker = threading.Thread(target=worker, daemon=True)
@@ -545,6 +578,7 @@ class FashionCollectorWidget(QWidget):
                 self.auto_ratio_cb.setChecked(bool(data.get("auto_ratio", False)))
                 self.random_brand_cb.setChecked(bool(data.get("random_brand", True)))
                 self.color_match_cb.setChecked(bool(data.get("color_match", False)))
+                self.export_analysis_json_cb.setChecked(bool(data.get("export_analysis_json", False)))
                 char_img = str(data.get("char_image_path", "")).strip()
                 if char_img and os.path.isfile(char_img):
                     self._set_character_image(char_img)
@@ -562,6 +596,7 @@ class FashionCollectorWidget(QWidget):
             "auto_ratio": self.auto_ratio_cb.isChecked(),
             "random_brand": self.random_brand_cb.isChecked(),
             "color_match": self.color_match_cb.isChecked(),
+            "export_analysis_json": self.export_analysis_json_cb.isChecked(),
             "char_image_path": self.char_image_path or "",
         }
         path = self._collector_config_path()
@@ -578,6 +613,57 @@ class FashionCollectorWidget(QWidget):
             return None
         url = self.proxy_input.text().strip()
         return url if url else None
+
+    # ---- brand autocomplete ----
+
+    def _update_brand_completer(self, brands: dict[str, str]) -> None:
+        """用品牌字典更新自动补全模型（格式: "slug — name"）。"""
+        items = [f"{slug} — {name}" for slug, name in sorted(brands.items(), key=lambda x: x[0].lower())]
+        self._brand_completer_model.setStringList(items)
+
+    def _load_brands(self) -> None:
+        """启动时从缓存加载品牌列表，若无缓存则在后台刷新。"""
+        from .brand_scraper import load_cache, refresh_cache
+        brands = load_cache(self.project_root)
+        if brands:
+            self._update_brand_completer(brands)
+        else:
+            append_log_line(self.log_output, "[品牌] 缓存不存在，正在后台刷新品牌列表...")
+            threading.Thread(target=self._do_refresh_brands, daemon=True).start()
+
+    def _refresh_brands(self) -> None:
+        """用户手动刷新品牌列表。"""
+        proxy_url = self._get_active_proxy_url()
+        if not proxy_url:
+            reply = QMessageBox.question(
+                self, "确认",
+                "未启用代理，直接访问 Lolibrary 可能较慢或失败。\n是否继续？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        self.refresh_brands_btn.setEnabled(False)
+        append_log_line(self.log_output, f"[品牌] 开始从 Lolibrary 爬取品牌列表 (代理: {'启用' if proxy_url else '未启用'})...")
+        threading.Thread(target=self._do_refresh_brands, daemon=True).start()
+
+    def _do_refresh_brands(self) -> None:
+        """后台线程执行品牌刷新。"""
+        try:
+            from .brand_scraper import refresh_cache
+            proxy_url = self._get_active_proxy_url()
+            brands = refresh_cache(
+                project_root=self.project_root,
+                proxy_url=proxy_url,
+                log_callback=lambda msg: self.log_signal.emit(f"[品牌] {msg}"),
+            )
+            self.log_signal.emit(f"[品牌] 刷新完成，共 {len(brands)} 个品牌")
+            # 更新 completer 必须在主线程
+            QTimer.singleShot(0, lambda: self._update_brand_completer(brands))
+        except Exception as e:
+            self.log_signal.emit(f"[品牌] 刷新失败: {e}")
+        finally:
+            QTimer.singleShot(0, lambda: self.refresh_brands_btn.setEnabled(True))
 
     # -------------------------
 
@@ -795,6 +881,7 @@ class FashionCollectorWidget(QWidget):
         auto_analyze_enabled = self.auto_analyze_cb.isChecked()
         auto_ratio_enabled = self.auto_ratio_cb.isChecked()
         random_brand_enabled = self.random_brand_cb.isChecked()
+        export_analysis_json_enabled = self.export_analysis_json_cb.isChecked()
 
         # 随机品牌列表
         random_brand_slugs: list[str] = []
@@ -803,7 +890,7 @@ class FashionCollectorWidget(QWidget):
             append_log_line(self.log_output, f"[批量] 随机品牌: 已从品牌库选取 {len(set(random_brand_slugs))} 个不同品牌 (共 {len(random_brand_slugs)} 个)")
         else:
             append_log_line(self.log_output, f"[批量] 固定品牌: {brand_slug}")
-        append_log_line(self.log_output, f"[批量] 自动分析: {'启用' if auto_analyze_enabled else '未启用'}, 构图比例: {'自动' if auto_ratio_enabled else '固定'}, 角色图: {'已加载' if self.char_image_path else '未设置'}")
+        append_log_line(self.log_output, f"[批量] 自动分析: {'启用' if auto_analyze_enabled else '未启用'}, 导出单图JSON: {'启用' if export_analysis_json_enabled else '未启用'}, 构图比例: {'自动' if auto_ratio_enabled else '固定'}, 角色图: {'已加载' if self.char_image_path else '未设置'}")
 
         # Snapshot config for thread workers (avoid Qt cross-thread access)
         snapshot = {
@@ -826,6 +913,7 @@ class FashionCollectorWidget(QWidget):
             "auto_analyze": auto_analyze_enabled,
             "auto_ratio": auto_ratio_enabled,
             "random_brand_slugs": random_brand_slugs,
+            "export_analysis_json": export_analysis_json_enabled,
         }
 
         self._batch_worker = threading.Thread(
@@ -860,6 +948,11 @@ class FashionCollectorWidget(QWidget):
                 instructions_text, composition_ratio = generate_random_composition()
                 # 若启用构图决定比例，则覆盖 snapshot 中的固定比例
                 pipeline_ratio = composition_ratio if snapshot.get("auto_ratio") else snapshot["aspect_ratio"]
+
+                # 2) 确定品牌 —— 随机品牌 vs 固定品牌
+                random_brand_slugs = snapshot.get("random_brand_slugs") or []
+                pipeline_brand = random_brand_slugs[index % len(random_brand_slugs)] if random_brand_slugs else snapshot["brand_slug"]
+
                 self.batch_progress_signal.emit(completed + 1, total_images)
                 has_char = bool(
                     snapshot.get("char_image_path")
@@ -871,16 +964,12 @@ class FashionCollectorWidget(QWidget):
                     f"{'，角色:' + str(snapshot.get('char_analysis', {}).get('character_description', '')[:30]) + '...' if has_char else '，无角色参考'}"
                 )
 
-                # 2) 创建独立的 Service 实例（避免线程间共享 session 冲突）
+                # 3) 创建独立的 Service 实例（避免线程间共享 session 冲突）
                 service = FashionCollectionService(timeout=8)
                 service.set_shared_claimed(claimed_item_ids, claimed_lock)
                 if snapshot["proxy_url"]:
                     service.set_proxy_url(snapshot["proxy_url"])
                 service.enable_color_match = bool(snapshot.get("color_match", False))
-
-                # 3) 采集 —— 随机品牌 vs 固定品牌
-                random_brand_slugs = snapshot.get("random_brand_slugs") or []
-                pipeline_brand = random_brand_slugs[index % len(random_brand_slugs)] if random_brand_slugs else snapshot["brand_slug"]
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_") + str(index + 1).zfill(3)
                 output_dir = os.path.join(
                     self.project_root, "data", "fashion-collector",
@@ -1036,8 +1125,8 @@ class FashionCollectorWidget(QWidget):
 
                 if image_path:
                     self.batch_image_signal.emit(image_path, index + 1)
-                    # 9) 自动分析（如果勾选了出图后自动分析）
-                    if snapshot.get("auto_analyze"):
+                    # 9) 自动分析（如果勾选了出图后自动分析或导出单图分析JSON）
+                    if snapshot.get("auto_analyze") or snapshot.get("export_analysis_json"):
                         self.log_signal.emit(f"[批量 #{index+1}] 触发自动分析: {image_path}")
                         self._analyze_single_image(image_path, index + 1)
                     else:
@@ -1358,7 +1447,7 @@ class FashionCollectorWidget(QWidget):
             for path in saved_files:
                 append_log_line(self.log_output, path)
             append_log_line(self.log_output, "少女图已生成并保存到 data 目录。")
-            if self.auto_analyze_cb.isChecked():
+            if self.auto_analyze_cb.isChecked() or self.export_analysis_json_cb.isChecked():
                 first_image = saved_files[0]
                 QTimer.singleShot(300, lambda: self._start_auto_analysis(first_image))
             else:
@@ -1377,6 +1466,7 @@ class FashionCollectorWidget(QWidget):
     def _start_auto_analysis(self, image_path: str) -> None:
         set_task_status(self.status_label, "running", "分析中")
         self._set_busy_state(True)
+        self._analysis_image_path = image_path
         append_log_line(self.log_output, f"[分析] 开始分析图片: {os.path.basename(image_path)}")
 
         def worker():
@@ -1416,7 +1506,22 @@ class FashionCollectorWidget(QWidget):
         self._set_busy_state(False)
         set_task_status(self.status_label, "success", "分析完成")
 
-        # Save analysis result
+        # 导出单图分析JSON(匹配文件名) —— 与"单图分析逻辑"保持一致的命名规则
+        if self.export_analysis_json_cb.isChecked() and self._analysis_image_path:
+            base = os.path.splitext(self._analysis_image_path)[0]
+            matched_path = f"{base}_analysis.json"
+            with open(matched_path, "w", encoding="utf-8") as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+            append_log_line(self.log_output, f"[分析] 匹配文件名JSON已保存: {matched_path}")
+            desc = str(result.get("english_description", "") or "")[:80]
+            tags = result.get("pixiv_tags", [])
+            if desc:
+                append_log_line(self.log_output, f"[分析] 英文描述: {desc}...")
+            if tags:
+                append_log_line(self.log_output, f"[分析] Pixiv Tags: {', '.join(tags[:12])}")
+            self._analysis_image_path = None
+
+        # Save analysis result (原有逻辑，保存到 bundle 目录)
         if self.latest_bundle:
             analysis_path = os.path.join(self.latest_bundle.output_dir, f"{self._default_file_prefix()}_analysis.json")
             with open(analysis_path, "w", encoding="utf-8") as f:

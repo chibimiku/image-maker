@@ -374,9 +374,13 @@ class BatchAnalyzerWidget(QWidget):
     
     def start_batch_processing(self, checked=False, target_images=None, is_retry=False):
         self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=True)
+        enable_outfit_check = self.enable_outfit_check_cb.isChecked()
+        # 批量分析未提供「去除照片风格」选项；当启用服装搭配检查时，Step 5 会重新计算 pixiv_tags
+        enable_recompute_pixiv_tags = enable_outfit_check
         missing_prompt_files = get_single_analyzer_missing_prompt_files(
             enable_refine=self.enable_refine_cb.isChecked(),
-            enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
+            enable_outfit_check=enable_outfit_check,
+            enable_recompute_pixiv_tags=enable_recompute_pixiv_tags,
         )
         if missing_prompt_files:
             missing_text = "\n".join(missing_prompt_files)

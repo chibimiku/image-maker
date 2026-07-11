@@ -28,9 +28,10 @@ STYLE_ANALY_PROMPT_FILE = "style-analy.md"
 REFINE_DESC_PROMPT_FILE = "refine-desc.md"
 OUTFIT_CHECK_PROMPT_FILE = "single-analyzer-outfit-check.md"
 REMOVE_PHOTO_STYLE_PROMPT_FILE = "remove-photo-style.md"
+RECOMPUTE_PIXIV_TAGS_PROMPT_FILE = "recompute-pixiv-tags.md"
 
 
-def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_check=False, enable_remove_photo_style=False):
+def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_check=False, enable_remove_photo_style=False, enable_recompute_pixiv_tags=False):
     files = [
         SYSTEM_PROMPT_FILE,
         STYLE_ANALY_PROMPT_FILE,
@@ -41,15 +42,18 @@ def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_
         files.append(OUTFIT_CHECK_PROMPT_FILE)
     if enable_remove_photo_style:
         files.append(REMOVE_PHOTO_STYLE_PROMPT_FILE)
+    if enable_recompute_pixiv_tags:
+        files.append(RECOMPUTE_PIXIV_TAGS_PROMPT_FILE)
     return files
 
 
-def get_single_analyzer_missing_prompt_files(enable_refine=True, enable_outfit_check=False, enable_remove_photo_style=False):
+def get_single_analyzer_missing_prompt_files(enable_refine=True, enable_outfit_check=False, enable_remove_photo_style=False, enable_recompute_pixiv_tags=False):
     return find_missing_prompt_files(
         get_single_analyzer_required_prompt_files(
             enable_refine=enable_refine,
             enable_outfit_check=enable_outfit_check,
             enable_remove_photo_style=enable_remove_photo_style,
+            enable_recompute_pixiv_tags=enable_recompute_pixiv_tags,
         )
     )
 
@@ -549,6 +553,66 @@ def step_4_remove_photo_style(final_json_data, client, model_name, timeout_secon
         return None
 
 
+def step_5_recompute_pixiv_tags(final_json_data, client, model_name, timeout_seconds=120, status_callback=None):
+    """Step 5: 基于最终英文描述重新计算 pixiv_tags，确保标签准确反映图片中实际出现的视觉内容。
+
+    当启用了服装搭配检查或去除照片风格等优化选项后，描述与标签可能产生漂移，
+    本步骤以最终描述为唯一依据重新生成 pixiv_tags，纠正标签与描述/图片不符的问题。
+    """
+    fallback_data = dict(final_json_data or {})
+    english_description = str(fallback_data.get("english_description") or "").strip()
+    short_description = str(fallback_data.get("short_description") or "").strip()
+    booru_tags = fallback_data.get("booru-tags", [])
+    pixiv_tags = fallback_data.get("pixiv_tags", [])
+    if not english_description and not short_description:
+        return fallback_data
+
+    prompt_payload = {
+        "english_description": english_description,
+        "short_description": short_description,
+        "booru-tags": booru_tags,
+        "pixiv_tags": pixiv_tags,
+    }
+    user_prompt = render_prompt_file(
+        RECOMPUTE_PIXIV_TAGS_PROMPT_FILE,
+        {
+            "input_json": json.dumps(prompt_payload, ensure_ascii=False, indent=2),
+        }
+    ).strip()
+
+    try:
+        system_prompt = _load_system_prompt()
+        response = client.chat.completions.create(
+            model=model_name,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_completion_tokens=8192,
+            timeout=timeout_seconds
+        )
+        parsed = _safe_json_from_response(response, log_callback=None, step_label="Step 5")
+
+        result = dict(fallback_data)
+        result["pixiv_tags_before_recompute"] = list(pixiv_tags)
+
+        new_pixiv_tags = parsed.get("pixiv_tags")
+        if not isinstance(new_pixiv_tags, list):
+            new_pixiv_tags = pixiv_tags
+        new_pixiv_tags = [str(tag).strip() for tag in new_pixiv_tags if str(tag).strip()]
+
+        result["pixiv_tags"] = new_pixiv_tags
+        result["pixiv_tags_recompute_reason"] = str(parsed.get("reason") or "").strip()
+        return result
+    except Exception as e:
+        print(f"Step 5 重新计算 pixiv_tags 时发生错误: {e}")
+        if status_callback:
+            status_callback("timeout" if _is_timeout_error(e) else "error")
+        return None
+
+
 class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
@@ -713,6 +777,28 @@ class WorkerThread(QThread):
                     final_result = photo_style_result
                 else:
                     self.log_signal.emit("Step 4 执行失败，已保留之前的 prompts 结果。")
+            # Step 5: 当启用了任一优化选项（服装搭配检查 / 去除照片风格）时，
+            # 基于最终描述重新计算 pixiv_tags，纠正多阶段修改导致的标签漂移
+            if final_result and (self.enable_outfit_check or self.remove_photo_style):
+                if self.isInterruptionRequested():
+                    self.last_status = "cancelled"
+                    self.log_signal.emit("任务已取消（pixiv_tags 重新计算未执行）。")
+                    self.finish_signal.emit({})
+                    return
+                self.log_signal.emit("正在开始 Step 5: 基于最终描述重新计算 pixiv_tags...")
+                recompute_stage_status = {"value": "ok"}
+                recomputed_result = step_5_recompute_pixiv_tags(
+                    final_result,
+                    client,
+                    self.model_name,
+                    timeout_seconds=self.timeout_seconds,
+                    status_callback=lambda status: recompute_stage_status.update({"value": status})
+                )
+                if recomputed_result:
+                    self.log_signal.emit("Step 5 完成。pixiv_tags 已根据最终描述重新计算。")
+                    final_result = recomputed_result
+                else:
+                    self.log_signal.emit("Step 5 执行失败，已保留之前的 pixiv_tags 结果。")
             if final_result:
                 self.last_status = "success"
             self.finish_signal.emit(final_result if final_result else {})
@@ -1392,10 +1478,15 @@ class SingleAnalyzerWidget(QWidget):
     def process_image(self):
         if not self.image_source: return
         self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=True)
+        enable_outfit_check = self.enable_outfit_check_cb.isChecked()
+        enable_remove_photo_style = self.remove_photo_style_cb.isChecked()
+        # 当启用任一优化选项时，Step 5 会重新计算 pixiv_tags，需要确保对应 prompt 文件存在
+        enable_recompute_pixiv_tags = enable_outfit_check or enable_remove_photo_style
         missing_prompt_files = get_single_analyzer_missing_prompt_files(
             enable_refine=True,
-            enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
-            enable_remove_photo_style=self.remove_photo_style_cb.isChecked(),
+            enable_outfit_check=enable_outfit_check,
+            enable_remove_photo_style=enable_remove_photo_style,
+            enable_recompute_pixiv_tags=enable_recompute_pixiv_tags,
         )
         if missing_prompt_files:
             missing_text = "\n".join(missing_prompt_files)
@@ -1712,16 +1803,24 @@ class SingleAnalyzerWidget(QWidget):
         )
 
         # 【新增】自动执行发图逻辑
+        # 直接从 result_json 和 safe_task_hash 构建 prompt_bundle，完全不依赖实例变量
+        # 避免多线程竞态条件：多个分析任务几乎同时完成时，实例变量可能被后续任务覆盖
+        local_task_hash = safe_task_hash
+        local_aspect_ratio = self._resolve_ar_for_first_stage(result_json.get("aspect_ratio", "2:3"))
+        local_orig_desc = result_json.get("original_english_description", "")
+        local_refine_desc = result_json.get("english_description", "")
+        
         auto_targets = []
-        if self.auto_gen_orig_cb.isChecked() and str(self.current_orig_desc).strip():
+        if self.auto_gen_orig_cb.isChecked() and str(local_orig_desc).strip():
             auto_targets.append("original")
-        if self.auto_gen_ref_cb.isChecked() and str(self.current_refine_desc).strip():
+        if self.auto_gen_ref_cb.isChecked() and str(local_refine_desc).strip():
             auto_targets.append("refined")
         prompt_bundle = {
-            "task_hash": self.current_task_hash,
-            "aspect_ratio": self.current_aspect_ratio,
-            "original_prompt": self.current_orig_desc,
-            "refined_prompt": self.current_refine_desc,
+            "task_hash": local_task_hash,
+            "aspect_ratio": local_aspect_ratio,
+            "original_prompt": local_orig_desc,
+            "refined_prompt": local_refine_desc,
+            "analysis_json_path": saved_json_path,
         }
         if auto_targets:
             auto_group_id = f"analysis-{analysis_thread_no}"
@@ -1835,6 +1934,7 @@ class SingleAnalyzerWidget(QWidget):
             "aspect_ratio": self.current_aspect_ratio,
             "original_prompt": self.current_orig_desc,
             "refined_prompt": self.current_refine_desc,
+            "analysis_json_path": getattr(self, "_last_saved_json_path", ""),
         }
         task_hash = str(prompt_context.get("task_hash") or self.current_task_hash or "").strip()
         prompt_to_use = prompt_context.get("original_prompt", "") if prompt_type == "original" else prompt_context.get("refined_prompt", "")
@@ -1869,7 +1969,7 @@ class SingleAnalyzerWidget(QWidget):
         img_thread.meta_prompt_type = prompt_type
         img_thread.meta_auto_group_id = auto_group_id
         img_thread.meta_task_hash = task_hash
-        img_thread.meta_analysis_json_path = getattr(self, "_last_saved_json_path", "")
+        img_thread.meta_analysis_json_path = prompt_context.get("analysis_json_path", getattr(self, "_last_saved_json_path", ""))
 
         self._active_img_threads.append(img_thread)
         if not self._img_gen_running:

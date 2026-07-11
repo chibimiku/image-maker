@@ -14,6 +14,7 @@ REQUIRED_PROMPT_FILES = [
     "doujin-translator-user.md",
     "prompt-generator-system.md",
     "prompt-generator-user.md",
+    "recompute-pixiv-tags.md",
     "refine-desc.md",
     "sd-make-system_prompt.md",
     "single-analyzer-outfit-check.md",

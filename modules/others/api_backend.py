@@ -1424,6 +1424,16 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     resp = None
     for attempt in range(max_retries + 1):
         try:
+            if callable(cancel_check) and cancel_check():
+                logger.info("收到外部取消请求，停止重试（阶段1-请求前）。")
+                if return_metadata:
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": "cancelled",
+                        "server_response_raw": {"error": "cancelled_before_request"},
+                    }
+                return []
             if attempt > 0:
                 logger.info(f"正在进行第 {attempt} 次重试 (最大重试次数: {max_retries})...")
             
@@ -1515,6 +1525,17 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         return []
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
+    if callable(cancel_check) and cancel_check():
+        logger.info("收到外部取消请求，跳过图片下载（阶段2-下载前）。")
+        if return_metadata:
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": "cancelled_after_response",
+                "server_response_raw": {"error": "cancelled_before_download"},
+            }
+        return []
+
     today_str = datetime.now().strftime("%Y%m%d")
     if save_sub_dir:
         save_dir = os.path.join("data", today_str, save_sub_dir)
@@ -1558,6 +1579,9 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     # ================= 阶段2：下载并保存图片 =================
     stage_download_start = time.perf_counter()
     for idx, img_url in enumerate(img_urls):
+        if callable(cancel_check) and cancel_check():
+            logger.info("收到外部取消请求，停止图片下载。")
+            break
         try:
             # 【优化】获取完整的 response 以读取内容
             img_resp = requests.get(img_url, timeout=30)
@@ -1824,6 +1848,17 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     resp = None
     for attempt in range(max_retries + 1):
         try:
+            if callable(cancel_check) and cancel_check():
+                logger.info("收到外部取消请求，停止 AIGC2D 重试（阶段1-请求前）。")
+                _log("[生成/api] 收到取消请求，停止重试。")
+                if return_metadata:
+                    return {
+                        "saved_files": [],
+                        "annotation": {},
+                        "raw_text": "cancelled",
+                        "server_response_raw": {"error": "cancelled_before_request"},
+                    }
+                return []
             if attempt > 0:
                 _log(f"[生成/api] 第 {attempt} 次重试...")
             
@@ -1924,6 +1959,18 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         return []
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
+    if callable(cancel_check) and cancel_check():
+        logger.info("收到外部取消请求，跳过 AIGC2D 图片保存（阶段2-保存前）。")
+        _log("[生成/api] 收到取消请求，跳过图片保存。")
+        if return_metadata:
+            return {
+                "saved_files": [],
+                "annotation": {},
+                "raw_text": "cancelled_after_response",
+                "server_response_raw": {"error": "cancelled_before_save"},
+            }
+        return []
+
     # 提取图片并保存
     today_str = datetime.now().strftime("%Y%m%d")
     if save_sub_dir:
@@ -1967,6 +2014,10 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     # ================= 阶段2：提取并保存图片 =================
     stage_save_start = time.perf_counter()
     for candidate in candidates:
+        if callable(cancel_check) and cancel_check():
+            logger.info("收到外部取消请求，停止 AIGC2D 图片提取。")
+            _log("[生成/api] 收到取消请求，停止图片提取。")
+            break
         content = candidate.get("content", {})
         parts = content.get("parts", [])
 

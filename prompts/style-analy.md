@@ -18,7 +18,7 @@ CRITICAL FACE QUALITY RULE: If the source image contains facial blur, mosaic, pi
 Additionally, provide the following based on the image content:
 1. A poetic Japanese title using complex kanji (maximum 20 characters).
 2. The Chinese translation of this title.
-3. Exactly 12 Japanese tags suitable for the Pixiv tagging system (e.g., 女の子) that accurately describe the visual content.
+3. Exactly 12 Japanese tags suitable for the Pixiv tagging system (e.g., 女の子). CRITICAL: Every tag must describe actual visual content that is clearly visible in the image (such as character traits, hair color, eye color, main clothing, iconic accessories, props, actions, expressions), NOT generic "pixiv-style" tags or tags unrelated to the image. Each tag must have a clear basis in what is depicted. Prioritize core character features (hair color, eye color, main outfit, iconic props/accessories) first, then fill in clothing details, accessories, actions, and expressions. Do not include pure environment/background tags.
 4. short_description: around 100 words in English, concise summary focused on character appearance, outfit details, action, and expression.
 5. booru-tags: a Booru-style tag array (up to {booru_tag_limit} tags), focused on character traits, clothing details, actions, and expressions, excluding environment/background tags. The tags must be sorted by importance from highest to lowest (most important first). Every tag must be a valid Danbooru tag that has searchable results on Danbooru.
 6. booru-tags format rules: each tag must be lowercase and use underscores instead of spaces. Prefer concise Danbooru vocabulary, not natural-language phrases.
