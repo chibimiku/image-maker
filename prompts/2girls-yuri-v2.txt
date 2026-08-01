@@ -1,0 +1,24 @@
+【质量与画质设定】
+masterpiece, best quality, ultra-detailed, absurdres, 8k wallpaper, intricate details, cinematic lighting, beautiful detailed illustration, soft shading, emotional depth, expressive faces, highly detailed textures, sharp focus,
+
+【核心主体与互动框架】
+2girls, yuri, romantic couple, beautiful young women, refined faces, detailed beautiful eyes, gentle expressions,
+close to each other, intimate atmosphere,
+
+【每次生成时随机生成一种可爱的互动，每次只选一个不同的互动动作】
+
+
+【光影与环境渲染】
+soft golden hour sunlight filtering through trees, warm rim lighting on hair and skin, bokeh background, lens flare highlights,
+pastel color palette, warm pinks, soft peaches, gentle lavenders, cream whites,
+volumetric light rays, dappled sunlight, soft shadows,
+beautiful detailed background, blooming rose garden / cherry blossom avenue / elegant greenhouse / quiet lakeside at sunset / European-style garden terrace,
+shimmering particles in the air, fireflies at dusk OR floating light motes,
+soft focus on surroundings, shallow depth of field,
+romantic warm atmosphere, dreamy and ethereal mood, gentle and tender scene,
+
+【服饰造型建议】（可根据需要替换）
+gorgeous elegant dresses / casual chic outfits / school uniforms with personal touches,
+lace details, ribbon bows, flowing skirts, sheer fabric overlays,
+matching color accents in accessories (matching hair ribbons / matching bracelets / matching choker necklaces),
+flower crowns OR delicate hair ornaments,

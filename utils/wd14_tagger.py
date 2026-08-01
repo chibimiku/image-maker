@@ -150,6 +150,26 @@ def merge_prompt_with_local_booru_tags(base_prompt, local_booru_tags):
     return f"{base_prompt}{extra}"
 
 
+def merge_prompt_with_pixiv_tag_hints(base_prompt, pixiv_candidates):
+    """将本地匹配到的 Pixiv 日文标签候选注入到 prompt 中作为参考"""
+    if not pixiv_candidates:
+        return base_prompt
+    tags = [str(t).strip() for t in pixiv_candidates if str(t).strip()]
+    if not tags:
+        return base_prompt
+    joined = "、".join(tags)
+    extra = (
+        "\n\n=== 本地 Pixiv 标签参考（仅供参考，以实际图片内容为准） ===\n"
+        "以下是根据本地模型对该图片的识别结果，匹配到的热门 Pixiv 日文标签候选：\n"
+        + joined + "\n"
+        "请将这些标签作为 important hints 来校准你输出的 pixiv_tags，"
+        "优先采纳与图片实际内容一致的标签，修正或丢弃明显不符的标签，"
+        "再补充本地候选中没有覆盖到的关键视觉元素标签。"
+        "最终仍然严格输出 12 个日文标签。"
+    )
+    return f"{base_prompt}{extra}"
+
+
 def parse_int_with_default(raw_value, default_value, min_value=1):
     try:
         parsed = int(raw_value)

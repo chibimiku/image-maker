@@ -8,6 +8,7 @@ from PIL import Image
 from openai import OpenAI
 from utils.task_runtime import append_log_line, set_task_status
 from utils.prompt_loader import read_prompt_file, find_missing_prompt_files
+from utils.styles import normalize_style_entry
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
@@ -48,17 +49,74 @@ def compress_and_encode_image(image_source, max_dim=2048):
 
 STYLE_ITER_COMMON_PROMPT_FILE = "style-iter-common.md"
 STYLE_ITER_REFINE_PROMPT_FILE = "style-iter-refine.md"
+STYLE_ITER_FINAL_REVIEW_PROMPT_FILE = "style-iter-final-review.md"
+STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE = "style-iter-local-extract.md"
+STYLE_ITER_LOCAL_MERGE_PROMPT_FILE = "style-iter-local-merge.md"
 
 
 def get_style_analyzer_missing_prompt_files():
     return find_missing_prompt_files([
         STYLE_ITER_COMMON_PROMPT_FILE,
         STYLE_ITER_REFINE_PROMPT_FILE,
+        STYLE_ITER_FINAL_REVIEW_PROMPT_FILE,
+        STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE,
+        STYLE_ITER_LOCAL_MERGE_PROMPT_FILE,
     ])
 
 
 class StyleIterCancelledError(Exception):
     pass
+
+
+def _crop_image_regions(image_path, output_dir, crop_count=4):
+    """从图片中按比例裁剪多个区域，返回裁剪后的文件路径列表。"""
+    crops = []
+    try:
+        img = Image.open(image_path)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        w, h = img.size
+
+        # Define proportional crop regions for anime character art
+        # All regions are horizontally centered with vertical slicing
+        regions = [
+            # (name, left_ratio, top_ratio, right_ratio, bottom_ratio)
+            ("head_hair",    0.15, 0.00, 0.85, 0.42),   # Head & hair region
+            ("face_closeup", 0.25, 0.08, 0.75, 0.38),   # Face close-up (tighter)
+            ("upper_body",   0.10, 0.28, 0.90, 0.65),   # Upper body / torso
+            ("lower_body",   0.10, 0.55, 0.90, 1.00),   # Lower body / legs / skirt
+            ("detail_center",0.20, 0.15, 0.80, 0.85),   # Overall detail crop
+        ]
+
+        # Only use the requested number of regions
+        used_regions = regions[:max(1, min(crop_count, len(regions)))]
+
+        base_name = os.path.splitext(os.path.basename(image_path))[0]
+        # Sanitize base name for file system
+        safe_base = "".join(c for c in base_name if c.isalnum() or c in "._- ").strip() or "crop"
+
+        for region_name, l, t, r, b in used_regions:
+            left = int(w * l)
+            top = int(h * t)
+            right = int(w * r)
+            bottom = int(h * b)
+
+            # Ensure valid crop dimensions
+            if right <= left or bottom <= top:
+                continue
+
+            crop_img = img.crop((left, top, right, bottom))
+
+            # Save to output directory
+            crop_filename = f"{safe_base}_{region_name}.jpg"
+            crop_path = os.path.join(output_dir, crop_filename)
+            crop_img.save(crop_path, "JPEG", quality=95)
+            crops.append(crop_path)
+
+    except Exception as e:
+        print(f"裁剪图片区域时出错 {image_path}: {e}")
+
+    return crops
 
 
 class StyleIterativeWorkerThread(QThread):
@@ -72,7 +130,7 @@ class StyleIterativeWorkerThread(QThread):
                  existing_state=None, output_dir="", timeout_seconds=120,
                  enable_test_gen=False, test_prompt="",
                  img_api_type="", img_instructions="", img_aspect_ratio="1:1",
-                 file_prefix=""):
+                 file_prefix="", seed_prompts=""):
         super().__init__()
         self.image_paths = list(image_paths)
         self.api_key = api_key
@@ -91,6 +149,7 @@ class StyleIterativeWorkerThread(QThread):
         self.img_instructions = str(img_instructions or "").strip()
         self.img_aspect_ratio = str(img_aspect_ratio or "1:1").strip() or "1:1"
         self.file_prefix = str(file_prefix).strip()
+        self.seed_prompts = str(seed_prompts or "").strip()
 
     def request_cancel(self):
         self._cancel_requested = True
@@ -146,13 +205,41 @@ class StyleIterativeWorkerThread(QThread):
                 lines.append(f"Differences Found: {it.get('differences_analysis', '')}")
                 lines.append(f"Prompts After: {it.get('prompts_after', '')}")
                 lines.append("")
+            elif it_type == "final_review":
+                lines.append(f"--- Iteration Step {step} (Final Review, {it_round}) ---")
+                lines.append(f"Prompts Before: {it.get('prompts_before', '')}")
+                lines.append(f"Review Analysis: {it.get('final_review_analysis', '')}")
+                lines.append(f"Prompts After: {it.get('prompts_after', '')}")
+                lines.append("")
+            elif it_type == "imported_prompts":
+                lines.append(f"--- Iteration Step {step} (Seed, Imported Prompts) ---")
+                lines.append(it.get("art_style_prompts", ""))
+                lines.append("")
+            elif it_type == "local_extract":
+                lines.append(f"--- Iteration Step {step} (Local Refine Extract, {it_round}, Batch {it.get('batch_index', '?')}) ---")
+                lines.append(f"Crop Types: {it.get('crop_types_analyzed', '')}")
+                lines.append(f"Findings: {it.get('localized_style_findings', '')}")
+                lines.append(f"Confidence: {it.get('confidence', '?')}")
+                lines.append("")
+            elif it_type == "local_merge":
+                lines.append(f"--- Iteration Step {step} (Local Refine Merge, {it_round}) ---")
+                lines.append(f"Prompts Before: {it.get('prompts_before', '')}")
+                lines.append(f"Merge Analysis: {it.get('merge_analysis', '')}")
+                lines.append(f"Prompts After: {it.get('prompts_after', '')}")
+                lines.append("")
         return "\n".join(lines)
 
     def _get_current_prompts(self, iterations):
         for it in reversed(iterations):
+            if it.get("type") == "final_review":
+                return it.get("prompts_after", "")
+            if it.get("type") == "local_merge":
+                return it.get("prompts_after", "")
             if it.get("type") == "refinement_check":
                 return it.get("prompts_after", "")
             if it.get("type") == "commonality_extraction":
+                return it.get("art_style_prompts", "")
+            if it.get("type") == "imported_prompts":
                 return it.get("art_style_prompts", "")
         return ""
 
@@ -343,6 +430,256 @@ class StyleIterativeWorkerThread(QThread):
         iterations.append(iteration_record)
         return iterations, revised_prompts
 
+    def _step_local_refinement(self, client, iterations, current_prompts, total_rounds):
+        """在所有轮次完成后，将所有参考图裁剪为局部区域，分批发送给 LLM 提取局部细节，再合并到主 prompts。"""
+        self._check_cancel()
+        self.log_signal.emit(f"[Local Refine] 所有 {total_rounds} 轮迭代完成，开始局部区域精细化分析...")
+        self.progress_signal.emit("局部细化中 — 裁剪区域并分批分析…")
+
+        # 1) Create unique temp directory for crops per run
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        crop_dir = os.path.join(self.output_dir, f"local_crops_{timestamp}")
+        os.makedirs(crop_dir, exist_ok=True)
+
+        # 2) Crop all images
+        all_crops = []
+        self.log_signal.emit(f"  [Local Refine] 正在裁剪 {len(self.image_paths)} 张参考图...")
+        for index, path in enumerate(self.image_paths, start=1):
+            self._check_cancel()
+            crops = _crop_image_regions(path, crop_dir, crop_count=4)
+            all_crops.extend(crops)
+            self.log_signal.emit(f"  [Local Refine] [{index}/{len(self.image_paths)}] {os.path.basename(path)} → {len(crops)} 个局部区域")
+
+        if not all_crops:
+            self.log_signal.emit("  [Local Refine] 警告：未能生成任何裁剪区域，跳过局部细化。")
+            return iterations, current_prompts
+
+        self.log_signal.emit(f"  [Local Refine] 共生成 {len(all_crops)} 个局部裁剪区域。")
+
+        # 3) Batch process crops (4-6 per batch)
+        BATCH_SIZE = 5
+        localized_findings = []
+        for batch_idx in range(0, len(all_crops), BATCH_SIZE):
+            self._check_cancel()
+            batch_crops = all_crops[batch_idx:batch_idx + BATCH_SIZE]
+            batch_num = batch_idx // BATCH_SIZE + 1
+            total_batches = (len(all_crops) + BATCH_SIZE - 1) // BATCH_SIZE
+
+            self.log_signal.emit(f"  [Local Refine] 批次 {batch_num}/{total_batches}：正在分析 {len(batch_crops)} 个局部区域...")
+            self.progress_signal.emit(f"局部细化 — 批次 {batch_num}/{total_batches}")
+
+            content_list = [{
+                "type": "text",
+                "text": (
+                    read_prompt_file(STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE).strip() +
+                    "\n\nNOTE: These are CROPPED LOCAL REGIONS from reference images. "
+                    "Your findings will later be merged into a main art style description. "
+                    "Focus on localized rendering details that may not be visible in full-image views."
+                )
+            }]
+
+            for crop_path in batch_crops:
+                mime_type, base64_image = compress_and_encode_image(crop_path)
+                if base64_image:
+                    content_list.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{base64_image}",
+                            "detail": "high"
+                        }
+                    })
+
+            self._check_cancel()
+            response = client.chat.completions.create(
+                model=self.model_name,
+                response_format={"type": "json_object"},
+                messages=[{"role": "user", "content": content_list}],
+                temperature=0.5,
+                max_completion_tokens=4096,
+                timeout=self.timeout_seconds,
+            )
+            self._check_cancel()
+
+            try:
+                result_json = json.loads(response.choices[0].message.content.strip())
+            except json.JSONDecodeError as e:
+                self.log_signal.emit(f"  [Local Refine] 批次 {batch_num} JSON 解析失败 ({e})，跳过。")
+                continue
+
+            findings = str(result_json.get("localized_style_findings", "")).strip()
+            crop_types = str(result_json.get("crop_types_analyzed", "")).strip()
+            confidence = result_json.get("confidence", 0.5)
+
+            if findings:
+                localized_findings.append({
+                    "batch": batch_num,
+                    "crop_types": crop_types,
+                    "findings": findings,
+                    "confidence": confidence,
+                })
+                self.log_signal.emit(f"  [Local Refine] 批次 {batch_num} 完成 (置信度: {confidence})，发现: {findings[:120]}...")
+
+                # Record intermediate extraction in iterations
+                it_record = {
+                    "step": len(iterations) + 1,
+                    "type": "local_extract",
+                    "round": f"round-{total_rounds}-local-extract-batch-{batch_num}",
+                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "batch_index": batch_num,
+                    "crop_count": len(batch_crops),
+                    "crop_types_analyzed": crop_types,
+                    "localized_style_findings": findings,
+                    "confidence": confidence,
+                    "model_used": self.model_name,
+                }
+                iterations.append(it_record)
+            else:
+                self.log_signal.emit(f"  [Local Refine] 批次 {batch_num} 完成但无有效发现。")
+
+        if not localized_findings:
+            self.log_signal.emit("  [Local Refine] 所有批次均未产生有效发现，跳过合并。")
+            return iterations, current_prompts
+
+        # 4) Merge all localized findings into main prompts
+        self._check_cancel()
+        self.log_signal.emit(f"  [Local Refine] 正在合并 {len(localized_findings)} 组局部发现到主 prompts...")
+        self.progress_signal.emit("局部细化 — 合并局部发现到主描述中")
+
+        all_findings_text = "\n\n---\n\n".join(
+            f"### Batch {f['batch']} (Crop types: {f['crop_types']}, Confidence: {f['confidence']})\n{f['findings']}"
+            for f in localized_findings
+        )
+
+        merge_prompt = (
+            read_prompt_file(STYLE_ITER_LOCAL_MERGE_PROMPT_FILE).strip() +
+            "\n\n=== MAIN ART STYLE PROMPTS (TO ENRICH) ===\n" +
+            current_prompts +
+            "\n\n=== LOCALIZED STYLE FINDINGS (FROM CROPPED REGIONS) ===\n" +
+            all_findings_text +
+            "\n\nPlease merge the localized findings into the main prompts and return your JSON response."
+        )
+
+        self._check_cancel()
+        response = client.chat.completions.create(
+            model=self.model_name,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": merge_prompt}],
+            temperature=0.5,
+            max_completion_tokens=8192,
+            timeout=self.timeout_seconds,
+        )
+        self._check_cancel()
+
+        try:
+            result_json = json.loads(response.choices[0].message.content.strip())
+        except json.JSONDecodeError as e:
+            self.log_signal.emit(f"  [Local Refine] 合并 JSON 解析失败 ({e})，保留原 prompts。")
+            return iterations, current_prompts
+
+        merge_analysis = str(result_json.get("merge_analysis", "")).strip()
+        merged_prompts = str(result_json.get("merged_prompts", current_prompts)).strip()
+        confidence = result_json.get("confidence", 0.5)
+
+        if not merged_prompts:
+            merged_prompts = current_prompts
+
+        self.log_signal.emit(f"  [Local Refine] 合并完成 (置信度: {confidence})。")
+        self.log_signal.emit(f"  [Local Refine] 合并分析: {merge_analysis[:300]}...")
+
+        merge_record = {
+            "step": len(iterations) + 1,
+            "type": "local_merge",
+            "round": f"round-{total_rounds}-local-merge",
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "prompts_before": current_prompts,
+            "merge_analysis": merge_analysis,
+            "batches_merged": len(localized_findings),
+            "prompts_after": merged_prompts,
+            "confidence": confidence,
+            "model_used": self.model_name,
+        }
+        iterations.append(merge_record)
+        return iterations, merged_prompts
+
+    def _step_final_review(self, client, iterations, current_prompts, total_rounds):
+        """在所有轮次完成后，将所有参考图和最终 prompts 发送给 LLM 做一次最终审查。"""
+        self._check_cancel()
+        self.log_signal.emit(f"[Final Review] 所有 {total_rounds} 轮迭代已完成，正在进行最终综合审查...")
+        self.progress_signal.emit("最终审查中 — 综合所有参考图进行最终修正…")
+
+        content_list = [{
+            "type": "text",
+            "text": read_prompt_file(STYLE_ITER_FINAL_REVIEW_PROMPT_FILE).strip()
+        }]
+
+        # Include iteration history as context
+        history_text = self._build_iteration_history_text(iterations)
+        context_text = (
+            "\n\n=== FINAL ART STYLE PROMPTS (AFTER ALL ROUNDS) ===\n"
+            f"{current_prompts}\n\n"
+            "=== COMPLETE ITERATION HISTORY ===\n"
+            f"{history_text}\n\n"
+            "Now review ALL reference images below against the Final Prompts and produce your JSON response."
+        )
+        content_list[0]["text"] += context_text
+
+        # Encode ALL reference images
+        for index, path in enumerate(self.image_paths, start=1):
+            self._check_cancel()
+            self.log_signal.emit(f"  [Final Review] [{index}/{len(self.image_paths)}] 编码图片: {os.path.basename(path)}")
+            mime_type, base64_image = compress_and_encode_image(path)
+            if base64_image:
+                content_list.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{base64_image}",
+                        "detail": "high"
+                    }
+                })
+
+        self._check_cancel()
+        self.log_signal.emit("  [Final Review] 正在向 LLM 发送最终综合审查请求，请耐心等待...")
+
+        response = client.chat.completions.create(
+            model=self.model_name,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": content_list}],
+            temperature=0.5,
+            max_completion_tokens=8192,
+            timeout=self.timeout_seconds,
+        )
+        self._check_cancel()
+
+        try:
+            result_json = json.loads(response.choices[0].message.content.strip())
+        except json.JSONDecodeError as e:
+            self.log_signal.emit(f"  [Final Review] 警告：JSON 解析失败 ({e})，保留最终 prompts 不变。")
+            return iterations, current_prompts
+
+        final_analysis = str(result_json.get("final_review_analysis", "")).strip()
+        final_prompts = str(result_json.get("final_prompts", current_prompts)).strip()
+        confidence = result_json.get("confidence", 0.5)
+
+        if not final_prompts:
+            final_prompts = current_prompts
+
+        self.log_signal.emit(f"  [Final Review] 审查完成 (置信度: {confidence})。")
+        self.log_signal.emit(f"  [Final Review] 分析摘要: {final_analysis[:300]}...")
+
+        iteration_record = {
+            "step": len(iterations) + 1,
+            "type": "final_review",
+            "round": f"round-{total_rounds}-after",
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "prompts_before": current_prompts,
+            "final_review_analysis": final_analysis,
+            "prompts_after": final_prompts,
+            "confidence": confidence,
+            "model_used": self.model_name,
+        }
+        iterations.append(iteration_record)
+        return iterations, final_prompts
+
     def run(self):
         try:
             self._check_cancel()
@@ -364,7 +701,10 @@ class StyleIterativeWorkerThread(QThread):
             self.log_signal.emit(f"📂 已加载已有训练状态，包含 {len(iterations)} 个迭代步骤。")
             # Determine starting round from existing iterations
             if iterations:
-                last_round = max(it.get("round", 1) for it in iterations)
+                # Filter only numeric rounds (exclude final_review entries with string rounds like "round-3-after")
+                numeric_rounds = [it.get("round", 1) for it in iterations
+                                  if isinstance(it.get("round", 1), (int, float))]
+                last_round = int(max(numeric_rounds)) if numeric_rounds else 0
                 start_round = last_round + 1
                 self.log_signal.emit(f"  上次训练到了 Round {last_round}，将从 Round {start_round} 继续。")
             else:
@@ -378,7 +718,22 @@ class StyleIterativeWorkerThread(QThread):
         self.log_signal.emit(f"💾 输出目录: {self.output_dir}")
 
         current_prompts = ""
-        state = self._build_state(0, iterations)
+
+        # Inject seed prompts as initial iteration if provided and not loading existing state
+        if self.seed_prompts and not self.existing_state:
+            self.log_signal.emit(f"📝 已导入初始 Prompts 作为训练起点。")
+            seed_record = {
+                "step": 0,
+                "type": "imported_prompts",
+                "round": 0,
+                "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "art_style_prompts": self.seed_prompts,
+                "model_used": "",
+            }
+            iterations.insert(0, seed_record)
+            current_prompts = self.seed_prompts
+
+        state = self._build_state(len(iterations), iterations)
         prefix = self.file_prefix if self.file_prefix else "style"
         output_path = os.path.join(self.output_dir, f"{prefix}_style_iter_result.json")
 
@@ -433,6 +788,24 @@ class StyleIterativeWorkerThread(QThread):
                     self._save_state(state, output_path)
 
                 self.log_signal.emit(f"✅ Round {round_num} 完成。")
+
+            # Local refinement: crop all images into regions, batch-analyze, merge into prompts
+            iterations, current_prompts = self._step_local_refinement(
+                client, iterations, current_prompts, self.total_rounds
+            )
+            state = self._build_state(len(iterations), iterations)
+            state["final_art_style_prompts"] = current_prompts
+            self._save_state(state, output_path)
+            self.log_signal.emit(f"  💾 局部细化结果已保存 (step {len(iterations)})")
+
+            # Final comprehensive review: send all images + final prompts to LLM
+            iterations, current_prompts = self._step_final_review(
+                client, iterations, current_prompts, self.total_rounds
+            )
+            state = self._build_state(len(iterations), iterations)
+            state["final_art_style_prompts"] = current_prompts
+            self._save_state(state, output_path)
+            self.log_signal.emit(f"  💾 最终审查结果已保存 (step {len(iterations)})")
 
             self.log_signal.emit("=" * 60)
             self.log_signal.emit(f"🎉 全部 {self.total_rounds} 轮迭代完成！")
@@ -537,7 +910,8 @@ class ImageDropListWidget(QListWidget):
 class StyleAnalyzerWidget(QWidget):
     def __init__(self, config_getter_func, timeout_getter_func=None,
                  img_config_getter_func=None, styles_getter_func=None,
-                 test_gen_default_getter_func=None, test_gen_changed_callback=None):
+                 test_gen_default_getter_func=None, test_gen_changed_callback=None,
+                 test_prompt_getter_func=None, test_prompt_changed_callback=None):
         super().__init__()
         self.get_config = config_getter_func
         self.get_timeout = timeout_getter_func
@@ -545,11 +919,14 @@ class StyleAnalyzerWidget(QWidget):
         self.get_styles = styles_getter_func
         self.get_test_gen_default = test_gen_default_getter_func
         self.on_test_gen_changed = test_gen_changed_callback
+        self.get_test_prompt_default = test_prompt_getter_func
+        self.on_test_prompt_changed = test_prompt_changed_callback
         self.thread = None
         self._loaded_json_path = ""
         self._existing_state = None
         self._loaded_image_paths = []
         self._output_dir = ""
+        self._imported_prompts = ""
         self.initUI()
 
     def initUI(self):
@@ -621,6 +998,13 @@ class StyleAnalyzerWidget(QWidget):
             "输入测试提示词，例如：1girl, solo, standing, looking at viewer"
         )
         self.test_prompt_input.setClearButtonEnabled(True)
+        # 自动保存输入内容
+        self.test_prompt_input.editingFinished.connect(self._on_test_prompt_changed)
+        # 恢复上次保存的内容
+        if self.get_test_prompt_default:
+            saved = self.get_test_prompt_default()
+            if saved:
+                self.test_prompt_input.setText(saved)
         test_gen_layout.addRow("测试提示词:", self.test_prompt_input)
 
         test_gen_group.setLayout(test_gen_layout)
@@ -633,8 +1017,12 @@ class StyleAnalyzerWidget(QWidget):
         self.clear_import_btn = QPushButton("清除导入")
         self.clear_import_btn.setEnabled(False)
         self.clear_import_btn.clicked.connect(self.clear_imported_state)
+        self.import_prompts_btn = QPushButton("📝 导入已有 Prompts")
+        self.import_prompts_btn.setToolTip("输入已有的艺术风格 Prompts 文本作为训练起点，从 Round 1 开始迭代优化")
+        self.import_prompts_btn.clicked.connect(self.import_prompts_text)
         import_layout.addWidget(self.import_json_btn)
         import_layout.addWidget(self.clear_import_btn)
+        import_layout.addWidget(self.import_prompts_btn)
         import_layout.addStretch()
         self.import_status_label = QLabel("")
         self.import_status_label.setStyleSheet("color: #1b8f3a; font-weight: bold;")
@@ -720,10 +1108,20 @@ class StyleAnalyzerWidget(QWidget):
         if self.on_test_gen_changed:
             self.on_test_gen_changed(bool(checked))
 
+    def _on_test_prompt_changed(self):
+        if self.on_test_prompt_changed:
+            self.on_test_prompt_changed(self.test_prompt_input.text())
+
     def set_test_gen_default(self, checked):
         self.enable_test_gen_cb.blockSignals(True)
         self.enable_test_gen_cb.setChecked(bool(checked))
         self.enable_test_gen_cb.blockSignals(False)
+
+    def set_test_prompt_default(self, text):
+        if text and not self.test_prompt_input.text():
+            self.test_prompt_input.blockSignals(True)
+            self.test_prompt_input.setText(str(text).strip())
+            self.test_prompt_input.blockSignals(False)
 
     def import_existing_json(self):
         json_path, _ = QFileDialog.getOpenFileName(
@@ -789,7 +1187,10 @@ class StyleAnalyzerWidget(QWidget):
         if prefix_to_fill:
             self.file_prefix_input.setText(prefix_to_fill)
 
-        last_round = max(it.get("round", 1) for it in iterations)
+        # Filter only numeric rounds for display
+        numeric_rounds = [it.get("round", 1) for it in iterations
+                          if isinstance(it.get("round", 1), (int, float))]
+        last_round = int(max(numeric_rounds)) if numeric_rounds else 0
         total_steps = len(iterations)
         self.import_status_label.setText(
             f"已导入: {os.path.basename(json_path)} "
@@ -812,9 +1213,30 @@ class StyleAnalyzerWidget(QWidget):
         self._existing_state = None
         self._loaded_json_path = ""
         self._loaded_image_paths = []
+        self._imported_prompts = ""
         self.import_status_label.setText("")
         self.clear_import_btn.setEnabled(False)
+        self.import_prompts_btn.setText("📝 导入已有 Prompts")
+        self.import_status_label.setStyleSheet("color: #1b8f3a; font-weight: bold;")
         self.log_msg("已清除导入的训练状态。")
+
+    def import_prompts_text(self):
+        from PyQt6.QtWidgets import QInputDialog
+        text, ok = QInputDialog.getMultiLineText(
+            self, "导入已有 Prompts",
+            "请粘贴已有的艺术风格 Prompts 文本：\n\n这些 Prompts 将作为训练起点，从 Round 1 开始迭代优化。",
+            self._imported_prompts if self._imported_prompts else ""
+        )
+        if not ok or not text.strip():
+            return
+        self._imported_prompts = text.strip()
+        self.import_status_label.setText("已导入外部 Prompts (将从 Round 1 开始训练)")
+        self.import_status_label.setStyleSheet("color: #c77d0f; font-weight: bold;")
+        self.import_prompts_btn.setText("📝 已导入 Prompts ✏️")
+        self.clear_import_btn.setEnabled(True)
+        self.result_edit.setPlainText(self._imported_prompts)
+        self.log_msg(f"📝 已导入外部 Prompts 作为训练起点 ({len(self._imported_prompts)} 字符)。")
+        self.log_msg(f"   将从 Round 1 开始迭代优化。")
 
     def log_msg(self, text):
         append_log_line(self.log_text, text)
@@ -828,7 +1250,8 @@ class StyleAnalyzerWidget(QWidget):
         self.clear_btn.setEnabled(not running)
         self.cancel_btn.setEnabled(running and (not cancelling))
         self.import_json_btn.setEnabled(not running)
-        self.clear_import_btn.setEnabled(not running and bool(self._existing_state))
+        self.clear_import_btn.setEnabled(not running and bool(self._existing_state or self._imported_prompts))
+        self.import_prompts_btn.setEnabled(not running)
         self.total_rounds_spin.setEnabled(not running)
         self.images_per_round_spin.setEnabled(not running)
         self.enable_test_gen_cb.setEnabled(not running)
@@ -906,8 +1329,8 @@ class StyleAnalyzerWidget(QWidget):
                 styles_data = self.get_styles()
                 # Use the first style's instructions or empty string
                 if styles_data:
-                    first_style = next(iter(styles_data.values()), "")
-                    img_instructions = str(first_style or "").strip()
+                    first_entry = next(iter(styles_data.values()), "")
+                    img_instructions = str(normalize_style_entry(first_entry)["prompt"] or "").strip()
 
         timeout_seconds = int(self.get_timeout()) if self.get_timeout else 120
 
@@ -935,6 +1358,7 @@ class StyleAnalyzerWidget(QWidget):
             img_instructions=img_instructions,
             img_aspect_ratio=img_aspect_ratio,
             file_prefix=file_prefix,
+            seed_prompts=self._imported_prompts if not self._existing_state else "",
         )
         self.thread.log_signal.connect(self.log_msg)
         self.thread.progress_signal.connect(self.progress_label.setText)
