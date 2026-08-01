@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QTabWidget,
     QTableWidget,
@@ -98,6 +99,7 @@ class SdWebuiSettingsWidget(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
+        layout.setSpacing(4)
 
         top_sd_layout = QHBoxLayout()
         top_sd_layout.addWidget(QLabel("SD API URL:"))
@@ -123,7 +125,11 @@ class SdWebuiSettingsWidget(QWidget):
         model_layout.addWidget(self.sd_model_input)
         layout.addLayout(model_layout)
 
-        vae_main_layout = QVBoxLayout()
+        vae_main_widget = QWidget()
+        vae_main_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        vae_main_layout = QVBoxLayout(vae_main_widget)
+        vae_main_layout.setContentsMargins(0, 0, 0, 0)
+        vae_main_layout.setSpacing(2)
         vae_header_layout = QHBoxLayout()
         vae_header_layout.addWidget(QLabel("VAE (支持多个拼接):"))
         self.add_vae_btn = QPushButton("+ 添加 VAE")
@@ -133,9 +139,10 @@ class SdWebuiSettingsWidget(QWidget):
         vae_header_layout.addStretch()
         vae_main_layout.addLayout(vae_header_layout)
         self.vae_inputs_container = QVBoxLayout()
+        self.vae_inputs_container.setSpacing(2)
         self.vae_inputs_list = []
         vae_main_layout.addLayout(self.vae_inputs_container)
-        layout.addLayout(vae_main_layout)
+        layout.addWidget(vae_main_widget)
 
         param_layout = QHBoxLayout()
         param_layout.addWidget(QLabel("Sampler:"))
@@ -164,6 +171,8 @@ class SdWebuiSettingsWidget(QWidget):
         self.save_btn.clicked.connect(lambda: self.save_settings(silent=False))
         save_layout.addWidget(self.save_btn)
         layout.addLayout(save_layout)
+
+        layout.addStretch(1)
 
         self.refresh_sd_groups()
 

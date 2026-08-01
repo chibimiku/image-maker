@@ -20,6 +20,7 @@ from PIL import Image
 # 导入我们独立出去的 API 请求模块
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d, get_api_config, load_config
 from utils.gui_entry import configure_qt_application_attributes
+from utils.styles import style_prompt, build_style_entry, style_ref_image, style_prompt_compressed
 
 # ================== 初始化目录与日志 ==================
 os.makedirs("log", exist_ok=True)
@@ -566,7 +567,7 @@ class CyberNikiTab(QWidget):
         """下拉框切换时更新文本框内容"""
         selected_style = self.style_combo.currentText()
         if selected_style in self.styles_data:
-            self.inst_input.setPlainText(self.styles_data[selected_style])
+            self.inst_input.setPlainText(style_prompt(self.styles_data, selected_style))
 
     def save_current_instruction(self):
         """通过弹窗命名并保存当前文本框内容为新画风预设"""
@@ -576,7 +577,11 @@ class CyberNikiTab(QWidget):
         name, ok = QInputDialog.getText(self, '保存画风预设', '请输入新预设名称:')
         if ok and name:
             name = name.strip()
-            self.styles_data[name] = current_text
+            self.styles_data[name] = build_style_entry(
+                current_text,
+                style_ref_image(self.styles_data, name),
+                style_prompt_compressed(self.styles_data, name),
+            )
             
             # 如果是新名字，添加到下拉列表
             if self.style_combo.findText(name) == -1:

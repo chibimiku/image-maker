@@ -8,7 +8,8 @@ redirect_stdio_for_windows_gui_entry()
 warm_up_optional_module("onnxruntime", skip_env_var="IMAGE_MAKER_SKIP_ONNXRUNTIME_PRELOAD")
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
                              QLabel, QPushButton, QTextEdit, QLineEdit, QInputDialog,
-                             QComboBox, QFormLayout, QMessageBox, QTabWidget, QCheckBox)
+                             QComboBox, QFormLayout, QMessageBox, QTabWidget, QCheckBox,
+                             QFileDialog)
 from PyQt6.QtCore import QThread, pyqtSignal
 from openai import OpenAI
 
@@ -28,12 +29,13 @@ from modules.image_analysis.json_dataset_tab import JsonDatasetWidget
 from modules.image_generation.webp_compressor import DragDropCompressor
 from modules.image_generation.flux2_client_tab import Flux2ClientWidget
 from modules.image_generation.upscaler_tab import UpscalerTabWidget
-from modules.image_generation.single_gen_debug_tab import SingleGenDebugWidget
+from modules.image_generation.single_gen_debug_tab import SingleGenDebugWidget, DropLineEdit, CompressPromptThread
 from modules.image_generation.sd_workflow_tab import SdWebuiSettingsWidget, SdWorkflowWidget
 from modules.others.booru_tag_generator import BooruTagGeneratorWidget
 from modules.fashion_collection.collector_tab import FashionCollectorWidget
 from modules.image_generation.diff_cg_tab import DiffCgTabWidget
 from utils.image_upscale_runtime import normalize_upscale_options
+from utils.styles import normalize_style_entry, build_style_entry, ref_image_valid
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "conf", "config.json")
@@ -167,6 +169,9 @@ class AppWindow(QWidget):
         self.use_nsfw_batch = False
         self.enable_outfit_check_single = False
         self.enable_outfit_check_batch = False
+        self.remove_photo_style_single = False
+        self.style_analyzer_test_gen = True
+        self.style_analyzer_test_prompt = ""
         self.outfit_style_override_single = ""
         self.outfit_style_override_batch = ""
         self.outfit_style_override_history = []
@@ -210,6 +215,8 @@ class AppWindow(QWidget):
             upscale_options_changed_callback=self.update_upscale_options,
             outfit_check_default_getter_func=lambda: self.enable_outfit_check_single,
             outfit_check_changed_callback=self.on_single_outfit_check_changed,
+            remove_photo_style_default_getter_func=lambda: self.remove_photo_style_single,
+            remove_photo_style_changed_callback=self.on_single_remove_photo_style_changed,
             outfit_style_history_getter_func=self.get_outfit_style_history,
             outfit_style_default_getter_func=self.get_single_outfit_style_override,
             outfit_style_changed_callback=self.update_single_outfit_style_override,
@@ -278,7 +285,8 @@ class AppWindow(QWidget):
             img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
-            ar_policy_getter_func=self.get_ar_policy_config
+            ar_policy_getter_func=self.get_ar_policy_config,
+            styles_reload_callback=self.load_styles_config
         )
         self.single_gen_debug_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         # z-image 当前默认不展示，避免主窗口启动时提前触发重型环境探测
@@ -286,7 +294,14 @@ class AppWindow(QWidget):
 
         # 【Tab 2: 多图画风提取】
         self.style_analyzer_tab = StyleAnalyzerWidget(
-            config_getter_func=self.get_text_config
+            config_getter_func=self.get_text_config,
+            timeout_getter_func=self.get_request_timeout_seconds,
+            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            styles_getter_func=lambda: self.styles_data,
+            test_gen_default_getter_func=lambda: self.style_analyzer_test_gen,
+            test_gen_changed_callback=self.on_style_analyzer_test_gen_changed,
+            test_prompt_getter_func=lambda: self.style_analyzer_test_prompt,
+            test_prompt_changed_callback=self.on_style_analyzer_test_prompt_changed,
         )
 
         self.pic_cate_tab = PicCateWidget(
@@ -519,7 +534,41 @@ class AppWindow(QWidget):
         
         self.style_content_edit = QTextEdit()
         style_layout.addWidget(self.style_content_edit)
-        
+
+        style_comp_header = QHBoxLayout()
+        style_comp_header.addWidget(QLabel("压缩版指令(参考优先模式用):"))
+        style_comp_header.addStretch()
+        self.style_compress_btn = QPushButton("请求 LLM 重新生成")
+        self.style_compress_btn.setToolTip("调用文本 API（conf/config.json）把上面的完整指令压缩为精简版，填入本框")
+        self.style_compress_btn.clicked.connect(self.regenerate_style_compressed)
+        style_comp_header.addWidget(self.style_compress_btn)
+        style_layout.addLayout(style_comp_header)
+        self.style_compressed_edit = QTextEdit()
+        self.style_compressed_edit.setPlaceholderText(
+            "参考优先模式下替代完整指令的精简版；可留空（留空时自动用本地启发式压缩）。"
+            "可用 tools/compress_styles.py 批量由 LLM 生成。"
+        )
+        self.style_compressed_edit.setMaximumHeight(130)
+        style_layout.addWidget(self.style_compressed_edit)
+
+        style_ref_row = QHBoxLayout()
+        style_ref_row.addWidget(QLabel("参考图(仅画风):"))
+        self.style_ref_image_edit = DropLineEdit()
+        self.style_ref_image_edit.setAcceptDrops(True)
+        self.style_ref_image_edit.setPlaceholderText("可留空；样例图路径，生成时仅参考其画风（支持拖拽图片到此处）")
+        self.style_ref_image_edit.setToolTip(
+            "该画风预设的「艺术风格参考图」。生成时作为附件传给 API，且只参考其画风"
+            "（线条/上色/光影/配色/渲染惯例），不参考人物、服装、姿势、场景等内容。"
+        )
+        style_ref_row.addWidget(self.style_ref_image_edit, stretch=1)
+        self.style_ref_browse_btn = QPushButton("浏览...")
+        self.style_ref_browse_btn.clicked.connect(self.browse_style_ref_image)
+        style_ref_row.addWidget(self.style_ref_browse_btn)
+        self.style_ref_clear_btn = QPushButton("清除")
+        self.style_ref_clear_btn.clicked.connect(self.clear_style_ref_image)
+        style_ref_row.addWidget(self.style_ref_clear_btn)
+        style_layout.addLayout(style_ref_row)
+
         self.save_style_btn = QPushButton("保存当前预设")
         self.save_style_btn.clicked.connect(self.save_current_style)
         style_layout.addWidget(self.save_style_btn)
@@ -658,6 +707,18 @@ class AppWindow(QWidget):
         self.enable_outfit_check_batch = bool(checked)
         self.save_text_config(silent=True)
 
+    def on_single_remove_photo_style_changed(self, checked):
+        self.remove_photo_style_single = bool(checked)
+        self.save_text_config(silent=True)
+
+    def on_style_analyzer_test_gen_changed(self, checked):
+        self.style_analyzer_test_gen = bool(checked)
+        self.save_text_config(silent=True)
+
+    def on_style_analyzer_test_prompt_changed(self, text):
+        self.style_analyzer_test_prompt = str(text).strip()
+        self.save_text_config(silent=True)
+
     def get_upscale_options(self):
         return normalize_upscale_options(getattr(self, "upscale_options", {}))
 
@@ -708,6 +769,7 @@ class AppWindow(QWidget):
         self.use_nsfw_batch = False
         self.enable_outfit_check_single = False
         self.enable_outfit_check_batch = False
+        self.remove_photo_style_single = False
         self.outfit_style_override_single = ""
         self.outfit_style_override_batch = ""
         self.outfit_style_override_history = []
@@ -725,6 +787,9 @@ class AppWindow(QWidget):
                     self.use_nsfw_batch = bool(config.get("use_nsfw_batch", False))
                     self.enable_outfit_check_single = bool(config.get("enable_outfit_check_single", False))
                     self.enable_outfit_check_batch = bool(config.get("enable_outfit_check_batch", False))
+                    self.remove_photo_style_single = bool(config.get("remove_photo_style_single", False))
+                    self.style_analyzer_test_gen = bool(config.get("style_analyzer_test_gen", True))
+                    self.style_analyzer_test_prompt = str(config.get("style_analyzer_test_prompt", "") or "").strip()
                     self.outfit_style_override_single = str(config.get("outfit_style_override_single", "") or "").strip()
                     self.outfit_style_override_batch = str(config.get("outfit_style_override_batch", "") or "").strip()
                     self.outfit_style_override_history = self._normalize_outfit_style_history(config.get("outfit_style_override_history", []))
@@ -761,7 +826,11 @@ class AppWindow(QWidget):
         if hasattr(self, "single_analyzer_tab"):
             self.single_analyzer_tab.set_use_nsfw_default(self.use_nsfw_single)
             self.single_analyzer_tab.set_outfit_check_default(self.enable_outfit_check_single)
+            self.single_analyzer_tab.set_remove_photo_style_default(self.remove_photo_style_single)
             self.single_analyzer_tab.set_upscale_options_defaults(self.upscale_options)
+        if hasattr(self, "style_analyzer_tab"):
+            self.style_analyzer_tab.set_test_gen_default(self.style_analyzer_test_gen)
+            self.style_analyzer_tab.set_test_prompt_default(self.style_analyzer_test_prompt)
         if hasattr(self, "batch_analyzer_tab"):
             self.batch_analyzer_tab.set_use_nsfw_default(self.use_nsfw_batch)
             self.batch_analyzer_tab.set_outfit_check_default(self.enable_outfit_check_batch)
@@ -903,12 +972,57 @@ class AppWindow(QWidget):
 
     def on_manage_style_changed(self, style_name):
         if style_name in self.styles_data:
-            self.style_content_edit.setPlainText(self.styles_data[style_name])
+            entry = normalize_style_entry(self.styles_data[style_name])
+            self.style_content_edit.setPlainText(entry["prompt"])
+            self.style_compressed_edit.setPlainText(entry["prompt_compressed"])
+            self.style_ref_image_edit.setText(entry["ref_image"])
+
+    def browse_style_ref_image(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择参考图（仅参考画风）", "", "图片文件 (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"
+        )
+        if file_path:
+            self.style_ref_image_edit.setText(file_path)
+
+    def regenerate_style_compressed(self):
+        prompt_text = self.style_content_edit.toPlainText().strip()
+        if not prompt_text:
+            QMessageBox.warning(self, "提示", "指令文本为空，无法生成压缩版。")
+            return
+        self.style_compress_btn.setEnabled(False)
+        self.style_compress_btn.setText("生成中...")
+        self._style_compress_thread = CompressPromptThread(prompt_text, parent=self)
+        self._style_compress_thread.finished_ok.connect(self._on_style_compressed_ok)
+        self._style_compress_thread.failed.connect(self._on_style_compressed_failed)
+        self._style_compress_thread.finished.connect(self._on_style_compress_done)
+        self._style_compress_thread.start()
+
+    def _on_style_compressed_ok(self, text):
+        self.style_compressed_edit.setPlainText(text)
+        QMessageBox.information(self, "完成", f"已生成压缩版指令（{len(text)} 字符）。")
+
+    def _on_style_compressed_failed(self, err_msg):
+        QMessageBox.warning(self, "生成失败", err_msg)
+
+    def _on_style_compress_done(self):
+        self.style_compress_btn.setEnabled(True)
+        self.style_compress_btn.setText("请求 LLM 重新生成")
+
+    def clear_style_ref_image(self):
+        self.style_ref_image_edit.clear()
 
     def save_current_style(self):
         style_name = self.style_manage_combo.currentText()
         if not style_name: return
-        self.styles_data[style_name] = self.style_content_edit.toPlainText().strip()
+        ref_image = self.style_ref_image_edit.text().strip()
+        if ref_image and not ref_image_valid(ref_image):
+            QMessageBox.warning(self, "提示", f"参考图文件不存在，无法保存：\n{ref_image}")
+            return
+        self.styles_data[style_name] = build_style_entry(
+            self.style_content_edit.toPlainText().strip(),
+            ref_image,
+            self.style_compressed_edit.toPlainText().strip()
+        )
         self.save_styles_to_disk()
         QMessageBox.information(self, "成功", f"画风预设 '{style_name}' 已保存！")
 
@@ -927,7 +1041,7 @@ class AppWindow(QWidget):
             if name in self.styles_data:
                 QMessageBox.warning(self, "提示", "预设名称已存在！")
                 return
-            self.styles_data[name] = ""
+            self.styles_data[name] = build_style_entry("")
             self.update_style_combos()
             self.style_manage_combo.setCurrentText(name)
 
@@ -961,6 +1075,9 @@ class AppWindow(QWidget):
             "use_nsfw_batch": bool(getattr(self, "use_nsfw_batch", False)),
             "enable_outfit_check_single": bool(getattr(self, "enable_outfit_check_single", False)),
             "enable_outfit_check_batch": bool(getattr(self, "enable_outfit_check_batch", False)),
+            "remove_photo_style_single": bool(getattr(self, "remove_photo_style_single", False)),
+            "style_analyzer_test_gen": bool(getattr(self, "style_analyzer_test_gen", True)),
+            "style_analyzer_test_prompt": str(getattr(self, "style_analyzer_test_prompt", "") or "").strip(),
             "outfit_style_override_single": self.get_single_outfit_style_override(),
             "outfit_style_override_batch": self.get_batch_outfit_style_override(),
             "outfit_style_override_history": self._normalize_outfit_style_history(getattr(self, "outfit_style_override_history", [])),
@@ -1269,7 +1386,23 @@ class AppWindow(QWidget):
 
 if __name__ == '__main__':
     import sys
+
+    # 支持 --auto-quit N ：启动后 N 秒自动退出，避免测试时卡住终端
+    auto_quit_seconds = 0
+    args = sys.argv[1:]
+    if len(args) >= 2 and args[0] == '--auto-quit':
+        try:
+            auto_quit_seconds = int(args[1])
+        except ValueError:
+            auto_quit_seconds = 0
+        sys.argv = [sys.argv[0]] + args[2:]  # 清理参数，避免 Qt 解析报错
+
     app = QApplication(sys.argv)
     window = AppWindow()
     window.show()
+
+    if auto_quit_seconds > 0:
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(int(auto_quit_seconds * 1000), app.quit)
+
     sys.exit(app.exec())

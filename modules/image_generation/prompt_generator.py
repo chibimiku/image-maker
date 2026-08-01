@@ -11,6 +11,8 @@ from openai import OpenAI
 from modules.image_analysis.single_analyzer import ImageGenWorkerThread
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
+from utils.styles import style_prompt, style_ref_image, ref_image_valid, build_ref_gen_params
+from utils.style_ref_widget import StyleRefModeCombo
 
 
 PROMPT_GENERATOR_SYSTEM_FILE = "prompt-generator-system.md"
@@ -64,9 +66,10 @@ class TextPromptGenThread(QThread):
             self.finish_signal.emit([])
 
 class PromptCellWidget(QFrame):
-    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, upscale_options_getter_func=None):
+    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, upscale_options_getter_func=None, style_ref_getter_func=None):
         super().__init__()
         self.get_style = style_getter_func
+        self.get_style_ref = style_ref_getter_func
         self.get_img_config = img_config_getter_func
         self.save_img_cfg = save_img_cfg_callback
         self.img_thread = None
@@ -134,7 +137,11 @@ class PromptCellWidget(QFrame):
             return
             
         current_prompt = self.text_edit.toPlainText().strip()
-        active_instructions = self.get_style()
+        if self.get_style_ref is not None:
+            active_instructions, post_instructions, style_ref_paths = self.get_style_ref()
+        else:
+            active_instructions = self.get_style()
+            post_instructions, style_ref_paths = "", []
         
         self.gen_btn.setEnabled(False)
         self.gen_btn.setText("正在生成...")
@@ -146,7 +153,9 @@ class PromptCellWidget(QFrame):
             model_name=model_name,
             aspect_ratio=final_ar,
             instructions=active_instructions,
-            api_type=api_type
+            api_type=api_type,
+            image_paths=style_ref_paths,
+            post_instructions=post_instructions
         )
 
         self.img_thread.finish_signal.connect(self.on_image_finished)
@@ -236,6 +245,11 @@ class PromptGeneratorWidget(QWidget):
         style_layout.addWidget(QLabel("生图画风预设(全Tab通用):"))
         self.main_style_combo = QComboBox()
         style_layout.addWidget(self.main_style_combo, stretch=1)
+        style_layout.addWidget(QLabel("参考模式:"))
+        self.style_ref_mode_combo = StyleRefModeCombo(self)
+        self.style_ref_mode_combo.setMaximumWidth(130)
+        style_layout.addWidget(self.style_ref_mode_combo)
+        self.main_style_combo.currentTextChanged.connect(self._on_style_changed)
         
         self.gen_prompts_btn = QPushButton("🚀 开始批量生成提示词")
         self.gen_prompts_btn.clicked.connect(self.generate_prompts)
@@ -299,6 +313,18 @@ class PromptGeneratorWidget(QWidget):
         if curr_main in style_keys:
             self.main_style_combo.setCurrentText(curr_main)
         self.main_style_combo.blockSignals(False)
+        self._refresh_style_ref_availability()
+
+    def _refresh_style_ref_availability(self):
+        """加载样式列表后按当前样式的参考图是否存在刷新参考模式可用性。"""
+        styles_data = self.get_styles() or {}
+        name = self.main_style_combo.currentText()
+        has_ref = ref_image_valid(style_ref_image(styles_data, name))
+        self.style_ref_mode_combo.set_modes_available(has_ref)
+        return has_ref
+
+    def _on_style_changed(self, _name=None):
+        self._refresh_style_ref_availability()
 
     def generate_prompts(self):
         missing_prompt_files = get_prompt_generator_missing_prompt_files()
@@ -344,7 +370,15 @@ class PromptGeneratorWidget(QWidget):
 
     def get_current_style_instructions(self):
         style_name = self.main_style_combo.currentText()
-        return self.get_styles().get(style_name, "")
+        return style_prompt(self.get_styles(), style_name)
+
+    def get_current_style_ref(self):
+        """供提示词单元格生图使用：按当前模式返回 (head, post, ref_paths)。"""
+        styles_data = self.get_styles() or {}
+        style_name = self.main_style_combo.currentText()
+        has_ref = ref_image_valid(style_ref_image(styles_data, style_name))
+        mode = self.style_ref_mode_combo.effective_mode(has_ref)
+        return build_ref_gen_params(styles_data, style_name, mode)
 
     def _reload_upscale_models(self):
         current = self.upscale_model_combo.currentText().strip()
@@ -405,7 +439,8 @@ class PromptGeneratorWidget(QWidget):
                 img_config_getter_func=self.get_img_config,
                 save_img_cfg_callback=self.save_img_cfg,
                 ar_policy_getter_func=self.get_ar_policy,
-                upscale_options_getter_func=self._collect_upscale_options
+                upscale_options_getter_func=self._collect_upscale_options,
+                style_ref_getter_func=self.get_current_style_ref
             )
 
             self.grid_layout.addWidget(cell, row, col)

@@ -3,6 +3,8 @@ from logging import config
 import os
 import json
 import base64
+import io
+import tempfile
 import requests
 import re
 import logging
@@ -484,6 +486,64 @@ def _existing_image_paths(image_paths: list = None) -> list:
             logger.warning(f"找不到本地图片文件 {img_path}，已跳过。")
     return valid_paths
 
+def _maybe_compress_image_path(img_path, max_dim=2048, temp_files=None):
+    """参考图尺寸超过 max_dim 时压缩为 JPEG 临时文件（与分析流程一致）。
+
+    返回实际使用的路径：图片过大则返回压缩后的临时文件路径，否则返回原路径。
+    temp_files 用于收集生成的临时文件，便于调用方在请求完成后清理。
+    """
+    try:
+        from PIL import Image
+        img = Image.open(img_path)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        width, height = img.size
+        if max(width, height) <= max_dim:
+            return img_path
+        scaling = max_dim / max(width, height)
+        new_size = (int(width * scaling), int(height * scaling))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+        fd, tmp_path = tempfile.mkstemp(suffix=".jpg", prefix="ref_compressed_")
+        os.close(fd)
+        img.save(tmp_path, format="JPEG", quality=95)
+        if temp_files is not None:
+            temp_files.append(tmp_path)
+        logger.info(f"参考图过大已压缩: {img_path} ({width}x{height}) -> {new_size[0]}x{new_size[1]}")
+        return tmp_path
+    except Exception as e:
+        logger.warning(f"参考图压缩失败，使用原图: {img_path} - {e}")
+        return img_path
+
+def _cleanup_temp_files(temp_files):
+    for path in temp_files or []:
+        try:
+            if path and os.path.exists(path):
+                os.remove(path)
+        except OSError:
+            pass
+
+def to_base64_compressed(path, max_dim=2048):
+    """转 base64；图片尺寸超过 max_dim 时先压缩（与分析流程一致）。
+
+    返回 (mime_type, base64)。压缩失败时回退为原始文件 base64。
+    """
+    try:
+        from PIL import Image
+        img = Image.open(path)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        width, height = img.size
+        if max(width, height) > max_dim:
+            scaling = max_dim / max(width, height)
+            img = img.resize((int(width * scaling), int(height * scaling)), Image.Resampling.LANCZOS)
+            logger.info(f"参考图过大已压缩: {path} ({width}x{height}) -> {int(width * scaling)}x{int(height * scaling)}")
+        buffered = io.BytesIO()
+        img.save(buffered, format="JPEG", quality=95)
+        return "image/jpeg", base64.b64encode(buffered.getvalue()).decode("utf-8")
+    except Exception as e:
+        logger.warning(f"参考图压缩失败，使用原图 base64: {path} - {e}")
+        return _guess_image_mime_type(path), to_base64(path)
+
 def _derive_edits_url_from_generations_url(generations_url: str) -> str:
     normalized = str(generations_url or "").rstrip("/")
     if normalized.endswith("/images/generations"):
@@ -518,16 +578,21 @@ def _build_aigc2d_generate_content_url(api_base: str, model_name: str) -> str:
 
 def _post_images_edits_request(url: str, api_key: str, form_payload: dict, image_paths: list, timeout_val: int):
     used_files = []
-    with ExitStack() as stack:
-        files = []
-        for img_path in image_paths:
-            fh = stack.enter_context(open(img_path, "rb"))
-            mime_type = _guess_image_mime_type(img_path)
-            files.append(("image[]", (os.path.basename(img_path), fh, mime_type)))
-            used_files.append({"name": os.path.basename(img_path), "path": img_path, "mime_type": mime_type})
-        data_payload = {k: str(v) for k, v in (form_payload or {}).items() if v is not None}
-        headers = {"Authorization": f"Bearer {api_key}"}
-        resp = requests.post(url, headers=headers, data=data_payload, files=files, timeout=timeout_val)
+    temp_files = []
+    try:
+        with ExitStack() as stack:
+            files = []
+            for img_path in image_paths:
+                prepared_path = _maybe_compress_image_path(img_path, temp_files=temp_files)
+                fh = stack.enter_context(open(prepared_path, "rb"))
+                mime_type = _guess_image_mime_type(prepared_path)
+                files.append(("image[]", (os.path.basename(prepared_path), fh, mime_type)))
+                used_files.append({"name": os.path.basename(prepared_path), "path": prepared_path, "mime_type": mime_type})
+            data_payload = {k: str(v) for k, v in (form_payload or {}).items() if v is not None}
+            headers = {"Authorization": f"Bearer {api_key}"}
+            resp = requests.post(url, headers=headers, data=data_payload, files=files, timeout=timeout_val)
+    finally:
+        _cleanup_temp_files(temp_files)
     return resp, used_files
 
 def generate_image_openai_image(prompt: str, image_paths: list = None, model: str = "gpt-image-2", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False) -> list:
@@ -1320,7 +1385,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         }
     return saved_files
 
-def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, cancel_check: callable = None) -> list:
+def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "nano-banana-2", aspect_ratio: str = "1:1", instructions: str = "", resolution = "1K", api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, cancel_check: callable = None, post_instructions: str = "") -> list:
     """
     独立出来的图片生成核心逻辑
     """
@@ -1393,13 +1458,17 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     if image_paths:
         for img_path in image_paths:
             if os.path.exists(img_path):
-                mime_type = _guess_image_mime_type(img_path)
+                mime_type, b64_data = to_base64_compressed(img_path)
                 content_list.append({
                     "type": "image_url",
-                    "image_url": {"url": f"data:{mime_type};base64,{to_base64(img_path)}"}
+                    "image_url": {"url": f"data:{mime_type};base64,{b64_data}"}
                 })
             else:
                 logger.warning(f"找不到本地图片文件 {img_path}，已跳过。")
+
+    # 交错模式：在图片之后紧跟补充指令（仅当调用方显式传入时启用）
+    if post_instructions:
+        content_list.append({"type": "text", "text": post_instructions})
 
     data = {
         "aspect_ratio": aspect_ratio,
@@ -1758,7 +1827,7 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
             logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None) -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None, post_instructions: str = "") -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
     入参跟 generate_image_whatai 保持完全一致
@@ -1803,17 +1872,19 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     if image_paths:
         for img_path in image_paths:
             if os.path.exists(img_path):
-                mime_type, _ = mimetypes.guess_type(img_path)
-                if not mime_type:
-                    mime_type = "image/jpeg"
+                mime_type, b64_data = to_base64_compressed(img_path)
                 parts.append({
                     "inline_data": {
                         "mime_type": mime_type,
-                        "data": to_base64(img_path)
+                        "data": b64_data
                     }
                 })
             else:
                 logger.warning(f"找不到本地图片文件 {img_path}，已跳过。")
+
+    # 交错模式：在图片之后紧跟补充指令（仅当调用方显式传入时启用）
+    if post_instructions:
+        parts.append({"text": post_instructions})
 
     # 构造请求 Payload
     payload = {

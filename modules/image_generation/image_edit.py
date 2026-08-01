@@ -17,6 +17,8 @@ from openai import OpenAI
 from modules.image_analysis.single_analyzer import compress_and_encode_image, calculate_closest_aspect_ratio
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 from utils.prompt_loader import PROMPTS_DIR
+from utils.styles import style_ref_image, ref_image_valid, build_ref_gen_params
+from utils.style_ref_widget import StyleRefModeCombo
 
 PROMPT_DIR = os.path.join(PROMPTS_DIR, "image-edit")
 IMAGE_EDIT_UI_STATE_FILE = "data/image_edit_ui_state.json"
@@ -39,12 +41,14 @@ class ImageEditWorker(QThread):
     error = pyqtSignal(str, str)      # error_msg, image_path
     log = pyqtSignal(str)
 
-    def __init__(self, image_path, prompt, img_config_snapshot, style_instructions=""):
+    def __init__(self, image_path, prompt, img_config_snapshot, style_instructions="", style_ref_paths=None, post_instructions=""):
         super().__init__()
         self.image_path = image_path
         self.prompt = prompt
         self.img_config_snapshot = img_config_snapshot or ("", "", "", "")
         self.style_instructions = style_instructions
+        self.style_ref_paths = list(style_ref_paths or [])
+        self.post_instructions = post_instructions or ""
 
     def run(self):
         try:
@@ -67,26 +71,28 @@ class ImageEditWorker(QThread):
             if api_type == "aigc2d":
                 saved_files = generate_image_aigc2d(
                     prompt=self.prompt, 
-                    image_paths=[self.image_path],
+                    image_paths=[self.image_path] + self.style_ref_paths,
                     model=img_model, 
                     aspect_ratio=aspect_ratio,
                     instructions=self.style_instructions,
                     api_type=api_type,
                     save_sub_dir="image-edit",
                     file_prefix=os.path.splitext(os.path.basename(self.image_path))[0],
-                    cancel_check=lambda: self.isInterruptionRequested()
+                    cancel_check=lambda: self.isInterruptionRequested(),
+                    post_instructions=self.post_instructions
                 )
             else:
                 saved_files = generate_image_whatai(
                     prompt=self.prompt, 
-                    image_paths=[self.image_path],
+                    image_paths=[self.image_path] + self.style_ref_paths,
                     model=img_model, 
                     aspect_ratio=aspect_ratio,
                     instructions=self.style_instructions,
                     api_type=api_type,
                     save_sub_dir="image-edit",
                     file_prefix=os.path.splitext(os.path.basename(self.image_path))[0],
-                    cancel_check=lambda: self.isInterruptionRequested()
+                    cancel_check=lambda: self.isInterruptionRequested(),
+                    post_instructions=self.post_instructions
                 )
             
             if self.isInterruptionRequested():
@@ -158,6 +164,11 @@ class ImageEditWidget(QWidget):
         self.main_style_combo = QComboBox()
         self.main_style_combo.setMaximumWidth(200)
         style_layout.addWidget(self.main_style_combo)
+        style_layout.addWidget(QLabel("参考模式:"))
+        self.style_ref_mode_combo = StyleRefModeCombo(self)
+        self.style_ref_mode_combo.setMaximumWidth(130)
+        style_layout.addWidget(self.style_ref_mode_combo)
+        self.main_style_combo.currentTextChanged.connect(self._on_style_changed)
         style_layout.addWidget(QLabel("并发线程数:"))
         self.thread_spin = QSpinBox()
         self.thread_spin.setRange(1, 10)
@@ -717,10 +728,14 @@ class ImageEditWidget(QWidget):
                         break
 
                 prompt = self.prompt_edit.toPlainText().strip()
-                # 获取选中的画风指令
+                # 获取选中的画风指令（含参考图模式组装）
                 selected_style_name = self.main_style_combo.currentText()
                 styles_data = self.get_styles() or {}
-                active_instructions = styles_data.get(selected_style_name, "")
+                has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
+                active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
+                active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
+                    styles_data, selected_style_name, active_mode
+                )
                 # 关键修复：在主线程拍快照，避免工作线程读取 Qt 控件
                 img_config_snapshot = self.img_config_getter_func()
 
@@ -728,7 +743,9 @@ class ImageEditWidget(QWidget):
                     next_path,
                     prompt,
                     img_config_snapshot=img_config_snapshot,
-                    style_instructions=active_instructions
+                    style_instructions=active_instructions,
+                    style_ref_paths=style_ref_paths,
+                    post_instructions=post_instructions
                 )
                 worker.result_ready.connect(self.on_worker_finished)
                 worker.error.connect(self.on_worker_error)
@@ -756,6 +773,18 @@ class ImageEditWidget(QWidget):
             self.main_style_combo.setCurrentText(self._pending_main_style)
             self._pending_main_style = ""
         self.main_style_combo.blockSignals(False)
+        self._refresh_style_ref_availability()
+
+    def _refresh_style_ref_availability(self):
+        """加载样式列表后按当前样式的参考图是否存在刷新参考模式可用性。"""
+        styles_data = self.get_styles() or {}
+        name = self.main_style_combo.currentText()
+        has_ref = ref_image_valid(style_ref_image(styles_data, name))
+        self.style_ref_mode_combo.set_modes_available(has_ref)
+        return has_ref
+
+    def _on_style_changed(self, _name=None):
+        self._refresh_style_ref_availability()
 
     def on_worker_finished(self, result_json, image_path):
         self.results[image_path] = "success"

@@ -2,13 +2,76 @@ import json
 import os
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog,
+    QDialog, QLineEdit
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt, pyqtSignal, QThread
 
 from modules.image_analysis.single_analyzer import ImageGenWorkerThread
+from modules.others.api_backend import fetch_llm_json, _extract_json_object
+from utils.styles import (
+    MODE_OFF,
+    style_prompt, style_prompt_compressed, style_ref_image, ref_image_valid, build_style_entry,
+    normalize_style_entry, assemble_style_instructions, save_styles_file,
+)
+from utils.style_ref_widget import StyleRefModeCombo
 
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CONFIG_STYLES_FILE = os.path.join(BASE_DIR, "conf", "config-styles.json")
+CONFIG_TEXT_FILE = os.path.join(BASE_DIR, "conf", "config.json")
+
+COMPRESS_SYSTEM_PROMPT = (
+    "You are an expert at condensing anime art-style specification texts for an image generation model, "
+    "without losing any rule that affects the output.\n"
+    "The user will paste the FULL style instruction. Produce a CONDENSED English style spec that:\n"
+    "1. Keeps the overall artistic vibe, production modes, and every hard constraint "
+    "(required framing, forbidden elements, fixed color/lighting rules).\n"
+    "2. Keeps color & tonality rules, lighting/shadow treatment, line art and rendering conventions, detail density.\n"
+    "3. Drops verbose prose, examples, repetitions and decorative phrasing.\n"
+    "4. Target length: about 1/4 of the original, at most {max_chars} characters. "
+    "If the original is already short, return it nearly unchanged.\n"
+    "5. Respond ONLY with JSON: {{\"prompt_compressed\": \"<compressed text>\"}}"
+)
+
+class CompressPromptThread(QThread):
+    """调用文本 LLM 接口把完整样式指令压缩为精简版（不阻塞 UI）。"""
+
+    finished_ok = pyqtSignal(str)
+    failed = pyqtSignal(str)
+
+    def __init__(self, prompt_text, max_chars=700, parent=None):
+        super().__init__(parent)
+        self.prompt_text = prompt_text
+        self.max_chars = max_chars
+
+    def run(self):
+        try:
+            if not os.path.isfile(CONFIG_TEXT_FILE):
+                self.failed.emit("未找到 conf/config.json，无法读取文本 API 配置")
+                return
+            with open(CONFIG_TEXT_FILE, "r", encoding="utf-8") as f:
+                text_cfg = json.load(f)
+            base_url = str(text_cfg.get("base_url") or "").strip()
+            api_key = str(text_cfg.get("api_key") or "").strip()
+            model = str(text_cfg.get("model") or "").strip()
+            if not (base_url and api_key and model):
+                self.failed.emit("conf/config.json 中缺少文本 API 配置（base_url / api_key / model）")
+                return
+            system_prompt = COMPRESS_SYSTEM_PROMPT.format(max_chars=self.max_chars)
+            raw = fetch_llm_json(
+                base_url, api_key, model,
+                system_prompt, self.prompt_text,
+                temperature=0.3, merge_system_prompt=False,
+            )
+            obj = _extract_json_object(raw)
+            text = (obj.get("prompt_compressed") or obj.get("compressed") or "").strip()
+            if not text:
+                self.failed.emit("LLM 返回内容无法解析为压缩版指令，请重试")
+                return
+            self.finished_ok.emit(text)
+        except Exception as e:
+            self.failed.emit(f"压缩失败: {e}")
 
 MANUAL_AR_OPTIONS = ["跟随全局策略", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"]
 MANUAL_RES_OPTIONS = ["默认(跟配置)", "1K", "2K", "4K"]
@@ -49,15 +112,17 @@ class JsonDropLabel(QLabel):
 
 
 class SingleGenDebugWidget(QWidget):
-    def __init__(self, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None):
+    def __init__(self, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, styles_reload_callback=None):
         super().__init__()
         self.get_img_config = img_config_getter_func
         self.get_styles = styles_getter_func
         self.save_img_cfg = save_img_cfg_callback
         self.get_ar_policy = ar_policy_getter_func
+        self.styles_reload_callback = styles_reload_callback
         self.img_thread = None
         self._last_image_path = ""
         self.attach_image_paths = []
+        self.style_ref_image_path = ""
         self.json_data = {}
         self.json_file_path = ""
         self._is_restoring_state = False
@@ -72,8 +137,42 @@ class SingleGenDebugWidget(QWidget):
         style_layout.addWidget(QLabel("画风预设:"))
         self.main_style_combo = QComboBox()
         style_layout.addWidget(self.main_style_combo, stretch=1)
-        style_layout.addStretch()
+        self.edit_style_btn = QPushButton("编辑样式...")
+        self.edit_style_btn.setToolTip("打开样式编辑器：编辑当前画风预设的指令文本与参考图路径")
+        self.edit_style_btn.clicked.connect(self.open_style_editor)
+        style_layout.addWidget(self.edit_style_btn)
         layout.addLayout(style_layout)
+
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("风格参考模式:"))
+        self.style_mode_combo = StyleRefModeCombo()
+        self.style_mode_combo.setToolTip(
+            "关闭: 不参考样例图画风\n"
+            "头部插入: 样式指令头部追加「艺术风格参考」指令，样例图作为附件\n"
+            "参考优先: 样例图主导画风，样式指令压缩为精简版约束\n"
+            "图文交错: 样式指令在前，样例图之后紧跟风格参考指令\n"
+            "（当前无有效参考图时，参考类模式不可用）"
+        )
+        mode_layout.addWidget(self.style_mode_combo, stretch=1)
+        layout.addLayout(mode_layout)
+
+        style_ref_layout = QHBoxLayout()
+        style_ref_layout.addWidget(QLabel("🎨 风格参考图(仅画风):"))
+        self.select_style_ref_btn = QPushButton("手动指定")
+        self.select_style_ref_btn.setToolTip(
+            "手动指定一张样例图作为「艺术风格参考图」，优先级高于画风预设配置中的参考图。\n"
+            "生成时只参考其画风（线条/上色/光影/配色/渲染惯例），不参考人物、服装、姿势、场景等内容。"
+        )
+        self.select_style_ref_btn.clicked.connect(self.select_style_ref_image)
+        style_ref_layout.addWidget(self.select_style_ref_btn)
+        self.clear_style_ref_btn = QPushButton("清除")
+        self.clear_style_ref_btn.clicked.connect(self.clear_style_ref_image)
+        style_ref_layout.addWidget(self.clear_style_ref_btn)
+        self.style_ref_info_label = QLabel("未设置")
+        self.style_ref_info_label.setStyleSheet("color: gray;")
+        self.style_ref_info_label.setWordWrap(True)
+        style_ref_layout.addWidget(self.style_ref_info_label, stretch=1)
+        layout.addLayout(style_ref_layout)
 
         json_group_layout = QVBoxLayout()
         json_label_layout = QHBoxLayout()
@@ -173,9 +272,11 @@ class SingleGenDebugWidget(QWidget):
         layout.addWidget(self.log_text)
 
         self.main_style_combo.currentTextChanged.connect(self.save_ui_state)
+        self.main_style_combo.currentTextChanged.connect(self._refresh_style_ref_info)
         self.prompt_edit.textChanged.connect(self._on_prompt_changed)
         self.aspect_ratio_combo.currentTextChanged.connect(self.save_ui_state)
         self.resolution_combo.currentTextChanged.connect(self.save_ui_state)
+        self.style_mode_combo.currentIndexChanged.connect(self.save_ui_state)
 
         self.setLayout(layout)
 
@@ -311,6 +412,15 @@ class SingleGenDebugWidget(QWidget):
                     self.attach_image_paths = existing
                     self._refresh_attach_info()
                     self._append_log(f"已恢复 {len(existing)} 个附件路径 ({len(saved_attachments) - len(existing)} 个已失效)")
+
+            saved_style_ref = state.get("style_ref_image")
+            if isinstance(saved_style_ref, str) and saved_style_ref:
+                if os.path.exists(saved_style_ref):
+                    self.style_ref_image_path = saved_style_ref
+                    self._refresh_style_ref_info()
+                    self._append_log(f"已恢复风格参考图: {saved_style_ref}")
+
+            self._refresh_style_ref_info()
         finally:
             self._is_restoring_state = False
 
@@ -322,7 +432,8 @@ class SingleGenDebugWidget(QWidget):
             "main_style": self.main_style_combo.currentText().strip(),
             "aspect_ratio": self.aspect_ratio_combo.currentText().strip(),
             "resolution": self.resolution_combo.currentText().strip(),
-            "attachments": list(self.attach_image_paths)
+            "attachments": list(self.attach_image_paths),
+            "style_ref_image": self.style_ref_image_path,
         }
         try:
             os.makedirs(os.path.dirname(SINGLE_DEBUG_UI_STATE_FILE), exist_ok=True)
@@ -339,6 +450,7 @@ class SingleGenDebugWidget(QWidget):
         if current in style_keys:
             self.main_style_combo.setCurrentText(current)
         self.main_style_combo.blockSignals(False)
+        self._refresh_style_ref_info()
 
     def _resolve_aspect_ratio(self):
         selected = self.aspect_ratio_combo.currentText().strip()
@@ -397,7 +509,82 @@ class SingleGenDebugWidget(QWidget):
 
     def _current_style_text(self):
         style_name = self.main_style_combo.currentText()
-        return (self.get_styles() or {}).get(style_name, "")
+        return style_prompt(self.get_styles() or {}, style_name)
+
+    def _effective_style_ref_image(self):
+        """返回 (参考图路径, 来源)。手动指定优先，其次当前样式的配置参考图。"""
+        if self.style_ref_image_path and ref_image_valid(self.style_ref_image_path):
+            return self.style_ref_image_path, "手动"
+        style_name = self.main_style_combo.currentText()
+        cfg_ref = style_ref_image(self.get_styles() or {}, style_name)
+        if ref_image_valid(cfg_ref):
+            return cfg_ref, "样式配置"
+        return "", ""
+
+    def _update_mode_validity(self):
+        """参考图无效时，禁用所有使用参考图的模式并回退到「关闭」。"""
+        has_ref = ref_image_valid(self._effective_style_ref_image()[0])
+        self.style_mode_combo.set_modes_available(has_ref)
+        if not has_ref:
+            self._append_log("⚠️ 当前没有有效参考图，已回退到「关闭」模式（参考类模式不可用）")
+
+    def _refresh_style_ref_info(self):
+        path, source = self._effective_style_ref_image()
+        if path:
+            self.style_ref_info_label.setText(f"{source}: {os.path.basename(path)}")
+            self.style_ref_info_label.setStyleSheet("color: #228B22;")
+        else:
+            self.style_ref_info_label.setText("未设置（可在「编辑样式」中为该画风配置参考图）")
+            self.style_ref_info_label.setStyleSheet("color: gray;")
+        self._update_mode_validity()
+
+    def select_style_ref_image(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "手动指定风格参考图（仅参考画风）",
+            "",
+            "图片文件 (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"
+        )
+        if not file_path:
+            return
+        self.style_ref_image_path = file_path
+        self._refresh_style_ref_info()
+        self._append_log(f"🎨 已手动指定风格参考图(仅画风): {file_path}")
+        self.save_ui_state()
+
+    def clear_style_ref_image(self):
+        if not self.style_ref_image_path:
+            return
+        self.style_ref_image_path = ""
+        self._refresh_style_ref_info()
+        self._append_log("已清除手动指定参考图")
+        self.save_ui_state()
+
+    def open_style_editor(self):
+        name = self.main_style_combo.currentText()
+        if not name:
+            return
+        entry = normalize_style_entry((self.get_styles() or {}).get(name))
+        dlg = StyleEditDialog(name, entry["prompt"], entry["ref_image"], entry["prompt_compressed"], parent=self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        prompt, compressed, ref = dlg.get_values()
+        if ref and not ref_image_valid(ref):
+            QMessageBox.warning(self, "提示", f"参考图文件不存在：\n{ref}")
+            return
+        styles = dict(self.get_styles() or {})
+        styles[name] = build_style_entry(prompt, ref, compressed)
+        try:
+            save_styles_file(CONFIG_STYLES_FILE, styles)
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"保存画风配置文件失败: {e}")
+            return
+        if self.styles_reload_callback:
+            self.styles_reload_callback()
+            if self.main_style_combo.findText(name) >= 0:
+                self.main_style_combo.setCurrentText(name)
+        self._append_log(f"💾 已保存样式 '{name}'（含参考图）")
+        self._refresh_style_ref_info()
 
     def generate_image(self):
         prompt = self.prompt_edit.toPlainText().strip()
@@ -413,15 +600,31 @@ class SingleGenDebugWidget(QWidget):
 
         aspect_ratio = self._resolve_aspect_ratio()
         resolution = self._resolve_resolution()
-        instructions = self._current_style_text()
+        style_text = self._current_style_text()
+        ref_path, ref_source = self._effective_style_ref_image()
+        has_ref = ref_image_valid(ref_path)
+        mode = self.style_mode_combo.effective_mode(has_ref)
 
+        instructions, post_instructions = assemble_style_instructions(
+            mode,
+            style_text,
+            has_ref,
+            style_prompt_compressed(self.get_styles() or {}, self.main_style_combo.currentText()),
+        )
+        image_paths = list(self.attach_image_paths)
+        if has_ref and mode != MODE_OFF:
+            if ref_path not in image_paths:
+                image_paths.insert(0, ref_path)
+
+        mode_label = self.style_mode_combo.itemText(self.style_mode_combo.findData(mode)) or "关闭"
         self.generate_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
         self.status_label.setText("正在生成...")
         self.preview_label.setText("正在请求生图，请稍候...")
         self._append_log(
             f"开始生图: api={api_type}, model={model_name}, ar={aspect_ratio}, "
-            f"resolution={resolution or '默认'}, attachments={len(self.attach_image_paths)}"
+            f"resolution={resolution or '默认'}, attachments={len(image_paths)}, "
+            f"模式={mode_label}, 参考图={'ON(' + ref_source + ')' if has_ref and mode != MODE_OFF else 'OFF'}"
         )
 
         self.img_thread = ImageGenWorkerThread(
@@ -431,8 +634,9 @@ class SingleGenDebugWidget(QWidget):
             instructions=instructions,
             api_type=api_type,
             resolution=resolution,
-            image_paths=self.attach_image_paths,
-            verbose_debug=True
+            image_paths=image_paths,
+            verbose_debug=True,
+            post_instructions=post_instructions
         )
         self.img_thread.log_signal.connect(self._append_log)
         self.img_thread.finish_signal.connect(self.on_image_finished)
@@ -475,3 +679,129 @@ class SingleGenDebugWidget(QWidget):
                         Qt.TransformationMode.SmoothTransformation,
                     )
                 )
+
+
+class DropLineEdit(QLineEdit):
+    """支持直接拖拽图片文件到输入框，替换路径（用于参考图路径编辑）。"""
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls() and any(
+            url.toLocalFile().lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"))
+            for url in event.mimeData().urls()
+        ):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if path and path.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")):
+                self.setText(path)
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+
+class StyleEditDialog(QDialog):
+    """样式编辑器：编辑某个画风预设的指令文本、压缩版指令与参考图路径（config-styles.json 新格式）。"""
+
+    def __init__(self, style_name, prompt_text, ref_image, prompt_compressed="", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"编辑样式: {style_name}")
+        self.setMinimumSize(680, 560)
+        layout = QVBoxLayout(self)
+
+        name_label = QLabel(f"样式名: {style_name}")
+        name_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(name_label)
+
+        layout.addWidget(QLabel("指令文本:"))
+        self.prompt_edit = QTextEdit()
+        self.prompt_edit.setPlainText(prompt_text)
+        self.prompt_edit.setPlaceholderText("该画风的完整风格指令（生成时插入到请求文本头部）")
+        layout.addWidget(self.prompt_edit)
+
+        compressed_header = QHBoxLayout()
+        compressed_header.addWidget(QLabel("压缩版指令(参考优先模式用):"))
+        compressed_header.addStretch()
+        self.compress_btn = QPushButton("请求 LLM 重新生成")
+        self.compress_btn.setToolTip("调用文本 API（conf/config.json）把上面的完整指令压缩为精简版，填入本框")
+        self.compress_btn.clicked.connect(self._regenerate_compressed)
+        compressed_header.addWidget(self.compress_btn)
+        layout.addLayout(compressed_header)
+
+        self.compressed_edit = QTextEdit()
+        self.compressed_edit.setPlainText(prompt_compressed)
+        self.compressed_edit.setPlaceholderText(
+            "参考优先模式下替代完整指令的精简版；可留空（留空时自动用本地启发式压缩）"
+        )
+        self.compressed_edit.setMaximumHeight(140)
+        layout.addWidget(self.compressed_edit)
+
+        ref_row = QHBoxLayout()
+        ref_row.addWidget(QLabel("参考图(仅画风):"))
+        self.ref_edit = DropLineEdit(ref_image)
+        self.ref_edit.setAcceptDrops(True)
+        self.ref_edit.setPlaceholderText("可留空；样例图路径，生成时仅参考其画风（支持直接拖拽图片到此处）")
+        ref_row.addWidget(self.ref_edit, stretch=1)
+        browse_btn = QPushButton("浏览...")
+        browse_btn.clicked.connect(self._browse_ref)
+        ref_row.addWidget(browse_btn)
+        clear_btn = QPushButton("清除")
+        clear_btn.clicked.connect(lambda: self.ref_edit.clear())
+        ref_row.addWidget(clear_btn)
+        layout.addLayout(ref_row)
+
+        tip = QLabel(
+            "提示：参考图仅用于提取画风（线条/上色/光影/配色/渲染惯例），不会改变主体与构图。\n"
+            "留空或文件不存在时，「头部插入 / 参考优先 / 图文交错」模式将不可用。"
+        )
+        tip.setWordWrap(True)
+        tip.setStyleSheet("color: gray;")
+        layout.addWidget(tip)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        save_btn = QPushButton("保存")
+        save_btn.clicked.connect(self.accept)
+        btn_row.addWidget(save_btn)
+        cancel_btn = QPushButton("取消")
+        cancel_btn.clicked.connect(self.reject)
+        btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+    def _browse_ref(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择参考图（仅参考画风）", "",
+            "图片文件 (*.png *.jpg *.jpeg *.webp *.gif *.bmp)"
+        )
+        if file_path:
+            self.ref_edit.setText(file_path)
+
+    def _regenerate_compressed(self):
+        prompt_text = self.prompt_edit.toPlainText().strip()
+        if not prompt_text:
+            QMessageBox.warning(self, "提示", "指令文本为空，无法生成压缩版。")
+            return
+        self.compress_btn.setEnabled(False)
+        self.compress_btn.setText("生成中...")
+        self._compress_thread = CompressPromptThread(prompt_text, parent=self)
+        self._compress_thread.finished_ok.connect(self._on_compressed_ok)
+        self._compress_thread.failed.connect(self._on_compressed_failed)
+        self._compress_thread.finished.connect(self._on_compress_thread_done)
+        self._compress_thread.start()
+
+    def _on_compressed_ok(self, text):
+        self.compressed_edit.setPlainText(text)
+        QMessageBox.information(self, "完成", f"已生成压缩版指令（{len(text)} 字符）。")
+
+    def _on_compressed_failed(self, err_msg):
+        QMessageBox.warning(self, "生成失败", err_msg)
+
+    def _on_compress_thread_done(self):
+        self.compress_btn.setEnabled(True)
+        self.compress_btn.setText("请求 LLM 重新生成")
+
+    def get_values(self):
+        return self.prompt_edit.toPlainText().strip(), self.compressed_edit.toPlainText().strip(), self.ref_edit.text().strip()

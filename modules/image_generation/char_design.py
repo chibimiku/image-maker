@@ -12,6 +12,8 @@ from PyQt6.QtGui import QPixmap, QImageReader
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, normalize_upscale_options
 from utils.prompt_loader import PROMPTS_DIR
+from utils.styles import style_ref_image, ref_image_valid, build_ref_gen_params
+from utils.style_ref_widget import StyleRefModeCombo
 
 CHAR_PROMPT_DIR = os.path.join(PROMPTS_DIR, "char")
 CHAR_DESIGN_UI_STATE_FILE = "data/char_design_ui_state.json"
@@ -209,7 +211,8 @@ class CharDesignWorker(QRunnable):
                     file_prefix=prompt_item.get('id', ''),
                     resolution=resolution if resolution != "默认" else "",
                     return_metadata=True,
-                    cancel_check=lambda: self.is_stopped_func()
+                    cancel_check=lambda: self.is_stopped_func(),
+                    post_instructions=self.task_info.get('post_instructions', '')
                 )
             else:
                 generation_result = generate_image_whatai(
@@ -223,7 +226,8 @@ class CharDesignWorker(QRunnable):
                     file_prefix=prompt_item.get('id', ''),
                     resolution=resolution if resolution != "默认" else "",
                     return_metadata=True,
-                    cancel_check=lambda: self.is_stopped_func()
+                    cancel_check=lambda: self.is_stopped_func(),
+                    post_instructions=self.task_info.get('post_instructions', '')
                 )
             if self.is_stopped_func():
                 self.signals.log.emit(f"任务已被取消: {prompt_item.get('id', 'unknown')}")
@@ -296,6 +300,11 @@ class CharDesignWidget(QWidget):
         top_layout.addWidget(QLabel("附加画风:"))
         self.main_style_combo = QComboBox()
         top_layout.addWidget(self.main_style_combo)
+        top_layout.addWidget(QLabel("参考模式:"))
+        self.style_ref_mode_combo = StyleRefModeCombo(self)
+        self.style_ref_mode_combo.setMaximumWidth(130)
+        top_layout.addWidget(self.style_ref_mode_combo)
+        self.main_style_combo.currentTextChanged.connect(self._on_style_changed)
         
         top_layout.addWidget(QLabel("并发线程数:"))
         self.thread_spin = QSpinBox()
@@ -576,7 +585,19 @@ class CharDesignWidget(QWidget):
         elif curr_main in style_keys:
             self.main_style_combo.setCurrentText(curr_main)
         self.main_style_combo.blockSignals(False)
+        self._refresh_style_ref_availability()
         self.save_ui_state()
+
+    def _refresh_style_ref_availability(self):
+        """加载样式列表后按当前样式的参考图是否存在刷新参考模式可用性。"""
+        styles_data = self.get_styles() or {}
+        name = self.main_style_combo.currentText()
+        has_ref = ref_image_valid(style_ref_image(styles_data, name))
+        self.style_ref_mode_combo.set_modes_available(has_ref)
+        return has_ref
+
+    def _on_style_changed(self, _name=None):
+        self._refresh_style_ref_availability()
 
     def clear_all_images(self):
         self.img_front.clear_image()
@@ -622,8 +643,12 @@ class CharDesignWidget(QWidget):
             return
 
         selected_style_name = self.main_style_combo.currentText()
-        styles_data = self.get_styles()
-        style_instructions = styles_data.get(selected_style_name, "")
+        styles_data = self.get_styles() or {}
+        has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
+        active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
+        style_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
+            styles_data, selected_style_name, active_mode
+        )
         custom_prefix_prompt = self.custom_prefix_prompt.toPlainText().strip()
         custom_suffix_prompt = self.custom_suffix_prompt.toPlainText().strip()
         concat_requirement_prompt = self.concat_requirement_prompt.toPlainText().strip()
@@ -690,7 +715,8 @@ class CharDesignWidget(QWidget):
                 'custom_suffix_prompt': custom_suffix_prompt,
                 'concat_requirement_prompt': concat_requirement_prompt,
                 'concat_requirement_position': concat_requirement_position,
-                'image_paths': all_image_paths,
+                'image_paths': list(all_image_paths) + style_ref_paths,
+                'post_instructions': post_instructions,
                 'save_dir': self.current_save_dir,
                 'status': 'pending',
                 'list_idx': list_idx, # Store list index to update color later

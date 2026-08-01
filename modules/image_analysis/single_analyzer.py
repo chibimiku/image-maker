@@ -1,7 +1,7 @@
 import os
+import io
 import json
 import base64
-import io
 import datetime
 import re
 import hashlib
@@ -12,15 +12,19 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
                              QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox, QCompleter,
                              QListWidget, QListWidgetItem, QDialog)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel
-from PyQt6.QtGui import QPixmap, QImage, QColor, QDesktopServices
+from PyQt6.QtGui import QPixmap, QColor, QDesktopServices
 from PyQt6.QtCore import QUrl
 
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d 
 from utils.booru_tags import normalize_booru_tags, filter_facial_degrading_tags, filter_facial_degrading_from_text
-from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags
+from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags, merge_prompt_with_pixiv_tag_hints
+from utils.styles import style_prompt, style_ref_image, ref_image_valid, build_ref_gen_params
+from utils.style_ref_widget import StyleRefModeCombo
+from utils.pixiv_tag_matcher import get_local_pixiv_tag_candidates
 from utils.task_runtime import SystemNotifier, TaskCountdown
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
+from modules.image_analysis.dir_batch_selector import DirectoryBatchSelectorDialog
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SYSTEM_PROMPT_FILE = "single-analyzer-system.md"
@@ -317,7 +321,7 @@ def compress_and_encode_image(image_source, max_dim=2048, log_callback=None):
         print(error_msg)
         return None, None
 
-def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, extra_llm_prompt="", timeout_seconds=120, status_callback=None):
+def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, pixiv_candidates=None, extra_llm_prompt="", timeout_seconds=120, status_callback=None):
     mime_type, base64_image = compress_and_encode_image(image_source, log_callback=log_callback)
     if not base64_image:
         if log_callback:
@@ -326,6 +330,7 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
     try:
         analyze_prompt = get_style_analyze_prompt(booru_tag_limit)
         analyze_prompt = merge_prompt_with_local_booru_tags(analyze_prompt, local_booru_tags)
+        analyze_prompt = merge_prompt_with_pixiv_tag_hints(analyze_prompt, pixiv_candidates)
         analyze_prompt = append_extra_llm_prompt(analyze_prompt, extra_llm_prompt)
         system_prompt = _load_system_prompt()
         response = client.chat.completions.create(
@@ -669,6 +674,23 @@ class WorkerThread(QThread):
             self.log_signal.emit(f"本地 booru tagger 候选标签预览（前 10 个）: {preview_tags}")
         else:
             self.log_signal.emit("本地 booru tagger 候选标签为空，将仅使用大模型继续分析")
+
+        # 基于本地 booru 标签匹配 Pixiv 日文标签候选（复用已计算的 booru 标签，避免重复 WD14 推理）
+        self.log_signal.emit("正在匹配本地 Pixiv 标签候选...")
+        pixiv_candidates = get_local_pixiv_tag_candidates(
+            local_booru_tags,
+            log_callback=self.log_signal.emit
+        )
+        if pixiv_candidates:
+            self.log_signal.emit(f"本地 Pixiv 标签候选 ({len(pixiv_candidates)} 个): {', '.join(pixiv_candidates)}")
+        else:
+            self.log_signal.emit("本地 Pixiv 标签候选为空")
+        if self.isInterruptionRequested():
+            self.last_status = "cancelled"
+            self.log_signal.emit("任务已取消（已停止后续分析步骤）。")
+            self.finish_signal.emit({})
+            return
+
         if self.extra_llm_prompt:
             self.log_signal.emit("已启用附加 prompts，LLM 请求将追加重点关注要求")
         self.log_signal.emit(f"正在使用模型 [{self.model_name}] 开始 Step 1: 读取并压缩图片，发送 Vision 请求...")
@@ -680,6 +702,7 @@ class WorkerThread(QThread):
             log_callback=self.log_signal.emit,
             booru_tag_limit=self.booru_tag_limit,
             local_booru_tags=local_booru_tags,
+            pixiv_candidates=pixiv_candidates,
             extra_llm_prompt=self.extra_llm_prompt,
             timeout_seconds=self.timeout_seconds,
             status_callback=lambda status: stage_status.update({"value": status})
@@ -814,12 +837,13 @@ class ImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(list)
 
-    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False, file_prefix=None):
+    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False, file_prefix=None, post_instructions=None):
         super().__init__()
         self.prompt = prompt
         self.model_name = model_name
         self.aspect_ratio = aspect_ratio
         self.instructions = instructions
+        self.post_instructions = post_instructions or ""
         self.api_type = api_type
         self.resolution = resolution
         self.image_paths = list(image_paths or [])
@@ -864,7 +888,8 @@ class ImageGenWorkerThread(QThread):
                     resolution=self.resolution,
                     file_prefix=self.file_prefix,
                     return_metadata=self.verbose_debug,
-                    cancel_check=lambda: self.isInterruptionRequested()
+                    cancel_check=lambda: self.isInterruptionRequested(),
+                    post_instructions=self.post_instructions
                 )
             else:
                 result = generate_image_whatai(
@@ -877,7 +902,8 @@ class ImageGenWorkerThread(QThread):
                     resolution=self.resolution,
                     file_prefix=self.file_prefix,
                     return_metadata=self.verbose_debug,
-                    cancel_check=lambda: self.isInterruptionRequested()
+                    cancel_check=lambda: self.isInterruptionRequested(),
+                    post_instructions=self.post_instructions
                 )
             if isinstance(result, dict):
                 saved_files = result.get("saved_files", []) or []
@@ -988,7 +1014,7 @@ class AnalysisHistoryDetailDialog(QDialog):
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, remove_photo_style_default_getter_func=None, remove_photo_style_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -1002,6 +1028,8 @@ class SingleAnalyzerWidget(QWidget):
         self.on_upscale_options_changed = upscale_options_changed_callback
         self.get_outfit_check_default = outfit_check_default_getter_func
         self.on_outfit_check_changed = outfit_check_changed_callback
+        self.get_remove_photo_style_default = remove_photo_style_default_getter_func
+        self.on_remove_photo_style_changed = remove_photo_style_changed_callback
         self.get_outfit_style_history = outfit_style_history_getter_func
         self.get_outfit_style_default = outfit_style_default_getter_func
         self.on_outfit_style_changed = outfit_style_changed_callback
@@ -1059,6 +1087,12 @@ class SingleAnalyzerWidget(QWidget):
         self.send_btn.setEnabled(False) 
         layout.addWidget(self.send_btn)
 
+        # 目录批量选择按钮
+        self.dir_batch_btn = QPushButton("📁 从目录批量选择图片并分析")
+        self.dir_batch_btn.setFixedHeight(36)
+        self.dir_batch_btn.clicked.connect(self._open_directory_batch_selector)
+        layout.addWidget(self.dir_batch_btn)
+
         # 【新增】两项自动生成图片的勾选框
         auto_gen_layout = QHBoxLayout()
         self.auto_gen_orig_cb = QCheckBox("分析完成后立即生成图片（基于原始提示词）")
@@ -1066,6 +1100,17 @@ class SingleAnalyzerWidget(QWidget):
         auto_gen_layout.addWidget(self.auto_gen_orig_cb)
         auto_gen_layout.addWidget(self.auto_gen_ref_cb)
         layout.addLayout(auto_gen_layout)
+
+        # 保存到原图同目录
+        self.save_to_source_dir_cb = QCheckBox("分析结果保存到原图同目录（不生成图片）")
+        self.save_to_source_dir_cb.setToolTip(
+            "勾选后，分析结果的 JSON 和 TXT 将保存到原图所在目录，并同步文件修改时间。\n"
+            "此时只分析不生成图片，JSON 可用于直接拖入投稿 Server。\n"
+            "仅加载硬盘文件时可用，剪贴板图片无实际文件路径。"
+        )
+        self.save_to_source_dir_cb.setEnabled(False)
+        self.save_to_source_dir_cb.toggled.connect(self._on_save_to_source_dir_toggled)
+        layout.addWidget(self.save_to_source_dir_cb)
 
         nsfw_layout = QHBoxLayout()
         self.use_nsfw_cb = QCheckBox("使用nsfw接口")
@@ -1079,6 +1124,8 @@ class SingleAnalyzerWidget(QWidget):
         nsfw_layout.addWidget(self.enable_outfit_check_cb)
         self.remove_photo_style_cb = QCheckBox("去除照片风格")
         self.remove_photo_style_cb.setToolTip("勾选后，在最终产生 prompts 前，再次提交分析模型，去除所有照片类提示词（如 realistic, photo-like 等），但保持原文其他内容不变。")
+        self.remove_photo_style_cb.setChecked(bool(self.get_remove_photo_style_default()) if self.get_remove_photo_style_default else False)
+        self.remove_photo_style_cb.toggled.connect(self.on_remove_photo_style_toggled)
         nsfw_layout.addWidget(self.remove_photo_style_cb)
         nsfw_layout.addStretch()
         layout.addLayout(nsfw_layout)
@@ -1144,6 +1191,11 @@ class SingleAnalyzerWidget(QWidget):
         self.main_style_combo = QComboBox()
         self.main_style_combo.setMaximumWidth(200)
         style_select_layout.addWidget(self.main_style_combo)
+        style_select_layout.addWidget(QLabel("参考模式:"))
+        self.style_ref_mode_combo = StyleRefModeCombo(self)
+        self.style_ref_mode_combo.setMaximumWidth(130)
+        style_select_layout.addWidget(self.style_ref_mode_combo)
+        self.main_style_combo.currentTextChanged.connect(self._on_style_changed)
         
         self.reload_styles_btn = QPushButton("🔄 重新加载配置")
         self.reload_styles_btn.setFixedWidth(120)
@@ -1251,6 +1303,18 @@ class SingleAnalyzerWidget(QWidget):
         if curr_main in style_keys:
             self.main_style_combo.setCurrentText(curr_main)
         self.main_style_combo.blockSignals(False)
+        self._refresh_style_ref_availability()
+
+    def _refresh_style_ref_availability(self):
+        """加载样式列表后按当前样式的参考图是否存在刷新参考模式可用性。"""
+        styles_data = self.get_styles() or {}
+        name = self.main_style_combo.currentText()
+        has_ref = ref_image_valid(style_ref_image(styles_data, name))
+        self.style_ref_mode_combo.set_modes_available(has_ref)
+        return has_ref
+
+    def _on_style_changed(self, _name=None):
+        self._refresh_style_ref_availability()
 
     def reload_styles(self):
         """重新加载 config-styles.json 配置文件"""
@@ -1284,6 +1348,7 @@ class SingleAnalyzerWidget(QWidget):
                 self.image_source = file_path
                 self.show_preview(file_path)
                 self.log_msg(f"已加载图片: {file_path}")
+                self.save_to_source_dir_cb.setEnabled(True)
             else:
                 self.log_msg("不支持的文件格式，请拖入图片。")
 
@@ -1310,14 +1375,24 @@ class SingleAnalyzerWidget(QWidget):
             )
         )
         self.send_btn.setEnabled(True)
+        self.save_to_source_dir_cb.setEnabled(True)
 
     def show_clipboard_preview(self, pil_image):
-        img_byte_arr = io.BytesIO()
-        pil_image.save(img_byte_arr, format='PNG')
-        img_byte_arr = img_byte_arr.getvalue()
-        image = QImage()
-        image.loadFromData(img_byte_arr)
-        pixmap = QPixmap.fromImage(image)
+        import tempfile
+        fp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        try:
+            pil_image.save(fp, format="PNG")
+            fp.close()
+            pixmap = QPixmap(fp.name)
+        finally:
+            try:
+                fp.close()
+            except Exception:
+                pass
+            try:
+                os.unlink(fp.name)
+            except Exception:
+                pass
         self.image_label.setPixmap(
             pixmap.scaled(
                 self.image_label.size(),
@@ -1326,6 +1401,10 @@ class SingleAnalyzerWidget(QWidget):
             )
         )
         self.send_btn.setEnabled(True)
+        # 剪贴板图片无实际文件路径，保存到原图目录不适用；
+        # 需先取消勾选，避免 _on_save_to_source_dir_toggled 残留禁用两个自动生图 checkbox
+        self.save_to_source_dir_cb.setChecked(False)
+        self.save_to_source_dir_cb.setEnabled(False)
 
     def _next_thread_no(self, attr_name):
         next_no = int(getattr(self, attr_name, 0)) + 1
@@ -1392,11 +1471,14 @@ class SingleAnalyzerWidget(QWidget):
     def _refresh_history_item(self, task_id):
         record = self._analysis_history.get(task_id)
         if not record:
+            self.log_msg(f"⚠️ _refresh_history_item: 未找到 task_id={task_id} 的历史记录")
             return
+        found = False
         for row in range(self.history_list.count()):
             item = self.history_list.item(row)
             if item.data(Qt.ItemDataRole.UserRole) != task_id:
                 continue
+            found = True
             status_text = record.get("status_text", "未知状态")
             title = str(record.get("title") or "未命名")
             submit_time_text = record.get("submit_time_text", "-")
@@ -1407,10 +1489,16 @@ class SingleAnalyzerWidget(QWidget):
             )
             item.setForeground(self._status_to_color(record.get("status")))
             break
+        if not found:
+            self.log_msg(f"⚠️ _refresh_history_item: task_id={task_id} 对应的 QListWidgetItem 未找到，列表可能已被清空")
 
     def _update_history_record(self, task_id, **kwargs):
+        if not task_id:
+            self.log_msg(f"⚠️ _update_history_record: task_id 为空，无法更新历史记录。kwargs={kwargs}")
+            return
         record = self._analysis_history.get(task_id)
         if not record:
+            self.log_msg(f"⚠️ _update_history_record: 未找到 task_id={task_id} 的历史记录，可能已被移除或从未创建。kwargs={kwargs}")
             return
         record.update(kwargs)
         record["status_text"] = self._status_to_text(record.get("status"))
@@ -1550,6 +1638,19 @@ class SingleAnalyzerWidget(QWidget):
         if self.on_outfit_check_changed:
             self.on_outfit_check_changed(bool(checked))
 
+    def on_remove_photo_style_toggled(self, checked):
+        if self.on_remove_photo_style_changed:
+            self.on_remove_photo_style_changed(bool(checked))
+
+    def _on_save_to_source_dir_toggled(self, checked):
+        """保存到原图同目录时，禁用自动生图选项"""
+        if checked:
+            self.auto_gen_orig_cb.setEnabled(False)
+            self.auto_gen_ref_cb.setEnabled(False)
+        else:
+            self.auto_gen_orig_cb.setEnabled(True)
+            self.auto_gen_ref_cb.setEnabled(True)
+
     def _reload_upscale_models(self):
         current = self.upscale_model_combo.currentText().strip()
         models = list_esrgan_models()
@@ -1608,6 +1709,11 @@ class SingleAnalyzerWidget(QWidget):
         self.enable_outfit_check_cb.blockSignals(True)
         self.enable_outfit_check_cb.setChecked(bool(checked))
         self.enable_outfit_check_cb.blockSignals(False)
+
+    def set_remove_photo_style_default(self, checked):
+        self.remove_photo_style_cb.blockSignals(True)
+        self.remove_photo_style_cb.setChecked(bool(checked))
+        self.remove_photo_style_cb.blockSignals(False)
 
     def set_outfit_style_options(self, history_items, current_text=""):
         items = []
@@ -1677,6 +1783,20 @@ class SingleAnalyzerWidget(QWidget):
         if thread in self._active_analysis_threads:
             self._active_analysis_threads.remove(thread)
         self.send_btn.setEnabled(bool(self.image_source))
+        # 兜底检查：如果线程已退出但历史记录仍处于"处理中"状态，说明 on_process_finished
+        # 未能成功更新历史记录（可能是 task_id 不匹配或信号丢失），此时强制更新为完成。
+        task_id = getattr(thread, "meta_task_id", "")
+        if task_id:
+            record = self._analysis_history.get(task_id)
+            if record and record.get("status") == "running":
+                finish_time_text = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.log_msg(f"⚠️ 线程 #{getattr(thread, 'meta_thread_no', '?')} 已退出但历史记录仍为「处理中」，正在兜底更新。")
+                self._update_history_record(
+                    task_id,
+                    status="success",
+                    title="已完成（兜底更新）",
+                    finish_time_text=finish_time_text,
+                )
 
     def on_process_finished(self, thread, result_json):
         analysis_thread_no = getattr(thread, "meta_thread_no", "?")
@@ -1718,13 +1838,27 @@ class SingleAnalyzerWidget(QWidget):
         
         now = datetime.datetime.now()
         now_str = now.strftime("%Y%m%d-%H%M%S")
-        date_str = now.strftime("%Y%m%d") 
-        save_dir = os.path.join('data', date_str) 
-        
-        if not os.path.exists(save_dir): os.makedirs(save_dir) 
-            
+        date_str = now.strftime("%Y%m%d")
         safe_task_hash = task_hash or "nohash"
-        base_filename = f"{now_str}-{safe_task_hash}-{safe_title}"
+
+        # 确定保存目录和基础文件名（支持保存到原图同目录）
+        save_to_source = (
+            self.save_to_source_dir_cb.isChecked()
+            and isinstance(source_snapshot, str)
+            and os.path.isfile(source_snapshot)
+        )
+        if save_to_source:
+            save_dir = os.path.dirname(os.path.abspath(source_snapshot))
+            # 从原图文件名提取 key（_ 分割的第一段），用于 publish_server 匹配
+            source_basename = os.path.basename(source_snapshot)
+            source_key = os.path.splitext(source_basename)[0].split("_")[0]
+            base_filename = f"{now_str}-{source_key}-{safe_title}"
+        else:
+            save_dir = os.path.join('data', date_str)
+            base_filename = f"{now_str}-{safe_task_hash}-{safe_title}"
+        
+        if not os.path.exists(save_dir): os.makedirs(save_dir)
+            
         json_filename = f"{base_filename}.json"
         
         try:
@@ -1750,7 +1884,7 @@ class SingleAnalyzerWidget(QWidget):
             
             selected_style_name = self.main_style_combo.currentText()
             styles_data = self.get_styles()
-            current_fixed_tags = styles_data.get(selected_style_name, "")
+            current_fixed_tags = style_prompt(styles_data, selected_style_name)
             
             # 在风格标签和描述之间添加两个回车
             style_part = f"--ar {self.current_aspect_ratio} {current_fixed_tags}".strip()
@@ -1773,6 +1907,13 @@ class SingleAnalyzerWidget(QWidget):
             with open(os.path.join(save_dir, orig_txt_filename), "w", encoding="utf-8") as f: f.write(orig_prompt)
                 
             self.log_msg(f"✅ 成功！两份画幅与提示词文件已保存:\n - {txt_filename}\n - {orig_txt_filename}", prefix=thread_prefix)
+            
+            # 保存到原图同目录时，同步文件修改时间
+            if save_to_source:
+                self._sync_file_times_to_source(saved_json_path, source_snapshot)
+                for prompt_path in saved_prompt_paths:
+                    self._sync_file_times_to_source(prompt_path, source_snapshot)
+                self.log_msg("🕐 分析结果文件的修改时间已同步到与原图一致", prefix=thread_prefix)
             
             self._apply_history_record_to_current_state({
                 "status": "success",
@@ -1805,49 +1946,53 @@ class SingleAnalyzerWidget(QWidget):
         # 【新增】自动执行发图逻辑
         # 直接从 result_json 和 safe_task_hash 构建 prompt_bundle，完全不依赖实例变量
         # 避免多线程竞态条件：多个分析任务几乎同时完成时，实例变量可能被后续任务覆盖
-        local_task_hash = safe_task_hash
-        local_aspect_ratio = self._resolve_ar_for_first_stage(result_json.get("aspect_ratio", "2:3"))
-        local_orig_desc = result_json.get("original_english_description", "")
-        local_refine_desc = result_json.get("english_description", "")
-        
-        auto_targets = []
-        if self.auto_gen_orig_cb.isChecked() and str(local_orig_desc).strip():
-            auto_targets.append("original")
-        if self.auto_gen_ref_cb.isChecked() and str(local_refine_desc).strip():
-            auto_targets.append("refined")
-        prompt_bundle = {
-            "task_hash": local_task_hash,
-            "aspect_ratio": local_aspect_ratio,
-            "original_prompt": local_orig_desc,
-            "refined_prompt": local_refine_desc,
-            "analysis_json_path": saved_json_path,
-        }
-        if auto_targets:
-            auto_group_id = f"analysis-{analysis_thread_no}"
-            self._auto_gen_groups[auto_group_id] = {
-                "expected": 0,
-                "finished": 0,
-                "cancelled": False,
-                "thread_no": analysis_thread_no,
-            }
-            started_count = 0
-            for prompt_type in auto_targets:
-                if self.trigger_image_generation(
-                    prompt_type,
-                    is_auto=True,
-                    prompt_bundle=prompt_bundle,
-                    analysis_thread_no=analysis_thread_no,
-                    auto_group_id=auto_group_id
-                ):
-                    started_count += 1
-            if started_count > 0:
-                self._auto_gen_groups[auto_group_id]["expected"] = started_count
-                self.log_msg(f"🤖 检测到自动生图任务，共 {started_count} 项，通知将于全部生图结束后发送。", prefix=thread_prefix)
-            else:
-                self._auto_gen_groups.pop(auto_group_id, None)
-                self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
+        # 当勾选"保存到原图同目录"时跳过自动生图
+        if save_to_source:
+            self._send_system_notification("单图分析完成", "任务已完成，结果已保存至原图同目录。")
         else:
-            self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
+            local_task_hash = safe_task_hash
+            local_aspect_ratio = self._resolve_ar_for_first_stage(result_json.get("aspect_ratio", "2:3"))
+            local_orig_desc = result_json.get("original_english_description", "")
+            local_refine_desc = result_json.get("english_description", "")
+            
+            auto_targets = []
+            if self.auto_gen_orig_cb.isChecked() and str(local_orig_desc).strip():
+                auto_targets.append("original")
+            if self.auto_gen_ref_cb.isChecked() and str(local_refine_desc).strip():
+                auto_targets.append("refined")
+            prompt_bundle = {
+                "task_hash": local_task_hash,
+                "aspect_ratio": local_aspect_ratio,
+                "original_prompt": local_orig_desc,
+                "refined_prompt": local_refine_desc,
+                "analysis_json_path": saved_json_path,
+            }
+            if auto_targets:
+                auto_group_id = f"analysis-{analysis_thread_no}"
+                self._auto_gen_groups[auto_group_id] = {
+                    "expected": 0,
+                    "finished": 0,
+                    "cancelled": False,
+                    "thread_no": analysis_thread_no,
+                }
+                started_count = 0
+                for prompt_type in auto_targets:
+                    if self.trigger_image_generation(
+                        prompt_type,
+                        is_auto=True,
+                        prompt_bundle=prompt_bundle,
+                        analysis_thread_no=analysis_thread_no,
+                        auto_group_id=auto_group_id
+                    ):
+                        started_count += 1
+                if started_count > 0:
+                    self._auto_gen_groups[auto_group_id]["expected"] = started_count
+                    self.log_msg(f"🤖 检测到自动生图任务，共 {started_count} 项，通知将于全部生图结束后发送。", prefix=thread_prefix)
+                else:
+                    self._auto_gen_groups.pop(auto_group_id, None)
+                    self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
+            else:
+                self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
 
     def _start_image_gen_runtime(self, timeout_seconds):
         self._img_gen_running = True
@@ -1946,8 +2091,12 @@ class SingleAnalyzerWidget(QWidget):
         prompt_to_use = f"{prompt_to_use}, {_face_quality_suffix}"
         
         selected_style_name = self.main_style_combo.currentText()
-        styles_data = self.get_styles()
-        active_instructions = styles_data.get(selected_style_name, "")
+        styles_data = self.get_styles() or {}
+        has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
+        active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
+        active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
+            styles_data, selected_style_name, active_mode
+        )
         
         self.gen_orig_btn.setEnabled(False)
         self.gen_ref_btn.setEnabled(False)
@@ -1961,6 +2110,8 @@ class SingleAnalyzerWidget(QWidget):
             aspect_ratio=final_gen_ar,
             instructions=active_instructions,
             api_type=api_type,
+            image_paths=style_ref_paths,
+            post_instructions=post_instructions,
             file_prefix=task_hash
         )
         img_thread.meta_thread_no = self._next_thread_no("_image_gen_thread_seq")
@@ -2023,6 +2174,16 @@ class SingleAnalyzerWidget(QWidget):
                     self._auto_gen_groups.pop(auto_group_id, None)
                     if should_notify:
                         self._send_system_notification("单图分析与自动生图完成", "分析与自动生图任务已全部完成。")
+
+    def _sync_file_times_to_source(self, filepath, source_path):
+        """将目标文件的修改时间（mtime/atime）同步到与源文件一致。"""
+        try:
+            if not os.path.exists(filepath) or not os.path.exists(source_path):
+                return
+            src_stat = os.stat(source_path)
+            os.utime(filepath, (src_stat.st_atime, src_stat.st_mtime))
+        except Exception:
+            pass  # 静默失败，不影响主流程
 
     def _sync_analysis_mtimes(self, thread, saved_files):
         """将分析文件（json、两个txt）的修改时间同步到与生成的第一张图片一致"""
@@ -2109,3 +2270,111 @@ class SingleAnalyzerWidget(QWidget):
     def _cleanup_post_thread(self, thread):
         if thread in self._active_post_threads:
             self._active_post_threads.remove(thread)
+
+    # ==================== 目录批量选择 ====================
+
+    def _open_directory_batch_selector(self):
+        """打开目录批量选择对话框，用户确认后将图片加入分析队列。"""
+        self._commit_outfit_style_text(self.outfit_style_combo.currentText(), add_to_history=True)
+
+        # 预检查：缺少的 prompt 文件
+        enable_outfit_check = self.enable_outfit_check_cb.isChecked()
+        enable_remove_photo_style = self.remove_photo_style_cb.isChecked()
+        enable_recompute_pixiv_tags = enable_outfit_check or enable_remove_photo_style
+        missing_prompt_files = get_single_analyzer_missing_prompt_files(
+            enable_refine=True,
+            enable_outfit_check=enable_outfit_check,
+            enable_remove_photo_style=enable_remove_photo_style,
+            enable_recompute_pixiv_tags=enable_recompute_pixiv_tags,
+        )
+        if missing_prompt_files:
+            missing_text = "\n".join(missing_prompt_files)
+            QMessageBox.warning(self, "缺少 Prompt 文件", f"以下 Prompt 文件不存在，请补齐后再执行：\n{missing_text}")
+            self.log_msg(f"❌ 缺少 Prompt 文件，已中止批量分析：\n{missing_text}")
+            return
+
+        base_url, api_key, model_name = self.get_text_config(self.use_nsfw_cb.isChecked())
+        if not api_key or not model_name:
+            QMessageBox.warning(self, "缺少配置", "文本分析 API Key 和 模型名称不能为空！")
+            return
+
+        dialog = DirectoryBatchSelectorDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        image_paths = dialog.get_selected_paths()
+        if not image_paths:
+            return
+
+        # Record selected images to analyzed history so they can be excluded in future scans.
+        from modules.image_analysis.dir_batch_selector import add_to_analyzed_history
+        add_to_analyzed_history(image_paths)
+
+        self._submit_batch_images(image_paths, base_url, api_key, model_name)
+
+    def _submit_batch_images(self, image_paths, base_url, api_key, model_name):
+        """将一批图片逐个提交到分析队列。"""
+        timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+        booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
+        enable_outfit_check = self.enable_outfit_check_cb.isChecked()
+        outfit_style_override = self.outfit_style_combo.currentText().strip()
+        remove_photo_style = self.remove_photo_style_cb.isChecked()
+
+        self.log_msg("\n" + ("=" * 72))
+        self.log_msg(f"📁 目录批量选择：共 {len(image_paths)} 张图片，开始逐个提交分析...")
+
+        submitted_count = 0
+        for filepath in image_paths:
+            if not os.path.isfile(filepath):
+                self.log_msg(f"  ⚠️ 跳过（文件不存在）: {filepath}")
+                continue
+
+            self.image_source = filepath
+            self.show_preview(filepath)
+
+            analysis_thread_no = self._next_thread_no("_analysis_thread_seq")
+            thread_prefix = self._build_thread_prefix("分析线程", analysis_thread_no)
+            submit_time = datetime.datetime.now()
+            task_hash = _generate_task_hash(filepath, submit_time, analysis_thread_no)
+            ddl = submit_time + datetime.timedelta(seconds=max(1, timeout_seconds))
+
+            self.log_msg(f"\n--- [批量 #{submitted_count + 1}/{len(image_paths)}] ---", prefix=thread_prefix)
+            self.log_msg(f"图片: {os.path.basename(filepath)}", prefix=thread_prefix)
+            self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}", prefix=thread_prefix)
+            self.log_msg(f"任务 Hash: {task_hash}", prefix=thread_prefix)
+            self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）", prefix=thread_prefix)
+
+            history_record = self._create_history_record(analysis_thread_no, filepath, submit_time, task_hash)
+            self._insert_history_record(history_record)
+
+            image_source_snapshot = _clone_image_source(filepath)
+            thread = WorkerThread(
+                image_source_snapshot,
+                api_key,
+                base_url,
+                model_name,
+                booru_tag_limit=booru_tag_limit,
+                timeout_seconds=timeout_seconds,
+                enable_outfit_check=enable_outfit_check,
+                outfit_style_override=outfit_style_override,
+                remove_photo_style=remove_photo_style,
+            )
+            thread.meta_thread_no = analysis_thread_no
+            thread.meta_source_snapshot = image_source_snapshot
+            thread.meta_task_id = history_record["task_id"]
+            thread.meta_task_hash = task_hash
+            self._active_analysis_threads.append(thread)
+            thread.log_signal.connect(
+                lambda text, t=thread: self.log_msg(
+                    text,
+                    prefix=self._build_thread_prefix("分析线程", getattr(t, "meta_thread_no", "?"))
+                )
+            )
+            thread.finish_signal.connect(lambda result_json, t=thread: self.on_process_finished(t, result_json))
+            thread.finished.connect(lambda t=thread: self._on_analysis_thread_stopped(t))
+            thread.start()
+
+            submitted_count += 1
+
+        self.log_msg("\n" + ("=" * 72))
+        self.log_msg(f"📁 目录批量选择：已提交 {submitted_count}/{len(image_paths)} 张图片进入分析队列。")

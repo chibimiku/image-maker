@@ -10,6 +10,7 @@
 
 import json
 import os
+from utils.styles import style_prompt
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
@@ -294,7 +295,7 @@ class SdThemeBatchTab(QWidget):
 
     def _get_selected_style_prompt(self):
         selected_style_key = self.style_combo.currentText().strip()
-        return str(self.style_options.get(selected_style_key, "") or "")
+        return style_prompt(self.style_options, selected_style_key)
 
     def load_style_options(self):
         self.update_styles()

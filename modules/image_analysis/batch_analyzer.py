@@ -8,6 +8,8 @@ from PyQt6.QtCore import Qt, pyqtSignal, QStringListModel
 from modules.image_analysis.single_analyzer import WorkerThread, ImageGenWorkerThread, get_single_analyzer_missing_prompt_files
 from utils.task_runtime import SystemNotifier, TaskCountdown
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
+from utils.styles import style_prompt, style_ref_image, ref_image_valid, build_ref_gen_params
+from utils.style_ref_widget import StyleRefModeCombo
 
 class BatchAnalyzerWidget(QWidget):
     quick_export_requested = pyqtSignal(list)
@@ -161,6 +163,15 @@ class BatchAnalyzerWidget(QWidget):
         auto_gen_layout.addWidget(self.auto_gen_ref_cb)
         options_layout.addLayout(auto_gen_layout)
 
+        # 保存到原图同目录
+        self.save_to_source_dir_cb = QCheckBox("分析结果保存到原图同目录（不生成图片）")
+        self.save_to_source_dir_cb.setToolTip(
+            "勾选后，每个图片的分析结果 JSON 和 TXT 将保存到各自原图所在目录，\n"
+            "并同步文件修改时间。此时只分析不生成图片，JSON 可用于直接拖入投稿 Server。"
+        )
+        self.save_to_source_dir_cb.toggled.connect(self._on_save_to_source_dir_toggled)
+        options_layout.addWidget(self.save_to_source_dir_cb)
+
         upscale_layout = QHBoxLayout()
         self.enable_jpg_upscale_cb = QCheckBox("生图后自动处理 JPG")
         self.enable_jpg_upscale_cb.toggled.connect(self._persist_upscale_options)
@@ -195,6 +206,11 @@ class BatchAnalyzerWidget(QWidget):
         style_select_layout.addWidget(QLabel("生成时使用的画风预设:"))
         self.main_style_combo = QComboBox()
         style_select_layout.addWidget(self.main_style_combo, stretch=1)
+        style_select_layout.addWidget(QLabel("参考模式:"))
+        self.style_ref_mode_combo = StyleRefModeCombo(self)
+        self.style_ref_mode_combo.setMaximumWidth(130)
+        style_select_layout.addWidget(self.style_ref_mode_combo)
+        self.main_style_combo.currentTextChanged.connect(self._on_style_changed)
         options_layout.addLayout(style_select_layout)
         nsfw_layout = QHBoxLayout()
         self.use_nsfw_cb = QCheckBox("使用nsfw接口")
@@ -283,6 +299,18 @@ class BatchAnalyzerWidget(QWidget):
         if curr_main in style_keys:
             self.main_style_combo.setCurrentText(curr_main)
         self.main_style_combo.blockSignals(False)
+        self._refresh_style_ref_availability()
+
+    def _refresh_style_ref_availability(self):
+        """加载样式列表后按当前样式的参考图是否存在刷新参考模式可用性。"""
+        styles_data = self.get_styles() or {}
+        name = self.main_style_combo.currentText()
+        has_ref = ref_image_valid(style_ref_image(styles_data, name))
+        self.style_ref_mode_combo.set_modes_available(has_ref)
+        return has_ref
+
+    def _on_style_changed(self, _name=None):
+        self._refresh_style_ref_availability()
 
     def select_directory(self):
         directory = QFileDialog.getExistingDirectory(self, "选择图片目录")
@@ -482,12 +510,16 @@ class BatchAnalyzerWidget(QWidget):
             )
             thread.log_signal.connect(lambda text, wid=worker_id: self.log_msg(f"[线程-{wid}] {text}"))
             thread.finish_signal.connect(lambda result, t=thread, wid=worker_id, path=image_path: self.on_worker_finished(t, wid, path, result))
+            thread.finished.connect(lambda t=thread, wid=worker_id, path=image_path: self._on_worker_thread_finished(t, wid, path))
             thread.start()
             self._active_threads.append(thread)
             self.active_workers[thread] = {"id": worker_id, "image_path": image_path}
             self.log_msg(f"[线程-{worker_id}] 开始处理: {os.path.basename(image_path)}")
 
     def on_worker_finished(self, thread, worker_id, image_path, result_json):
+        # 清理线程引用
+        if thread in self._active_threads:
+            self._active_threads.remove(thread)
         if thread in self.active_workers:
             self.active_workers.pop(thread)
         elif self.batch_run_state != "running":
@@ -507,7 +539,7 @@ class BatchAnalyzerWidget(QWidget):
             output_json_path = self.save_result(result_json, image_path)
             if output_json_path:
                 self.current_run_json_paths.append(output_json_path)
-            if self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked():
+            if (self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked()) and not self.save_to_source_dir_cb.isChecked():
                 self.generate_images(result_json, analysis_json_path=output_json_path)
             self.remove_failed_image(image_path)
         self.current_index += 1
@@ -520,6 +552,44 @@ class BatchAnalyzerWidget(QWidget):
             self.finish_batch_processing(final_reason="cancelled")
             return
         self.dispatch_next_workers()
+
+    def _on_worker_thread_finished(self, thread, worker_id, image_path):
+        """兜底清理：线程退出时确保线程引用被正确清除。
+        正常情况下 on_worker_finished 已通过 finish_signal 完成处理，
+        此方法作为 QThread.finished 的兜底，处理 finish_signal 丢失的极端情况。"""
+        # 清理 _active_threads 引用
+        if thread in self._active_threads:
+            self._active_threads.remove(thread)
+
+        # 如果 on_worker_finished 已经处理过（线程已不在 active_workers 中），无需额外操作
+        if thread not in self.active_workers:
+            return
+
+        # finish_signal 丢失，需要兜底处理
+        self.active_workers.pop(thread)
+        image_name = os.path.basename(image_path)
+        worker_status = getattr(thread, "last_status", "unknown")
+        self.log_msg(f"[线程-{worker_id}] ⚠️ 兜底：finish_signal 丢失，线程已退出（状态: {worker_status}），正在清理: {image_name}")
+
+        # 根据线程状态处理
+        if worker_status == "success":
+            self.remove_failed_image(image_path)
+        else:
+            if worker_status == "timeout":
+                self.current_run_timeout_count += 1
+            self.add_failed_image(image_path)
+
+        self.current_index += 1
+        self.update_progress()
+
+        # 检查是否所有任务已完成
+        if self.current_index >= self.current_run_total and not self.pending_images and not self.active_workers:
+            final_reason = "cancelled" if (self.cancel_soft_requested or self.cancel_hard_requested) else "completed"
+            self.finish_batch_processing(final_reason=final_reason)
+        elif self.cancel_soft_requested and not self.pending_images and not self.active_workers:
+            self.finish_batch_processing(final_reason="cancelled")
+        elif self.batch_run_state == "running":
+            self.dispatch_next_workers()
 
     def finish_batch_processing(self, final_reason="completed"):
         self.batch_run_state = "idle"
@@ -637,13 +707,22 @@ class BatchAnalyzerWidget(QWidget):
             
             now = datetime.datetime.now()
             date_str = now.strftime("%Y%m%d")
-            save_dir = os.path.join('data', date_str, 'batch-result')
+
+            # 确定保存目录和基础文件名（支持保存到原图同目录）
+            save_to_source = self.save_to_source_dir_cb.isChecked()
+            if save_to_source:
+                save_dir = os.path.dirname(os.path.abspath(image_path))
+                source_basename = os.path.basename(image_path)
+                source_key = os.path.splitext(source_basename)[0].split("_")[0]
+                base_filename = f"{now.strftime('%Y%m%d-%H%M%S')}-{source_key}-{safe_title}"
+            else:
+                save_dir = os.path.join('data', date_str, 'batch-result')
+                base_filename = f"{now.strftime('%Y%m%d-%H%M%S')}-{safe_title}"
             
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             
             # 生成唯一的文件名
-            base_filename = f"{now.strftime('%Y%m%d-%H%M%S')}-{safe_title}"
             json_filename = f"{base_filename}.json"
             
             output_json_path = os.path.join(save_dir, json_filename)
@@ -661,7 +740,7 @@ class BatchAnalyzerWidget(QWidget):
             
             selected_style_name = self.main_style_combo.currentText()
             styles_data = self.get_styles()
-            current_fixed_tags = styles_data.get(selected_style_name, "")
+            current_fixed_tags = style_prompt(styles_data, selected_style_name)
             
             # 在风格标签和描述之间添加两个回车
             style_part = f"--ar {current_aspect_ratio} {current_fixed_tags}".strip()
@@ -675,6 +754,18 @@ class BatchAnalyzerWidget(QWidget):
                 f.write(final_prompt)
             with open(os.path.join(save_dir, orig_txt_filename), "w", encoding="utf-8") as f:
                 f.write(orig_prompt)
+            
+            # 保存到原图同目录时，同步文件修改时间
+            if save_to_source:
+                src_stat = os.stat(image_path)
+                for fpath in (output_json_path,
+                              os.path.join(save_dir, txt_filename),
+                              os.path.join(save_dir, orig_txt_filename)):
+                    if os.path.exists(fpath):
+                        try:
+                            os.utime(fpath, (src_stat.st_atime, src_stat.st_mtime))
+                        except Exception:
+                            pass
             
             self.log_msg(f"📁 结果已保存至: {json_filename}")
             return output_json_path
@@ -692,8 +783,12 @@ class BatchAnalyzerWidget(QWidget):
             return
         
         selected_style_name = self.main_style_combo.currentText()
-        styles_data = self.get_styles()
-        active_instructions = styles_data.get(selected_style_name, "")
+        styles_data = self.get_styles() or {}
+        has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
+        active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
+        active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
+            styles_data, selected_style_name, active_mode
+        )
         
         raw_ar = result_json.get("aspect_ratio", "2:3")
         current_aspect_ratio = self._resolve_ar_for_first_stage(raw_ar)
@@ -710,7 +805,9 @@ class BatchAnalyzerWidget(QWidget):
                     model_name=model_name,
                     aspect_ratio=final_gen_ar,
                     instructions=active_instructions,
-                    api_type=api_type
+                    api_type=api_type,
+                    image_paths=style_ref_paths,
+                    post_instructions=post_instructions
                 )
                 img_thread.meta_prompt_type = "original"
                 img_thread.meta_analysis_json_path = analysis_json_path
@@ -733,7 +830,9 @@ class BatchAnalyzerWidget(QWidget):
                     model_name=model_name,
                     aspect_ratio=final_gen_ar,
                     instructions=active_instructions,
-                    api_type=api_type
+                    api_type=api_type,
+                    image_paths=style_ref_paths,
+                    post_instructions=post_instructions
                 )
                 img_thread.meta_prompt_type = "refined"
                 img_thread.meta_analysis_json_path = analysis_json_path
@@ -772,6 +871,8 @@ class BatchAnalyzerWidget(QWidget):
         self.gen_countdown_label.setText(f"生图超时倒计时: {remain} 秒")
 
     def _on_image_thread_stopped(self, thread):
+        if thread in self._active_threads:
+            self._active_threads.remove(thread)
         if thread in self._active_image_threads:
             self._active_image_threads.remove(thread)
         if not self._active_image_threads:
@@ -891,6 +992,15 @@ class BatchAnalyzerWidget(QWidget):
     def on_enable_outfit_check_toggled(self, checked):
         if self.on_outfit_check_changed:
             self.on_outfit_check_changed(bool(checked))
+
+    def _on_save_to_source_dir_toggled(self, checked):
+        """保存到原图同目录时，禁用自动生图选项"""
+        if checked:
+            self.auto_gen_orig_cb.setEnabled(False)
+            self.auto_gen_ref_cb.setEnabled(False)
+        else:
+            self.auto_gen_orig_cb.setEnabled(True)
+            self.auto_gen_ref_cb.setEnabled(True)
 
     def set_use_nsfw_default(self, checked):
         self.use_nsfw_cb.blockSignals(True)
