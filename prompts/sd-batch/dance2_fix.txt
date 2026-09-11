@@ -1,0 +1,8 @@
+# 源脚本: sd_gen_dance2_fix.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sddance2
+# 文件前缀: dance
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/dance2_fix.txt --output-subdir sddance2 --prefix dance
+
+1girl, solo, dai peacock dance, ethnic dai costume. A girl in a Dai ethnic costume performs a peacock dance with graceful swaying arms and a long fan-shaped skirt tail, tropical garden with banana leaves, golden afternoon light, serene beauty, full body
+1girl, solo, waltz, evening gown. A girl in a flowing evening gown dances a waltz solo among falling cherry blossoms in a garden at dusk, one arm extended as if dancing with an invisible partner, petals swirling around her, romantic dreamy mood, full body

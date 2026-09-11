@@ -214,7 +214,7 @@ pytest
 
 ## 网页抓取 CLI
 
-项目根目录新增了一个轻量命令行工具：`web-probe.py`。
+项目根目录新增了一个轻量命令行工具：`tools/web-probe.py`。
 
 适合这些场景：
 
@@ -227,13 +227,13 @@ pytest
 ### 1. 抓取网页原文
 
 ```bash
-python web-probe.py fetch "https://wear.jp/women-category/onepiece/dress/" --print-chars 1000
+python tools/web-probe.py fetch "https://wear.jp/women-category/onepiece/dress/" --print-chars 1000
 ```
 
 保存到文件：
 
 ```bash
-python web-probe.py fetch "https://wear.jp/women-category/onepiece/dress/" --out cache/wear_dress.html
+python tools/web-probe.py fetch "https://wear.jp/women-category/onepiece/dress/" --out cache/wear_dress.html
 ```
 
 ### 2. 提取 Next.js `__NEXT_DATA__`
@@ -241,13 +241,13 @@ python web-probe.py fetch "https://wear.jp/women-category/onepiece/dress/" --out
 抓整段 JSON：
 
 ```bash
-python web-probe.py next-data "https://wear.jp/women-category/onepiece/dress/" --out cache/wear_dress_next_data.json
+python tools/web-probe.py next-data "https://wear.jp/women-category/onepiece/dress/" --out cache/wear_dress_next_data.json
 ```
 
 只取某个路径：
 
 ```bash
-python web-probe.py next-data "https://wear.jp/yyuk1101a/26674416/" --query "props.pageProps.coordinateItems[0]"
+python tools/web-probe.py next-data "https://wear.jp/yyuk1101a/26674416/" --query "props.pageProps.coordinateItems[0]"
 ```
 
 ### 3. 正则提取
@@ -255,13 +255,13 @@ python web-probe.py next-data "https://wear.jp/yyuk1101a/26674416/" --query "pro
 提取页面中的图片链接：
 
 ```bash
-python web-probe.py regex "https://lolibrary.org/items/ap-delicious-lemonade-jsk" "https://[^\"']+\\.(jpg|jpeg|png|webp)[^\"']*" --limit 20
+python tools/web-probe.py regex "https://lolibrary.org/items/ap-delicious-lemonade-jsk" "https://[^\"']+\\.(jpg|jpeg|png|webp)[^\"']*" --limit 20
 ```
 
 提取第一个捕获组并去重：
 
 ```bash
-python web-probe.py regex "https://wear.jp/women-category/shoes/sandal/" "https://images\\.wear2\\.jp/[^\"']+" --group 0 --unique
+python tools/web-probe.py regex "https://wear.jp/women-category/shoes/sandal/" "https://images\\.wear2\\.jp/[^\"']+" --group 0 --unique
 ```
 
 ### 4. 提取 href/src 链接
@@ -269,13 +269,13 @@ python web-probe.py regex "https://wear.jp/women-category/shoes/sandal/" "https:
 提取绝对链接：
 
 ```bash
-python web-probe.py links "https://lolibrary.org/search?brands[]=angelic-pretty" --attr href --contains "/items/" --absolute --limit 20
+python tools/web-probe.py links "https://lolibrary.org/search?brands[]=angelic-pretty" --attr href --contains "/items/" --absolute --limit 20
 ```
 
 提取图片源：
 
 ```bash
-python web-probe.py links "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp"
+python tools/web-probe.py links "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp"
 ```
 
 ### 5. 读取本地文件再处理
@@ -283,14 +283,14 @@ python web-probe.py links "https://wear.jp/yyuk1101a/26674416/" --attr src --con
 如果你已经先把 HTML 存到本地，也可以继续分析：
 
 ```bash
-python web-probe.py next-data cache/wear_dress.html --from-file
-python web-probe.py regex cache/wear_dress.html "coordinate/[^\"']+" --from-file
+python tools/web-probe.py next-data cache/wear_dress.html --from-file
+python tools/web-probe.py regex cache/wear_dress.html "coordinate/[^\"']+" --from-file
 ```
 
 ### 6. 附加 Header
 
 ```bash
-python web-probe.py fetch "https://example.com" --header "Accept: text/html" --header "X-Test: 1"
+python tools/web-probe.py fetch "https://example.com" --header "Accept: text/html" --header "X-Test: 1"
 ```
 
 ### 7. Cookie 与登录态
@@ -298,13 +298,13 @@ python web-probe.py fetch "https://example.com" --header "Accept: text/html" --h
 如果目标站点需要登录态，可以直接传 Cookie：
 
 ```bash
-python web-probe.py fetch "https://example.com/private" --cookie "sessionid=abc; csrftoken=xyz"
+python tools/web-probe.py fetch "https://example.com/private" --cookie "sessionid=abc; csrftoken=xyz"
 ```
 
 也可以从文件读取 Cookie：
 
 ```bash
-python web-probe.py fetch "https://example.com/private" --cookie-file cache/cookies.txt
+python tools/web-probe.py fetch "https://example.com/private" --cookie-file cache/cookies.txt
 ```
 
 `--cookie-file` 支持三种格式：
@@ -316,13 +316,13 @@ python web-probe.py fetch "https://example.com/private" --cookie-file cache/cook
 例如：
 
 ```bash
-python web-probe.py next-data "https://wear.jp/some/private/page" --cookie-file cache/wear_cookies.json
+python tools/web-probe.py next-data "https://wear.jp/some/private/page" --cookie-file cache/wear_cookies.json
 ```
 
 也可以指定一个目录，按域名自动寻找 cookies 文件：
 
 ```bash
-python web-probe.py fetch "https://wear.jp/some/private/page" --cookie-dir-auto cache/browser-cookies
+python tools/web-probe.py fetch "https://wear.jp/some/private/page" --cookie-dir-auto cache/browser-cookies
 ```
 
 例如目录里存在这些文件之一即可自动命中：
@@ -337,7 +337,7 @@ python web-probe.py fetch "https://wear.jp/some/private/page" --cookie-dir-auto 
 从页面里提取图片链接并直接下载：
 
 ```bash
-python web-probe.py download "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp" --download-dir cache/downloads
+python tools/web-probe.py download "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp" --download-dir cache/downloads
 ```
 
 ### 9. 为什么不能直接复用当前浏览器身份
@@ -352,7 +352,7 @@ python web-probe.py download "https://wear.jp/yyuk1101a/26674416/" --attr src --
 所以这里不是“只能 Python 才能爬”，而是：
 
 - 当前 Agent 最稳定、最可审计、最容易复现的方式，是 Python 发 HTTP 请求
-- 如果你希望复用浏览器身份，最现实的做法是先从浏览器导出 cookies，再交给 `web-probe.py`
+- 如果你希望复用浏览器身份，最现实的做法是先从浏览器导出 cookies，再交给 `tools/web-probe.py`
 
 后续如果你想继续扩展，也可以做两种方向：
 

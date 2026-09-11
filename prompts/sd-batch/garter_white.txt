@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_garter_white.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdgarter_white
+# 文件前缀: garter
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/garter_white.txt --output-subdir sdgarter_white --prefix garter
+
+768x1152|1girl, solo, white thighhighs, lace trim, garter belt, elegant, sitting on a chair with legs crossed, one hand resting on her knee, showing lace-trimmed white stockings and garter belt, soft light, full body, refined
+832x1216|1girl, solo, white thighhighs, lace trim, garter belt, elegant, leaning against a wall with one leg slightly raised, silk dress, showing garter details, soft dramatic light, full body, glamorous
+896x1152|1girl, solo, white thighhighs, lace trim, garter belt, elegant, sitting on the edge of a bed with one leg extended, silk robe, showing lace-trimmed garter stockings, cozy boudoir light, full body, graceful
+1024x1360|1girl, solo, white thighhighs, lace trim, garter belt, elegant, bending to adjust a lace stocking garter, one hand on her thigh, elegant garment, warm light, delicate, full body
+1216x832|1girl, solo, white thighhighs, lace trim, garter belt, elegant, reclining with legs elegantly posed, showing lace-trimmed white garter stockings, evening dress, soft light, luxurious, full body

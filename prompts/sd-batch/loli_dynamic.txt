@@ -1,0 +1,14 @@
+# 源脚本: sd_gen_loli_dynamic.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdloli_dynamic
+# 文件前缀: lolidyn
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/loli_dynamic.txt --output-subdir sdloli_dynamic --prefix lolidyn
+
+1024x1024|1girl, solo, sweet lolita, white lace dress, lace trim, white thighhighs, high heels, twirling in a spin, skirt and hair flaring from the motion, pastel ballroom, joyful dynamic pose
+768x1152|1girl, solo, hime lolita, white lace gown, lace trim, ballet arabesque pose, one leg extended back, arms in a graceful line, grand hall, elegant dynamic pose
+896x1152|1girl, solo, fairy lolita, ivory lace dress, lace trim, translucent wings, jumping joyfully with both arms up, flower garden, mid-air motion
+832x1216|1girl, solo, classic lolita, ivory lace dress, lace gloves, performing a graceful curtsy while lifting the skirt slightly, one hand extended, tea room, refined action pose
+1152x896|1girl, solo, gothic lolita, black lace dress, lace trim, reaching up toward falling petals and light, one arm extended high, dark lace stockings, stiletto heels, moonlit garden, dramatic pose
+1024x1360|1girl, solo, sweet lolita, white lace dress, lace trim, sitting hugging her knees on a window seat, white lace thighhighs, high heels, looking out the window, cozy introspective pose
+832x1216|1girl, solo, lolita, lace thighhighs, garter belt, high heels, balancing on one leg while adjusting the other stocking garter, playful dynamic pose, bedroom, soft light
+1216x832|1girl, solo, qi lolita, lace qipao dress, holding a folding fan opened, striking a dynamic pose with the fan, classical chinese garden, motion, elegant

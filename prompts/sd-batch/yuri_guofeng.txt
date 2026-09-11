@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_yuri_guofeng.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdyuri_guofeng
+# 文件前缀: guofeng
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/yuri_guofeng.txt --output-subdir sdyuri_guofeng --prefix guofeng
+
+2girls, yuri, hanfu, traditional chinese dress, flowing sleeves, hair ornaments, gufeng. Two girls in elegant hanfu stand face to face under blooming peach trees, one tucking a peach blossom into the other's hair, petals drifting down, soft spring morning light, pink and white tones, tender gaze
+2girls, yuri, qipao, cheongsam dress, chinese embroidery, side slits, mandarin collar. In a classical Chinese garden under a bright full moon, two girls in embroidered qipao sit close on a stone bench, one resting her head on the other's shoulder, koi pond and moon gate behind them, silver moonlight, intimate
+2girls, yuri, xianxia, ancient chinese fantasy, flowing robes, hair ribbons, sword, immortal cultivator. Two immortal swordswomen in flowing white and blue robes stand on a mountain peak above a sea of clouds, one cradling the other's face as ribbons and sleeves flutter in the wind, misty sunrise, ethereal, romantic
+2girls, yuri, ink wash painting style, sumi-e, gufeng, traditional chinese dress, black and white ink tones. Two girls in traditional chinese dress share a small wooden boat on a misty lake, one leaning against the other under a paper umbrella, distant ink mountains and lotus leaves, monochrome ink wash aesthetic, poetic quiet love
+2girls, yuri, gufeng, ancient chinese town, red lanterns, lantern festival, hanfu, paper umbrella. At a lively ancient Chinese lantern festival at night, two girls in hanfu stand close among glowing red lanterns, one lifting a rabbit-shaped lantern to show the other, warm golden light, festive bokeh, blushing smiles

@@ -1,0 +1,14 @@
+# 源脚本: sd_gen_backless.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdbackless
+# 文件前缀: backless
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/backless.txt --output-subdir sdbackless --prefix backless
+
+1216x832|1girl, solo, backless dress, glamorous, turning around to look back over her shoulder, bare back and flowing hair, evening gown, golden hour backlight, city rooftop, full body, dynamic
+1024x1024|1girl, solo, backless gown, glamorous, twirling in a spin with the skirt flaring, bare back, flowing motion, grand ballroom, sparkles, full body, dynamic
+768x1152|1girl, solo, backless halter dress, glamorous, reaching up and stretching with one arm, bare back arched, sunlit terrace, wind, full body, dynamic
+1216x832|1girl, solo, backless dress, glamorous, walking with a confident stride and glancing back, bare back, long gown trailing, red carpet corridor, cinematic, full body, dynamic
+832x1216|1girl, solo, backless dress, glamorous, sitting sideways with one hand in her hair, showing the backline, sofa, soft warm light, full body, intimate dynamic
+896x1152|1girl, solo, backless dress, glamorous, reclining and looking back over her shoulder, graceful back curve, silk sheets, soft candlelight, full body, alluring
+832x1216|1girl, solo, backless gown, glamorous, bending forward slightly at a vanity mirror, bare back exposed, warm lamp light, dressing room, full body, dynamic
+1152x896|1girl, solo, backless qipao dress, glamorous, holding a folding fan over her face while turning, bare back, classical chinese garden, motion, elegant, dynamic

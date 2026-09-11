@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_dance2.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sddance2
+# 文件前缀: dance
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/dance2.txt --output-subdir sddance2 --prefix dance
+
+2girls, yuri, tango, red dress, elegant dance. Two girls dance tango in a smoky vintage tavern, one dipping the other low with a hand on her back, black and red dresses, dramatic amber lighting, passionate and elegant, full body
+2girls, yuri, indian classical dance, sari, bangles, temple. Two girls in golden saris perform indian classical dance together in a candlelit temple hall, hands forming graceful mudras, ankle bells, warm ornate interior, spiritual and graceful, full body
+2girls, yuri, irish step dance, celtic dress. Two girls in celtic-style dresses dance an irish step dance side by side on a wooden pub floor, arms held loosely at their sides, skirts bouncing with precise footwork, warm pub light, joyful energy, full body
+2girls, yuri, rhythmic gymnastics, leotard, ribbon. Two gymnasts in shimmering leotards dance with flowing ribbons in a bright gymnasium, ribbons crossing and swirling as they spin toward each other, sparkles in the air, elegant athletic grace, full body
+2girls, yuri, chinese fan dance, red silk fans, gufeng. Two girls in traditional dress perform a chinese fan dance in a courtyard, red silk fans opening and closing in unison, sleeves flowing, spring blossoms around, synchronized and graceful, full body
+1girl, solo, chinese sword dance, hanfu, bamboo forest. A girl in flowing hanfu performs a chinese sword dance in a misty bamboo forest, sword tracing elegant arcs, leaves drifting, moonlight filtering through bamboo, ethereal and powerful, full body
+1girl, solo, swan lake, white tutu, feather crown. A ballerina dressed as the white swan dances alone on a stage bathed in blue moonlight, arms rippling like wings, delicate and sorrowful beauty, dreamlike fog, full body
+1girl, solo, spanish fan dance, black lace dress. A girl in a black lace dress dances with a red folding fan, fan snapping open and closed with flourish, one heel raised, warm stage spotlight, passionate elegance, full body
+1girl, solo, dai peacock dance, ethnic dai costume. A girl in a Dai ethnic costume performs a peacock dance with graceful swaying arms and a long fan-shaped skirt tail, tropical garden with banana leaves, golden afternoon light, serene beauty, full body
+1girl, solo, waltz, evening gown. A girl in a flowing evening gown dances a waltz solo among falling cherry blossoms in a garden at dusk, one arm extended as if dancing with an invisible partner, petals swirling around her, romantic dreamy mood, full body

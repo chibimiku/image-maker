@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_white_heels.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdwhiteheels
+# 文件前缀: white
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/white_heels.txt --output-subdir sdwhiteheels --prefix white
+
+1024x1024|1girl, solo, white thighhighs, high heels, elegant, standing on a city street, full body, graceful pose, soft morning light, chic outfit
+832x1216|1girl, solo, white thighhighs, high heels, sitting on a bar stool with legs crossed, elegant dress, cafe interior, full body, warm light
+1216x832|1girl, solo, white thighhighs, high heels, side profile walking, skirt and hair flowing, city street, full body, golden hour
+896x1152|1girl, solo, white thighhighs, high heels, leaning against a wall with one leg bent, elegant outfit, bedroom entryway, full body, soft window light
+1152x896|1girl, solo, white thighhighs, high heels, turning to look back over her shoulder, elegant dress, staircase, full body, cinematic

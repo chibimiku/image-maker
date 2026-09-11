@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_lolita_batch.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 832x1216
+# 输出子目录: sdmake
+# 文件前缀: gen
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/lolita_batch.txt --output-subdir sdmake --prefix gen
+
+1girl, solo, lolita fashion, white lace lolita dress, white thigh-high boots, long silver hair, blue eyes, standing, full body, looking at viewer, gentle smile, cherry blossom park, falling petals, spring afternoon, low angle shot, detailed frills, white ribbon, lace parasol
+1girl, solo, lolita fashion, white sweet lolita dress, white over-knee boots, blonde twintails, green eyes, sitting on a park bench, autumn maple leaves, golden hour light, holding a stuffed bunny, close-up upper body, lace headdress, warm tones
+1girl, solo, lolita fashion, white gothic lolita dress, white thigh-high boots, black bob hair, red eyes, walking on snowy night street, neon signs, looking back over shoulder, dynamic pose, snowflakes, night scene, high contrast, glowing shop windows
+1girl, solo, lolita fashion, white classical lolita dress, white thigh-high boots, pink braided twin tails, amber eyes, kneeling in a flower field, summer morning, butterflies around, holding a straw hat, full body, soft sunlight, pastel colors, wide shot
+1girl, solo, lolita fashion, white holy lolita dress, white thigh-high boots, long white straight hair, violet eyes, gothic cathedral interior, candlelight, hands clasped in prayer, standing, solemn atmosphere, chiaroscuro, stained glass
+1girl, solo, lolita fashion, white sailor lolita dress, white thigh-high boots, light blue short hair, aqua eyes, riding a vintage bicycle, seaside promenade, scarf flowing in wind, late afternoon, ocean background, dynamic angle, motion
+1girl, solo, lolita fashion, white elegant lolita dress, white thigh-high boots, long wavy purple hair, heterochromia eyes, twirling while dancing, rooftop terrace, city skyline at dusk, skirt flowing, medium shot, sparkling city lights
+1girl, solo, lolita fashion, white casual lolita dress, white thigh-high boots, brown hime cut hair, emerald eyes, sitting on a wooden stool, reading a book, cozy library, warm lamp light, bookshelf background, close-up, peaceful mood
+1girl, solo, lolita fashion, white princess lolita dress, white thigh-high boots, ginger twintails, hazel eyes, holding a transparent umbrella, rainy glass city street, night, neon reflections on wet ground, puddle reflection, cinematic, umbrella
+1girl, solo, lolita fashion, white rococo lolita dress, white thigh-high boots, platinum hair in a braided bun, golden eyes, tea party on a garden lawn, white round table with cakes, morning sunlight, sitting elegantly, full body, garden flowers, royal aura

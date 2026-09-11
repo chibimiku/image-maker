@@ -501,3 +501,128 @@ def generate_random_composition() -> tuple[str, str]:
         f" - 需避免: {avoid}",
     ]
     return "\n".join(lines), aspect_ratio
+
+
+# ---------------------------------------------------------------------------
+# LLM 模板构图（原根目录 fashion_pipeline.py 的 generate_composition，已下沉为模块函数）
+# ---------------------------------------------------------------------------
+
+_COMPOSITION_LABELS = {
+    "composition_type": "构图类型",
+    "camera_angle": "镜头角度",
+    "pose_description": "角色姿态",
+    "focal_point": "视觉焦点",
+    "depth_of_field": "景深",
+    "lighting": "光线",
+    "overall_mood": "画面情绪",
+}
+
+
+def _read_prompt_file(relative_path: str) -> str:
+    """从 prompts/ 目录读取 prompt 模板（宽松：缺文件返回空串）。"""
+    from utils.prompt_loader import read_prompt_file
+
+    try:
+        return read_prompt_file(relative_path)
+    except (FileNotFoundError, ValueError):
+        logger.warning("Prompt 文件不存在: %s", relative_path)
+        return ""
+
+
+def generate_llm_composition(
+    theme: str,
+    character_desc: str,
+    items_summary: str,
+    ratio: str,
+    characters: int,
+    log_callback: Callable[[str], None] | None = None,
+) -> str:
+    """用 LLM（prompts/fashion-composition-*.md 模板）生成摄影构图/姿态指导文本，失败返回空串。
+
+    需要 aigc2d 配置（get_api_config / fetch_llm_json），与随机构图 generate_random_composition()
+    互补：随机构图无需 API，LLM 构图更贴合主题但依赖网络。
+    """
+    from modules.others.api_backend import fetch_llm_json, get_api_config
+
+    def _log(msg: str) -> None:
+        if log_callback:
+            log_callback(msg)
+        else:
+            print(msg, flush=True)
+
+    char_note = (
+        "画面中有两位主角同框互动，请描述她们各自的位置、姿态和视线方向。"
+        if int(characters) >= 2
+        else "画面中只有一位主角。"
+    )
+
+    system = _read_prompt_file("fashion-composition-system.md")
+    user_template = _read_prompt_file("fashion-composition-user.md")
+    if not system:
+        _log("[构图] System prompt 模板缺失，跳过构图生成。")
+        return ""
+
+    user = (user_template or "").replace("{{theme}}", theme)
+    user = user.replace("{{character_desc}}", character_desc)
+    user = user.replace("{{items_summary}}", items_summary)
+    user = user.replace("{{ratio}}", ratio)
+    user = user.replace("{{char_note}}", char_note)
+
+    try:
+        cfg = get_api_config(api_type="aigc2d")
+        base_url = str(cfg.get("base_url", "https://new.aigc2d.com/v1beta/models/") or "").strip()
+        if "/v1beta/models/" in base_url:
+            base_url = base_url.split("/v1beta/models/")[0] + "/v1"
+        api_key = cfg.get("api_key", "")
+        # Chat-capable 模型（与历史脚本一致）
+        model = "gemini-3.1-flash-image-preview"
+
+        _log("[构图] 正在请求 LLM 生成摄影构图方案...")
+        raw_json = fetch_llm_json(
+            base_url=base_url,
+            api_key=api_key,
+            model=model,
+            system_prompt=system,
+            user_content=user,
+            temperature=0.8,
+            merge_system_prompt=True,
+        )
+        data = json.loads(raw_json) if raw_json else {}
+        if not data:
+            _log("[构图] LLM 返回为空，使用默认构图。")
+            return ""
+
+        lines: list[str] = []
+        for key, label in _COMPOSITION_LABELS.items():
+            val = str(data.get(key, "")).strip()
+            if val:
+                lines.append(f"{label}: {val}")
+        negative = str(data.get("negative_prompt_hints", "")).strip()
+        if negative:
+            lines.append(f"需避免: {negative}")
+
+        result = "摄影构图指导:\n" + "\n".join(f"- {line}" for line in lines)
+        _log(f"[构图] 已生成 ({len(result)} 字符)")
+        return result
+    except Exception as e:  # noqa: BLE001 - 构图失败不阻塞主流程
+        _log(f"[构图] LLM 请求失败: {e}，将使用默认构图。")
+        return ""
+
+
+def build_character_consistency_sections(character_desc: str) -> tuple[str, str]:
+    """角色参考图一致性注入：返回 (prompt 前缀, instructions 后缀)。
+
+    用法：角色参考图放在参考图列表第一位，prompt 前置角色设定、instructions 追加
+    face consistency 要求（原 fashion_pipeline.py 的角色图注入逻辑）。
+    """
+    char_intro = (
+        f"角色设定：请以提供的角色参考图为原型，绘制该角色。{character_desc}\n"
+        "保持角色的面部特征、发型、发色和整体气质一致，"
+        "但为她换上采集到的服饰穿搭。"
+    )
+    instructions_suffix = (
+        "请严格参照角色参考图的面部特征、发型发色来绘制该角色，"
+        "确保角色辨识度（face consistency），"
+        "同时为她穿上参考服饰图中的全套穿搭。"
+    )
+    return char_intro, instructions_suffix

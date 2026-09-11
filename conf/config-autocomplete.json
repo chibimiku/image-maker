@@ -6,7 +6,7 @@
     "local_booru_tagger_model_path": "",
     "local_booru_tagger_tags_path": "",
     "local_booru_tagger_max_tags": 60,
-    "local_booru_tagger_general_threshold": 0.35,
+    "local_booru_tagger_general_threshold": 0.45,
     "local_booru_tagger_character_threshold": 0.35,
     "local_booru_tagger_meta_threshold": 0.75,
     "local_booru_tagger_rating_threshold": 0.75,

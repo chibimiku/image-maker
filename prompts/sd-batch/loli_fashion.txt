@@ -1,0 +1,21 @@
+# 源脚本: sd_gen_loli_fashion.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdlolitafashion
+# 文件前缀: loli
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/loli_fashion.txt --output-subdir sdlolitafashion --prefix loli
+
+1girl, solo, sweet lolita, pastel pink dress, lace, ribbons, bows, cupcake skirt, frilled thigh-highs, platform heels, full body, standing in a candy shop, bright pastel light, cute playful
+1girl, solo, gothic lolita, black dress, black lace, cross necklace, frilled thigh-highs, platform heels, full body, standing in a moonlit rose garden beside a cathedral, pale moonlight, dark roses
+1girl, solo, classic lolita, ivory and burgundy floral dress, elegant a-line, bonnet, frilled thigh-highs, platform heels, full body, standing in a warm antique library, golden lamp light
+1girl, solo, qi lolita, qipao collar, frog buttons, chinese embroidery, frilled thigh-highs, platform heels, full body, standing in a classical chinese garden by a moon gate, red lanterns
+1girl, solo, wa lolita, kimono sleeves, obi sash, kanzashi hairpin, frilled thigh-highs, platform heels, full body, standing under a red torii gate at a quiet shrine, cherry blossoms
+1girl, solo, country lolita, gingham dress, straw hat, wicker basket, frilled thigh-highs, platform heels, full body, standing in a sunflower field, bright summer light
+1girl, solo, hime lolita, princess dress, tiara, jeweled accessories, big sleeves, frilled thigh-highs, platform heels, full body, standing in a grand palace ballroom, crystal chandelier, gold light
+1girl, solo, punk lolita, tartan plaid, safety pins, chains, frilled thigh-highs, platform heels, full body, standing on a neon-lit city street at night, rebellious cool mood
+1girl, solo, sailor lolita, sailor collar, navy and white, anchor motif, frilled thigh-highs, platform heels, full body, standing on a seaside pier with a lighthouse, sea breeze, sunset
+1girl, solo, military lolita, military jacket, epaulettes, brass buttons, beret, frilled thigh-highs, platform heels, full body, standing on a vintage train platform, morning light
+1girl, solo, steampunk lolita, gears, goggles, brass accents, corset, frilled thigh-highs, platform heels, full body, standing in a warm steampunk workshop, amber gaslight
+1girl, solo, pirate lolita, tricorn hat, striped stockings, skull motif, frilled thigh-highs, platform heels, full body, standing on a sailing ship deck at golden hour
+1girl, solo, maid lolita, maid apron, frills, headdress, frilled thigh-highs, platform heels, full body, standing in an elegant western mansion tea room, lace curtains
+1girl, solo, nurse lolita, nurse cap, red cross, white apron, frilled thigh-highs, platform heels, full body, standing in a cozy pastel clinic room, soft white and pink tones
+1girl, solo, fairy lolita, translucent wings, flower crown, vines, frilled thigh-highs, platform heels, full body, standing in a moonlit forest glade, fireflies, magical serene

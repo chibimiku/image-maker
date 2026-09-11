@@ -64,6 +64,8 @@ class StyleRefModeCombo(QComboBox):
     def __init__(self, parent=None, config_file=CONFIG_IMAGE_FILE):
         super().__init__(parent)
         self.config_file = config_file
+        # 用户上次选择的模式（含参考图不可用期间被强制回退到「关闭」前的选择）
+        self._user_mode = MODE_OFF
         self.setToolTip("画风参考图模式：参考图仅提取画风，不影响主体与构图（样式参考图为空时不可用）")
         for mode_key, mode_label in STYLE_REF_MODES:
             self.addItem(mode_label, mode_key)
@@ -72,19 +74,25 @@ class StyleRefModeCombo(QComboBox):
 
     def _on_index_changed(self):
         mode = self.currentData() or MODE_OFF
+        self._user_mode = mode
         save_style_ref_mode(mode, self.config_file)
         self.mode_changed.emit(mode)
 
     def set_mode(self, mode, has_ref=True):
         """设置当前模式；has_ref=False 时强制回退到关闭并禁用其余选项。"""
         idx = self.findData(mode)
+        self._user_mode = mode if idx >= 0 else MODE_OFF
         self.blockSignals(True)
         self.setCurrentIndex(idx if idx >= 0 else self.findData(MODE_OFF))
         self._apply_availability(bool(has_ref))
         self.blockSignals(False)
 
     def set_modes_available(self, has_ref):
-        """样式列表加载/切换时调用：按参考图是否存在启用/禁用模式项。"""
+        """样式列表加载/切换时调用：按参考图是否存在启用/禁用模式项。
+
+        参考图不可用会临时回退到「关闭」，但不会覆盖用户上次的选择；
+        一旦切回有参考图的样式，自动恢复用户上次选择的模式。
+        """
         self.blockSignals(True)
         self._apply_availability(bool(has_ref))
         self.blockSignals(False)
@@ -93,7 +101,15 @@ class StyleRefModeCombo(QComboBox):
         for i in range(self.count()):
             enabled = has_ref or self.itemData(i) == MODE_OFF
             self.model().item(i).setEnabled(enabled)
-        if not has_ref and (self.currentData() or MODE_OFF) != MODE_OFF:
+        if has_ref:
+            # 参考图可用时，恢复用户上次选择的模式（若曾被强制回退到「关闭」）
+            saved = self._user_mode
+            if saved != MODE_OFF and (self.currentData() or MODE_OFF) != saved:
+                idx = self.findData(saved)
+                if idx >= 0:
+                    self.setCurrentIndex(idx)
+        elif (self.currentData() or MODE_OFF) != MODE_OFF:
+            # 参考图不可用：临时回退到「关闭」，保留 _user_mode 以便后续恢复
             self.setCurrentIndex(self.findData(MODE_OFF))
 
     def selected_mode(self):

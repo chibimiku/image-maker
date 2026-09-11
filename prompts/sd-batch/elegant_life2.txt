@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_elegant_life2.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdelegant2
+# 文件前缀: elegant
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/elegant_life2.txt --output-subdir sdelegant2 --prefix elegant
+
+1girl, solo, elegant, refined, playing violin by a tall window in a sunlit music room, chin resting on the violin, flowing evening dress, warm light, sophisticated calm, medium shot
+1girl, solo, elegant, refined, having afternoon tea alone on a garden terrace, porcelain teacup and rose cake on a lace table, parasol, soft sunlight, refined and serene, medium shot
+1girl, solo, elegant, refined, baking pastries in a bright french-style kitchen, rolling dough on a marble counter, flour dust, aproned dress, warm morning light, graceful, medium shot
+1girl, solo, elegant, refined, playing the guzheng in a refined chinese room, fingers plucking the strings, hanfu, incense smoke curling, soft light, meditative grace, medium shot
+1girl, solo, elegant, refined, doing silk embroidery at a wooden frame in a quiet sewing room, needle and silk thread, delicate hands, soft window light, focused calm, upper body
+1girl, solo, elegant, refined, trimming roses in a formal garden, holding pruning shears and a basket of blooms, wide-brimmed hat, morning dew, refined and peaceful, medium shot
+1girl, solo, elegant, refined, painting an oil painting on canvas in a sunlit atelier, brush in hand, paint palette, beret, easel, soft light, artistic concentration, medium shot
+1girl, solo, elegant, refined, playing a harp in a grand hall, fingers on the strings, flowing gown, tall columns, soft golden light, ethereal elegance, full body
+1girl, solo, elegant, refined, playing a game of go alone in a quiet room, contemplating a stone held between her fingers, wooden board, a pot of tea, soft light, thoughtful elegance, upper body
+1girl, solo, elegant, refined, sitting at a vintage vanity table arranging her hair in the mirror, brushing her long hair, lace peignoir, soft morning light, delicate and graceful, medium shot

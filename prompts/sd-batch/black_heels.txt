@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_black_heels.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdblackheels
+# 文件前缀: black
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/black_heels.txt --output-subdir sdblackheels --prefix black
+
+768x1152|1girl, solo, black thighhighs, stiletto heels, glamorous, alluring gaze over her shoulder, standing on a neon city street at night, elegant black dress, full body, seductive, cinematic
+832x1216|1girl, solo, black thighhighs, stiletto heels, glamorous, sitting on a bar stool with one leg crossed over the other, holding a cocktail, smoky bar, charming smile, sultry, full body
+896x1152|1girl, solo, black thighhighs, stiletto heels, glamorous, leaning against a wall with one hand on her hip, one leg slightly bent, evening gown, sophisticated and alluring, soft dramatic light, full body
+1024x1360|1girl, solo, black thighhighs, stiletto heels, glamorous, walking down a grand staircase with a confident stride, long evening gown, red carpet, alluring gaze at the camera, full body, cinematic
+1216x832|1girl, solo, black thighhighs, stiletto heels, glamorous, reclining on a velvet sofa, one leg extended, silk dress, boudoir lighting, enticing expression, full body, luxurious sensual mood

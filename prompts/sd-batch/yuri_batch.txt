@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_yuri_batch.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1216x832
+# 输出子目录: sdyuri
+# 文件前缀: yuri
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/yuri_batch.txt --output-subdir sdyuri --prefix yuri
+
+2girls, yuri, one girl hugging another from behind, arms wrapped around her waist, cheek to cheek, silver hair girl hugging pink twin-tail girl, gentle smiles, standing, full body, rose garden, soft afternoon light, pastel colors
+2girls, yuri, back to back, shoulders touching, standing on school rooftop, one blonde twintail girl and one black bob girl, looking over shoulders at each other, arms crossed, school uniform, sunset sky, low angle, wind blowing hair
+2girls, yuri, foreheads touching, eyes closed, holding hands, close-up, one red long hair girl and one silver short hair girl, winter night, snowflakes falling, warm wool scarves, cozy bokeh lighting
+2girls, yuri, face to face, holding both hands, gazing into each other's eyes, blushing, one pink long hair girl and one blonde braid girl, lolita dresses, cherry blossom park, falling petals, spring, medium shot
+2girls, yuri, standing close, looking at each other with playful smiles, one girl poking the other's cheek, one brown wavy hair girl and one teal bob hair girl, cafe terrace, golden hour, candid laughing moment, warm tones
+2girls, yuri, one purple twin-tail girl standing in front making a heart with her hands, one orange short hair girl crouching behind, cheery smiles, night market street, colorful paper lanterns, festive bokeh, upper body
+2girls, yuri, one girl cupping the other's cheek, tender gaze, mutual blush, close-up portrait, one white long hair girl and one black hime cut girl, cozy bedroom morning light, soft pastel tones
+2girls, yuri, sitting side by side on a grassy hill, watching sunset, leaning heads on each other, silhouette, one long hair girl and one short hair girl, golden backlight, hair glowing at the edges, cinematic wide shot
+2girls, yuri, tight hug, arms wrapped around each other, eyes closed, happy tears, one dark blue long hair girl and one light green bob girl, train station platform, snow falling, winter coats, emotional reunion, medium shot
+2girls, yuri, holding hands and twirling, laughing, skirts and hair flowing, one ginger twin-tail girl and one navy ponytail girl, beach shoreline, waves, summer, high angle, motion blur background, vibrant colors

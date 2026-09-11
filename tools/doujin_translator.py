@@ -3,8 +3,13 @@ import json
 import base64
 import io
 import time
+import sys
 from openai import OpenAI
 from PIL import Image
+
+# tools/ 下运行时确保项目根在 sys.path
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
 
 # --- PyQt6 界面相关库 ---
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, 
@@ -19,7 +24,7 @@ from utils.gui_entry import configure_qt_application_attributes
 
 # --- 读取配置文件 ---
 def load_config():
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config.json")
+    config_path = os.path.join(BASE_DIR, "conf", "config.json")
     if os.path.exists(config_path):
         try:
             with open(config_path, 'r', encoding='utf-8') as f:

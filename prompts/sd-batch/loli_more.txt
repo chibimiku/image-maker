@@ -1,0 +1,14 @@
+# 源脚本: sd_gen_loli_more.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdloli_more
+# 文件前缀: lolimore
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/loli_more.txt --output-subdir sdloli_more --prefix lolimore
+
+1024x1024|1girl, solo, sweet lolita, pink lace dress, ribbons, bows, twirling in a spin, skirt and hair flaring, pastel garden, joyful dynamic, full body
+768x1152|1girl, solo, gothic lolita, black lace dress, cross, ballet pose on tiptoe, one arm raised, dark rose garden, dramatic, full body, dynamic
+1216x832|1girl, solo, wa lolita, kimono sleeves, obi sash, running with hair flying, cherry blossom path, motion, full body, dynamic
+832x1216|1girl, solo, hime lolita, princess gown, tiara, graceful curtsy lifting the skirt, crystal ballroom, full body, elegant dynamic
+896x1152|1girl, solo, classic lolita, ivory lace dress, bonnet, leaning on a garden railing looking back, soft warm light, full body, dynamic
+1216x832|1girl, solo, country lolita, gingham dress, straw hat, stretching happily with arms up, sunflower field, morning light, full body, dynamic
+832x1216|1girl, solo, fairy lolita, ivory lace dress, translucent wings, flower crown, holding a glowing flower and looking back, moonlit forest, full body, dynamic
+1152x896|1girl, solo, qi lolita, qipao dress, frog buttons, walking down stairs glancing back, classical courtyard, cascading light, full body, dynamic

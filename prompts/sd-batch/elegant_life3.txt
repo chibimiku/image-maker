@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_elegant_life3.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdelegant3
+# 文件前缀: elegant
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/elegant_life3.txt --output-subdir sdelegant3 --prefix elegant
+
+1girl, solo, elegant, refined, sewing a dress at a vintage sewing table, needle and fabric, measuring tape around her neck, warm lamp light, focused and graceful, upper body
+1girl, solo, elegant, refined, blending perfume with a glass dropper at an apothecary table, perfume bottles and dried flowers, soft warm light, refined and delicate, upper body
+1girl, solo, elegant, refined, watering plants in a glass greenhouse, holding a brass watering can, hanging ferns and orchids, golden light through glass, serene, medium shot
+1girl, solo, elegant, refined, copying a text with a brush in a tranquil room, rice paper and ink, hanfu, soft incense, calm concentration, upper body
+1girl, solo, elegant, refined, playing cello in a warm music room, bow across the strings, elegant dress, soft light, soulful, medium shot
+1girl, solo, elegant, refined, tasting coffee from a porcelain cup on a quiet balcony, morning light, city rooftops beyond, luxurious calm, medium shot
+1girl, solo, elegant, refined, writing a letter with a fountain pen at a wooden desk, ink bottle and sealing wax, warm lamp light, nostalgic and delicate, upper body
+1girl, solo, elegant, refined, playing the pipa in a refined room with a moon window, hanfu, plum blossom branch, serene beauty, medium shot
+1girl, solo, elegant, refined, sketching a garden scene in a sketchbook on a folding chair, holding a pencil, watercolor box, flowers around, bright daylight, gentle, medium shot
+1girl, solo, elegant, refined, reading a book beside a crackling fireplace, blanket over her lap, armchair, cozy warm firelight, peaceful elegance, medium shot

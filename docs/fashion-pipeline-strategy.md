@@ -1,5 +1,13 @@
 # 服饰采集与少女生图策略基线
 
+> 2026-09 重构说明：本文档记录的是策略基线（站点/数据结构/桥接约定），仍有效。
+> 入口脚本已调整——根目录 `fashion-generate.py` 归档至 `useless/scripts/fashion/`，
+> 无头批量统一走 `tools/fashion_batch.py --profile <名称>`
+> （主题画像在 `prompts/fashion-batch-themes.json`），单图分析用 `tools/analyze_fashion.py`，
+> 抓取工具移到 `tools/web-probe.py`；GUI 入口不变（`modules/fashion_collection/collector_tab.py`）。
+> 文中历史命令示例中的 `python fashion-generate.py ...` 请替换为
+> `python tools/fashion_batch.py --profile ...` / 直接使用 GUI。
+
 本文档用于记录当前服饰采集与少女生图链路的可复现基线，作为后续新增 `theme`、`style`、`hybrid` 混采策略前的留档。
 
 目标：
@@ -21,8 +29,9 @@
 
 当前入口脚本：
 
-- 根目录 CLI：`fashion-generate.py`
-- 根目录抓取工具：`web-probe.py`
+- 无头批量 CLI：`tools/fashion_batch.py`（主题画像 `prompts/fashion-batch-themes.json`）
+- 单图分析 CLI：`tools/analyze_fashion.py`
+- 抓取工具：`tools/web-probe.py`
 - GUI 入口：`modules/fashion_collection/collector_tab.py`
 
 ## 2. 当前实现结构
@@ -337,7 +346,7 @@ python fashion-generate.py --site wear --pages 1 --parts dress shoes socks --asp
 ### 9.3 只做网页抓取验证
 
 ```bash
-python web-probe.py download "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp" --download-dir cache/web-probe-downloads --limit 2
+python tools/web-probe.py download "https://wear.jp/yyuk1101a/26674416/" --attr src --contains "imgz.jp" --download-dir cache/web-probe-downloads --limit 2
 ```
 
 ## 10. 后续实施边界

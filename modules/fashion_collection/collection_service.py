@@ -20,6 +20,7 @@ from .lolibrary_adapter import LolibraryAdapter
 from .mayla_adapter import MaylaAdapter
 from .wear_adapter import WearAdapter
 from .models import (
+    CatalogItem,
     CollectionBundle,
     CollectedAsset,
     PART_BAG,
@@ -1108,3 +1109,62 @@ class FashionCollectionService:
         if ext in {".jpg", ".jpeg", ".png", ".webp"}:
             return ext
         return ".jpg"
+
+
+def load_bundle_from_dir(bundle_dir: str, log_callback: Callable[[str], None] | None = None) -> CollectionBundle | None:
+    """从已有采集目录读取 collection_bundle.json 复用一个 CollectionBundle。
+
+    对应原 fashion_pipeline.py 的 --no-collect/--bundle-dir 复用逻辑。
+    目录中无 collection_bundle.json 时返回 None（调用方可回退为收集目录内所有图片）。
+    """
+    def _log(msg: str) -> None:
+        if log_callback:
+            log_callback(msg)
+
+    bundle_path = os.path.join(bundle_dir, "collection_bundle.json")
+    if not os.path.isfile(bundle_path):
+        _log(f"[复用] 未找到 collection_bundle.json: {bundle_path}")
+        return None
+    try:
+        with open(bundle_path, "r", encoding="utf-8") as f:
+            payload = _json_module.load(f)
+    except Exception as e:  # noqa: BLE001
+        _log(f"[复用] collection_bundle.json 解析失败: {e}")
+        return None
+
+    assets: list[CollectedAsset] = []
+    for asset_data in payload.get("assets", []) or []:
+        item_data = asset_data.get("item", {}) or {}
+        item = CatalogItem(
+            source_site=item_data.get("source_site", ""),
+            item_id=item_data.get("item_id", ""),
+            item_url=item_data.get("item_url", ""),
+            title=item_data.get("title", ""),
+            category_slug=item_data.get("category_slug", ""),
+            category_label=item_data.get("category_label", ""),
+            brand=item_data.get("brand", ""),
+            item_number=item_data.get("item_number", ""),
+            thumbnail_url=item_data.get("thumbnail_url", ""),
+            image_urls=list(item_data.get("image_urls", []) or []),
+            notes=item_data.get("notes", ""),
+            tags=list(item_data.get("tags", []) or []),
+        )
+        assets.append(CollectedAsset(
+            part=asset_data.get("part", ""),
+            item=item,
+            image_url=asset_data.get("image_url", ""),
+            local_path=asset_data.get("local_path", ""),
+            source_search_url=asset_data.get("source_search_url", ""),
+            prompt_hint=asset_data.get("prompt_hint", ""),
+        ))
+
+    bundle = CollectionBundle(
+        site_name=payload.get("site_name", ""),
+        brand_slug=payload.get("brand_slug", ""),
+        search_url=payload.get("search_url", ""),
+        output_dir=bundle_dir,
+        assets=assets,
+        missing_parts=list(payload.get("missing_parts", []) or []),
+    )
+    _log(f"[复用] 已加载 bundle: {len(assets)} 件素材 (site={bundle.site_name}, brand={bundle.brand_slug})")
+    return bundle

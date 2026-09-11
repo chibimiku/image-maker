@@ -1,7 +1,5 @@
 import os
-import io
 import json
-import base64
 import datetime
 import re
 import hashlib
@@ -22,6 +20,7 @@ from utils.styles import style_prompt, style_ref_image, ref_image_valid, build_r
 from utils.style_ref_widget import StyleRefModeCombo
 from utils.pixiv_tag_matcher import get_local_pixiv_tag_candidates
 from utils.task_runtime import SystemNotifier, TaskCountdown
+from utils.image_encoding import compress_and_encode_image as _base_compress_and_encode_image
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 from modules.image_analysis.dir_batch_selector import DirectoryBatchSelectorDialog
@@ -116,6 +115,21 @@ def _to_bool(value, default=False):
         return False
     return default
 
+def _sanitize_title_text(text, fallback_text=""):
+    """清理标题：去掉英文/罗马字/数字/ASCII 标点，只保留中日韩（CJK/假名/全角）字符。
+
+    用于防御性地处理模型偶尔在 japanese_title / chinese_title 中混入的
+    「意义不明英文」（如 'rocking'）、罗马字、数字或 ASCII 标点。
+    若清理后为空，则回退到 fallback_text（通常是中文标题）或空串。
+    """
+    text = str(text or "")
+    cleaned = "".join(
+        ch for ch in text if ord(ch) > 0x7F and not ch.isspace()
+    )
+    if cleaned:
+        return cleaned
+    return str(fallback_text or "").replace("\n", "").strip()
+
 def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=30):
     if not isinstance(result_json, dict):
         return {}
@@ -162,8 +176,8 @@ def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=
     if limit <= 0:
         limit = 30
     normalized["english_description"] = str(english_description).strip()
-    normalized["japanese_title"] = str(japanese_title).strip()
-    normalized["chinese_title"] = str(chinese_title).strip()
+    normalized["japanese_title"] = _sanitize_title_text(japanese_title, fallback_text=chinese_title)
+    normalized["chinese_title"] = _sanitize_title_text(chinese_title, fallback_text="")
     normalized["pixiv_tags"] = [str(tag).strip() for tag in pixiv_tags if str(tag).strip()]
     normalized["short_description"] = str(short_description).strip()
     booru_tags_normalized = normalize_booru_tags(booru_tags, limit=limit)
@@ -172,6 +186,110 @@ def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=
     normalized["english_description"] = filter_facial_degrading_from_text(normalized["english_description"])
     normalized["short_description"] = filter_facial_degrading_from_text(normalized["short_description"])
     return normalized
+
+def _extract_json_candidates_from_text(text):
+    """从可能含前置文本 / 多个拼接 JSON 的文本中提取所有可解析的 JSON 对象（dict）。
+
+    有些模型在 json_object 模式下仍会先输出一个「preparing/status」前置对象再接真正的结果对象，
+    导致整段 json.loads 失败。此函数逐字符扫描顶层平衡的 {...} 对象，收集所有能解析出的 dict 候选。
+    """
+    text = str(text or "").strip()
+    candidates = []
+    if not text:
+        return candidates
+
+    # 先尝试整段直接解析（最常见、最可靠）
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            candidates.append(parsed)
+    except Exception:
+        pass
+
+    # 逐字符扫描顶层平衡对象
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] != "{":
+            i += 1
+            continue
+        depth = 0
+        j = i
+        in_str = False
+        esc = False
+        found_closing = False
+        while j < n:
+            ch = text[j]
+            if in_str:
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+            else:
+                if ch == '"':
+                    in_str = True
+                elif ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            parsed = json.loads(text[i:j + 1])
+                            if isinstance(parsed, dict):
+                                candidates.append(parsed)
+                        except Exception:
+                            pass
+                        i = j + 1
+                        found_closing = True
+                        break
+            j += 1
+        if not found_closing:
+            break
+
+    # 去重
+    seen = set()
+    deduped = []
+    for c in candidates:
+        try:
+            key = json.dumps(c, sort_keys=True, ensure_ascii=False)
+        except Exception:
+            key = repr(c)
+        if key not in seen:
+            seen.add(key)
+            deduped.append(c)
+    return deduped
+
+
+def _score_analysis_json_candidate(candidate, step_label):
+    """给候选 JSON 打分，从拼接/前置文本里挑出真正的分析结果对象。
+
+    结果对象通常包含 english_description 及若干结果字段；前置的 status/message 包装对象应被压低。
+    """
+    result_keys = (
+        "english_description", "japanese_title", "chinese_title",
+        "short_description", "pixiv_tags", "booru-tags", "booru_tags",
+        "aspect_ratio",
+    )
+    score = 0
+    has_english = False
+    for key in result_keys:
+        if key in candidate:
+            if key == "english_description":
+                has_english = True
+                score += 12
+            else:
+                score += 3
+    if has_english:
+        score += 6
+    # 前置状态包装 / 思考结构降低优先级
+    if "status" in candidate and "message" in candidate:
+        score -= 8
+    if not has_english and set(candidate.keys()).issubset({"status", "message", "reason"}):
+        score -= 20
+    return score
+
 
 def _safe_json_from_response(response, log_callback=None, step_label="Step"):
     """安全地从 API response 中解析 JSON，并在失败时记录原始响应信息用于调试。"""
@@ -210,6 +328,17 @@ def _safe_json_from_response(response, log_callback=None, step_label="Step"):
     try:
         return json.loads(content)
     except json.JSONDecodeError as e:
+        # 模型可能先输出前置 status/message 对象再接真正的结果对象，导致整段解析失败。
+        # 尝试从文本中提取候选并挑选最像结果对象的那个。
+        candidates = _extract_json_candidates_from_text(content)
+        if candidates:
+            best = max(candidates, key=lambda c: _score_analysis_json_candidate(c, step_label))
+            if log_callback:
+                log_callback(
+                    f"{step_label} 原始响应含拼接/前置文本，已自动解析出结果对象 "
+                    f"(候选 {len(candidates)} 个)"
+                )
+            return best
         msg = f"{step_label} JSON 解析失败: {e}\n原始内容(截断): {content_preview}"
         if log_callback:
             log_callback(msg)
@@ -284,42 +413,14 @@ def _format_ui_log_json(value) -> str:
         return str(value)
 
 def compress_and_encode_image(image_source, max_dim=2048, log_callback=None):
-    try:
-        if isinstance(image_source, str):
-            img = Image.open(image_source)
-        else:
-            img = image_source 
+    """单图分析专用的图片编码（保留原有 quality=100 与日志行为）。
 
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-        
-        original_width, original_height = img.size
-        size_msg = f"原始图片尺寸: {original_width}x{original_height}"
-        if log_callback:
-            log_callback(size_msg)
-        print(size_msg)
-
-        if max(original_width, original_height) > max_dim:
-            scaling_factor = max_dim / max(original_width, original_height)
-            new_width = int(original_width * scaling_factor)
-            new_height = int(original_height * scaling_factor)
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            resize_msg = f"图片已成功压缩为: {new_width}x{new_height}"
-            if log_callback:
-                log_callback(resize_msg)
-            print(resize_msg)
-
-        buffered = io.BytesIO()
-        img.save(buffered, format="JPEG", quality=100)
-        base64_string = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return "image/jpeg", base64_string
-
-    except Exception as e:
-        error_msg = f"处理图片时发生错误: {e}"
-        if log_callback:
-            log_callback(error_msg)
-        print(error_msg)
-        return None, None
+    实际实现已抽到公共模块 utils/image_encoding.py，这里仅做薄封装以维持
+    本模块原有调用契约与输出行为（quality=100、可选 log_callback）。
+    """
+    return _base_compress_and_encode_image(
+        image_source, max_dim=max_dim, quality=100, log_callback=log_callback
+    )
 
 def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, pixiv_candidates=None, extra_llm_prompt="", timeout_seconds=120, status_callback=None):
     mime_type, base64_image = compress_and_encode_image(image_source, log_callback=log_callback)
@@ -709,6 +810,10 @@ class WorkerThread(QThread):
         )
         
         if initial_result:
+            # 方式1：只有 Step 1 基于原图视觉分析得到的结果才是“原图真实内容”的标签来源；
+            # 精修/重算阶段会按目标审美改写描述（例如注入蕾丝宝石手套），因此最终标签一律以这里为准。
+            original_pixiv_tags = list(initial_result.get("pixiv_tags", []) or [])
+            original_booru_tags = list(initial_result.get("booru-tags", []) or [])
             self.log_signal.emit("Step 1 完成。初步结果已获取。")
             if self.enable_refine:
                 if self.isInterruptionRequested():
@@ -729,14 +834,15 @@ class WorkerThread(QThread):
                 )
                 if final_result:
                     final_result["aspect_ratio"] = calculate_closest_aspect_ratio(self.image_source)
-                    initial_tags = initial_result.get("pixiv_tags", [])
+                    initial_tags = original_pixiv_tags
                     refined_tags = final_result.get("pixiv_tags", [])
                     final_result["pixiv_tags_first"] = initial_tags
                     final_result["pixiv_tags_second"] = refined_tags
-                    if refined_tags:
-                        final_result["pixiv_tags"] = refined_tags
-                    elif initial_tags:
-                        final_result["pixiv_tags"] = initial_tags
+                    # 方式1：最终 pixiv_tags 以原图为准；refine 按目标审美改写后的标签仅保留在 pixiv_tags_second 供对比，
+                    # 不再用它覆盖分析结果（否则会出现原图没有手套却标上“レース手袋”的问题）。
+                    final_result["pixiv_tags"] = initial_tags if initial_tags else refined_tags
+                    if original_booru_tags:
+                        final_result["booru-tags"] = original_booru_tags
                     if local_booru_tags:
                         final_result["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=self.booru_tag_limit, output_style="space")
                 else:
@@ -822,7 +928,20 @@ class WorkerThread(QThread):
                     final_result = recomputed_result
                 else:
                     self.log_signal.emit("Step 5 执行失败，已保留之前的 pixiv_tags 结果。")
+            # 方式1：无论之后是否启用服装搭配检查 / 去除照片风格 / 重算 pixiv_tags，
+            # 最终标签一律以原图（Step 1）为准，避免这些阶段基于“被注入目标审美后的描述”
+            # 重新生成的标签（如蕾丝宝石手套）污染分析结果。
             if final_result:
+                if not final_result.get("pixiv_tags_second"):
+                    derived_tags = final_result.get("pixiv_tags", []) or []
+                    if derived_tags and derived_tags != original_pixiv_tags:
+                        final_result["pixiv_tags_second"] = derived_tags
+                if not final_result.get("pixiv_tags_first"):
+                    final_result["pixiv_tags_first"] = original_pixiv_tags
+                if original_pixiv_tags:
+                    final_result["pixiv_tags"] = original_pixiv_tags
+                if original_booru_tags:
+                    final_result["booru-tags"] = original_booru_tags
                 self.last_status = "success"
             self.finish_signal.emit(final_result if final_result else {})
         else:

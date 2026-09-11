@@ -1,0 +1,21 @@
+# 源脚本: sd_gen_miku_birthday2.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdmiku_birthday2
+# 文件前缀: miku
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/miku_birthday2.txt --output-subdir sdmiku_birthday2 --prefix miku
+
+1girl, hatsune_miku, birthday, standing in a holographic space with glowing musical notes floating around, teal holograms of the number 39, futuristic, ethereal, full length
+1girl, hatsune_miku, birthday, performing on stage before a sea of teal glowsticks, crowd silhouettes, huge holographic 39 above, celebratory concert, wide shot
+1girl, hatsune_miku, birthday, surrounded by drifting iridescent soap bubbles, holding a bubble wand, teal twintails, soft pastel birthday light, dreamy, full length
+1girl, hatsune_miku, birthday, standing in neon-lit rain holding a clear umbrella, reflections on wet street, city birthday lights, teal accents, cinematic, full length
+1girl, hatsune_miku, birthday, with long-exposure light painting trails forming the number 39 behind her, glowing LED ribbons, night celebratory, creative, motion
+1girl, hatsune_miku, birthday, celebrating at a poolside birthday party with floating balloons and cake on a tray, teal swimsuit cover-up, sunny pool, festive, full length
+1girl, hatsune_miku, birthday, at a pastel dessert cart with ice cream and birthday sweets, holding a colorful ice cream cone, teal twintails, sweet festive vibe, medium shot
+1girl, hatsune_miku, birthday, standing in an infinite mirror room of lights, reflections repeating endlessly, teal birthday lights, surreal, full length
+1girl, hatsune_miku, birthday, walking through a big teal balloon arch with the number 39, party entrance, confetti, festive, full length
+1girl, hatsune_miku, birthday, wearing a funny colorful birthday hat, close-up holding a slice of cake, playful wink, teal twintails, fun party, medium shot
+1girl, hatsune_miku, birthday, backlit silhouette blowing out candles on a cake, dramatic rim light, candles glow, intimate, full length
+1girl, hatsune_miku, birthday, walking on a festive city street with hanging lanterns and 39 banners, night warm lights, teal twintails, medium shot
+1girl, hatsune_miku, birthday, standing on a stage floor with glowing neon happy birthday miku 39 text, spotlight, teal twintails, joyful, full length
+1girl, hatsune_miku, birthday, on a rooftop at sunrise greeting a new year, teal twintails, warm morning light, hopeful, 39 flags, wide shot
+1girl, hatsune_miku, birthday, wearing a small tiara and princess-like birthday dress, holding a bouquet, elegant, festive, full length

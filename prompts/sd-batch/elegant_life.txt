@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_elegant_life.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdelegant
+# 文件前缀: elegant
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/elegant_life.txt --output-subdir sdelegant --prefix elegant
+
+1girl, solo, elegant, refined, reading quietly in a cozy classical study, sitting in a leather armchair, a cup of tea on the side table, golden afternoon light through tall windows, tall bookshelves, graceful and peaceful, upper body
+1girl, solo, elegant, refined, playing a grand piano in a bright music salon, hands on the keys, elegant dress, warm window light, sophisticated atmosphere, medium shot
+1girl, solo, elegant, refined, practicing tea ceremony in a serene tea room, pouring green tea into a small cup, kimono, soft natural light, minimalist tatami interior, graceful motion, medium shot
+1girl, solo, elegant, refined, arranging flowers in ikebana style at a low wooden table, carefully placing a branch and a blossom, soft diffused light, delicate kimono, minimalist Japanese-style room, calm and graceful, upper body
+1girl, solo, elegant, refined, practicing calligraphy with a brush on rice paper in a tranquil study, inkstone and brushes, Chinese-style room with scrolls, soft lantern light, graceful posture, medium shot

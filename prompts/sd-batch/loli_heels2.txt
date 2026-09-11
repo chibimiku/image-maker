@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_loli_heels2.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdloli_heels2
+# 文件前缀: loliheels
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/loli_heels2.txt --output-subdir sdloli_heels2 --prefix loliheels
+
+832x1216|1girl, solo, gothic lolita, black lace dress, cross, platform heels, walking down a grand castle staircase, dramatic candlelight, full body, dynamic
+1024x1024|1girl, solo, sweet lolita, pastel pink dress, ribbons, platform heels, twirling on a colorful candy street, skirt flaring, bright festive storefronts, full body, dynamic
+1216x832|1girl, solo, classic lolita, ivory lace dress, bonnet, platform heels, sitting on a garden bench with legs crossed, holding a book, roses, warm afternoon, full body, elegant
+896x1152|1girl, solo, wa lolita, kimono sleeves, obi sash, kanzashi hairpin, platform heels, standing on a red wooden bridge at a shrine, holding a paper umbrella, cherry blossoms, full body, graceful
+1152x896|1girl, solo, fairy lolita, ivory lace dress, translucent wings, flower crown, platform heels, jumping in a moonlit forest, fireflies, mid-air, full body, dynamic

@@ -1,0 +1,38 @@
+{
+  "说明": "fashion 批量采集-生图 CLI 主题画像（tools/fashion_batch.py --profile <名称> 使用）。字段含义见 tools/fashion_batch.py --help。",
+  "profiles": {
+    "blonde_whitesilk": {
+      "theme": "甜美洛丽塔",
+      "character_spec": "主角描述: 一位金发少女，金色长发自然披散，发丝柔亮，五官精致，眼神温柔；身穿白色过膝长袜（白丝/白色高筒袜）与高跟鞋，姿态优雅，全身像。",
+      "extra_prompt": "请生成一位金发少女，金色长发，白色过膝长袜（白丝），高跟鞋，全身像，姿态优雅，既有日系少女的精致又带一点成熟气质。",
+      "save_subdir": "fashion-generate",
+      "collect_base": "lolibrary",
+      "prefix": "blonde_whitesilk",
+      "parts": ["dress", "shoes", "socks"],
+      "proxy": "http://127.0.0.1:7897",
+      "analyze_step1": false
+    },
+    "sexy_blonde": {
+      "theme": "甜美洛丽塔",
+      "character_spec": "主角描述: 一位性感撩人的金发少女，金色长发，身材高挑曲线玲珑；白色过膝长袜（白丝/白色高筒袜）与高跟鞋，姿态妩媚，眼神迷离，气质成熟性感。",
+      "extra_prompt": "请生成一位性感魅惑的金发少女，身材高挑纤细、曲线优美，金色长发披散；穿着白色过膝长袜（白丝）与高跟鞋，姿态慵懒妩媚，眼神迷离，成熟优雅的气质，突出腿部线条与白丝高跟，全身像，日系时尚插画。",
+      "save_subdir": "fashion-sexy",
+      "collect_base": "sexy",
+      "prefix": "sexy_blonde",
+      "parts": ["dress", "shoes", "socks"],
+      "proxy": "http://127.0.0.1:7897",
+      "analyze_step1": true
+    },
+    "backless_blonde": {
+      "theme": "甜美洛丽塔",
+      "character_spec": "主角描述: 一位优雅性感的金发少女，金色长发；白色过膝长袜（白丝/白色高筒袜）与高跟鞋；露背裙装设计（backless），背部与肩颈线条优美，姿态妩媚，气质成熟性感且统一。",
+      "extra_prompt": "请生成一位优雅性感的金发少女，金色长发披散，白色过膝长袜（白丝）与高跟鞋；裙装为露背设计（backless），背部线条优美，姿态妩媚优雅，回眸或背影尽显曲线，全身像，日系时尚插画。",
+      "save_subdir": "fashion-backless",
+      "collect_base": "backless",
+      "prefix": "backless_blonde",
+      "parts": ["dress", "shoes", "socks"],
+      "proxy": "http://127.0.0.1:7897",
+      "analyze_step1": false
+    }
+  }
+}

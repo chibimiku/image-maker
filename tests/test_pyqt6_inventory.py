@@ -8,14 +8,14 @@ SOURCE_ROOTS = [
     REPO_ROOT,
     REPO_ROOT / "modules",
     REPO_ROOT / "utils",
+    REPO_ROOT / "tools",
 ]
 
 ROOT_FILES = {
     "app.py",
     "make-pic.py",
     "sd-make-pic.py",
-    "doujin_translator.py",
-    "translate_booru_tags.py",
+    "publish_server.py",
 }
 
 LEGACY_PATTERNS = [

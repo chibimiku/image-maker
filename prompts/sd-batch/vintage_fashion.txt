@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_vintage_fashion.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdvintage
+# 文件前缀: vintage
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/vintage_fashion.txt --output-subdir sdvintage --prefix vintage
+
+1girl, solo, 1950s swing dress, polka dot, full skirt, high-heel sandals, flower hair accessory. A girl in a 1950s polka-dot swing dress and high-heel sandals poses outside a retro cafe, flower in her hair, cat-eye sunglasses, cherry blossoms, warm afternoon, retro pin-up elegance, full body
+1girl, solo, 1930s bias-cut satin dress, high-heel sandals, flower hair accessory. A girl in a flowing 1930s bias-cut satin dress and strappy high-heel sandals stands in a grand old mansion hallway, silk gown draping, flower pinned in her hair, art deco mirrors, soft light, graceful old hollywood glamour, full body
+1girl, solo, 1960s mod dress, geometric mini dress, high-heel sandals, flower hair accessory. A girl in a mod geometric mini dress and high-heel sandals strikes a pose on a swinging-60s london street, flower in her bob hair, bold colors, retro shopfronts, playful and stylish, full body
+1girl, solo, 1940s rockabilly dress, high-heel sandals, flower hair accessory. A girl in a 1940s rockabilly dress and high-heel sandals leans against a vintage car at a retro gas station, victory rolls in her hair with a flower, denim and red print, golden afternoon, confident pin-up, full body
+1girl, solo, edwardian dress, white lace, high-heel sandals, flower hair accessory. A girl in a white lace edwardian dress and high-heel sandals sits on a garden bench at a stately manor, flower crown in her hair, roses and trellis, soft morning light, serene and elegant, full body
+1girl, solo, 1920s flapper dress, fringe, high-heel sandals, flower hair accessory. A girl in a beaded fringe flapper dress and high-heel sandals dances at a speakeasy jazz bar, feathered flower headpiece, art deco lights, champagne, glamorous roaring-20s charm, full body
+1girl, solo, 1970s bohemian maxi dress, floral, high-heel sandals, flower hair accessory. A girl in a flowing floral bohemian maxi dress and high-heel sandals twirls at a lively vintage market, flowers woven through her hair, denim and lace, sunny vibe, carefree free-spirited look, full body
+1girl, solo, victorian dress, bustle gown, high-heel sandals, flower hair accessory. A girl in a velvet victorian bustle gown and high-heel sandals stands in a candlelit gothic drawing room, flower pinned in her updo, dark red velvet drapes, ornate furniture, mysterious refinement, full body
+1girl, solo, 1950s rockabilly cherry print dress, high-heel sandals, flower hair accessory. A girl in a cherry-print rockabilly dress and high-heel sandals sits on the hood of a vintage car on a sunset highway, flower tucked behind her ear, cool retro shades, golden dusk, road trip energy, full body
+1girl, solo, 1960s hippie dress, sheer, high-heel sandals, flower hair accessory. A girl in a sheer 1960s hippie dress and high-heel sandals stands in a sunlit meadow at a vintage music festival, flowers woven in her long hair, peace symbols, soft haze, free and ethereal, full body

@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_lolita_dance.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdlolitadance
+# 文件前缀: lolidance
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/lolita_dance.txt --output-subdir sdlolitadance --prefix lolidance
+
+2girls, yuri, hime lolita, princess dress, tiara, jeweled gown. Two girls in hime lolita gowns waltz together in a grand ballroom, one leading with a hand on the other's waist as they spin, sparkling crystal chandeliers, golden light, elegant and romantic, full body
+2girls, yuri, sweet lolita, pastel pink dress, lace, ribbons, bows. Two girls in sweet lolita dresses spin together in a pastel greenhouse filled with flowers, hands linked, skirts flaring, joyful laughter, soft pink light, full body
+2girls, yuri, qi lolita, qipao collar, frog buttons, chinese fan. Two girls in qi lolita dresses perform a fan dance together in a classical Chinese courtyard, red silk fans opening in unison, sleeves and skirts flowing, paper lanterns, graceful and tender, full body
+1girl, solo, gothic lolita, black dress, black lace, cross necklace. A girl in a black gothic lolita dress dances alone in a moonlit gothic garden, arms outstretched beneath the moon, dark roses, silver moonlight, mysterious and beautiful, full body
+1girl, solo, country lolita, gingham dress, straw hat. A girl in a country lolita dress twirls joyfully alone in a sunflower field, straw hat and ruffled skirt swinging, bright summer light, carefree happiness, full body

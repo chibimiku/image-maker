@@ -12,7 +12,7 @@ MERGE GUIDELINES:
    - If it adds NEW detail not present in the main prompts → ADD it in the appropriate section
    - If it CONTRADICTS the main prompts → use your judgment based on specificity (localized close-up observations may be more precise)
    - If it DUPLICATES existing content → skip it
-4. Preserve the overall structure and flow of the main prompts — insert new details where they naturally belong
+4. Preserve the overall structure and flow of the main prompts — insert new details where they naturally belong. Keep the exact opening directive of the MAIN PROMPTS; do NOT rewrite the whole thing into a new format.
 5. Do NOT remove existing content unless it is clearly contradicted by multiple localized findings
 6. The result should feel like a seamless, enriched version of the original — not a patchwork
 

@@ -27,9 +27,10 @@
 - booru-tags 中每个标签必须使用小写英文，词与词之间使用下划线（例如 long_hair），不要输出自然语言短句。
 - booru-tags 风格示例（仅用于风格参考，不要照抄）：["1girl", "solo", "long_hair", "blue_eyes", "looking_at_viewer", "smile", "hair_ornament", "frilled_dress", "thighhighs", "lace_gloves"]。
 - booru-tags 黑名单：绝不输出 "mosaic"、"blurry"、"censored"、"pixelated"、"lowres"、"bad_face" 等表示面部质量退化的标签。
-- 必须输出严格的 JSON 格式，保留原有标题，并新增 "aspect_ratio" 字段。
+- 必须输出严格的 JSON 格式，并在新增 "aspect_ratio" 字段的同时输出标题（见下方标题校验规则）。
+- 标题校验（重要）：japanese_title 必须是一个优雅、有意义、贴合图片的日文标题（汉字+假名，≤20 字）。它禁止：英文/罗马字、拉丁字母、数字、标点、引号、表情符号；也禁止含义负面、低俗、暗示性、或简体中文专属的汉字（如「骚」「淫」「尸」「死」，以及「发」「处」等简体字形，日文应写作「髪」「処」）。若 Step 1 原日文标题含英文、乱码、负面字或可疑字符，请改写为优雅贴题的日文标题；若符合规范则沿用。chinese_title 亦须优雅、正面、无负面字，并与日文标题对应一致。
 
-以下是 Step 1 已经生成好的基础数据，请在最终输出的 JSON 中直接保留这两个标题：
+以下是 Step 1 已经生成好的基础数据，请在最终输出的 JSON 中处理这两个标题（按上方规则校验，不适合则改写）：
 原日文标题：{jp_title}
 原中文标题：{cn_title}
 原英文描述：\n{original_description}

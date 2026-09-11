@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_street_elegant.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdstreet
+# 文件前缀: street
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/street_elegant.txt --output-subdir sdstreet --prefix street
+
+1girl, solo, elegant, street photography, candid walk, looking over shoulder back at the camera, walking away down a city street with motion, soft bokeh background, chic outfit, golden hour, shallow depth of field, natural wind in hair, full length
+1girl, solo, elegant, street style, standing on a sidewalk holding a coffee cup, looking down with a soft smile, city cafe blurred behind, loose relaxed pose, natural light, candid, medium shot
+1girl, solo, elegant, street photography, leaning against an old brick wall with one leg crossed, arms relaxed, looking off to the side, soft shadows, urban chic, warm street tones, medium shot
+1girl, solo, elegant, street photography, side profile walking across a crosswalk, leading lines of the street, motion blur background, flowing hair and dress, sunlight, dynamic candid, full length
+1girl, solo, elegant, street photography, low angle looking up at the camera, standing by a glass shopfront, sunglasses, confident pose, city architecture framing, bright daylight, full length
+1girl, solo, elegant, street style, sitting at a cafe terrace table with legs crossed, one hand holding coffee, the other resting on the table, soft smile, string lights, warm evening light, candid editorial, medium shot
+1girl, solo, elegant, street photography, high angle shot from above looking down, girl looking up toward the camera, holding a hat, city crosswalk below, unique perspective, bright daylight, medium shot
+1girl, solo, elegant, street photography, walking with a transparent umbrella in light rain, reflections on wet pavement, looking slightly down, moody soft light, cinematic, full length
+1girl, solo, elegant, street style, standing gazing at a boutique window at dusk, window glow on her face, hands in pockets, elegant coat, city evening, soft neon and warm light, intimate candid, medium shot
+1girl, solo, elegant, street photography, turning back holding a bouquet of flowers, gentle smile at the camera, tree-lined old street, golden light through leaves, film-like grain, romantic candid, full length

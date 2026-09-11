@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_street_elegant2.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdstreet2
+# 文件前缀: street
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/street_elegant2.txt --output-subdir sdstreet2 --prefix street
+
+1girl, solo, elegant, street photography, standing in strong backlight at a street crossing, sun flare and edge light outlining her silhouette, cinematic rim light, soft haze, elegant posture, full length
+1girl, solo, elegant, street photography, candid running across the street laughing, hair and coat flying, motion blur background, dynamic energy, golden light, joyful, full length
+1girl, solo, elegant, street photography, standing in front of a shop window, her reflection mirrored in the glass, looking at the reflection, layered depth, soft light, artistic candid, medium shot
+1girl, solo, elegant, street photography, squatting at a quiet street corner looking up, holding a small bouquet, relaxed pose, urban backdrop, soft daylight, candid and gentle, full length
+1girl, solo, elegant, street photography, leaning on a metal railing looking at the distant skyline, one hand on the rail, wind in hair, city view behind, contemplative mood, golden hour, medium shot
+1girl, solo, elegant, street style, adjusting a wide-brim hat with a hand, looking down with a soft smile, sunlight through the brim, fashionable coat, city street, elegant, medium shot
+1girl, solo, elegant, street photography, on a busy sidewalk pausing to open her handbag and look inside, glancing up, chic outfit, natural street life, shallow depth of field, candid, medium shot
+1girl, solo, elegant, street style, standing holding a cup of bubble tea, one hand raised casually, looking at the camera with a light smile, street festival bokeh, summer vibe, candid, medium shot
+1girl, solo, elegant, street photography, leaning against a metro platform pillar, one leg slightly bent, looking to the side, train arriving in background, cool city mood, soft station light, full length
+1girl, solo, elegant, street photography, standing with hands in coat pockets, looking back over shoulder, one foot slightly forward, city street, wind, cinematic depth, elegant and confident, full length

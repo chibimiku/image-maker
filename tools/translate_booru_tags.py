@@ -6,11 +6,14 @@ import sys
 import time
 from typing import Dict, List
 
+# tools/ 下运行时确保项目根在 sys.path
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)
+
 from openai import OpenAI
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "conf", "config.json")
 INPUT_CSV_PATH = os.path.join(BASE_DIR, "data", "tags", "danbooru_e621_merged.csv")
 OUTPUT_CSV_PATH = os.path.join(BASE_DIR, "data", "tags", "danbooru_e621_merged_zh.csv")

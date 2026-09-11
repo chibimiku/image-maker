@@ -151,5 +151,10 @@ Analyze the following style dimensions using professional art terminology:
    - Recurring textural treatments (grain, noise, airbrushing, etc.)
    - Surface finish conventions
 
-Output ONLY the raw English text, formatted as a system prompt for a generative AI model. Do NOT use Markdown formatting. Do NOT include conversational filler.
+OUTPUT QUALITY — Be selective, precise, and non-redundant:
+- Prioritize the most DISTINCTIVE, defining stylistic traits of this set of images; do not enumerate every imaginable asset or restate obvious/generic observations.
+- Aim for a comprehensive but focused system prompt (roughly 400–800 words) — enough to pin down the style precisely, not an exhaustive report.
+- Keep every statement as a reusable instruction describing HOW things are drawn.
+
+Output ONLY the raw English text, formatted as a single continuous system prompt for a generative AI model. Do NOT use Markdown formatting (no headers, bullet markers, or numbered lists). Do NOT include conversational filler.
 Start with: "You are an advanced generative AI model specialized in creating images in the following art style. Adhere strictly to these stylistic rules:"

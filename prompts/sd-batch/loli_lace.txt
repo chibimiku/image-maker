@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_loli_lace.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdloli_lace
+# 文件前缀: lolilace
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/loli_lace.txt --output-subdir sdloli_lace --prefix lolilace
+
+768x1152|1girl, solo, sweet lolita, white lace dress, lace trim, ribbons, lace gloves, white thighhighs, high heels, full body, standing in a pastel candy shop, cute and refined, soft pink light
+832x1216|1girl, solo, classic lolita, ivory lace dress, lace trim, bonnet, white lace garter stockings, high heels, lace gloves, full body, standing in a warm tea room with lace curtains, elegant
+896x1152|1girl, solo, gothic lolita, black lace dress, cross, lace trim, black lace stockings, stiletto heels, full body, standing in a moonlit rose garden, dark lace, mysterious elegant
+1024x1360|1girl, solo, hime lolita, white lace princess dress, tiara, lace trim, white lace thighhighs, high heels, full body, standing in a grand ballroom, crystal chandelier, elegant
+1216x832|1girl, solo, fairy lolita, ivory lace dress, lace trim, flower crown, white lace stockings, high heels, translucent wings, full body, standing in a flower greenhouse, dreamy soft light

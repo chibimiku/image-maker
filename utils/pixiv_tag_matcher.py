@@ -38,6 +38,9 @@ if os.environ.get("PIXIV_TAG_MATCH_DEBUG", "").strip() in ("1", "true", "yes", "
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE_FILE = os.path.join(BASE_DIR, "data", "pixiv_tags_cache.json")
 MAX_RESULTS = 15  # 最多返回的候选标签数
+# 子串匹配时关键词的最小长度：太短的关键词（如 "cap"/"hat"）极易在长标签里误命中，
+# 这里直接跳过，避免产生噪声候选。
+MIN_SUBSTR_KEYWORD_LEN = 4
 
 
 def _fmt_count(count: int) -> str:
@@ -171,8 +174,14 @@ class PixivTagMatcher:
             for kw, pixiv_tags in self._exact_index.items():
                 if kw == input_tag:
                     continue  # 已在上面处理
-                # 双向子串匹配
-                if kw in input_tag or input_tag in kw:
+                if len(kw) < MIN_SUBSTR_KEYWORD_LEN:
+                    continue
+                # 仅做单向子串匹配：关键词必须是 WD14 标签的子串（即 WD14 标签更具体 → 归并到更宽泛的大类）。
+                # 例如 WD14 输出 black_gloves/lace_gloves 时可归并到手套，这是合理的“具体→大类”。
+                # 但禁止反向（WD14 通用标签 blossoming 成更具体的复合标签）：
+                # 通用 “gloves” 不应被匹配成 “lace_gloves/fingerless_gloves”，否则会凭空引入
+                # “蕾丝手套”这类未被识别出的属性，随后被当作 “important hints” 误导 LLM 输出「レース手袋」。
+                if kw in input_tag:
                     for pixiv_tag in pixiv_tags:
                         item = self._tag_by_name.get(pixiv_tag)
                         count = item.get("count", 0) if item else 0

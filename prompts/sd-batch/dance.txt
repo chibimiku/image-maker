@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_dance.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sddance
+# 文件前缀: dance
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/dance.txt --output-subdir sddance --prefix dance
+
+2girls, yuri, hanfu, flowing water sleeves, gufeng, dancing together. Two girls in hanfu dance gracefully toward each other, long water sleeves intertwining as they spin, classical Chinese pavilion and lotus pond, falling petals, elegant and tender, full body, dynamic motion
+2girls, yuri, ballet, tutu dress, pointe shoes, pas de deux. Two ballerinas dance a pas de deux on a grand stage, one lifting the other in a graceful lift, warm spotlight, flowing motion, soft pastel tutus, romantic and elegant, full body
+2girls, yuri, ballroom waltz, elegant gown, dance dress. Two girls in flowing evening gowns waltz across a vintage ballroom floor, one leading with a hand on the other's waist, twirling skirts, crystal chandeliers, warm golden light, romantic dance, full body
+2girls, yuri, folk dance, ethnic minority costume, long skirt. Two girls in colorful ethnic folk costumes dance together on a vast grassland, arms raised and holding hands, spinning in a circle, flowers in their hair, bright daylight, joyful, dynamic motion, full body
+2girls, yuri, contemporary dance, leotard, modern dance studio. Two girls in simple dancewear practice contemporary dance in a sunlit studio, mirroring each other's movements, one reaching toward the other's hand, soft window light, dust motes, emotional and intimate, full body
+1girl, solo, ballet, tutu dress, pointe shoes, arabesque. A lone ballerina performs an arabesque on a moonlit stage, silvery spotlight, long tutu flowing, graceful arm lines, dreamy atmosphere, elegant solo dance, full body
+1girl, solo, chinese classical dance, hanfu, long water sleeves, gufeng. A girl in hanfu performs a water-sleeve dance by a misty Jiangnan waterside pavilion, sleeves tracing arcs in the air, ink-wash landscape background, elegant, poetic, full body, dynamic
+1girl, solo, flamenco, red flamenco dress, castanets. A girl in a red flamenco dress dances on a wooden stage, skirt swirling, one arm curved overhead, passionate pose, warm dramatic lighting, guitar ambiance, full body
+1girl, solo, dunhuang apsaras dance, celestial scarf, ancient chinese art style. A girl in Dunhuang apsara style dances with long flowing ribbons, floating pose as if flying, mural-like golden background with clouds, otherworldly beauty, full body, dynamic
+1girl, solo, casual twirl, summer dress. A girl in a light summer dress twirls joyfully in a sunflower field, skirt and hair lifting in the breeze, laughing, golden afternoon light, carefree happiness, full body, motion

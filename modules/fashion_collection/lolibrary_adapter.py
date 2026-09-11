@@ -88,26 +88,31 @@ class LolibraryAdapter(FashionCatalogSiteAdapter):
     def parse_search_html(cls, html_text: str, base_url: str = "https://lolibrary.org", seen_ids: set[str] | None = None) -> list[CatalogItem]:
         seen_ids = seen_ids or set()
         items: list[CatalogItem] = []
-        item_link_pattern = re.compile(
-            r'<a\s+href="(?P<href>https://lolibrary\.org/items/[^"]+|/items/[^"]+)"[^>]*>(?P<title>.*?)</a>',
-            re.I | re.S,
-        )
-        for match in item_link_pattern.finditer(html_text):
-            raw_href = match.group("href")
+        # The live search page wraps every item in: <div class="col-..."><div class="card">...</div></div>
+        # Split on the card header so each block is one isolated item card; the thumbnail <img> is
+        # multi-line (so `<img src=` fails) and the brand/category links sit deep in the card, so
+        # we parse each card block as a whole instead of a fixed-width window.
+        card_blocks = re.split(r'<div class="card"[^>]*>', html_text)
+        for block in card_blocks[1:]:
+            raw_href = _extract_first(r'href="(https://lolibrary\.org/items/[^"]+|/items/[^"]+)"', block)
+            if not raw_href:
+                continue
             item_href = urljoin(base_url, raw_href)
             item_id = item_href.rstrip("/").split("/")[-1]
             if item_id in seen_ids:
                 continue
-            title = _strip_tags(match.group("title"))
-            context = html_text[match.start() : match.start() + 1200]
-            thumbnail_url = html.unescape(_extract_first(r'<img src="([^"]+)"', context))
+            # Title: prefer the anchor text of the item link; fall back to the card <p title="...">.
+            title = _strip_tags(_extract_first(r'<a href="[^"]*items/[^"]+"[^>]*>(.*?)</a>', block))
+            if not title:
+                title = _strip_tags(_extract_first(r'title="([^"]+)"', block))
+            thumbnail_url = html.unescape(_extract_first(r'<img\s+src="([^"]+)"', block))
             brand = _strip_tags(
-                _extract_first(r'<a href="https://lolibrary\.org/brands/[^"]+"[^>]*title="([^"]+)"', context)
+                _extract_first(r'<a href="[^"]*brands/[^"]+"[^>]*title="([^"]+)"', block)
             )
             category_label = _strip_tags(
-                _extract_first(r'<a href="https://lolibrary\.org/categories/[^"]+"[^>]*title="([^"]+)"', context)
+                _extract_first(r'<a href="[^"]*categories/[^"]+"[^>]*>([^<]+)</a>', block)
             )
-            category_href = _extract_first(r'<a href="https://lolibrary\.org/categories/([^"]+)"', context)
+            category_href = _extract_first(r'<a href="[^"]*categories/([^"]+)"', block)
             items.append(
                 CatalogItem(
                     source_site="lolibrary",

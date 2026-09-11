@@ -41,6 +41,7 @@ GUIDELINES:
 - If you notice a style trait that appears in 80%+ of images but is missing from the prompts, ADD it
 - If you notice a style trait in the prompts that only appears in a minority of images, consider removing or softening it
 - The output should be a COMPLETE, STANDALONE art style prompt — not incremental changes
+- Preserve the exact opening directive ("You are an advanced generative AI model...") and the overall organization of the Final Prompts. Keep it a single self-contained generation prompt that can be used as-is.
 - Prioritize clarity and precision over verbosity
 
 Return your response as a JSON object:

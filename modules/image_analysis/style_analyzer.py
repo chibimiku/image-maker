@@ -1,7 +1,5 @@
 import os
-import io
 import json
-import base64
 import random
 import datetime
 from PIL import Image
@@ -9,6 +7,7 @@ from openai import OpenAI
 from utils.task_runtime import append_log_line, set_task_status
 from utils.prompt_loader import read_prompt_file, find_missing_prompt_files
 from utils.styles import normalize_style_entry
+from utils.image_encoding import compress_and_encode_image
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
@@ -19,35 +18,8 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
 from PyQt6.QtGui import QIcon, QPixmap
 
 
-def compress_and_encode_image(image_source, max_dim=2048):
-    try:
-        if isinstance(image_source, str):
-            img = Image.open(image_source)
-        else:
-            img = image_source
-
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-
-        original_width, original_height = img.size
-
-        if max(original_width, original_height) > max_dim:
-            scaling_factor = max_dim / max(original_width, original_height)
-            new_width = int(original_width * scaling_factor)
-            new_height = int(original_height * scaling_factor)
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-        buffered = io.BytesIO()
-        img.save(buffered, format="JPEG", quality=100)
-        base64_string = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return "image/jpeg", base64_string
-
-    except Exception as e:
-        print(f"处理图片时发生错误: {e}")
-        return None, None
-
-
 STYLE_ITER_COMMON_PROMPT_FILE = "style-iter-common.md"
+STYLE_ITER_RECONCILE_PROMPT_FILE = "style-iter-reconcile.md"
 STYLE_ITER_REFINE_PROMPT_FILE = "style-iter-refine.md"
 STYLE_ITER_FINAL_REVIEW_PROMPT_FILE = "style-iter-final-review.md"
 STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE = "style-iter-local-extract.md"
@@ -57,6 +29,7 @@ STYLE_ITER_LOCAL_MERGE_PROMPT_FILE = "style-iter-local-merge.md"
 def get_style_analyzer_missing_prompt_files():
     return find_missing_prompt_files([
         STYLE_ITER_COMMON_PROMPT_FILE,
+        STYLE_ITER_RECONCILE_PROMPT_FILE,
         STYLE_ITER_REFINE_PROMPT_FILE,
         STYLE_ITER_FINAL_REVIEW_PROMPT_FILE,
         STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE,
@@ -130,7 +103,7 @@ class StyleIterativeWorkerThread(QThread):
                  existing_state=None, output_dir="", timeout_seconds=120,
                  enable_test_gen=False, test_prompt="",
                  img_api_type="", img_instructions="", img_aspect_ratio="1:1",
-                 file_prefix="", seed_prompts=""):
+                 img_model_name="", file_prefix="", seed_prompts=""):
         super().__init__()
         self.image_paths = list(image_paths)
         self.api_key = api_key
@@ -146,10 +119,14 @@ class StyleIterativeWorkerThread(QThread):
         self.enable_test_gen = bool(enable_test_gen)
         self.test_prompt = str(test_prompt or "").strip()
         self.img_api_type = str(img_api_type or "").strip()
+        self.img_model_name = str(img_model_name or "").strip()
         self.img_instructions = str(img_instructions or "").strip()
         self.img_aspect_ratio = str(img_aspect_ratio or "1:1").strip() or "1:1"
         self.file_prefix = str(file_prefix).strip()
         self.seed_prompts = str(seed_prompts or "").strip()
+        # 图片编码缓存：同一张图在一次任务中通常会被多个阶段重复编码，
+        # 缓存避免重复的 CPU 压缩与 base64 开销。
+        self._image_cache = {}
 
     def request_cancel(self):
         self._cancel_requested = True
@@ -158,6 +135,32 @@ class StyleIterativeWorkerThread(QThread):
     def _check_cancel(self):
         if self._cancel_requested or self.isInterruptionRequested():
             raise StyleIterCancelledError()
+
+    def _encode_image(self, path, max_dim=2048, quality=90):
+        """带缓存的图片编码，返回 (mime_type, base64_string)。"""
+        key = (path, max_dim, quality)
+        if key in self._image_cache:
+            return self._image_cache[key]
+        mime_type, base64_image = compress_and_encode_image(
+            path, max_dim=max_dim, quality=quality
+        )
+        self._image_cache[key] = (mime_type, base64_image)
+        return mime_type, base64_image
+
+    def _pick_image_detail(self, image_count):
+        """单次请求内图片较多时降级 detail，避免 `high` 的 token 成倍放大。
+
+        分析阶段对少量图片保持 high 以保留面部等细节保真度；
+        大量图片（尤其是最终综合审查、本地批次）改用 auto 由模型决定。
+        """
+        return "auto" if image_count > 3 else "high"
+
+    def _truncate_text(self, text, limit=800):
+        """截断过长的文本，用于迭代历史瘦身，避免上下文被前文的完整 prompt 撑爆。"""
+        text = str(text or "").strip()
+        if len(text) <= limit:
+            return text
+        return text[:limit].rstrip() + f"\n...(truncated, {len(text)} chars total)"
 
     def _build_state(self, step_count, iterations):
         return {
@@ -194,42 +197,33 @@ class StyleIterativeWorkerThread(QThread):
             it_type = it.get("type", "unknown")
             it_round = it.get("round", "?")
             step = it.get("step", "?")
+            # 迭代历史只传递「发生了什么 + 为什么」的差量摘要，
+            # 不再重复倒入每一步的完整 prompts 全文（那会让上下文/成本随步数线性膨胀）。
             if it_type == "commonality_extraction":
-                lines.append(f"--- Iteration Step {step} (Round {it_round}, Commonality Extraction) ---")
-                lines.append(it.get("art_style_prompts", ""))
-                lines.append("")
-            elif it_type == "refinement_check":
-                lines.append(f"--- Iteration Step {step} (Round {it_round}, Check {it.get('check_index', '?')}) ---")
-                lines.append(f"Image: {os.path.basename(it.get('image', ''))}")
-                lines.append(f"Prompts Before: {it.get('prompts_before', '')}")
-                lines.append(f"Differences Found: {it.get('differences_analysis', '')}")
-                lines.append(f"Prompts After: {it.get('prompts_after', '')}")
-                lines.append("")
-            elif it_type == "final_review":
-                lines.append(f"--- Iteration Step {step} (Final Review, {it_round}) ---")
-                lines.append(f"Prompts Before: {it.get('prompts_before', '')}")
-                lines.append(f"Review Analysis: {it.get('final_review_analysis', '')}")
-                lines.append(f"Prompts After: {it.get('prompts_after', '')}")
-                lines.append("")
+                mode_label = "Reconcile" if it.get("mode") == "reconcile" else "Extract"
+                lines.append(f"[Step {step}] {mode_label} (Round {it_round}): {self._truncate_text(it.get('art_style_prompts', ''), 4000)}")
             elif it_type == "imported_prompts":
-                lines.append(f"--- Iteration Step {step} (Seed, Imported Prompts) ---")
-                lines.append(it.get("art_style_prompts", ""))
-                lines.append("")
+                lines.append(f"[Step {step}] Seed Prompts: {self._truncate_text(it.get('art_style_prompts', ''), 4000)}")
+            elif it_type == "refinement_check":
+                lines.append(f"[Step {step}] Refine Check (Round {it_round}, Check {it.get('check_index', '?')}, confidence {it.get('confidence', '?')})")
+                lines.append(f"  Image: {os.path.basename(it.get('image', ''))}")
+                lines.append(f"  Differences: {self._truncate_text(it.get('differences_analysis', ''), 800)}")
+            elif it_type == "final_review":
+                lines.append(f"[Step {step}] Final Review (Round {it_round}, confidence {it.get('confidence', '?')})")
+                lines.append(f"  Review Analysis: {self._truncate_text(it.get('final_review_analysis', ''), 800)}")
             elif it_type == "local_extract":
-                lines.append(f"--- Iteration Step {step} (Local Refine Extract, {it_round}, Batch {it.get('batch_index', '?')}) ---")
-                lines.append(f"Crop Types: {it.get('crop_types_analyzed', '')}")
-                lines.append(f"Findings: {it.get('localized_style_findings', '')}")
-                lines.append(f"Confidence: {it.get('confidence', '?')}")
-                lines.append("")
+                lines.append(f"[Step {step}] Local Refine Extract (Batch {it.get('batch_index', '?')}, Crop types: {self._truncate_text(it.get('crop_types_analyzed', ''), 200)}, confidence {it.get('confidence', '?')})")
+                lines.append(f"  Findings: {self._truncate_text(it.get('localized_style_findings', ''), 800)}")
             elif it_type == "local_merge":
-                lines.append(f"--- Iteration Step {step} (Local Refine Merge, {it_round}) ---")
-                lines.append(f"Prompts Before: {it.get('prompts_before', '')}")
-                lines.append(f"Merge Analysis: {it.get('merge_analysis', '')}")
-                lines.append(f"Prompts After: {it.get('prompts_after', '')}")
-                lines.append("")
+                lines.append(f"[Step {step}] Local Refine Merge (confidence {it.get('confidence', '?')})")
+                lines.append(f"  Merge Analysis: {self._truncate_text(it.get('merge_analysis', ''), 800)}")
         return "\n".join(lines)
 
     def _get_current_prompts(self, iterations):
+        # 注意：local_extract 记录并不修改 prompts（它只产出局部发现，
+        # 真正改动 prompts 的是紧随其后的 local_merge）。因此这里刻意不处理
+        # local_extract，让循环自然 fall-through 到上一条真实 prompts（常见为
+        # local_merge / refinement_check / commonality_extraction）。
         for it in reversed(iterations):
             if it.get("type") == "final_review":
                 return it.get("prompts_after", "")
@@ -254,7 +248,7 @@ class StyleIterativeWorkerThread(QThread):
             if self.img_api_type == "aigc2d":
                 result = generate_image_aigc2d(
                     prompt=gen_prompt,
-                    model="",
+                    model=self.img_model_name,
                     aspect_ratio=self.img_aspect_ratio,
                     instructions=self.img_instructions,
                     api_type=self.img_api_type,
@@ -264,7 +258,7 @@ class StyleIterativeWorkerThread(QThread):
             else:
                 result = generate_image_whatai(
                     prompt=gen_prompt,
-                    model="",
+                    model=self.img_model_name,
                     aspect_ratio=self.img_aspect_ratio,
                     instructions=self.img_instructions,
                     api_type=self.img_api_type,
@@ -295,39 +289,65 @@ class StyleIterativeWorkerThread(QThread):
             self.log_signal.emit(f"  测试生图失败: {e}")
             return []
 
-    def _step_commonality_extraction(self, client, iterations, current_round):
+    def _step_commonality_extraction(self, client, iterations, current_round, current_prompts):
         self._check_cancel()
-        self.log_signal.emit(f"[Round {current_round}] Phase 1: 提取图片共性，生成艺术风格 prompts...")
-        self.progress_signal.emit(f"Round {current_round}/{self.total_rounds} — 共性提取中…")
+        current_prompts = str(current_prompts or "").strip()
 
-        content_list = [{"type": "text", "text": read_prompt_file(STYLE_ITER_COMMON_PROMPT_FILE).strip()}]
+        # 折中方案：没有可用基线时（全新数据集第 1 轮）才做"从零提取"；
+        # 已有基线时（导入的种子 prompts 第 1 轮、以及所有后续轮次），改为
+        # "对账式精修"——在继承的基线上对照全部图保持/补充/删除，贴近 LoRA 的增量继承。
+        has_base = bool(current_prompts)
+        if has_base:
+            mode = "reconcile"
+            prompt_file = STYLE_ITER_RECONCILE_PROMPT_FILE
+            self.log_signal.emit(f"[Round {current_round}] Phase 1: 在对账基线上对照全部参考图精修画风 prompts...")
+            self.progress_signal.emit(f"Round {current_round}/{self.total_rounds} — 对账精修中…")
+        else:
+            mode = "extract"
+            prompt_file = STYLE_ITER_COMMON_PROMPT_FILE
+            self.log_signal.emit(f"[Round {current_round}] Phase 1: 提取图片共性，生成艺术风格 prompts...")
+            self.progress_signal.emit(f"Round {current_round}/{self.total_rounds} — 共性提取中…")
 
-        # In rounds 2+, include previous iteration history as context
-        if current_round > 1 and iterations:
-            history_text = self._build_iteration_history_text(iterations)
+        prompt_text = read_prompt_file(prompt_file).strip()
+
+        if has_base:
+            # 附加继承的当前基线 + 精简的历史，给到 LLM 作对账依据
             context_text = (
-                "\n\nCONTEXT FROM PREVIOUS ITERATIONS:\n"
-                f"The following is the iteration history from previous rounds. "
-                f"Use this to build upon what has been learned, not start from scratch.\n\n"
-                f"{history_text}"
+                "\n\n=== CURRENT ART STYLE PROMPTS (AUTHORITATIVE BASE TO RECONCILE) ===\n"
+                f"{current_prompts}\n\n"
             )
-            content_list[0]["text"] += context_text
+            if iterations:
+                history_text = self._build_iteration_history_text(iterations)
+                if history_text and history_text != "No prior iterations.":
+                    context_text += (
+                        "=== ITERATION HISTORY (WHAT CHANGED & WHY, AS REGRESSION GUARD) ===\n"
+                        f"{history_text}\n\n"
+                    )
+            prompt_text += context_text + (
+                "Now reconcile the base prompts above against ALL reference images below: "
+                "keep every statement that is still true, add any missing style dimensions you now see, "
+                "remove or soften anything the majority contradict, and preserve the opening directive "
+                "and structure of the base prompts. Output the full revised prompt."
+            )
 
+        content_list = [{"type": "text", "text": prompt_text}]
+
+        image_detail = self._pick_image_detail(len(self.image_paths))
         for index, path in enumerate(self.image_paths, start=1):
             self._check_cancel()
             self.log_signal.emit(f"  [{index}/{len(self.image_paths)}] 编码图片: {os.path.basename(path)}")
-            mime_type, base64_image = compress_and_encode_image(path)
+            mime_type, base64_image = self._encode_image(path)
             if base64_image:
                 content_list.append({
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:{mime_type};base64,{base64_image}",
-                        "detail": "high"
+                        "detail": image_detail
                     }
                 })
 
         self._check_cancel()
-        self.log_signal.emit("  正在向 LLM 发送共性提取请求，请耐心等待...")
+        self.log_signal.emit("  正在向 LLM 发送请求，请耐心等待...")
 
         response = client.chat.completions.create(
             model=self.model_name,
@@ -339,11 +359,12 @@ class StyleIterativeWorkerThread(QThread):
         self._check_cancel()
 
         art_style_prompts = response.choices[0].message.content.strip()
-        self.log_signal.emit(f"  共性提取完成。")
+        self.log_signal.emit(f"  Phase 1 完成（{mode}）。")
 
         iteration_record = {
             "step": len(iterations) + 1,
             "type": "commonality_extraction",
+            "mode": mode,
             "round": current_round,
             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "art_style_prompts": art_style_prompts,
@@ -370,7 +391,7 @@ class StyleIterativeWorkerThread(QThread):
             "consider the Iteration History, and produce your JSON response with differences_found and revised_prompts."
         )
 
-        mime_type, base64_image = compress_and_encode_image(image_path)
+        mime_type, base64_image = self._encode_image(image_path)
         if not base64_image:
             self.log_signal.emit(f"  跳过：无法编码图片 {basename}")
             return iterations, current_prompts
@@ -474,18 +495,24 @@ class StyleIterativeWorkerThread(QThread):
                     read_prompt_file(STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE).strip() +
                     "\n\nNOTE: These are CROPPED LOCAL REGIONS from reference images. "
                     "Your findings will later be merged into a main art style description. "
-                    "Focus on localized rendering details that may not be visible in full-image views."
+                    "Focus on localized rendering details that may not be visible in full-image views." +
+                    "\n\n=== CURRENT MAIN ART STYLE PROMPTS (REFERENCE ONLY, DO NOT RETYPE) ===\n" +
+                    (current_prompts if current_prompts.strip() else "(no main prompts yet — extract from scratch)") +
+                    "\n\nReport ONLY localized findings that are NOT already captured in the main prompts above. "
+                    "Do NOT restate general style traits that are already covered; emphasis should be on NEW, "
+                    "close-up-visible granular detail. If everything is already covered, say so briefly."
                 )
             }]
 
+            batch_detail = self._pick_image_detail(len(batch_crops))
             for crop_path in batch_crops:
-                mime_type, base64_image = compress_and_encode_image(crop_path)
+                mime_type, base64_image = self._encode_image(crop_path)
                 if base64_image:
                     content_list.append({
                         "type": "image_url",
                         "image_url": {
                             "url": f"data:{mime_type};base64,{base64_image}",
-                            "detail": "high"
+                            "detail": batch_detail
                         }
                     })
 
@@ -624,16 +651,17 @@ class StyleIterativeWorkerThread(QThread):
         content_list[0]["text"] += context_text
 
         # Encode ALL reference images
+        image_detail = self._pick_image_detail(len(self.image_paths))
         for index, path in enumerate(self.image_paths, start=1):
             self._check_cancel()
             self.log_signal.emit(f"  [Final Review] [{index}/{len(self.image_paths)}] 编码图片: {os.path.basename(path)}")
-            mime_type, base64_image = compress_and_encode_image(path)
+            mime_type, base64_image = self._encode_image(path)
             if base64_image:
                 content_list.append({
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:{mime_type};base64,{base64_image}",
-                        "detail": "high"
+                        "detail": image_detail
                     }
                 })
 
@@ -719,6 +747,13 @@ class StyleIterativeWorkerThread(QThread):
 
         current_prompts = ""
 
+        # 续训时从已有迭代中恢复最后已知的 baselines，使 Phase 1 走"对账精修"
+        # 而不是从零重提、丢掉之前的成果。
+        if self.existing_state and iterations:
+            current_prompts = self._get_current_prompts(iterations)
+            if current_prompts:
+                self.log_signal.emit(f"📂 已恢复基线 Prompts（{len(current_prompts)} 字符），将从该基线继续对账精修。")
+
         # Inject seed prompts as initial iteration if provided and not loading existing state
         if self.seed_prompts and not self.existing_state:
             self.log_signal.emit(f"📝 已导入初始 Prompts 作为训练起点。")
@@ -746,9 +781,9 @@ class StyleIterativeWorkerThread(QThread):
                 if effective_images_per_round < self.images_per_round:
                     self.log_signal.emit(f"⚠️ 图片数量 ({len(self.image_paths)}) 不足每轮检查数 ({self.images_per_round})，已自动调整为 {effective_images_per_round}。")
 
-                # Phase 1: Commonality extraction
+                # Phase 1: Commonality extraction / reconciliation (with inherited base)
                 iterations, current_prompts = self._step_commonality_extraction(
-                    client, iterations, round_num
+                    client, iterations, round_num, current_prompts
                 )
                 state = self._build_state(len(iterations), iterations)
                 state["final_art_style_prompts"] = current_prompts
@@ -1317,6 +1352,7 @@ class StyleAnalyzerWidget(QWidget):
 
         # Image generation config for test images
         img_api_type = ""
+        img_model_name = ""
         img_instructions = ""
         img_aspect_ratio = "1:1"
         if enable_test_gen:
@@ -1325,12 +1361,15 @@ class StyleAnalyzerWidget(QWidget):
                 if isinstance(img_cfg, (tuple, list)) and len(img_cfg) >= 4:
                     # (base_url, api_key, model_name, api_type)
                     img_api_type = str(img_cfg[3] or "").strip()
+                    img_model_name = str(img_cfg[2] or "").strip()
             if self.get_styles:
                 styles_data = self.get_styles()
                 # Use the first style's instructions or empty string
                 if styles_data:
                     first_entry = next(iter(styles_data.values()), "")
                     img_instructions = str(normalize_style_entry(first_entry)["prompt"] or "").strip()
+            if not img_model_name:
+                self.log_msg("⚠️ 未从图片配置中读取到模型名，测试生图将回落到 API 默认模型。")
 
         timeout_seconds = int(self.get_timeout()) if self.get_timeout else 120
 
@@ -1355,6 +1394,7 @@ class StyleAnalyzerWidget(QWidget):
             enable_test_gen=enable_test_gen,
             test_prompt=test_prompt,
             img_api_type=img_api_type,
+            img_model_name=img_model_name,
             img_instructions=img_instructions,
             img_aspect_ratio=img_aspect_ratio,
             file_prefix=file_prefix,

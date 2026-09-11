@@ -100,6 +100,19 @@ def close_db(error=None):
 
 
 # ── 元数据查找 ────────────────────────────────────────────
+def _read_json_source_image_path(json_path: str) -> str | None:
+    """读取分析结果 JSON 内的 source_image_path，返回绝对路径；无效时返回 None。"""
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        src = data.get("source_image_path", "")
+        if isinstance(src, str) and src.strip():
+            return os.path.abspath(src.strip())
+    except Exception:
+        pass
+    return None
+
+
 def find_metadata_json(image_path: str) -> str | None:
     """
     根据图片文件名查找同目录下的元数据 JSON。
@@ -107,6 +120,9 @@ def find_metadata_json(image_path: str) -> str | None:
       图片: ee721fed_003711-18b7de.jpg → 取 _ 分割的第一段 "ee721fed"
       JSON:  20260708-003608-ee721fed-紫苑の天光.json → 取 - 分割的第3段 "ee721fed"
     匹配即返回 JSON 路径。
+
+    兼容性增强：当同目录存在多个 key 相同的 JSON（如多个批次共享同一前缀）时，
+    优先选择 JSON 内 source_image_path 与原图路径完全一致的那一个，避免误配对。
     """
     img_file = os.path.basename(image_path)
     img_dir = os.path.dirname(image_path)
@@ -120,15 +136,50 @@ def find_metadata_json(image_path: str) -> str | None:
     except OSError:
         return None
 
+    abs_image_path = os.path.abspath(image_path)
+    candidates = []
     for entry in entries:
         if not entry.lower().endswith(".json"):
             continue
         # JSON 文件名拆分，key 应在第3段（索引2）
         parts = os.path.splitext(entry)[0].split("-")
         if len(parts) >= 3 and parts[2] == key:
-            return os.path.join(img_dir, entry)
+            candidate = os.path.join(img_dir, entry)
+            candidates.append(candidate)
+            # 优先：JSON 内 source_image_path 与原图路径完全一致（无歧义）
+            src = _read_json_source_image_path(candidate)
+            if src and os.path.normcase(src) == os.path.normcase(abs_image_path):
+                return candidate
 
-    return None
+    return candidates[0] if candidates else None
+
+
+def find_image_for_json(json_path: str) -> str | None:
+    """
+    根据结果 JSON 定位其对应原图。
+    优先使用 JSON 内 source_image_path（精确、无歧义）；
+    次之按 key 反向匹配同目录图片（仅当恰好一张时返回，避免误配）。
+    """
+    if not os.path.isfile(json_path):
+        return None
+    src = _read_json_source_image_path(json_path)
+    if src and os.path.isfile(src):
+        return src
+
+    json_dir = os.path.dirname(json_path)
+    fname = os.path.splitext(os.path.basename(json_path))[0]
+    parts = fname.split("-")
+    key = parts[2] if len(parts) >= 3 else ""
+    if not key:
+        return None
+    try:
+        entries = os.listdir(json_dir)
+    except OSError:
+        return None
+    image_exts = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
+    candidates = [os.path.join(json_dir, e) for e in entries
+                  if e.lower().endswith(image_exts) and e.split("_")[0] == key]
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def compute_md5(file_path: str) -> str:
@@ -277,8 +328,24 @@ def api_update_status(item_uuid):
 
 
 # ── 辅助：添加图片到队列（供 GUI 调用） ──────────────────
-def add_to_queue(image_path: str) -> dict:
-    """返回 {"ok": bool, "message": str, "uuid": str|None}"""
+def add_json_to_queue(json_path: str) -> dict:
+    """拖入结果 JSON 时：定位对应原图并入队（携带该 JSON 作为元数据），返回 add_to_queue 结果。
+
+    直接拖 JSON 也能入队，与原图拖拽行为一致；优先用 JSON 内 source_image_path 找到精确原图。
+    """
+    if not os.path.isfile(json_path):
+        return {"ok": False, "message": f"文件不存在: {json_path}", "uuid": None}
+    image_path = find_image_for_json(json_path)
+    if image_path:
+        return add_to_queue(image_path, json_path_override=json_path)
+    return {"ok": False, "message": "无法从结果 JSON 确定对应原图（缺少 source_image_path 且 key 匹配不唯一）", "uuid": None}
+
+
+def add_to_queue(image_path: str, json_path_override: str | None = None) -> dict:
+    """返回 {"ok": bool, "message": str, "uuid": str|None}
+
+    json_path_override: 显式传入元数据 JSON 路径（拖入 JSON 时使用），不再自动 find_metadata_json。
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -301,7 +368,7 @@ def add_to_queue(image_path: str) -> dict:
                 "uuid": None,
             }
 
-        json_path = find_metadata_json(image_path)
+        json_path = json_path_override or find_metadata_json(image_path)
         metadata_str = None
         if json_path:
             try:
@@ -598,6 +665,16 @@ class PublishServerWindow(QMainWindow):
             if not os.path.isfile(path):
                 continue
             ext = os.path.splitext(path)[1].lower()
+            if ext == ".json":
+                # 直接拖入结果 JSON：定位对应原图并入队（携带该 JSON 作为元数据）
+                result = add_json_to_queue(path)
+                if result["ok"]:
+                    added += 1
+                    self._log(f"[+] {os.path.basename(path)} → {result['uuid']}")
+                else:
+                    skipped += 1
+                    self._log(f"[!] {os.path.basename(path)}: {result['message']}")
+                continue
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"):
                 continue
             result = add_to_queue(path)

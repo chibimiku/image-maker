@@ -19,11 +19,13 @@ YOUR TASK:
 4. Produce a REVISED version of the art style prompt that better captures the style of this image while still generalizing across the entire dataset
 
 GUIDELINES FOR REVISION:
+- Preserve the exact opening directive and overall organization of the Current Prompts. Refine WITHIN that structure: edit existing statements, add missing observations in the matching section, or remove contradictions. Do NOT reformat the prompt into a completely different layout.
 - Keep descriptions that still match the image's style
 - Modify descriptions that are inaccurate or imprecise
 - Add missing style characteristics you observe in the image
 - Remove any style descriptions that clearly contradict the image
 - Always maintain the 80% threshold principle: favor characteristics likely shared across the dataset, not unique to this single image
+- Because you inspect a SINGLE image, guard against over-fitting: strengthen or add a trait only if it is plausibly shared by most of the dataset (the 80% rule). Do NOT remove an existing description merely because it is less pronounced in this one image. If an observation clearly belongs only to this image, note it in "differences_found" but do NOT bake it into "revised_prompts".
 - The revision should be a synthesis — incorporate the new observations while preserving valid existing descriptions from the history
 
 PAY SPECIAL ATTENTION to facial feature accuracy — these are the most common areas where style descriptions drift. Carefully cross-check the image against the Current Prompts for:

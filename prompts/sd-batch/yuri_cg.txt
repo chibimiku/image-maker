@@ -1,0 +1,16 @@
+# 源脚本: sd_gen_yuri_cg.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1824x1024
+# 输出子目录: sdyuri
+# 文件前缀: yuri
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/yuri_cg.txt --output-subdir sdyuri --prefix yuri
+
+2girls, yuri, two girls standing face to face holding both hands, foreheads touching, loving gaze, blushing, pink long hair girl in white dress, black bob hair girl in navy uniform, cherry blossom park, falling petals, spring afternoon, soft pink lighting, medium shot
+2girls, yuri, walking along the beach shoreline holding hands, fingers intertwined, silver twin-tail girl and orange short hair girl, sundresses fluttering in sea breeze, golden sunset, backlight, romantic silhouette, wide shot
+2girls, yuri, one girl kissing the other's forehead, eyes closed, tender smile, blonde long hair girl and purple bob girl, cozy library with tall bookshelves, warm lamp light, quiet intimate atmosphere, close-up
+2girls, yuri, two girls sharing one long scarf, snuggling close together, cheeks touching, black long hair girl and light blue short hair girl, winter coats, snowy night street, warm street lamps, falling snow, cozy romantic mood, medium shot
+2girls, yuri, sitting side by side on school rooftop, leaning heads together, shoulders touching, red long hair girl and white bob girl, school uniforms, dusk sky with orange and pink clouds, city skyline, wind blowing hair, wide shot
+2girls, yuri, one girl feeding the other a bite of strawberry cake with a fork, playful loving smiles, brown wavy hair girl and teal twin-tail girl, cozy cafe by the window, rainy day outside, warm interior light, candid sweet moment, close-up
+2girls, yuri, two girls standing close together watching fireworks, one resting her head on the other's shoulder, holding hands, ginger ponytail girl and navy hime cut girl, yukata, summer night festival, colorful fireworks in sky, festive bokeh, medium shot
+2girls, yuri, two girls lying on bed facing each other, gentle morning light through curtains, one tucking hair behind the other's ear, soft loving smiles, white long hair girl and pink short hair girl, cozy bedroom, pastel tones, intimate close-up
+2girls, yuri, two girls sharing one transparent umbrella, standing very close, arms linked, silver short hair girl and violet twin-tail girl, rainy city street, neon reflections on wet ground, night, romantic cinematic lighting, medium shot
+2girls, yuri, two girls holding hands and twirling in a flower field, laughing joyfully, skirts and hair flowing, blonde braided girl and green bob girl, white dresses, wildflowers, summer, butterflies, high angle, vibrant warm colors, wide shot

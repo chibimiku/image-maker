@@ -1,0 +1,11 @@
+# 源脚本: sd_gen_white_pantyhose.py（已归档至 useless/scripts/sd_gen/）
+# 默认尺寸: 1024x1024
+# 输出子目录: sdwhitepantyhose
+# 文件前缀: wpanty
+# 用法: python tools/sd_batch_gen.py --theme-file prompts/sd-batch/white_pantyhose.txt --output-subdir sdwhitepantyhose --prefix wpanty
+
+1024x1024|1girl, solo, white pantyhose, glamorous, reclining on a velvet sofa with long legs elegantly posed, silk slip dress, alluring gaze, soft boudoir light, full body, seductive but elegant
+768x1152|1girl, solo, white pantyhose, glamorous, sitting in a plush armchair with one leg crossed over the other, holding a glass of wine, alluring smile, warm evening light, full body, sensual
+1216x832|1girl, solo, white pantyhose, glamorous, backlit walking and looking back over her shoulder, skirt and hair flowing, confident alluring gaze, cinematic rim light, full body, dynamic
+896x1152|1girl, solo, white pantyhose, glamorous, kneeling on the edge of a bed with legs folded, silk robe slipping, soft morning light, full body, alluring yet graceful
+832x1216|1girl, solo, white pantyhose, glamorous, standing with one leg raised, adjusting the waistband of her white pantyhose, elegant lingerie, dramatic soft light, full body, sensual and dynamic

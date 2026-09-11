@@ -33,7 +33,7 @@ def load_autocomplete_config():
         "local_booru_tagger_model_path": "",
         "local_booru_tagger_tags_path": "",
         "local_booru_tagger_max_tags": 60,
-        "local_booru_tagger_general_threshold": 0.35,
+        "local_booru_tagger_general_threshold": 0.45,
         "local_booru_tagger_character_threshold": 0.35,
         "local_booru_tagger_meta_threshold": 0.75,
         "local_booru_tagger_rating_threshold": 0.75,
@@ -196,7 +196,7 @@ def get_local_tagger_runtime_config(booru_tag_limit=30):
     cfg = load_autocomplete_config()
     runtime = {}
     runtime["max_tags"] = parse_int_with_default(cfg.get("local_booru_tagger_max_tags", booru_tag_limit), booru_tag_limit, min_value=1)
-    runtime["general_threshold"] = parse_float_with_default(cfg.get("local_booru_tagger_general_threshold", 0.35), 0.35)
+    runtime["general_threshold"] = parse_float_with_default(cfg.get("local_booru_tagger_general_threshold", 0.45), 0.45)
     runtime["character_threshold"] = parse_float_with_default(cfg.get("local_booru_tagger_character_threshold", 0.35), 0.35)
     runtime["meta_threshold"] = parse_float_with_default(cfg.get("local_booru_tagger_meta_threshold", 0.75), 0.75)
     runtime["rating_threshold"] = parse_float_with_default(cfg.get("local_booru_tagger_rating_threshold", 0.75), 0.75)
