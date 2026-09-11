@@ -7,7 +7,7 @@ from utils.gui_entry import redirect_stdio_for_windows_gui_entry, warm_up_option
 redirect_stdio_for_windows_gui_entry()
 warm_up_optional_module("onnxruntime", skip_env_var="IMAGE_MAKER_SKIP_ONNXRUNTIME_PRELOAD")
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
-                             QLabel, QPushButton, QTextEdit, QLineEdit, QInputDialog,
+                             QLabel, QPushButton, QPlainTextEdit, QLineEdit, QInputDialog,
                              QComboBox, QFormLayout, QMessageBox, QTabWidget, QCheckBox,
                              QFileDialog)
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -34,6 +34,13 @@ from modules.image_generation.sd_workflow_tab import SdWebuiSettingsWidget, SdWo
 from modules.others.booru_tag_generator import BooruTagGeneratorWidget
 from modules.fashion_collection.collector_tab import FashionCollectorWidget
 from modules.image_generation.diff_cg_tab import DiffCgTabWidget
+# 【新增】视频生成(MiniMax-H3)
+from modules.video_generation.video_gen_tab import VideoGenWidget
+# 【新增】gpt-image-2 专用生图/编辑 Tab（同界面切换 new.aigc2d / autodl）
+from modules.image_generation.gpt_image2_tab import GptImage2Widget
+from modules.video_generation.video_gen_tab import VideoGenWidget
+# 【新增】资料大 Tab: tag 速查（本地固化 booru 标签数据）
+from modules.reference.tag_quick_ref_tab import TagQuickRefWidget
 from utils.image_upscale_runtime import normalize_upscale_options
 from utils.styles import normalize_style_entry, build_style_entry, ref_image_valid
 
@@ -329,6 +336,11 @@ class AppWindow(QWidget):
         self.diff_cg_tab = DiffCgTabWidget(
             text_config_getter_func=self.get_text_config
         )
+        # 【新增】视频生成(MiniMax-H3)
+        self.video_gen_tab = VideoGenWidget()
+        # 【新增】gpt-image-2 专用生图/编辑 Tab（站点可切 new.aigc2d / autodl，独立于全局 API 类型）
+        self.gpt_image2_tab = GptImage2Widget()
+        self.video_gen_tab = VideoGenWidget()
         self.booru_tag_generator_tab = BooruTagGeneratorWidget()
         self.fashion_collector_tab = FashionCollectorWidget(project_root=BASE_DIR)
 
@@ -362,13 +374,34 @@ class AppWindow(QWidget):
         self.generation_tabs.addTab(self.flux2_client_tab, "WebUI Img2Img")
         self.generation_tabs.addTab(self.sd_workflow_tab, "SD 批量工作流")
         self.generation_tabs.addTab(self.diff_cg_tab, "差分CG生成")
+        # 【新增】gpt-image-2 生图/编辑（站点下拉: new.aigc2d / autodl）
+        self.generation_tabs.addTab(self.gpt_image2_tab, "gpt-image-2 生图/编辑")
+
+        # 【新增】视频生成 大Tab(顶层)
+        self.video_root_tab = QWidget()
+        video_layout = QVBoxLayout()
+        video_layout.addWidget(self.video_gen_tab)
+        video_layout.setContentsMargins(0, 0, 0, 0)
+        self.video_root_tab.setLayout(video_layout)
 
         self.others_tabs.addTab(self.booru_tag_generator_tab, "生成booru-tag")
         self.others_tabs.addTab(self.fashion_collector_tab, "服饰素材采集")
 
+        # 【新增】资料大 Tab（tag 速查等）
+        self.reference_root_tab = QWidget()
+        self.reference_tabs = QTabWidget()
+        self.tag_quick_ref_tab = TagQuickRefWidget()
+        self.reference_tabs.addTab(self.tag_quick_ref_tab, "tag速查")
+        reference_layout = QVBoxLayout()
+        reference_layout.addWidget(self.reference_tabs)
+        reference_layout.setContentsMargins(0, 0, 0, 0)
+        self.reference_root_tab.setLayout(reference_layout)
+
         self.main_tabs.addTab(self.analysis_root_tab, "图片分析")
         self.main_tabs.addTab(self.generation_root_tab, "图片生成")
+        self.main_tabs.addTab(self.video_root_tab, "视频生成")
         self.main_tabs.addTab(self.others_root_tab, "其他")
+        self.main_tabs.addTab(self.reference_root_tab, "资料")
 
         # 【Tab 8: 全局配置】
         self.config_tabs = QTabWidget()
@@ -433,7 +466,7 @@ class AppWindow(QWidget):
         
         # API类型选择
         self.api_type_combo = QComboBox()
-        self.api_type_combo.addItems(["whatup", "aigc2d", "openai-image", "openrouter-image", "aigc-2d-gpt"])
+        self.api_type_combo.addItems(["whatup", "aigc2d", "openai-image", "openrouter-image", "aigc-2d-gpt", "autodl"])
         # 【优化】动态获取当前下拉框的默认选中值，无论列表怎么变都能保持同步
         self._current_api_type = self.api_type_combo.currentText()
         self.api_type_combo.currentTextChanged.connect(self.on_api_type_changed)
@@ -532,7 +565,7 @@ class AppWindow(QWidget):
         style_top_layout.addWidget(self.del_style_btn)
         style_layout.addLayout(style_top_layout)
         
-        self.style_content_edit = QTextEdit()
+        self.style_content_edit = QPlainTextEdit()
         style_layout.addWidget(self.style_content_edit)
 
         style_comp_header = QHBoxLayout()
@@ -543,7 +576,7 @@ class AppWindow(QWidget):
         self.style_compress_btn.clicked.connect(self.regenerate_style_compressed)
         style_comp_header.addWidget(self.style_compress_btn)
         style_layout.addLayout(style_comp_header)
-        self.style_compressed_edit = QTextEdit()
+        self.style_compressed_edit = QPlainTextEdit()
         self.style_compressed_edit.setPlaceholderText(
             "参考优先模式下替代完整指令的精简版；可留空（留空时自动用本地启发式压缩）。"
             "可用 tools/compress_styles.py 批量由 LLM 生成。"
@@ -860,7 +893,7 @@ class AppWindow(QWidget):
                     # 读取对应API的配置
                     api_config = config.get("apis", {}).get(current_api, {})
                     if current_api == "aigc2d":
-                        self.img_url_input.setText(api_config.get("base_url", "https://next.aigc2d.com/v1beta/models/"))
+                        self.img_url_input.setText(api_config.get("base_url", "https://new.aigc2d.com/v1beta/models/"))
                     elif current_api in ("openai-image", "aigc-2d-gpt"):
                         self.img_url_input.setText(api_config.get("base_url", "https://api.openai.com/v1"))
                     elif current_api == "openrouter-image":
@@ -1195,11 +1228,13 @@ class AppWindow(QWidget):
                     
                     # 根据API类型设置不同的默认base_url
                     if api_type == "aigc2d":
-                        self.img_url_input.setText(api_config.get("base_url", "https://next.aigc2d.com/v1beta/models/"))
+                        self.img_url_input.setText(api_config.get("base_url", "https://new.aigc2d.com/v1beta/models/"))
                     elif api_type in ("openai-image", "aigc-2d-gpt"):
                         self.img_url_input.setText(api_config.get("base_url", "https://api.openai.com/v1"))
                     elif api_type == "openrouter-image":
                         self.img_url_input.setText(api_config.get("base_url", "https://openrouter.ai/api"))
+                    elif api_type == "autodl":
+                        self.img_url_input.setText(api_config.get("base_url", "https://www.autodl.art/api/v1"))
                     else:
                         self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
                     
@@ -1219,6 +1254,8 @@ class AppWindow(QWidget):
                             self.img_model_combo.setCurrentText("gpt-image-2")
                         elif api_type == "openrouter-image":
                             self.img_model_combo.setCurrentText("gpt-image-1")
+                        elif api_type == "autodl":
+                            self.img_model_combo.setCurrentText("gpt-image-2")
                     
                     saved_default_ar = api_config.get("default_aspect_ratio", DEFAULT_ASPECT_RATIO)
                     if self.default_ar_combo.findText(saved_default_ar) == -1:

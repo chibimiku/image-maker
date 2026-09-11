@@ -25,6 +25,7 @@ from modules.image_analysis.json_dataset_tab import JsonDatasetWidget
 from modules.image_analysis.single_analyzer import SingleAnalyzerWidget
 from modules.image_generation.char_design import CharDesignWidget
 from modules.image_generation.flux2_client_tab import Flux2ClientWidget
+from modules.image_generation.gpt_image2_tab import GptImage2Widget
 from modules.image_generation.image_edit import ImageEditWidget
 from modules.image_generation.prompt_generator import PromptGeneratorWidget
 from modules.image_generation.sd_workflow_tab import SdWorkflowWidget
@@ -115,7 +116,7 @@ class DropEventStub:
 def test_main_windows_construct_under_pyqt6(qapp):
     app_module = load_module("app_module_smoke", "app.py", block_onnxruntime=True)
     make_pic_module = load_module("make_pic_module_smoke", "make-pic.py")
-    doujin_module = load_module("doujin_module_smoke", "doujin_translator.py")
+    doujin_module = load_module("doujin_module_smoke", "tools/doujin_translator.py")
 
     windows = [
         app_module.AppWindow(),
@@ -167,6 +168,16 @@ def test_app_window_contains_sd_workflow_tab(qapp):
 
     labels = [window.generation_tabs.tabText(i) for i in range(window.generation_tabs.count())]
     assert "SD 批量工作流" in labels
+    assert "gpt-image-2 生图/编辑" in labels
+    # 旧的 autodl 专用编辑 Tab 已合并进 gpt-image-2 生图/编辑
+    assert "gpt-image-2 编辑" not in labels
+    assert isinstance(window.gpt_image2_tab, GptImage2Widget)
+    gpt_tab = window.gpt_image2_tab
+    assert gpt_tab.site_combo.count() == 2
+    assert gpt_tab.mode_combo.count() == 2
+    assert gpt_tab.size_combo.count() == 3
+    assert gpt_tab.size_combo.currentData() in ("1024x1024", "1536x1024", "1024x1536")
+    assert not hasattr(window, "autodl_image_edit_tab")
     assert isinstance(window.sd_workflow_tab, sd_workflow_module.SdWorkflowWidget)
     setting_labels = [window.config_tabs.tabText(i) for i in range(window.config_tabs.count())]
     other_labels = [window.others_tabs.tabText(i) for i in range(window.others_tabs.count())]
