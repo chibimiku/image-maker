@@ -1,0 +1,21 @@
+Repaint this image as a clean cel-shaded anime illustration. This is a re-rendering and correction pass, not a new picture: keep the same composition, pose, camera angle, character design, outfit and background layout, do not add or remove anything, do not crop or reframe.
+
+Anatomy correction - the source image has broken hands, rebuild them:
+- Both hands must be redrawn with correct anime anatomy: five fingers each, correct thumb placement, correct finger order, correct joint bends, fingernails on the correct side.
+- No fused, merged, melted, duplicated, extra or missing fingers. No finger joining the palm at the wrong place.
+- The supporting hand must read as a hand gripping a branch: curled fingers over the bark, solid palm, wrist blending into the sleeve.
+- The raised hand near the cheek shows four fingers in correct order with clear separations.
+- Fingertips and knuckles get the same sharp line quality as the eyes and lips.
+
+Line correction - make every line continuous:
+- All outlines unbroken and closed, connecting at corners and junctions, even weight, no gaps, no double strokes, no hairy or sketchy fragments.
+- All hair must be continuous tapered strands from root to tip with clean closed outlines; nothing may fade into blur. This applies especially to the long locks on the right side of the frame, which must run unbroken and be separated into countable clumps.
+- Every frill layer, lace scallop, ribbon and leaf must be a distinct closed shape, not a soft blob.
+
+Do not leave any region blurrier than the rest: the branch, lake, foliage and distant scenery need the same crisp edge definition as the figure.
+
+Style: flat cel shading, one hard-edged shadow tone per material, flat base colours filled to the line, bold even-weight pen outlines, limited palette, no soft gradients, no colour bleeding, no blur, no noise.
+
+Self-check before finishing: verify five fingers on both hands, and trace every long hair strand on the right side for continuity.
+
+Keep the original palette, lighting direction and mood. Output one image at the same aspect ratio, no text, no watermark.

@@ -1,0 +1,13 @@
+Repaint this image as a clean cel-shaded anime illustration. Keep the same composition, pose, camera angle, character design, outfit and background layout; add and remove nothing; do not crop or reframe.
+
+First establish the rendering: flat base colours filled to the line, one hard-edged shadow tone per material, bold even-weight continuous pen outlines that close at every corner, limited pastel palette with no colour bleeding, and the same crispness everywhere in the frame - the branch, moss, water, foliage and far shore must be as sharp-edged as the figure. No soft gradients, no painterly blending, no blurry region.
+
+Then correct the two defects that matter most.
+
+Hands: the source hands are malformed - rebuild them, do not copy them. Both hands get five fingers, correct thumb placement, correct finger order, correct joint bends, nails on the correct side, and clean closed outlines per finger. Nothing fused, melted, duplicated, missing or extra; no finger merging into the palm, the wrist or the sleeve. The hand supporting the body on the branch grips the bark with four separated fingers curling over the front edge, a solid palm plane and a wrist that enters the cuff at a natural angle. The raised hand near the cheek keeps four fingers in the correct order with clear gaps. Draw both hands with the same line weight as the face.
+
+Hair: every lock is one unbroken tapered strand from the scalp to its tip; no strand fades into blur, breaks apart or stops in mid air. The long hair on the right side of the frame is the priority: continuous flowing clumps, countable strands, closed outlines along the full length, consistent direction of flow. Keep the original hairstyle, volume and silhouette unchanged.
+
+Everything else: each lace scallop, frill layer, ribbon, bow and leaf a distinct closed shape rather than a soft blob.
+
+Keep the original palette, lighting direction and mood. Same aspect ratio. Before finishing, count five fingers on each hand and trace the long strands on the right side for continuity. No blur, no noise, no text, no watermark.

@@ -1,0 +1,17 @@
+Repaint this image as a clean cel-shaded anime illustration. This is a rendering-quality upgrade and defect repair, not a redesign: keep the same composition, pose, camera angle, character design, the exact outfit design, and the background layout. Add and remove nothing; do not crop or reframe.
+
+Absolute rule - no simplification anywhere on the dress:
+- every lace trim stays a narrow repeating band of many small, evenly spaced scallop arcs, each closed, with a small hole or gap to its neighbour, and the same repeat count and spacing along the whole edge; a row of small scallops must never become one large smooth wave, and the interior of the band must never be left empty;
+- every frill row keeps its own outline and its own scalloped bottom edge; rows stay separate and their number stays the same;
+- keep the vertical pintuck pleats down the bodice and overskirt, the piped seams along panel edges, the ribbon threaded through eyelets at the waist, the horizontal waist seam, and the separate cream apron panel with its own hem line;
+- bows keep two loops, a knot and two tails with fold lines, never a blob;
+- overlapping layers keep their own outlines and never fuse together;
+- where the source lace is an unreadable smudge, rebuild the same motif clearly rather than inventing a simpler pattern.
+
+Then correct the defects, in this order:
+1. hands: malformed in the source, so reconstruct both - five fingers each, correct thumb placement and finger order, correct joints, nails on the correct side, no fused, melted, duplicated, missing or extra digits, no finger merging into the palm, wrist or sleeve; the supporting hand grips the branch with four separated fingers over the front edge and a solid palm, the raised hand shows four fingers in correct order;
+2. hair: every lock one unbroken tapered strand from root to tip, never fading into blur; the long hair on the right side of the frame must read as continuous countable clumps with closed outlines; keep the original hairstyle and volume.
+
+Style: flat cel shading, flat colours filled to the line, one hard-edged shadow tone per material, bold even-weight continuous outlines closing at every corner, limited pastel palette, no soft gradients, no painterly blending, no colour bleeding, uniform crispness across the frame, no blurry region anywhere.
+
+Same palette, lighting direction and mood. Same aspect ratio. Before output, check: are the lace scallops still small, even and separate, and is the frill row count unchanged? No blur, no noise, no text, no watermark.

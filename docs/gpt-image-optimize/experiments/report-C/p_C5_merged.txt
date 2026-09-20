@@ -1,0 +1,15 @@
+Repaint this image as a clean cel-shaded anime illustration and correct the drawing defects in it. Keep the same composition, pose, camera angle, character design, outfit and background layout; add and remove nothing; do not crop or reframe. This is a re-rendering and correction pass, not a new picture.
+
+Art style to apply, giving the whole frame the finish of a hand-drawn production cel:
+- flat base colours filled exactly to the line, one hard-edged shadow tone per material, no soft airbrush gradients, no painterly blending, minimal specular highlights;
+- bold, even-weight, continuous pen outlines around every shape, closing at every corner and junction, no gaps, no double strokes, no sketchy or hairy fragments;
+- limited pastel palette with clearly separated colours and no bleeding between adjacent materials;
+- every element read as a countable structure: each lace scallop, frill layer, ribbon, bow, hair clump and leaf a distinct closed shape rather than a soft blur;
+- uniform crispness across the frame - the branch, moss, water, foliage and far shore must be as sharply edged as the figure, with no blurry region left anywhere.
+
+Correct these defects:
+1. Hands. The hands in the source are malformed, so do not copy them; reconstruct both. Five fingers each, correct thumb placement and finger order, correct joints, nails on the correct side, no fused, merged, melted, duplicated, missing or extra digits, no finger merging into the palm or the sleeve. The hand supporting the body on the branch must grip the bark with four separated fingers curling over the front edge and a solid palm plane; the raised hand near the cheek shows four fingers in correct order with clean gaps.
+2. Hair. Every lock must be one unbroken tapered strand from the scalp to its tip, never fading into blur and never stopping in mid air. The long hair falling down the right side of the frame must read as flowing, countable clumps with clean closed outlines along its entire length. Keep the original hairstyle, volume and silhouette; do not restyle it.
+3. Also repair any other broken anatomy or merged shape you find, and make the frills, lace, ribbons and leaves fully readable.
+
+Keep the palette, lighting direction and mood of the original. Output one image at the same aspect ratio. Before you finish, count the fingers on both hands and trace every long strand on the right side of the frame for continuity. No blur, no noise, no text, no watermark.

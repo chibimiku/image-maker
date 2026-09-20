@@ -1,0 +1,20 @@
+Repaint this entire image as a clean cel-shaded anime illustration, and at the same time FIX the drawing errors that exist in the source image. Keep the same composition, pose, camera angle, character design, outfit design and background layout - this is a re-rendering and correction pass, not a new picture. Do not add or remove characters or props, do not crop, do not reframe.
+
+PRIMARY: repair the hands.
+- Redraw both hands from scratch as anatomically correct anime hands: exactly five fingers per hand, correct thumb position, correct finger count, correct joint bends, natural knuckle spacing, fingernails on the right side of each fingertip, no merged, fused, melted, duplicated or missing fingers, no extra knuckles, no finger growing out of the palm or out of another finger.
+- The hand that rests on the tree branch must grip the bark plausibly: fingers curl over the branch edge, the palm meets the branch surface, the wrist connects cleanly to the forearm and the sleeve.
+- The hand touching the cheek must keep only four visible fingers with the correct order and no fused digits, and the palm must read as a solid volume, not as flat blobs.
+- Hands are drawn at the same crispness as the face: clean closed outlines around every finger, one hard-edged shadow per finger and no soft mushy blending at the fingertips.
+
+SECONDARY: make the hair continuous.
+- Each lock of hair must be drawn as one unbroken tapered strand from root to tip. No strand may start or stop in mid air, break into disconnected pieces, or dissolve into a soft blur.
+- In particular the long hair falling down the right side of the frame must be drawn as continuous flowing locks with clearly separated clumps, visible strand direction, and clean closed outlines along their full length.
+- Keep the hair silhouette and its internal structure the same as the source; only make the linework continuous and the clumps countable.
+
+ALSO: also repair any other obviously broken anatomy or merged shapes that you find (ears, elbows, knees, shoe fastenings), and make every lace scallop, frill layer, ribbon and leaf a distinct closed shape instead of a soft blur.
+
+Uniform crispness across the whole frame: background, tree branch, lake and distant scenery must have the same clean edge definition as the character. Flat base colours filled to the line, exactly one hard-edged shadow tone per material, bold even-weight continuous outlines, no soft airbrush gradients, no painterly blending, limited palette, no colour bleeding between adjacent materials.
+
+Before drawing, check your own result: count the fingers on both hands, and trace every long strand of hair on the right side to confirm it is continuous.
+
+Keep the palette, lighting direction and mood of the original. Output one image at the same aspect ratio, no blur, no noise, no text, no watermark.

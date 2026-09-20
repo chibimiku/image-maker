@@ -1,0 +1,487 @@
+{
+  "note": "四批实验的**全分辨率原图**归档（未压缩未转码，PNG/JPG 原样）。页面图在 img/batch-A|B|C|D/，证据图在 img/evidence/。source 为原始存放路径（data/ 已被 gitignore），source_sha256 可与原图核对。",
+  "batches": {
+    "A": {
+      "doc": "experiments-A-gpt-image-vs-25.md",
+      "report": "report-A/index.html",
+      "images": "img/batch-A/"
+    },
+    "B": {
+      "doc": "experiments-B-style-prefix.md",
+      "report": "report-A-B/index.html",
+      "images": "img/batch-B/ 与 img/batch-C/A1,A2"
+    },
+    "C": {
+      "doc": "experiments-C-gemini-repaint.md",
+      "report": "report-C/index.html",
+      "images": "img/batch-C/"
+    },
+    "D": {
+      "doc": "experiments-D-lace-fidelity.md",
+      "report": "report-D/index.html",
+      "images": "img/batch-D/"
+    }
+  },
+  "images": [
+    {
+      "archived": "img/batch-A/01-source-v3-gptimage2.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2893,
+      "source": "data/20260919/anime_lolita_cmp_v3/gpt-image-2_output_193138_0_d09c70.png",
+      "source_sha256": "630e374f324ab2d6efbd2338b2a9c73d59e1a864e7134aa66b0a18bebadbcc46"
+    },
+    {
+      "archived": "img/batch-A/02-gptimage2.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2893,
+      "source": "data/20260919/anime_lolita_cmp_v3/gpt-image-2_output_193138_0_d09c70.png",
+      "source_sha256": "630e374f324ab2d6efbd2338b2a9c73d59e1a864e7134aa66b0a18bebadbcc46"
+    },
+    {
+      "archived": "img/batch-A/03-gptimage2.5-flare.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2846,
+      "source": "data/20260919/anime_lolita_cmp_v3/gpt-image-2.5-flare_output_193215_0_75fc03.png",
+      "source_sha256": "96f1cc4d2303b83e4f7b5cc06d4408295df96e9e9c25009bc891a6067872ed2d"
+    },
+    {
+      "archived": "img/batch-A/04-gptimage2.5-sunburst.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2903,
+      "source": "data/20260919/anime_lolita_cmp_v3/gpt-image-2.5-sunburst_output_193255_0_a26a6e.png",
+      "source_sha256": "e5320a21f4e927fcbba3b6492269be57d0083b697595e7ee8918194ceb05781e"
+    },
+    {
+      "archived": "img/batch-A/05-gptimage2-long-prompt.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2695,
+      "source": "data/20260919/anime_lolita_cmp_v2/gpt-image-2_output_192922_0_b000d3.png",
+      "source_sha256": "a2766f823c307bf2aff0404971a2ed512175f4482d241342cad6bb8be420a58f"
+    },
+    {
+      "archived": "img/batch-A/06-sunburst-long-prompt.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2895,
+      "source": "data/20260919/anime_lolita_cmp_v2/gpt-image-2.5-sunburst_output_192939_0_ecad6e.png",
+      "source_sha256": "4c5eb11890230b71bd31284bfb31aad8e61256602fceead124c3b93c52884ac0"
+    },
+    {
+      "archived": "img/batch-B/B0-baseline.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2679,
+      "source": "data/20260919/anime_lolita_prefixB/B0_baseline_output_233314_0_4c9eae.png",
+      "source_sha256": "87c05cc4af0fb11c83a8677ebb97441b856dfec8ddd2cdb9c9d66a8b43c10755"
+    },
+    {
+      "archived": "img/batch-B/B0-baseline-r2.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2617,
+      "source": "data/20260919/anime_lolita_prefixB_rep2/B0_baseline_r2_output_233840_0_4804bb.png",
+      "source_sha256": "5e65a83450ab08d23d1ba541cfb4d0141c991aee958e7915117c9e4b7e687e53"
+    },
+    {
+      "archived": "img/batch-B/B1-cel.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2625,
+      "source": "data/20260919/anime_lolita_prefixB/B1_cel_output_233355_0_aa4b52.png",
+      "source_sha256": "2ac67e65bd6f7bb9ffcd0eac7562460ce453ebd48cb137e8f968eb8e41594473"
+    },
+    {
+      "archived": "img/batch-B/B2-vector.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2528,
+      "source": "data/20260919/anime_lolita_prefixB/B2_vector_output_233435_0_e556ba.png",
+      "source_sha256": "6d09f872c52cc0642ecedec3bf73ef69540d8156d797c2782b5ff8b27e4a5f81"
+    },
+    {
+      "archived": "img/batch-B/B2-vector-r2.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2402,
+      "source": "data/20260919/anime_lolita_prefixB_rep2/B2_vector_r2_output_233923_0_2d8ea1.png",
+      "source_sha256": "41fd080c21c49b386efb799da774808d29481584944c40abd2083c76a9973386"
+    },
+    {
+      "archived": "img/batch-B/B3-animator.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2746,
+      "source": "data/20260919/anime_lolita_prefixB/B3_animator_output_233521_0_5899b0.png",
+      "source_sha256": "a989ec12904fd0f2f183db819da3eacffead48fce9b7efa14ccd8a957c278152"
+    },
+    {
+      "archived": "img/batch-B/B4-metric.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2921,
+      "source": "data/20260919/anime_lolita_prefixB/B4_metric_output_233607_0_6f8173.png",
+      "source_sha256": "cb546c6d8a4951c9303fdd118820ca2880fe1a61c70a3b14b8985140a7b632aa"
+    },
+    {
+      "archived": "img/batch-B/B4-metric-r2.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2732,
+      "source": "data/20260919/anime_lolita_prefixB_rep2/B4_metric_r2_output_234004_0_0dbc86.png",
+      "source_sha256": "424163c5511cc3b7bef8aba85daae3509a3ffdddefd43c98a83f403e370fc6ad"
+    },
+    {
+      "archived": "img/batch-B/B5-both.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2563,
+      "source": "data/20260919/anime_lolita_prefixB/B5_both_output_233651_0_7e699f.png",
+      "source_sha256": "7ac43fdc03c0385b3632c0b6ff1eb288996bcc569c5152c17abcc2085bc2bff1"
+    },
+    {
+      "archived": "img/batch-B/B5-both-r2.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2643,
+      "source": "data/20260919/anime_lolita_prefixB_rep2/B5_both_r2_output_234043_0_afc6ca.png",
+      "source_sha256": "ab6318d791d7e99b9ea55ffce918e09ed3908b71b2a5cdfb47782c3a7779a0db"
+    },
+    {
+      "archived": "img/batch-C/A1-style-run1.jpg",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 3237,
+      "source": "data/20260919/gemini_repaint_A/v3src_A1_style_233348-3245a2.jpg",
+      "source_sha256": "153cf177a8d95e71601516f2e97f5da8cfd38554e45c7a923d3b563b44598303"
+    },
+    {
+      "archived": "img/batch-C/A2-lines-only.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8969,
+      "source": "data/20260919/gemini_repaint_A/v3src_A2_lines_233442-f7d041.png",
+      "source_sha256": "4df62d483f301431a87d86ac258a78aa77f0f36618afc8e2d739426fd3815a9a"
+    },
+    {
+      "archived": "img/batch-C/01-source.png",
+      "size": [
+        1024,
+        1536
+      ],
+      "archived_kb": 2893,
+      "source": "data/20260919/anime_lolita_cmp_v3/gpt-image-2_output_193138_0_d09c70.png",
+      "source_sha256": "630e374f324ab2d6efbd2338b2a9c73d59e1a864e7134aa66b0a18bebadbcc46"
+    },
+    {
+      "archived": "img/batch-C/A1-no-repair.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 7697,
+      "source": "data/20260920/gemini_repaint_C/C_A1_style_000222-9edc7f.png",
+      "source_sha256": "0fbade09d43c14759bbd94757ced47035357d076191e09dcbd353e07fdf50088"
+    },
+    {
+      "archived": "img/batch-C/C1-long.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8761,
+      "source": "data/20260920/gemini_repaint_C/C_C1_hands_hair_000310-87d4b1.png",
+      "source_sha256": "8c115be721f8815da50f3f99a295807f68da0e9895ffab68c3e2d2b1e270c795"
+    },
+    {
+      "archived": "img/batch-C/C2-terse.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8871,
+      "source": "data/20260920/gemini_repaint_C/C_C2_hands_hair_terse_000311-05666e.png",
+      "source_sha256": "1faf6de5a4f4b0c2483ecabfef6f72fad40ab6d9d865ebf4264ac5b9c1ce30cf"
+    },
+    {
+      "archived": "img/batch-C/C3-steps.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 7990,
+      "source": "data/20260920/gemini_repaint_C/C_C3_steps_000415-e06da3.png",
+      "source_sha256": "3702764580663a1caee491578bbe3933f5583793b2a2995005e2573a8e3d5cd1"
+    },
+    {
+      "archived": "img/batch-C/C4-negative.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8150,
+      "source": "data/20260920/gemini_repaint_C/C_C4_negative_000228-ad6c24.png",
+      "source_sha256": "62f5a50659b2c2cb972caba2c0ae19e7822bc324d327b71fadc3d34cde1a3a65"
+    },
+    {
+      "archived": "img/batch-C/C4-negative-r2.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8099,
+      "source": "data/20260920/gemini_repaint_D/D_C4_negative_r2_000701-a8a7b7.png",
+      "source_sha256": "758cad888ea35d99dfdbc2b054b668256caf92374ecc1eaa337e9f208e53d32f"
+    },
+    {
+      "archived": "img/batch-C/C5-merged.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8850,
+      "source": "data/20260920/gemini_repaint_D/D_C5_merged_r2_000759-352557.png",
+      "source_sha256": "c65ef2874458851f4afbb7a33176503d75163ff9c2a8578078e992fff7f3c9e0"
+    },
+    {
+      "archived": "img/batch-C/C6-stylefirst.jpg",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 3247,
+      "source": "data/20260920/gemini_repaint_D/D_C6_stylefirst_000641-655f76.jpg",
+      "source_sha256": "67a212d2a271463cceeb35a38376da8f5c0ff18ef6c15f0c871bf3744d770df7"
+    },
+    {
+      "archived": "img/batch-C/C7-final.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8011,
+      "source": "data/20260920/gemini_repaint_D/D_C7_c4refined_000733-e24609.png",
+      "source_sha256": "5c082d0f261205782fde1861d8430d58f6c441d3fc367800f8b8fd1d6f53aab1"
+    },
+    {
+      "archived": "img/batch-D/L1-structure.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8437,
+      "source": "data/20260920/gemini_repaint_L/L_L1_lace_structure_002422-aec16d.png",
+      "source_sha256": "83a39899c77f99c2641aaa62f199edfa00891f542db44524329d445f73ed70e0"
+    },
+    {
+      "archived": "img/batch-D/L2-rules.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 7811,
+      "source": "data/20260920/gemini_repaint_L/L_L2_lace_rules_002522-bde650.png",
+      "source_sha256": "6790e21e2347c7c450950061a09561ad43461781b6dfc9faf8fd25b8f4fcdaac"
+    },
+    {
+      "archived": "img/batch-D/L3-short.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8711,
+      "source": "data/20260920/gemini_repaint_L/L_L3_lace_short_002430-e3d631.png",
+      "source_sha256": "0378e91e825a77acb94cf116ff964ae0df59128ab6d4c4dc6fbe5d1ba3d6528e"
+    },
+    {
+      "archived": "img/batch-D/L4-priority.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8717,
+      "source": "data/20260920/gemini_repaint_L/L_L4_lace_priority_002523-f7dd0f.png",
+      "source_sha256": "e5ef0da08effe38109b2c324829471081881927a2fe192012f8e639103fa7a5e"
+    },
+    {
+      "archived": "img/batch-D/L5-final-firmware.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 7956,
+      "source": "data/20260920/gemini_repaint_L/L_L5_lace_conservative_r2_002425-ffa18a.png",
+      "source_sha256": "cf6d3d9d2db69ca595de5f0bc294e1578b40437c6b9d84c2294e56b151c24c91"
+    },
+    {
+      "archived": "img/batch-D/C7-rerun.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 9180,
+      "source": "data/20260920/gemini_repaint_L/L_C7_c4refined_r2_002526-c8aaa3.png",
+      "source_sha256": "620fc1f243f7400fc2f8f148d204e974e21f0bb823d3438b3247dfd26fdaefe3"
+    },
+    {
+      "archived": "img/evidence/hands-L5-vs-source-3x.jpg",
+      "size": [
+        3942,
+        943
+      ],
+      "archived_kb": 1147,
+      "source": "data/20260920/gemini_repaint_D/inspect_D/inspect_handL2.jpg",
+      "source_sha256": "150027e99340f9074723966df08fabd32260777d92cbf7db0911aaa01102e7d8"
+    },
+    {
+      "archived": "img/evidence/hands-face-hand-3x.jpg",
+      "size": [
+        6686,
+        1321
+      ],
+      "archived_kb": 2527,
+      "source": "data/20260920/gemini_repaint_D/inspect_D/inspect_handR.jpg",
+      "source_sha256": "e4fca76dc308efe5000d53b00c26dfa3e9e999614cf4e3c3dd01cafd46b32680"
+    },
+    {
+      "archived": "img/evidence/lace-L5-vs-C7-3.4x.jpg",
+      "size": [
+        7600,
+        1319
+      ],
+      "archived_kb": 2367,
+      "source": "data/20260920/gemini_repaint_L/inspect_L/inspect_lace.jpg",
+      "source_sha256": "189bbdfb1d3315f4084280aa0135f53506313aa5d78dfdf0afab41c43c7db8fd"
+    },
+    {
+      "archived": "img/evidence/hem-frill-rows-2.2x.jpg",
+      "size": [
+        6303,
+        1035
+      ],
+      "archived_kb": 1637,
+      "source": "data/20260920/gemini_repaint_D/inspect_lace/inspect_hem.jpg",
+      "source_sha256": "bfc79f0704a6329486f1453aea72f6f5dd879546ec1bc8f3681e1660de814ea8"
+    },
+    {
+      "archived": "img/evidence/chest-lace-2.2x.jpg",
+      "size": [
+        4817,
+        1035
+      ],
+      "archived_kb": 1543,
+      "source": "data/20260920/gemini_repaint_D/inspect_lace/inspect_chest.jpg",
+      "source_sha256": "f0a2560a91d63326eb8a7cc9c469b59126def4bdd111382127b1600d521ed17b"
+    },
+    {
+      "archived": "img/evidence/hair-right-2.2x.jpg",
+      "size": [
+        7600,
+        1927
+      ],
+      "archived_kb": 3090,
+      "source": "data/20260920/gemini_repaint_L/inspect_L/inspect_hairr.jpg",
+      "source_sha256": "a593244498746e615a59ff2f2c5ce3299d7683adce77b4debccf4105e3414712"
+    },
+    {
+      "archived": "img/evidence/repaint-first-test-v3src.jpg",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 3201,
+      "source": "data/20260919/gemini_repaint/gemini3pro_repaint_232331-cfe5ca.jpg",
+      "source_sha256": "7691c5d9185c69ffd04f2957366f326aca3d8f4d57adb62f80207e30386a49a5"
+    },
+    {
+      "archived": "img/evidence/repaint-first-test-v2src.png",
+      "size": [
+        1696,
+        2528
+      ],
+      "archived_kb": 8898,
+      "source": "data/20260919/gemini_repaint/gemini3pro_repaint_v2src_232441-415457.png",
+      "source_sha256": "68253fd0ce05b05719a2d986e7f54e383b48b7b8ee74129b65a045485835a208"
+    },
+    {
+      "archived": "img/evidence/repaint-before-after-v2src.jpg",
+      "size": [
+        2048,
+        1572
+      ],
+      "archived_kb": 1095,
+      "source": "data/20260919/gemini_repaint/compare_v2src/side_by_side.jpg",
+      "source_sha256": "c9c532f7e829e9a1e875c196db70ada008f00ac28f2afb1182e39028b3cf801f"
+    },
+    {
+      "archived": "img/evidence/repaint-lace-v2src.jpg",
+      "size": [
+        2128,
+        1018
+      ],
+      "archived_kb": 555,
+      "source": "data/20260919/gemini_repaint/compare_v2src/crop_lace_2x.jpg",
+      "source_sha256": "2151bb5a56fb969cc1a59a30d939dcdad87acef67d9e87ff026bcbc769c2640c"
+    },
+    {
+      "archived": "img/evidence/repaint-A1-lace-vs-src.jpg",
+      "size": [
+        2128,
+        1018
+      ],
+      "archived_kb": 530,
+      "source": "data/20260919/gemini_repaint_A/cmp_A1/crop_lace_2x.jpg",
+      "source_sha256": "14876b3862dcb795aa827aef866e0013604e47acb09d5c378bb52fad02af4dbd"
+    },
+    {
+      "archived": "img/evidence/repaint-A2-lace-vs-src.jpg",
+      "size": [
+        2128,
+        1018
+      ],
+      "archived_kb": 526,
+      "source": "data/20260919/gemini_repaint_A/cmp_A2/crop_lace_2x.jpg",
+      "source_sha256": "eee82ace854ff4a3e99ed2e58c78ebca0609d9ab89e0d7fadd22ddd27e8cba59"
+    }
+  ]
+}

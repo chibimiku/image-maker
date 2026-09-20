@@ -20,6 +20,7 @@
 | `tools/` | 无头 CLI 工具（用户手动跑的命令行入口） | 禁止每个实验新建一个脚本；同族功能必须合并为一个 CLI |
 | `prompts/` | LLM prompt 模板与批量主题数据（.md/.txt/.json） | 禁止把提示词硬编码进 .py |
 | `conf/` | 运行时配置（`*.json`，gitignore；白名单除外） | 禁止把机器相关路径写进代码 |
+| `docs/` | 文档与实验记录（含 `gpt-image-optimize/` 的产物优化理论与全量实验数据） | 禁止放可执行脚本（分析脚本快照放 `docs/*/tools/`，仅供复算，不参与运行链路） |
 | `tests/` | pytest 用例与实验对比脚本 | 禁止与测试无关的散文件 |
 | `data/` | 运行时数据（生图输出 `data/<YYYYMMDD>/...`、采集素材、缓存 json） | 禁止放功能脚本（已全部清走） |
 | `cache/` | 运行缓存（`history/`、`temp/`、`sd-req/`、`last_state.json` 仍被 make-pic / SD 工作流使用） | 勿删在用内容；`temp/` 可定期清空 |
@@ -33,6 +34,9 @@
   **`.venv` 已于 2026-09 删除**——它只有 pip/setuptools，从未安装任何项目依赖，不要再创建或提及虚拟环境。
 - 启动 GUI：`python app.py`（主界面）；`python make-pic.py`（赛博暖暖）；`python sd-make-pic.py`（SD 工作流单窗）；`python publish_server.py`（发布 Server，默认端口 18765）。
 - 后台跑批量/长任务必须加 `-u`（`python -u ...`），否则 stdout 被缓冲看不到进度。
+- **跑 pytest / 任意 python 命令时，禁止给命令套管道或重定向**：`python ... | Select-Object`、`python ... > out.txt 2>&1`、`python ... 2>&1` 这三种写法都会让 PowerShell 为原生进程（python.exe）开匿名管道；在本机沙箱（workspace-write）下这个 spawn 会被直接拒绝，表现为 `Program 'python.exe' failed to run: Access is denied` 或 `[sandbox: file access denied under workspace-write mode]`。
+  - 而放宽权限是「按命令一次性授权」（不是会话级粘性），所以每次这么写都会弹一次确认窗，纯属浪费——**测试本身不需要任何越权**。
+  - 正确写法：`python -m pytest -q -p no:cacheprovider`，输出交给终端/工具回传即可；确实要落日志时，让 python 自己用 `open()` 写工作区文件（如 `cache/temp/xxx.log`），不要用 shell 重定向。
 - 禁止在项目里 `pip install` 到系统 Python 以外的环境；依赖清单在 `requirements.txt` / `requirements-dev.txt`（pytest）。
 
 ## 3. 批量生图纪律（最重要）
@@ -43,6 +47,10 @@
 - **Fashion 批量（采集→生图→分析）**：一律使用 `tools/fashion_batch.py --profile <名称>`，
   主题画像（character_spec / extra_prompt / save_subdir / collect_base / count / 分析开关）在
   `prompts/fashion-batch-themes.json` 扩展，不要改脚本、不要复制脚本。
+- **gpt-image 产物优化（重绘提线）**：一律走 `utils/gpt_image_optimize.py` + `modules/others/api_backend.generate_image_repaint`
+  （GUI `重绘(Gemini优化产物)` 模式 / `tools/gpt_image2_gen.py --repaint`），
+  **提示词必须放 `prompts/gpt-image-optimize/`**，禁止把长 prompt 写死在 .py；
+  改 prompt 后按 `docs/gpt-image-optimize/README.md` 第 5 节复跑 2 次以上再替换固件。
 - 配置一律读取 `conf/config-sd.json`（SD）与 `conf/config-image.json`（AIGC2D），
   **禁止硬编码模型名 / VAE / 采样器 / 尺寸 / API 地址**。
 - 尺寸约定（与 `sd_workflow_core.STORY_RESOLUTION_PRESETS` 一致）：
@@ -55,8 +63,14 @@
 2. **不要为单个实验创建脚本**——同族功能合并成一个 CLI（参数化）+ 数据文件（prompts/conf）。
 3. 提示词模板一律放 `prompts/`，运行时用 `utils/prompt_loader.py` 读取；禁止把长 prompt 字符串写死在 .py。
 4. 修改前先读：`PROJECT_REQUIREMENTS.md` → `AGENTS.md` → 目标模块；涉及配置持久化时检查 `conf/` 与模块内 `conf/` 是否重复。
-5. 改动后最小验证：改过的 `.py` 至少 `python -m py_compile`；涉及启动链路跑一次导入检查；能跑 pytest 就跑 `python -m pytest -q`（offscreen 冒烟测试会扫 tools/ 与 modules/）。
+5. 改动后最小验证：改过的 `.py` 至少 `python -m py_compile`；涉及启动链路跑一次导入检查；能跑 pytest 就跑 `python -m pytest -q`（offscreen 冒烟测试会扫 tools/ 与 modules/）。**跑法见第 2 节「禁止套管道/重定向」那条**，别用 `| Select-Object` / `> out.txt 2>&1` 去截输出。
 6. 归档：确定不再使用的脚本/残留 → 移动（不是删除）到 `useless/scripts/<分类>/` 或 `useless/junk/`，并在最终回复中列明。
+7. **测试产出必须隔离**：自动化用例禁止往 `data/<YYYYMMDD>/`（真实产出目录）写东西。
+   - `tests/conftest.py` 整场测试打开 `utils/output_isolation.py` 的隔离开关（`IMAGE_MAKER_TEST_OUTPUT=1`），
+     分析 / 批量分析 / 无头分析链路落到 `data/<日期>/` 的产出会自动改道到 `data/test-result/<日期>/`
+     并加 `test-` 前缀；会话结束时再兜底搬迁漏网的历史产物。
+   - 新增会落盘的用例：尽量写 `tmp_path`；确实要验证默认落盘位置时依赖上面的开关，别绕过它。
+   - 手工清理历史污染：`python -m utils.output_isolation`（预演）/ `--apply`（真搬）。
 
 ## 5. 禁止事项清单
 
@@ -76,9 +90,11 @@
 | 只预检不生成 | `python tools/sd_batch_gen.py --theme-file ... --dry-run` |
 | Fashion 批量采集生图 | `python tools/fashion_batch.py --profile backless_blonde` |
 | 头图全链路分析（投稿格式） | `python tools/analyze_fashion.py --dir data/<日期>/<子目录>` |
-| gpt-image-2 生图/编辑（无头） | `python tools/gpt_image2_gen.py --prompt "..." [--site autodl] [--image ref.png] [--dry-run]` |
+| gpt-image-2 生图/编辑（无头） | `python tools/gpt_image2_gen.py --prompt "..." [--site autodl] [--image ref.png] [--dry-run]`；看站点可用模型加 `--list-models` |
+| gpt-image 产物优化（Gemini 重绘提线） | `python tools/gpt_image2_gen.py --repaint --image <产物.png> [--repaint-repeat 2]`；只看固件用 `--repaint-show-prompt`。GUI 里是「gpt-image-2 生图/编辑」Tab 的 `重绘(Gemini优化产物)` 模式，或生图模式下的「生图后立即重绘」勾选框；固件在 `prompts/gpt-image-optimize/`，理论与实验数据在 `docs/gpt-image-optimize/` |
 | booru 标签翻译 | `python tools/translate_booru_tags.py` |
 | 同人本翻译 | `python tools/doujin_translator.py` |
 | 网页抓取 | `python tools/web-probe.py <fetch\|next-data\|regex\|links\|download> ...` |
 | 画风指令压缩 | `python tools/compress_styles.py` |
-| pytest | `python -m pytest -q` |
+| pytest（不要套管道/重定向，见第 2 节） | `python -m pytest -q -p no:cacheprovider` |
+| 清理混进日期目录的测试产出 | `python -m utils.output_isolation`（预演）/ `python -m utils.output_isolation --apply`（搬到 `data/test-result/<日期>/`） |

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>gpt-image-2 源图 → Gemini 3 Pro 重绘 · 蕾丝/裙摆保真迭代</title>
+<style>
+:root{--bg:#10131a;--panel:#171b25;--panel2:#1e2430;--line:#2b3344;--txt:#e8ecf4;--dim:#96a1b5;
+--accent:#ff9ec4;--accent2:#7ec8ff;--good:#7ee2a8;--warn:#ffd479}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.6}
+header{padding:20px 26px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1b2130,#10131a)}
+h1{margin:0 0 6px;font-size:20px;font-weight:700}
+.sub{color:var(--dim);font-size:13px}
+.wrap{padding:16px 26px 60px;max-width:1780px;margin:0 auto}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;background:var(--panel);
+border:1px solid var(--line);border-radius:12px;padding:11px 18px;margin-bottom:14px;position:sticky;top:0;z-index:30}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;color:var(--dim);padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--accent);color:#191019;font-weight:700}
+.zoom{display:flex;align-items:center;gap:9px}
+input[type=range]{width:190px;accent-color:var(--accent)}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.on{background:var(--accent2);color:#0b1620;border-color:var(--accent2);font-weight:700}
+.hint{color:var(--dim);font-size:12.5px;margin-left:auto}
+.group{margin-bottom:22px}
+.ghead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.ghead h2{margin:0;font-size:15px;color:var(--accent2);font-weight:600}
+.ghead .desc{color:var(--dim);font-size:12.5px}
+.grid{display:grid;gap:14px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.col.best{border-color:var(--good);box-shadow:0 0 0 1px rgba(126,226,168,.35)}
+.col.src{border-color:var(--accent2)}
+.head{padding:9px 12px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.name{font-weight:700;font-size:13.5px}
+.tag{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
+.tag.g{color:var(--good);border-color:rgba(126,226,168,.5)}
+.tag.b{color:var(--accent2);border-color:rgba(126,200,255,.5)}
+.stage{position:relative;background:#0b0e14;overflow:auto;height:min(70vh,860px);cursor:grab}
+.stage::-webkit-scrollbar{width:9px;height:9px}
+.stage::-webkit-scrollbar-thumb{background:#39435a;border-radius:9px}
+.stage img{display:block;transform-origin:0 0;user-select:none;-webkit-user-drag:none}
+.stage.drag{cursor:grabbing}
+.meta{padding:8px 12px;border-top:1px solid var(--line);color:var(--dim);font-size:11.5px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--accent2);font-weight:600;font-size:12.5px}
+tbody tr:hover{background:#1b2130}
+.best-cell{color:var(--good);font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--accent2);font-weight:600}
+.note{color:var(--dim);font-size:12.5px}
+code{background:#0d1017;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;font-size:12px;color:#cfe6ff}
+</style></head>
+<body>
+<header><h1>gpt-image-2 源图 → Gemini 3 Pro 重绘 · 蕾丝/裙摆保真迭代</h1><div class="sub">所有重绘一律从 gpt-image-2 原始产物出发（同一张 1024×1536 源图）· 2K / 2:3 · 目标：保住蕾丝结构、不自作简化，同时维持上批已修好的手与发丝 · 2026-09-20</div></header>
+<div class="wrap">
+  <div class="controls">
+    <div class="seg" id="seg"></div>
+    <div class="zoom"><span style="color:var(--dim)">缩放</span>
+      <input type="range" id="zoom" min="100" max="800" step="25" value="250">
+      <b id="zoomVal">250%</b>
+      <button class="btn" id="fitBtn">适应</button></div>
+    <button class="btn" id="syncBtn">联动：开</button>
+    <span class="hint">拖任意图 = 同步平移 · 悬停滚轮 = 同步缩放</span>
+  </div>
+  <div id="groups"></div>
+  <div class="card" id="metricsCard"><h2>量化指标（同 prompt 同参数）</h2><div id="metricsBox"></div>
+    <p class="note" id="metricNote">lap_var 全局锐度；soft 半软过渡占比（越低越靠线条定义）；lace_teng / skirt_teng 裙摆与裙身区细节能量（越高=蕾丝/褶皱信息越多）；lace_hard 裙摆区硬边占比；frill_cycles 沿水平扫描线的边/褶计数（越高=单位宽度里能数到的结构越多）。</p></div>
+  <div class="card"><h2>说明</h2><p class="note">源图为 gpt-image-2 产物。L 系 prompt 的核心改动是把「不要简化」写成硬约束：小扇贝弧必须一枚枚独立、不能变成一整条大波浪；荷叶边行数不许合并；垂直褶、包边缝、穿带孔、独立围裙层都必须保留。局部放大见 gemini_repaint_L/inspect_L/。</p></div>
+</div>
+<script>
+const DATA = {"title": "gpt-image-2 源图 → Gemini 3 Pro 重绘 · 蕾丝/裙摆保真迭代", "subtitle": "所有重绘一律从 gpt-image-2 原始产物出发（同一张 1024×1536 源图）· 2K / 2:3 · 目标：保住蕾丝结构、不自作简化，同时维持上批已修好的手与发丝 · 2026-09-20", "metric_note": "lap_var 全局锐度；soft 半软过渡占比（越低越靠线条定义）；lace_teng / skirt_teng 裙摆与裙身区细节能量（越高=蕾丝/褶皱信息越多）；lace_hard 裙摆区硬边占比；frill_cycles 沿水平扫描线的边/褶计数（越高=单位宽度里能数到的结构越多）。", "note": "源图为 gpt-image-2 产物。L 系 prompt 的核心改动是把「不要简化」写成硬约束：小扇贝弧必须一枚枚独立、不能变成一整条大波浪；荷叶边行数不许合并；垂直褶、包边缝、穿带孔、独立围裙层都必须保留。局部放大见 gemini_repaint_L/inspect_L/。", "metrics": [{"name": "源图 gpt-image-2", "lap_var": 1181.0, "soft": 38.83, "edge_soft": 0.242, "lace_teng": 12139, "lace_hard": 8.4, "frill_cycles": 0.585, "skirt_teng": 13195, "colors": 996}, {"name": "C7（上批最优）", "lap_var": 2268.0, "soft": 26.34, "edge_soft": 0.503, "lace_teng": 18918, "lace_hard": 14.59, "frill_cycles": 0.4438, "skirt_teng": 26995, "colors": 819}, {"name": "L1 结构保真（长）", "lap_var": 2249.0, "soft": 28.64, "edge_soft": 0.466, "lace_teng": 22757, "lace_hard": 16.02, "frill_cycles": 0.4553, "skirt_teng": 28910, "colors": 980}, {"name": "L2 蕾丝规则式", "lap_var": 2369.0, "soft": 24.09, "edge_soft": 0.517, "lace_teng": 25830, "lace_hard": 17.64, "frill_cycles": 0.4611, "skirt_teng": 32930, "colors": 794}, {"name": "L3 蕾丝短版", "lap_var": 1846.0, "soft": 34.27, "edge_soft": 0.322, "lace_teng": 16137, "lace_hard": 11.86, "frill_cycles": 0.4899, "skirt_teng": 20830, "colors": 861}, {"name": "L4 按缺陷优先级", "lap_var": 2597.0, "soft": 31.04, "edge_soft": 0.455, "lace_teng": 26701, "lace_hard": 19.18, "frill_cycles": 0.4582, "skirt_teng": 34649, "colors": 895}, {"name": "L5 保结构+修手发（推荐）", "lap_var": 2705.0, "soft": 25.7, "edge_soft": 0.526, "lace_teng": 29169, "lace_hard": 19.38, "frill_cycles": 0.4409, "skirt_teng": 35092, "colors": 828}, {"name": "C7 复跑", "lap_var": 3181.0, "soft": 25.91, "edge_soft": 0.572, "lace_teng": 25980, "lace_hard": 17.04, "frill_cycles": 0.5187, "skirt_teng": 35951, "colors": 833}], "groups": [{"name": "总览 · 源图 / C7 / L5 / C7复跑", "desc": "先看这组", "panes": [{"img": "../img/batch-C/01-source.png", "name": "源图 gpt-image-2", "tag": "基准", "cls": "src", "meta": "lap_var 1181 · lace_teng 12139 · frill_cycles 58.5%"}, {"img": "../img/batch-C/C7-final.png", "name": "C7 上批最优", "tag": "蕾丝偏简化", "cls": "", "meta": "lap_var 2268 · lace_teng 18918 · frill_cycles 44.4%"}, {"img": "../img/batch-D/L5-final-firmware.png", "name": "L5 保结构+修手发", "tag": "蕾丝最佳", "cls": "best", "meta": "lap_var 2705 · lace_teng 29169 · lace_hard 19.4%"}, {"img": "../img/batch-D/C7-rerun.png", "name": "C7 复跑", "tag": "最锐", "cls": "best", "meta": "lap_var 3181 · lace_teng 25980 · soft 25.9%"}]}, {"name": "蕾丝专项 · 五种写法", "desc": "L1 长结构版 / L2 规则式 / L3 短版 / L4 优先级 / L5 保守保结构", "panes": [{"img": "../img/batch-D/L1-structure.png", "name": "L1 结构保真（长）", "tag": "", "cls": "", "meta": "lace_teng 22757 · soft 28.6%"}, {"img": "../img/batch-D/L2-rules.png", "name": "L2 蕾丝规则式", "tag": "细节密度高", "cls": "", "meta": "lace_teng 25830 · soft 24.1%"}, {"img": "../img/batch-D/L3-short.png", "name": "L3 蕾丝短版", "tag": "提升最小", "cls": "", "meta": "lace_teng 16137 · soft 34.3%"}, {"img": "../img/batch-D/L4-priority.png", "name": "L4 按缺陷优先级", "tag": "", "cls": "", "meta": "lace_teng 26701 · lap_var 2597"}, {"img": "../img/batch-D/L5-final-firmware.png", "name": "L5 保结构+修手发", "tag": "综合最好", "cls": "best", "meta": "lace_teng 29169 · skirt_teng 35092 · soft 25.7%"}]}, {"name": "手 / 发丝 是否被这批改动破坏", "desc": "L2 / L4 / L5 / C7复跑 对照", "panes": [{"img": "../img/batch-C/C7-final.png", "name": "C7", "tag": "对照", "cls": "src", "meta": "手 4 指+拇指，发束连续"}, {"img": "../img/batch-D/L2-rules.png", "name": "L2", "tag": "手略简", "cls": "", "meta": "手可读，发束连续"}, {"img": "../img/batch-D/L4-priority.png", "name": "L4", "tag": "手清晰", "cls": "", "meta": "手清晰，发束连续"}, {"img": "../img/batch-D/L5-final-firmware.png", "name": "L5", "tag": "手最好", "cls": "best", "meta": "五指结构清楚，发束粗连续"}]}]};
+const groupsBox = document.getElementById('groups');
+const segBox = document.getElementById('seg');
+let zoom = 250, sync = true, stages = [];
+
+function render(groupIndex){
+  stages = [];
+  groupsBox.innerHTML = '';
+  const g = DATA.groups[groupIndex];
+  const n = g.panes.length;
+  const gh = document.createElement('div'); gh.className = 'group';
+  gh.innerHTML = `<div class="ghead"><h2>${g.name}</h2><span class="desc">${g.desc||''}</span></div>
+    <div class="grid" style="grid-template-columns:repeat(${n},1fr)"></div>`;
+  const grid = gh.querySelector('.grid');
+  g.panes.forEach(p=>{
+    const col = document.createElement('div');
+    col.className = 'col ' + (p.cls || '');
+    col.innerHTML = `<div class="head"><span class="name">${p.name}</span>
+      ${p.tag?`<span class="tag ${p.cls==='best'?'g':(p.cls==='src'?'b':'')}">${p.tag}</span>`:''}</div>
+      <div class="stage"><img src="${p.img}" alt="${p.name}"></div>
+      <div class="meta">${p.meta||''}</div>`;
+    grid.appendChild(col);
+    const stage = col.querySelector('.stage'), img = col.querySelector('img');
+    stages.push({stage, img});
+    bind(stage);
+  });
+  groupsBox.appendChild(gh);
+  applyZoom(zoom, true);
+}
+
+function applyZoom(z, keep){
+  zoom = z; document.getElementById('zoom').value = z;
+  document.getElementById('zoomVal').textContent = z + '%';
+  stages.forEach(({stage, img})=>{
+    const cx = stage.scrollLeft + stage.clientWidth/2, cy = stage.scrollTop + stage.clientHeight/2;
+    img.style.width = z + '%';
+    if(keep){ stage.scrollLeft = Math.max(0, cx - stage.clientWidth/2); stage.scrollTop = Math.max(0, cy - stage.clientHeight/2); }
+  });
+}
+
+function bind(stage){
+  stage.addEventListener('scroll', ()=>{
+    if(!sync) return;
+    stages.forEach(o=>{ if(o.stage !== stage){ o.stage.scrollLeft = stage.scrollLeft; o.stage.scrollTop = stage.scrollTop; } });
+  });
+  let drag=false, sx=0, sy=0, ox=0, oy=0;
+  stage.addEventListener('mousedown', e=>{ if(e.button) return; drag=true; stage.classList.add('drag');
+    sx=e.clientX; sy=e.clientY; ox=stage.scrollLeft; oy=stage.scrollTop; e.preventDefault(); });
+  window.addEventListener('mousemove', e=>{ if(!drag) return;
+    stage.scrollLeft = ox-(e.clientX-sx); stage.scrollTop = oy-(e.clientY-sy); });
+  window.addEventListener('mouseup', ()=>{ drag=false; stage.classList.remove('drag'); });
+  stage.addEventListener('wheel', e=>{ if(!sync) return; e.preventDefault();
+    const next = Math.min(800, Math.max(100, zoom + (e.deltaY<0?25:-25)));
+    if(next!==zoom) applyZoom(next, true); }, {passive:false});
+}
+
+function metrics(){
+  const rows = DATA.metrics || [];
+  if(!rows.length){ document.getElementById('metricsCard').style.display='none'; return; }
+  const cols = Object.keys(rows[0]).filter(k=>k!=='name'&&k!=='group');
+  const lower = {flat:1, frag:1, iso:1, grad:1};
+  let html = '<table><thead><tr><th>样本</th>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+  const best = {};
+  cols.forEach(c=>{
+    const vals = rows.map(r=>r[c]).filter(v=>typeof v==='number');
+    best[c] = lower[c] ? Math.min(...vals) : Math.max(...vals);
+  });
+  rows.forEach(r=>{
+    html += `<tr><td>${r.name}</td>` + cols.map(c=>{
+      const v = r[c];
+      if(typeof v !== 'number') return `<td>${v}</td>`;
+      const isBest = Math.abs(v - best[c]) < 1e-9;
+      return `<td class="${isBest?'best-cell':''}">${v.toFixed(v>=100?1:4)}</td>`;
+    }).join('') + '</tr>';
+  });
+  document.getElementById('metricsBox').innerHTML = html + '</tbody></table>';
+}
+
+document.getElementById('zoom').addEventListener('input', e=> applyZoom(+e.target.value, true));
+document.getElementById('fitBtn').addEventListener('click', ()=>{
+  stages.forEach(({stage, img})=>{
+    const ratio = stage.clientWidth / (img.naturalWidth || 1024);
+    img.style.width = (ratio*100)+'%'; stage.scrollLeft=0; stage.scrollTop=0;
+  });
+  document.getElementById('zoomVal').textContent='适应';
+});
+document.getElementById('syncBtn').addEventListener('click', e=>{
+  sync=!sync; e.target.textContent='联动：'+(sync?'开':'关'); e.target.classList.toggle('on', sync);
+});
+
+DATA.groups.forEach((g,i)=>{
+  const b = document.createElement('button'); b.textContent = g.name; b.dataset.i = i;
+  if(i===0) b.classList.add('on');
+  b.addEventListener('click', ()=>{ segBox.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); render(i); });
+  segBox.appendChild(b);
+});
+render(0); metrics();
+</script></body></html>

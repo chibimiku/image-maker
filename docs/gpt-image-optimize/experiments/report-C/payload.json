@@ -1,0 +1,219 @@
+{
+  "title": "迭代 · Gemini 3 Pro 重绘 prompt 修复手指与发丝",
+  "subtitle": "同源图（v3 gpt-image-2 产物）· 2K / 2:3 · 目标：修好手指 + 画面右侧发丝连贯，同时保住画风 · 2026-09-20",
+  "metric_note": "统一缩放至宽 1024 后测量。soft（半软过渡像素占比）越低越靠线条定义；edge_soft（硬边/半软）越高越线稿化；frag 细线碎片率、iso 孤立边缘像素越低越连续。注意：重绘是抽卡，同一 prompt 两次结果也会差——所以关键版本都跑了两次。",
+  "note": "源图是 v3 的 gpt-image-2 产物（1024×1536）。所有重绘都是 1696×2528、2K、2:3。A1 复跑列在 C 批里，用来确认 A1 的效果本身也有波动。手指/发丝的局部放大图见 gemini_repaint_C/inspect_final 与 gemini_repaint_D/inspect_D。",
+  "metrics": [
+    {
+      "name": "源图 gpt-image-2",
+      "lap_var": 1181.4,
+      "hard": 9.4,
+      "soft": 38.83,
+      "edge_soft": 0.242,
+      "frag": 24.89,
+      "iso": 5.93,
+      "colors": 996
+    },
+    {
+      "name": "A1 复跑（无修复指令）",
+      "lap_var": 2627.8,
+      "hard": 14.02,
+      "soft": 20.07,
+      "edge_soft": 0.699,
+      "frag": 44.18,
+      "iso": 4.65,
+      "colors": 726
+    },
+    {
+      "name": "C1 修复+画风（长）",
+      "lap_var": 1683.7,
+      "hard": 10.69,
+      "soft": 35.48,
+      "edge_soft": 0.301,
+      "frag": 37.42,
+      "iso": 5.22,
+      "colors": 852
+    },
+    {
+      "name": "C2 修复+画风（短）",
+      "lap_var": 2505.7,
+      "hard": 14.14,
+      "soft": 24.84,
+      "edge_soft": 0.569,
+      "frag": 42.19,
+      "iso": 4.86,
+      "colors": 811
+    },
+    {
+      "name": "C3 分步修复",
+      "lap_var": 2001.8,
+      "hard": 11.76,
+      "soft": 27.33,
+      "edge_soft": 0.43,
+      "frag": 40.82,
+      "iso": 4.73,
+      "colors": 788
+    },
+    {
+      "name": "C4 负面清单优先",
+      "lap_var": 2336.3,
+      "hard": 13.32,
+      "soft": 18.16,
+      "edge_soft": 0.734,
+      "frag": 48.4,
+      "iso": 4.62,
+      "colors": 679
+    },
+    {
+      "name": "C4 第二次",
+      "lap_var": 2058.8,
+      "hard": 11.91,
+      "soft": 27.6,
+      "edge_soft": 0.431,
+      "frag": 41.3,
+      "iso": 4.82,
+      "colors": 857
+    },
+    {
+      "name": "C5 画风+修复合并",
+      "lap_var": 2992.6,
+      "hard": 14.84,
+      "soft": 22.19,
+      "edge_soft": 0.668,
+      "frag": 46.82,
+      "iso": 5.15,
+      "colors": 809
+    },
+    {
+      "name": "C6 画风在前",
+      "lap_var": 2574.9,
+      "hard": 12.95,
+      "soft": 31.75,
+      "edge_soft": 0.408,
+      "frag": 42.07,
+      "iso": 5.35,
+      "colors": 825
+    },
+    {
+      "name": "C7 C4 精修版",
+      "lap_var": 2268.1,
+      "hard": 13.25,
+      "soft": 26.34,
+      "edge_soft": 0.503,
+      "frag": 43.79,
+      "iso": 5.18,
+      "colors": 819
+    }
+  ],
+  "groups": [
+    {
+      "name": "总览 · 源图 vs 最终候选",
+      "desc": "先看这一组：源图 / C4 / C5 / C7",
+      "panes": [
+        {
+          "img": "img/src.png",
+          "name": "源图 gpt-image-2",
+          "tag": "基准",
+          "cls": "src",
+          "meta": "lap_var 1181 · soft 38.83% · frag 24.89%"
+        },
+        {
+          "img": "img/c4.png",
+          "name": "C4 负面清单优先",
+          "tag": "最平涂",
+          "cls": "best",
+          "meta": "lap_var 2336 · soft 18.16% · edge/soft 0.734"
+        },
+        {
+          "img": "img/c5.png",
+          "name": "C5 画风+修复合并",
+          "tag": "最锐",
+          "cls": "best",
+          "meta": "lap_var 2993 · soft 22.19% · edge/soft 0.668"
+        },
+        {
+          "img": "img/c7.png",
+          "name": "C7 C4 精修版",
+          "tag": "均衡",
+          "cls": "best",
+          "meta": "lap_var 2268 · soft 26.34% · edge/soft 0.503"
+        }
+      ]
+    },
+    {
+      "name": "A1 vs 加修复指令后的版本",
+      "desc": "A1 复跑 / C1 / C2 / C3 —— 都在 A1 的基础上补了手指与发丝修复",
+      "panes": [
+        {
+          "img": "img/a1.png",
+          "name": "A1 复跑",
+          "tag": "无修复指令",
+          "cls": "src",
+          "meta": "lap_var 2628 · soft 20.07% · frag 44.18%"
+        },
+        {
+          "img": "img/c1.png",
+          "name": "C1 修复+画风（长）",
+          "tag": "最保画风",
+          "cls": "",
+          "meta": "lap_var 1684 · soft 35.48% · frag 37.42%"
+        },
+        {
+          "img": "img/c2.png",
+          "name": "C2 修复+画风（短）",
+          "tag": "",
+          "cls": "",
+          "meta": "lap_var 2506 · soft 24.84% · frag 42.19%"
+        },
+        {
+          "img": "img/c3.png",
+          "name": "C3 分步修复",
+          "tag": "",
+          "cls": "",
+          "meta": "lap_var 2002 · soft 27.33% · frag 40.82%"
+        }
+      ]
+    },
+    {
+      "name": "C4 复现性 + C5/C6/C7 变体",
+      "desc": "同一套修复要求换措辞，看哪个最稳",
+      "panes": [
+        {
+          "img": "img/c4.png",
+          "name": "C4 run1",
+          "tag": "",
+          "cls": "",
+          "meta": "lap_var 2336 · soft 18.16% · edge/soft 0.734"
+        },
+        {
+          "img": "img/c4_r2.png",
+          "name": "C4 run2",
+          "tag": "复现：soft 稳定",
+          "cls": "best",
+          "meta": "lap_var 2059 · soft 27.60% · edge/soft 0.431"
+        },
+        {
+          "img": "img/c5.png",
+          "name": "C5",
+          "tag": "画风指令在先",
+          "cls": "",
+          "meta": "lap_var 2993 · soft 22.19% · edge/soft 0.668"
+        },
+        {
+          "img": "img/c6.png",
+          "name": "C6",
+          "tag": "画风段单独在前",
+          "cls": "",
+          "meta": "lap_var 2575 · soft 31.75% · edge/soft 0.408"
+        },
+        {
+          "img": "img/c7.png",
+          "name": "C7",
+          "tag": "C4 结构+分优先级",
+          "cls": "",
+          "meta": "lap_var 2268 · soft 26.34% · edge/soft 0.503"
+        }
+      ]
+    }
+  ]
+}

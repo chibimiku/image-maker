@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>gpt-image-2 vs 2.5 动画风格生图对比 · 粉发 Lolita 少女</title>
+<style>
+  :root{
+    --bg:#10131a; --panel:#171b25; --panel2:#1e2430; --line:#2b3344;
+    --txt:#e8ecf4; --dim:#96a1b5; --accent:#ff9ec4; --accent2:#7ec8ff;
+    --good:#7ee2a8; --warn:#ffd479; --bad:#ff8d8d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.6}
+  header{padding:22px 26px 18px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#1b2130,#10131a)}
+  h1{margin:0 0 6px;font-size:21px;font-weight:700}
+  h1 .pink{color:var(--accent)}
+  .sub{color:var(--dim);font-size:13px}
+  .wrap{padding:18px 26px 60px;max-width:1680px;margin:0 auto}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+        padding:16px 18px;margin-bottom:16px}
+  .card h2{margin:0 0 10px;font-size:15px;font-weight:600;color:var(--accent2);
+           letter-spacing:.02em}
+  .prompt{background:#0d1017;border:1px solid var(--line);border-radius:8px;
+          padding:12px 14px;font-family:Consolas,"Cascadia Mono",monospace;
+          font-size:12.5px;color:#cfe6ff;white-space:pre-wrap;word-break:break-word;max-height:190px;overflow:auto}
+  .kv{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:10px;color:var(--dim);font-size:12.5px}
+  .kv b{color:var(--txt);font-weight:600}
+
+  /* 控制条 */
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;
+            background:var(--panel);border:1px solid var(--line);border-radius:12px;
+            padding:12px 18px;margin-bottom:14px;position:sticky;top:0;z-index:20;
+            backdrop-filter:blur(6px)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:transparent;border:0;color:var(--dim);padding:7px 14px;
+              font-size:13px;cursor:pointer;font-family:inherit}
+  .seg button.on{background:var(--accent);color:#191019;font-weight:700}
+  .zoom{display:flex;align-items:center;gap:9px}
+  input[type=range]{width:210px;accent-color:var(--accent)}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+       border-radius:8px;padding:7px 13px;cursor:pointer;font-size:13px;font-family:inherit}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.on{background:var(--accent2);color:#0b1620;border-color:var(--accent2);font-weight:700}
+  .hint{color:var(--dim);font-size:12.5px;margin-left:auto}
+
+  /* 三栏 */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr}}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+       display:flex;flex-direction:column}
+  .col.best{border-color:var(--good);box-shadow:0 0 0 1px rgba(126,226,168,.35)}
+  .head{padding:10px 13px;border-bottom:1px solid var(--line);display:flex;
+        align-items:baseline;gap:9px;flex-wrap:wrap}
+  .name{font-weight:700;font-size:14px}
+  .tag{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
+  .tag.g{color:var(--good);border-color:rgba(126,226,168,.5)}
+  .tag.y{color:var(--warn);border-color:rgba(255,212,121,.5)}
+  .stage{position:relative;background:#0b0e14;overflow:auto;height:min(74vh,900px);
+         cursor:grab;scrollbar-width:thin}
+  .stage::-webkit-scrollbar{width:9px;height:9px}
+  .stage::-webkit-scrollbar-thumb{background:#39435a;border-radius:9px}
+  .stage img{display:block;transform-origin:0 0;user-select:none;-webkit-user-drag:none}
+  .stage.drag{cursor:grabbing}
+  .meta{padding:9px 13px;border-top:1px solid var(--line);color:var(--dim);font-size:11.5px;
+        display:flex;flex-wrap:wrap;gap:4px 14px}
+  .meta b{color:var(--txt)}
+
+  /* 指标表 */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--accent2);font-weight:600;font-size:12.5px;white-space:nowrap}
+  tbody tr:hover{background:#1b2130}
+  .best-cell{color:var(--good);font-weight:700}
+  .bar{position:relative;height:16px;background:#0d1017;border-radius:4px;min-width:70px}
+  .bar>i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;
+         background:linear-gradient(90deg,#5a7fb8,#7ec8ff)}
+  .bar.warm>i{background:linear-gradient(90deg,#b8745a,#ff9ec4)}
+  .bar.low>i{background:linear-gradient(90deg,#4a8f6a,#7ee2a8)}
+  .note{color:var(--dim);font-size:12.5px;margin:10px 0 0}
+  code{background:#0d1017;border:1px solid var(--line);border-radius:4px;padding:1px 6px;
+       font-family:Consolas,monospace;font-size:12px;color:#cfe6ff}
+  ul{margin:8px 0 0;padding-left:20px;color:var(--dim)}
+  ul li{margin:3px 0}
+  .swatch{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="pink">gpt-image-2</span> vs <span class="pink">gpt-image-2.5</span> · 动画风格生图对比</h1>
+  <div class="sub">对象：粉发棕瞳少女坐在湖畔树枝上 · AP 家甜美 Lolita · 晴朗午后　|　站点 <code>new.aigc2d</code>　通道 <code>/v1/images/generations</code>　|　2026-09-19</div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>固化 Prompt（四路完全相同，一行，勿改）</h2>
+    <div class="prompt" id="promptText">Anime illustration style, a girl with long pastel pink hair and large brown eyes sitting on a thick mossy tree branch above a calm lake on a sunny afternoon, wearing a pink and cream lace frilled sweet Lolita one-piece dress with a big ribbon headdress, dappled golden sunlight, blue sky, pastel colors, clean cel shading, crisp continuous line art, sharp fine detail, medium full body shot.</div>
+    <div class="kv">
+      <span>尺寸 <b>1024×1536</b></span>
+      <span>画质 <b>high</b></span>
+      <span>格式 <b>png</b></span>
+      <span>n <b>1</b></span>
+      <span>参考图 <b>无（纯文生图）</b></span>
+      <span>模型 <b>gpt-image-2 / 2.5-flare / 2.5-sunburst / 2.5-flare-c</b></span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="seg" id="setSeg">
+      <button data-set="v3" class="on">短版 prompt（三模型完整·主对比）</button>
+      <button data-set="v2">超长版 prompt（2 vs sunburst）</button>
+    </div>
+    <div class="zoom">
+      <span style="color:var(--dim)">缩放</span>
+      <input type="range" id="zoom" min="100" max="800" step="25" value="250">
+      <b id="zoomVal">250%</b>
+      <button class="btn" id="fitBtn">适应宽度</button>
+    </div>
+    <button class="btn" id="syncBtn">联动缩放：开</button>
+    <span class="hint">在任意图内拖动 = 三图同步平移 · 悬停某图滚轮 = 三图同步缩放</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>量化指标（v3 短版，同 prompt 同参数）</h2>
+    <table id="metricsTable">
+      <thead><tr>
+        <th>模型</th>
+        <th>锐度 lap_var ↑</th>
+        <th>梯度能量 tenengrad ↑</th>
+        <th>边缘密度 ↑</th>
+        <th>碎片率 frag_ratio ↓</th>
+        <th>孤立边缘 iso_ratio ↓</th>
+        <th>高频能量 hf_ratio ↑</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="note">绿色 = 该列最优。拉普拉斯方差看整体锐度，梯度能量与边缘密度看细节总量，碎片率与孤立边缘看线条是否连续成线，高频能量看纹理丰富度。</p>
+  </div>
+
+  <div class="card">
+    <h2>梯度剖面（细线锐利度，v3 短版）</h2>
+    <table id="gradTable">
+      <thead><tr>
+        <th>模型</th><th>p50</th><th>p90 ↑</th><th>p99 ↑</th>
+        <th>梯度&gt;20% 像素占比 ↑</th><th>梯度&gt;30% 像素占比 ↑</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="note">>30% 占比越高，说明画面里"真正硬朗的线"越多——这正是 gpt-image-2 在 anime 图上的短板。</p>
+  </div>
+
+  <div class="card">
+    <h2>结论与注意点</h2>
+    <div class="grid" style="grid-template-columns:repeat(2,1fr)">
+      <div>
+        <ul>
+          <li><b>线条连续性</b>：2.5 两档均优于 gpt-image-2。sunburst 碎片率最低（0.0153 vs 0.0202），线条最长最连贯。</li>
+          <li><b>细节清晰度</b>：flare 最强（十项锐度指标全面第一，梯度&gt;30% 占比 6.63% vs 基线 4.07%），蕾丝镂空与发丝可数。</li>
+          <li><b>画面完整度</b>：sunburst 会给远景加村庄 / 雪山 / 天鹅等多层景深，gpt-image-2 背景偏平。</li>
+          <li><b>不推荐</b>：<code>2.5-flare-c</code> 同 prompt 下明显更软（tenengrad 5534，仅基线 75%），不适合线条对比。</li>
+        </ul>
+      </div>
+      <div>
+        <ul>
+          <li><b>Safety 行为差异</b>：同一份详细 Lolita prompt，gpt-image-2 稳定通过，2.5-flare / flare-c 连续被拒 6 次；压成一行、缩短、去掉年龄与袜类描述后一次通过。</li>
+          <li><b>用量</b>：gpt-image-2 output_tokens=1105，两个 2.5=1372；耗时基线约 30–35s，2.5 约 30–55s。</li>
+          <li><b>建议</b>：要刀锋线稿感选 flare，要细节连贯 + 画面耐看选 sunburst。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const IMG = {
+  v3: [
+    {src:"../img/batch-A/02-gptimage2.png",   name:"gpt-image-2",           tag:"基线",            cls:"",
+     meta:"output_tokens 1105 · 34.5s", file:"gpt-image-2_output_193138_0_d09c70.png"},
+    {src:"../img/batch-A/03-gptimage2.5-flare.png",    name:"gpt-image-2.5-flare",   tag:"最锐",            cls:"best",
+     meta:"output_tokens 1372 · 36.9s", file:"gpt-image-2.5-flare_output_193215_0_75fc03.png"},
+    {src:"../img/batch-A/04-gptimage2.5-sunburst.png",  name:"gpt-image-2.5-sunburst", tag:"最连贯",         cls:"best",
+     meta:"output_tokens 1372 · 39.4s", file:"gpt-image-2.5-sunburst_output_193255_0_a26a6e.png"}
+  ],
+  v2: [
+    {src:"../img/batch-A/05-gptimage2-long-prompt.png",   name:"gpt-image-2",           tag:"基线",            cls:"",
+     meta:"超长版 prompt", file:"gpt-image-2_output_192922_0_b000d3.png"},
+    {src:"../img/batch-A/06-sunburst-long-prompt.png", name:"gpt-image-2.5-sunburst", tag:"细节占优",        cls:"best",
+     meta:"超长版 prompt", file:"gpt-image-2.5-sunburst_output_192939_0_ecad6e.png"}
+  ]
+};
+
+const METRICS = [
+  {model:"gpt-image-2",            lap:1181.4, teng:7420.2, edge:0.1148, frag:0.02016, iso:0.05932, hf:0.00464},
+  {model:"gpt-image-2.5-flare",    lap:1505.6, teng:9019.8, edge:0.1354, frag:0.02364, iso:0.06071, hf:0.00648, best:true},
+  {model:"gpt-image-2.5-sunburst", lap:953.4,  teng:7522.2, edge:0.1244, frag:0.01526, iso:0.05143, hf:0.00460, best:true},
+  {model:"gpt-image-2.5-flare-c",  lap:717.8,  teng:5534.2, edge:0.0844, frag:0.01483, iso:0.05197, hf:0.00282}
+];
+const GRADS = [
+  {model:"gpt-image-2",            p50:0.0383, p90:0.1932, p99:0.4760, f20:0.0940, f30:0.0407},
+  {model:"gpt-image-2.5-flare",    p50:0.0477, p90:0.2454, p99:0.5289, f20:0.1409, f30:0.0663, best:true},
+  {model:"gpt-image-2.5-sunburst", p50:0.0513, p90:0.2210, p99:0.4845, f20:0.1204, f30:0.0505, best:true},
+  {model:"gpt-image-2.5-flare-c",  p50:0.0300, p90:0.1706, p99:0.4360, f20:0.0764, f30:0.0317}
+];
+
+const grid = document.getElementById('grid');
+let currentSet = 'v3';
+let zoom = 250, sync = true, stages = [];
+
+function build(setName){
+  currentSet = setName;
+  stages = [];
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${IMG[setName].length},1fr)`;
+  IMG[setName].forEach(item=>{
+    const col = document.createElement('div');
+    col.className = 'col ' + (item.cls||'');
+    col.innerHTML = `
+      <div class="head">
+        <span class="name">${item.name}</span>
+        <span class="tag ${item.cls==='best'?'g':''}">${item.tag}</span>
+      </div>
+      <div class="stage"><img src="${item.src}" alt="${item.name}"></div>
+      <div class="meta"><span>${item.meta}</span><span>file <b>${item.file}</b></span></div>`;
+    grid.appendChild(col);
+    const stage = col.querySelector('.stage');
+    const img = col.querySelector('img');
+    stages.push({stage, img});
+    bindStage(stage, img);
+  });
+  applyZoom(zoom, true);
+}
+
+function applyZoom(z, keepCenter){
+  zoom = z;
+  document.getElementById('zoom').value = z;
+  document.getElementById('zoomVal').textContent = z + '%';
+  stages.forEach(({stage, img})=>{
+    const cx = stage.scrollLeft + stage.clientWidth/2;
+    const cy = stage.scrollTop + stage.clientHeight/2;
+    img.style.width = z + '%';
+    img.style.transform = 'none';
+    if(keepCenter){
+      stage.scrollLeft = Math.max(0, cx - stage.clientWidth/2);
+      stage.scrollTop  = Math.max(0, cy - stage.clientHeight/2);
+    }
+  });
+}
+
+function norm(s){ return {x: s.scrollLeft, y: s.scrollTop}; }
+let fromStage = null;
+function bindStage(stage, img){
+  // 同步滚动
+  stage.addEventListener('scroll', ()=>{
+    if(!sync || fromStage === stage) return;
+    stages.forEach(o=>{ if(o.stage !== stage){ o.stage.scrollLeft = stage.scrollLeft; o.stage.scrollTop = stage.scrollTop; } });
+  });
+  // 拖拽平移
+  let dragging = false, sx=0, sy=0, ox=0, oy=0;
+  stage.addEventListener('mousedown', e=>{
+    if(e.button!==0) return;
+    dragging = true; stage.classList.add('drag');
+    sx = e.clientX; sy = e.clientY; ox = stage.scrollLeft; oy = stage.scrollTop;
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    stage.scrollLeft = ox - (e.clientX - sx);
+    stage.scrollTop  = oy - (e.clientY - sy);
+  });
+  window.addEventListener('mouseup', ()=>{ dragging=false; stage.classList.remove('drag'); });
+  // 悬停滚轮 = 缩放（同步）
+  stage.addEventListener('wheel', e=>{
+    if(!sync){ return; }
+    e.preventDefault();
+    const next = Math.min(800, Math.max(100, zoom + (e.deltaY < 0 ? 25 : -25)));
+    if(next !== zoom) applyZoom(next, true);
+  }, {passive:false});
+}
+
+// 指标表
+function buildMetrics(){
+  const tb = document.querySelector('#metricsTable tbody');
+  const cols = ['lap','teng','edge','frag','iso','hf'];
+  const best = {};
+  cols.forEach(k=>{
+    const vals = METRICS.map(r=>r[k]);
+    best[k] = (k==='frag'||k==='iso') ? Math.min(...vals) : Math.max(...vals);
+  });
+  const max = {}; cols.forEach(k=> max[k] = Math.max(...METRICS.map(r=>r[k])));
+  METRICS.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="swatch" style="background:${r.best?'#7ee2a8':'#39435a'}"></span>${r.model}</td>` +
+      cols.map(k=>{
+        const isBest = r[k] === best[k];
+        const cls = k==='frag'||k==='iso' ? 'low' : 'warm';
+        const pct = Math.max(6, Math.round(r[k]/max[k]*100));
+        const shown = (k==='lap'||k==='teng') ? r[k].toFixed(1) : r[k].toFixed(5);
+        return `<td class="${isBest?'best-cell':''}">
+          <div style="display:flex;align-items:center;gap:9px;justify-content:flex-end">
+            <span>${shown}</span>
+            <span class="bar ${cls}" style="width:72px"><i style="width:${pct}%"></i></span>
+          </div></td>`;
+      }).join('');
+    tb.appendChild(tr);
+  });
+
+  const gt = document.querySelector('#gradTable tbody');
+  const gcols = ['p50','p90','p99','f20','f30'];
+  const gbest = {}; gcols.forEach(k=> gbest[k] = Math.max(...GRADS.map(r=>r[k])));
+  const gmax = {}; gcols.forEach(k=> gmax[k] = Math.max(...GRADS.map(r=>r[k])));
+  GRADS.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="swatch" style="background:${r.best?'#7ee2a8':'#39435a'}"></span>${r.model}</td>` +
+      gcols.map(k=>{
+        const isBest = r[k] === gbest[k];
+        const pct = Math.max(6, Math.round(r[k]/gmax[k]*100));
+        return `<td class="${isBest?'best-cell':''}">
+          <div style="display:flex;align-items:center;gap:9px;justify-content:flex-end">
+            <span>${r[k].toFixed(4)}</span>
+            <span class="bar" style="width:72px"><i style="width:${pct}%"></i></span>
+          </div></td>`;
+      }).join('');
+    gt.appendChild(tr);
+  });
+}
+
+// 控件
+document.getElementById('zoom').addEventListener('input', e=> applyZoom(+e.target.value, true));
+document.getElementById('fitBtn').addEventListener('click', ()=>{
+  // 适应宽度：把图片宽度压到容器宽度
+  applyZoom(100, false);
+  stages.forEach(({stage, img})=>{
+    const ratio = stage.clientWidth / img.naturalWidth;
+    img.style.width = (ratio*100) + '%';
+    stage.scrollLeft = 0; stage.scrollTop = 0;
+  });
+  document.getElementById('zoomVal').textContent = '适应';
+  zoom = 100;
+});
+document.getElementById('syncBtn').addEventListener('click', e=>{
+  sync = !sync;
+  e.target.textContent = '联动缩放：' + (sync ? '开' : '关');
+  e.target.classList.toggle('on', sync);
+});
+document.querySelectorAll('#setSeg button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('#setSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    build(b.dataset.set);
+  });
+});
+
+// prompt 已内联在上方 #promptText，无需 fetch（双击本地打开即可用）
+
+build('v3');
+buildMetrics();
+</script>
+</body>
+</html>

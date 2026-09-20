@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>A/B 实验 · gpt-image-2 线条连贯性改善方案对比</title>
+<style>
+:root{--bg:#10131a;--panel:#171b25;--panel2:#1e2430;--line:#2b3344;--txt:#e8ecf4;--dim:#96a1b5;
+--accent:#ff9ec4;--accent2:#7ec8ff;--good:#7ee2a8;--warn:#ffd479}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.6}
+header{padding:20px 26px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1b2130,#10131a)}
+h1{margin:0 0 6px;font-size:20px;font-weight:700}
+.sub{color:var(--dim);font-size:13px}
+.wrap{padding:16px 26px 60px;max-width:1780px;margin:0 auto}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;background:var(--panel);
+border:1px solid var(--line);border-radius:12px;padding:11px 18px;margin-bottom:14px;position:sticky;top:0;z-index:30}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;color:var(--dim);padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--accent);color:#191019;font-weight:700}
+.zoom{display:flex;align-items:center;gap:9px}
+input[type=range]{width:190px;accent-color:var(--accent)}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.on{background:var(--accent2);color:#0b1620;border-color:var(--accent2);font-weight:700}
+.hint{color:var(--dim);font-size:12.5px;margin-left:auto}
+.group{margin-bottom:22px}
+.ghead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.ghead h2{margin:0;font-size:15px;color:var(--accent2);font-weight:600}
+.ghead .desc{color:var(--dim);font-size:12.5px}
+.grid{display:grid;gap:14px}
+.col{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.col.best{border-color:var(--good);box-shadow:0 0 0 1px rgba(126,226,168,.35)}
+.col.src{border-color:var(--accent2)}
+.head{padding:9px 12px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.name{font-weight:700;font-size:13.5px}
+.tag{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
+.tag.g{color:var(--good);border-color:rgba(126,226,168,.5)}
+.tag.b{color:var(--accent2);border-color:rgba(126,200,255,.5)}
+.stage{position:relative;background:#0b0e14;overflow:auto;height:min(70vh,860px);cursor:grab}
+.stage::-webkit-scrollbar{width:9px;height:9px}
+.stage::-webkit-scrollbar-thumb{background:#39435a;border-radius:9px}
+.stage img{display:block;transform-origin:0 0;user-select:none;-webkit-user-drag:none}
+.stage.drag{cursor:grabbing}
+.meta{padding:8px 12px;border-top:1px solid var(--line);color:var(--dim);font-size:11.5px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--accent2);font-weight:600;font-size:12.5px}
+tbody tr:hover{background:#1b2130}
+.best-cell{color:var(--good);font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--accent2);font-weight:600}
+.note{color:var(--dim);font-size:12.5px}
+code{background:#0d1017;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;font-size:12px;color:#cfe6ff}
+</style></head>
+<body>
+<header><h1>A/B 实验 · gpt-image-2 线条连贯性改善方案对比</h1><div class="sub">站点 new.aigc2d · 1024×1536 / high / png / n=1 · A 组=对同一张 v3 图做 Gemini 3 Pro 重绘（两种 prompt）· B 组=在前置画风上做 6 种变体（内容部分逐字不改）· 2026-09-19</div></header>
+<div class="wrap">
+  <div class="controls">
+    <div class="seg" id="seg"></div>
+    <div class="zoom"><span style="color:var(--dim)">缩放</span>
+      <input type="range" id="zoom" min="100" max="800" step="25" value="250">
+      <b id="zoomVal">250%</b>
+      <button class="btn" id="fitBtn">适应</button></div>
+    <button class="btn" id="syncBtn">联动：开</button>
+    <span class="hint">拖任意图 = 同步平移 · 悬停滚轮 = 同步缩放</span>
+  </div>
+  <div id="groups"></div>
+  <div class="card" id="metricsCard"><h2>量化指标（同 prompt 同参数）</h2><div id="metricsBox"></div>
+    <p class="note" id="metricNote">统一缩放到宽 1024 后测量。soft（梯度 2%~10% 的半软过渡像素占比）越低 = 画面越靠线条定义；edge_soft（硬边/半软 比值）越高 = 越线稿化；frag（细线碎片率）越低 = 线条越连续。B0/B2/B4/B5 各跑了两次，用来区分真实提升与单次抽卡噪声。</p></div>
+  <div class="card"><h2>说明</h2><p class="note">A 组源图是 v3 的 gpt-image-2 产物；B 组每次都是独立生成（同 prompt 同参数），因此组间差异里混有抽卡噪声——所以 B0/B2/B4/B5 都做了复跑。所有产物原图在 data/20260919/ 对应子目录下。</p></div>
+</div>
+<script>
+const DATA = {"title": "A/B 实验 · gpt-image-2 线条连贯性改善方案对比", "subtitle": "站点 new.aigc2d · 1024×1536 / high / png / n=1 · A 组=对同一张 v3 图做 Gemini 3 Pro 重绘（两种 prompt）· B 组=在前置画风上做 6 种变体（内容部分逐字不改）· 2026-09-19", "metric_note": "统一缩放到宽 1024 后测量。soft（梯度 2%~10% 的半软过渡像素占比）越低 = 画面越靠线条定义；edge_soft（硬边/半软 比值）越高 = 越线稿化；frag（细线碎片率）越低 = 线条越连续。B0/B2/B4/B5 各跑了两次，用来区分真实提升与单次抽卡噪声。", "note": "A 组源图是 v3 的 gpt-image-2 产物；B 组每次都是独立生成（同 prompt 同参数），因此组间差异里混有抽卡噪声——所以 B0/B2/B4/B5 都做了复跑。所有产物原图在 data/20260919/ 对应子目录下。", "metrics": [{"name": "源图 v3 gpt-image-2（1024×1536）", "lap_var": 1181.4, "hard": 9.4, "soft": 38.83, "edge_soft": 0.242, "frag": 24.89, "iso": 5.93, "colors": 996}, {"name": "A1 带画风重绘（Gemini 2K）", "lap_var": 2015.8, "hard": 11.55, "soft": 32.65, "edge_soft": 0.354, "frag": 40.19, "iso": 5.53, "colors": 810}, {"name": "A2 只求连贯重绘（Gemini 2K）", "lap_var": 1413.4, "hard": 9.71, "soft": 37.37, "edge_soft": 0.26, "frag": 30.22, "iso": 5.73, "colors": 941}, {"name": "B0 基线（无前置）（run1）", "lap_var": 845.5, "hard": 7.9, "soft": 38.51, "edge_soft": 0.205, "frag": 21.61, "iso": 5.11, "colors": 811}, {"name": "B0 基线 复跑（run2）", "lap_var": 725.4, "hard": 8.2, "soft": 38.35, "edge_soft": 0.214, "frag": 19.48, "iso": 4.8, "colors": 935}, {"name": "B1 前置:赛璐璐平涂（run1）", "lap_var": 1348.3, "hard": 8.81, "soft": 31.48, "edge_soft": 0.28, "frag": 36.95, "iso": 5.85, "colors": 818}, {"name": "B2 前置:矢量线稿+限预算（run1）", "lap_var": 1354.6, "hard": 7.39, "soft": 28.46, "edge_soft": 0.26, "frag": 37.9, "iso": 6.3, "colors": 807}, {"name": "B2 复跑（run2）", "lap_var": 781.2, "hard": 6.33, "soft": 27.89, "edge_soft": 0.227, "frag": 27.01, "iso": 5.75, "colors": 634}, {"name": "B3 前置:动画师语境（run1）", "lap_var": 823.5, "hard": 8.6, "soft": 38.45, "edge_soft": 0.224, "frag": 20.17, "iso": 4.94, "colors": 814}, {"name": "B4 前置:结果指标式（run1）", "lap_var": 1509.0, "hard": 10.64, "soft": 35.17, "edge_soft": 0.302, "frag": 27.97, "iso": 5.94, "colors": 1125}, {"name": "B4 复跑（run2）", "lap_var": 926.1, "hard": 6.55, "soft": 36.92, "edge_soft": 0.177, "frag": 27.95, "iso": 5.87, "colors": 846}, {"name": "B5 前置+后置双重约束（run1）", "lap_var": 1231.0, "hard": 9.56, "soft": 25.67, "edge_soft": 0.373, "frag": 26.15, "iso": 4.81, "colors": 1067}, {"name": "B5 复跑（run2）", "lap_var": 1713.8, "hard": 10.44, "soft": 25.17, "edge_soft": 0.415, "frag": 38.08, "iso": 5.74, "colors": 1015}], "groups": [{"name": "A · 重绘 prompt 对比", "desc": "同一张源图，两种重绘指令：A1 带画风要求 / A2 只要求线条连贯", "panes": [{"img": "../img/batch-A/01-source-v3-gptimage2.png", "name": "源图 v3 gpt-image-2", "tag": "基准", "cls": "src", "meta": "1024×1536 · lap_var 1181 · soft 38.83%"}, {"img": "../img/batch-C/A1-style-run1.jpg", "name": "A1 带画风要求", "tag": "锐度最高/改画风", "cls": "best", "meta": "1696×2528 · lap_var 2016 · soft 32.65% · edge/soft 0.354"}, {"img": "../img/batch-C/A2-lines-only.png", "name": "A2 只求线条连贯", "tag": "保画风/提升温和", "cls": "", "meta": "1696×2528 · lap_var 1413 · soft 37.37% · edge/soft 0.260"}]}, {"name": "B0 · 基线（无前置，复现组）", "desc": "v3 原始 prompt 原样，用来量抽卡噪声", "panes": [{"img": "../img/batch-B/B0-baseline.png", "name": "B0 run1", "tag": "基线", "cls": "src", "meta": "lap_var 845 · soft 38.51% · frag 21.61%"}, {"img": "../img/batch-B/B0-baseline-r2.png", "name": "B0 run2", "tag": "基线复跑", "cls": "src", "meta": "lap_var 725 · soft 38.35% · frag 19.48%"}]}, {"name": "B1/B3 · 只换前置风格名词", "desc": "B1 赛璐璐平涂 / B3 动画师语境", "panes": [{"img": "../img/batch-B/B0-baseline.png", "name": "B0 基线", "tag": "对照", "cls": "src", "meta": "lap_var 845"}, {"img": "../img/batch-B/B1-cel.png", "name": "B1 赛璐璐平涂", "tag": "soft↓ frag↑", "cls": "", "meta": "lap_var 1348 · soft 31.48% · frag 36.95%"}, {"img": "../img/batch-B/B3-animator.png", "name": "B3 动画师语境", "tag": "≈基线无收益", "cls": "", "meta": "lap_var 823 · soft 38.45% · frag 20.17%"}]}, {"name": "B2 · 矢量线稿 + 限制细节预算（复现组）", "desc": "flat colours + minimal shading + simple background，降渲染预算换干净线条", "panes": [{"img": "../img/batch-B/B0-baseline.png", "name": "B0 基线", "tag": "对照", "cls": "src", "meta": "lap_var 845 · soft 38.51%"}, {"img": "../img/batch-B/B2-vector.png", "name": "B2 run1", "tag": "soft 最低档", "cls": "best", "meta": "lap_var 1355 · soft 28.46% · flat 53.61%"}, {"img": "../img/batch-B/B2-vector-r2.png", "name": "B2 run2", "tag": "复现性最好", "cls": "best", "meta": "lap_var 781 · soft 27.89% · flat 55.91%"}]}, {"name": "B4 · 结果指标式前置（有噪声）", "desc": "flawless unbroken line work, no blurry areas —— 同样措辞两次结果差很多", "panes": [{"img": "../img/batch-B/B0-baseline.png", "name": "B0 基线", "tag": "对照", "cls": "src", "meta": "lap_var 845"}, {"img": "../img/batch-B/B4-metric.png", "name": "B4 run1", "tag": "抽到高锐度", "cls": "", "meta": "lap_var 1509 · edge/soft 0.303"}, {"img": "../img/batch-B/B4-metric-r2.png", "name": "B4 run2", "tag": "回落", "cls": "", "meta": "lap_var 926 · edge/soft 0.177"}]}, {"name": "B5 · 前置+后置双重约束（复现组，推荐）", "desc": "前置钉画风 + 后置钉可检查的线条/色块要求，两次都稳", "panes": [{"img": "../img/batch-B/B0-baseline.png", "name": "B0 基线", "tag": "对照", "cls": "src", "meta": "lap_var 845 · soft 38.51% · frag 21.61%"}, {"img": "../img/batch-B/B5-both.png", "name": "B5 run1", "tag": "soft 最低 · 最线稿", "cls": "best", "meta": "lap_var 1231 · soft 25.67% · edge/soft 0.373 · frag 26.15%"}, {"img": "../img/batch-B/B5-both-r2.png", "name": "B5 run2", "tag": "复现成功", "cls": "best", "meta": "lap_var 1714 · soft 25.17% · edge/soft 0.415 · frag 38.08%"}]}]};
+const groupsBox = document.getElementById('groups');
+const segBox = document.getElementById('seg');
+let zoom = 250, sync = true, stages = [];
+
+function render(groupIndex){
+  stages = [];
+  groupsBox.innerHTML = '';
+  const g = DATA.groups[groupIndex];
+  const n = g.panes.length;
+  const gh = document.createElement('div'); gh.className = 'group';
+  gh.innerHTML = `<div class="ghead"><h2>${g.name}</h2><span class="desc">${g.desc||''}</span></div>
+    <div class="grid" style="grid-template-columns:repeat(${n},1fr)"></div>`;
+  const grid = gh.querySelector('.grid');
+  g.panes.forEach(p=>{
+    const col = document.createElement('div');
+    col.className = 'col ' + (p.cls || '');
+    col.innerHTML = `<div class="head"><span class="name">${p.name}</span>
+      ${p.tag?`<span class="tag ${p.cls==='best'?'g':(p.cls==='src'?'b':'')}">${p.tag}</span>`:''}</div>
+      <div class="stage"><img src="${p.img}" alt="${p.name}"></div>
+      <div class="meta">${p.meta||''}</div>`;
+    grid.appendChild(col);
+    const stage = col.querySelector('.stage'), img = col.querySelector('img');
+    stages.push({stage, img});
+    bind(stage);
+  });
+  groupsBox.appendChild(gh);
+  applyZoom(zoom, true);
+}
+
+function applyZoom(z, keep){
+  zoom = z; document.getElementById('zoom').value = z;
+  document.getElementById('zoomVal').textContent = z + '%';
+  stages.forEach(({stage, img})=>{
+    const cx = stage.scrollLeft + stage.clientWidth/2, cy = stage.scrollTop + stage.clientHeight/2;
+    img.style.width = z + '%';
+    if(keep){ stage.scrollLeft = Math.max(0, cx - stage.clientWidth/2); stage.scrollTop = Math.max(0, cy - stage.clientHeight/2); }
+  });
+}
+
+function bind(stage){
+  stage.addEventListener('scroll', ()=>{
+    if(!sync) return;
+    stages.forEach(o=>{ if(o.stage !== stage){ o.stage.scrollLeft = stage.scrollLeft; o.stage.scrollTop = stage.scrollTop; } });
+  });
+  let drag=false, sx=0, sy=0, ox=0, oy=0;
+  stage.addEventListener('mousedown', e=>{ if(e.button) return; drag=true; stage.classList.add('drag');
+    sx=e.clientX; sy=e.clientY; ox=stage.scrollLeft; oy=stage.scrollTop; e.preventDefault(); });
+  window.addEventListener('mousemove', e=>{ if(!drag) return;
+    stage.scrollLeft = ox-(e.clientX-sx); stage.scrollTop = oy-(e.clientY-sy); });
+  window.addEventListener('mouseup', ()=>{ drag=false; stage.classList.remove('drag'); });
+  stage.addEventListener('wheel', e=>{ if(!sync) return; e.preventDefault();
+    const next = Math.min(800, Math.max(100, zoom + (e.deltaY<0?25:-25)));
+    if(next!==zoom) applyZoom(next, true); }, {passive:false});
+}
+
+function metrics(){
+  const rows = DATA.metrics || [];
+  if(!rows.length){ document.getElementById('metricsCard').style.display='none'; return; }
+  const cols = Object.keys(rows[0]).filter(k=>k!=='name'&&k!=='group');
+  const lower = {flat:1, frag:1, iso:1, grad:1};
+  let html = '<table><thead><tr><th>样本</th>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+  const best = {};
+  cols.forEach(c=>{
+    const vals = rows.map(r=>r[c]).filter(v=>typeof v==='number');
+    best[c] = lower[c] ? Math.min(...vals) : Math.max(...vals);
+  });
+  rows.forEach(r=>{
+    html += `<tr><td>${r.name}</td>` + cols.map(c=>{
+      const v = r[c];
+      if(typeof v !== 'number') return `<td>${v}</td>`;
+      const isBest = Math.abs(v - best[c]) < 1e-9;
+      return `<td class="${isBest?'best-cell':''}">${v.toFixed(v>=100?1:4)}</td>`;
+    }).join('') + '</tr>';
+  });
+  document.getElementById('metricsBox').innerHTML = html + '</tbody></table>';
+}
+
+document.getElementById('zoom').addEventListener('input', e=> applyZoom(+e.target.value, true));
+document.getElementById('fitBtn').addEventListener('click', ()=>{
+  stages.forEach(({stage, img})=>{
+    const ratio = stage.clientWidth / (img.naturalWidth || 1024);
+    img.style.width = (ratio*100)+'%'; stage.scrollLeft=0; stage.scrollTop=0;
+  });
+  document.getElementById('zoomVal').textContent='适应';
+});
+document.getElementById('syncBtn').addEventListener('click', e=>{
+  sync=!sync; e.target.textContent='联动：'+(sync?'开':'关'); e.target.classList.toggle('on', sync);
+});
+
+DATA.groups.forEach((g,i)=>{
+  const b = document.createElement('button'); b.textContent = g.name; b.dataset.i = i;
+  if(i===0) b.classList.add('on');
+  b.addEventListener('click', ()=>{ segBox.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); render(i); });
+  segBox.appendChild(b);
+});
+render(0); metrics();
+</script></body></html>

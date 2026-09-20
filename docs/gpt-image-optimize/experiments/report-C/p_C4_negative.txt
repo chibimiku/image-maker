@@ -1,0 +1,15 @@
+Repaint this image in a clean cel-shaded anime style and correct the drawing defects. Keep the same composition, pose, camera angle, character design, outfit and background layout; add and remove nothing; do not crop or reframe.
+
+Hands are the top priority. The hands in the source are malformed, so do not copy them - reconstruct both hands:
+- the hand supporting the body on the branch: a firm grip on the bark, thumb visible on one side, four separated fingers curling over the front edge, correct knuckle sequence, solid palm, wrist joining the sleeve cleanly;
+- the hand near the cheek: four fingers in correct order, clear gaps, correct bends, definite palm;
+- anatomically correct anime hands at this size: five fingers each, correct thumb placement, correct joints, nails on the correct side, no fused, melted, duplicated, missing or extra digits, no blobs where fingers meet, no finger merging into the palm or into the sleeve.
+Render both hands with the same crisp closed outlines and hard-edged shadow tones as the face.
+
+Hair comes second. Draw every lock as an unbroken tapered strand from root to tip; strands must not fade into blur or break into pieces. Pay special attention to the long hair falling along the right side of the frame: continuous flowing clumps, countable strands, closed outlines along the whole length. Keep the original hairstyle, volume and silhouette unchanged.
+
+Everything else: all outlines continuous, connected and even in weight; every frill, lace scallop, ribbon, bow and leaf a distinct closed shape; the branch, the water, the foliage and the far scenery drawn with the same edge crispness as the figure, with no blurry region left anywhere in the frame.
+
+Style: flat cel shading, one hard-edged shadow tone per material, flat colours filled to the line, bold even-weight outlines, limited pastel palette, no soft gradients, no painterly blending, no colour bleeding, no noise, no text, no watermark. Same aspect ratio and same palette and lighting as the original.
+
+Final self-check: count five fingers on each hand, and trace each long strand on the right side of the frame for continuity before you output.

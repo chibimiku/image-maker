@@ -1,0 +1,207 @@
+{
+  "title": "gpt-image-2 源图 → Gemini 3 Pro 重绘 · 蕾丝/裙摆保真迭代",
+  "subtitle": "所有重绘一律从 gpt-image-2 原始产物出发（同一张 1024×1536 源图）· 2K / 2:3 · 目标：保住蕾丝结构、不自作简化，同时维持上批已修好的手与发丝 · 2026-09-20",
+  "metric_note": "lap_var 全局锐度；soft 半软过渡占比（越低越靠线条定义）；lace_teng / skirt_teng 裙摆与裙身区细节能量（越高=蕾丝/褶皱信息越多）；lace_hard 裙摆区硬边占比；frill_cycles 沿水平扫描线的边/褶计数（越高=单位宽度里能数到的结构越多）。",
+  "note": "源图为 gpt-image-2 产物。L 系 prompt 的核心改动是把「不要简化」写成硬约束：小扇贝弧必须一枚枚独立、不能变成一整条大波浪；荷叶边行数不许合并；垂直褶、包边缝、穿带孔、独立围裙层都必须保留。局部放大见 gemini_repaint_L/inspect_L/。",
+  "metrics": [
+    {
+      "name": "源图 gpt-image-2",
+      "lap_var": 1181.0,
+      "soft": 38.83,
+      "edge_soft": 0.242,
+      "lace_teng": 12139,
+      "lace_hard": 8.4,
+      "frill_cycles": 0.585,
+      "skirt_teng": 13195,
+      "colors": 996
+    },
+    {
+      "name": "C7（上批最优）",
+      "lap_var": 2268.0,
+      "soft": 26.34,
+      "edge_soft": 0.503,
+      "lace_teng": 18918,
+      "lace_hard": 14.59,
+      "frill_cycles": 0.4438,
+      "skirt_teng": 26995,
+      "colors": 819
+    },
+    {
+      "name": "L1 结构保真（长）",
+      "lap_var": 2249.0,
+      "soft": 28.64,
+      "edge_soft": 0.466,
+      "lace_teng": 22757,
+      "lace_hard": 16.02,
+      "frill_cycles": 0.4553,
+      "skirt_teng": 28910,
+      "colors": 980
+    },
+    {
+      "name": "L2 蕾丝规则式",
+      "lap_var": 2369.0,
+      "soft": 24.09,
+      "edge_soft": 0.517,
+      "lace_teng": 25830,
+      "lace_hard": 17.64,
+      "frill_cycles": 0.4611,
+      "skirt_teng": 32930,
+      "colors": 794
+    },
+    {
+      "name": "L3 蕾丝短版",
+      "lap_var": 1846.0,
+      "soft": 34.27,
+      "edge_soft": 0.322,
+      "lace_teng": 16137,
+      "lace_hard": 11.86,
+      "frill_cycles": 0.4899,
+      "skirt_teng": 20830,
+      "colors": 861
+    },
+    {
+      "name": "L4 按缺陷优先级",
+      "lap_var": 2597.0,
+      "soft": 31.04,
+      "edge_soft": 0.455,
+      "lace_teng": 26701,
+      "lace_hard": 19.18,
+      "frill_cycles": 0.4582,
+      "skirt_teng": 34649,
+      "colors": 895
+    },
+    {
+      "name": "L5 保结构+修手发（推荐）",
+      "lap_var": 2705.0,
+      "soft": 25.7,
+      "edge_soft": 0.526,
+      "lace_teng": 29169,
+      "lace_hard": 19.38,
+      "frill_cycles": 0.4409,
+      "skirt_teng": 35092,
+      "colors": 828
+    },
+    {
+      "name": "C7 复跑",
+      "lap_var": 3181.0,
+      "soft": 25.91,
+      "edge_soft": 0.572,
+      "lace_teng": 25980,
+      "lace_hard": 17.04,
+      "frill_cycles": 0.5187,
+      "skirt_teng": 35951,
+      "colors": 833
+    }
+  ],
+  "groups": [
+    {
+      "name": "总览 · 源图 / C7 / L5 / C7复跑",
+      "desc": "先看这组",
+      "panes": [
+        {
+          "img": "img/src.png",
+          "name": "源图 gpt-image-2",
+          "tag": "基准",
+          "cls": "src",
+          "meta": "lap_var 1181 · lace_teng 12139 · frill_cycles 58.5%"
+        },
+        {
+          "img": "img/c7.png",
+          "name": "C7 上批最优",
+          "tag": "蕾丝偏简化",
+          "cls": "",
+          "meta": "lap_var 2268 · lace_teng 18918 · frill_cycles 44.4%"
+        },
+        {
+          "img": "img/l5.png",
+          "name": "L5 保结构+修手发",
+          "tag": "蕾丝最佳",
+          "cls": "best",
+          "meta": "lap_var 2705 · lace_teng 29169 · lace_hard 19.4%"
+        },
+        {
+          "img": "img/c7_r2.png",
+          "name": "C7 复跑",
+          "tag": "最锐",
+          "cls": "best",
+          "meta": "lap_var 3181 · lace_teng 25980 · soft 25.9%"
+        }
+      ]
+    },
+    {
+      "name": "蕾丝专项 · 五种写法",
+      "desc": "L1 长结构版 / L2 规则式 / L3 短版 / L4 优先级 / L5 保守保结构",
+      "panes": [
+        {
+          "img": "img/l1.png",
+          "name": "L1 结构保真（长）",
+          "tag": "",
+          "cls": "",
+          "meta": "lace_teng 22757 · soft 28.6%"
+        },
+        {
+          "img": "img/l2.png",
+          "name": "L2 蕾丝规则式",
+          "tag": "细节密度高",
+          "cls": "",
+          "meta": "lace_teng 25830 · soft 24.1%"
+        },
+        {
+          "img": "img/l3.png",
+          "name": "L3 蕾丝短版",
+          "tag": "提升最小",
+          "cls": "",
+          "meta": "lace_teng 16137 · soft 34.3%"
+        },
+        {
+          "img": "img/l4.png",
+          "name": "L4 按缺陷优先级",
+          "tag": "",
+          "cls": "",
+          "meta": "lace_teng 26701 · lap_var 2597"
+        },
+        {
+          "img": "img/l5.png",
+          "name": "L5 保结构+修手发",
+          "tag": "综合最好",
+          "cls": "best",
+          "meta": "lace_teng 29169 · skirt_teng 35092 · soft 25.7%"
+        }
+      ]
+    },
+    {
+      "name": "手 / 发丝 是否被这批改动破坏",
+      "desc": "L2 / L4 / L5 / C7复跑 对照",
+      "panes": [
+        {
+          "img": "img/c7.png",
+          "name": "C7",
+          "tag": "对照",
+          "cls": "src",
+          "meta": "手 4 指+拇指，发束连续"
+        },
+        {
+          "img": "img/l2.png",
+          "name": "L2",
+          "tag": "手略简",
+          "cls": "",
+          "meta": "手可读，发束连续"
+        },
+        {
+          "img": "img/l4.png",
+          "name": "L4",
+          "tag": "手清晰",
+          "cls": "",
+          "meta": "手清晰，发束连续"
+        },
+        {
+          "img": "img/l5.png",
+          "name": "L5",
+          "tag": "手最好",
+          "cls": "best",
+          "meta": "五指结构清楚，发束粗连续"
+        }
+      ]
+    }
+  ]
+}

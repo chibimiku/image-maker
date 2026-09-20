@@ -84,6 +84,34 @@ def test_list_sites_prints_both_sites(cli, config_path, capsys):
     assert "new.aigc2d" in out and "autodl" in out
     assert "aigc-2d-gpt" in out
     assert "1024x1536" in out
+    assert "常用模型" in out and "gpt-image-2.5-flare" in out
+
+
+def test_list_models_prints_only_gpt_image_family(cli, config_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        cli,
+        "list_available_models",
+        lambda **_kwargs: ["Kimi-K3", "gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"],
+    )
+
+    assert cli.main(["--config", config_path, "--list-models"]) == cli.EXIT_OK
+
+    out = capsys.readouterr().out
+    assert "gpt-image-2.5-flare" in out
+    assert "gpt-image-2.5-sunburst" in out
+    assert "ChatGPT Images 2.5" in out
+    assert "Kimi-K3" not in out
+    assert "另有 1 个文本/视频等模型未列出" in out
+
+
+def test_list_models_without_api_key_is_usage_error(cli, config_path, tmp_path, capsys):
+    payload = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    payload["apis"]["aigc-2d-gpt"]["api_key"] = ""
+    broken = tmp_path / "config-no-key.json"
+    broken.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    assert cli.main(["--config", str(broken), "--list-models"]) == cli.EXIT_USAGE
+    assert "缺少 api_key" in capsys.readouterr().out
 
 
 def test_dry_run_aigc2d_shows_generations_endpoint_and_payload(cli, config_path, capsys):

@@ -1,0 +1,22 @@
+Repaint this image in a clean cel-shaded anime style and correct the drawing defects. Keep the same composition, pose, camera angle, character design, outfit and background layout. Add and remove nothing; do not crop or reframe.
+
+DEFECT PRIORITY 1 - dress detail must not be simplified.
+The source dress is a layered sweet Lolita one-piece with many fine trims. In the repaint they must all remain, and each must be drawn as its own readable structure:
+- lace trims: narrow bands repeating many small, evenly spaced scallop arcs; each arc closed and separated from the next by a small hole or gap; identical repeat count and spacing along the entire edge; never replace a row of small scallops with one big smooth wave and never leave the band interior empty;
+- frills: each row of frills keeps its own outline and its own scalloped bottom edge, the rows stay separate and the total number of visible rows is unchanged;
+- folds and seams: keep the vertical pintuck pleats running down the bodice and overskirt, the piped seam lines along panel edges, the ribbon laced through eyelet holes at the waist, the horizontal waist seam, and the separate cream apron panel with its own hem line;
+- bows: two loops, a knot and two tails, with fold lines inside the loops, never a flat blob;
+- layering: the pink overskirt, the white lace apron, the inner cream ruffle rows and the bodice must each keep their own outline and never fuse into one mass.
+- where the lace is currently an unreadable smudge, rebuild the same motif clearly instead of inventing a simpler pattern.
+
+DEFECT PRIORITY 2 - hands.
+The source hands are malformed, so reconstruct both instead of copying them. Five fingers each, correct thumb placement and finger order, correct joints, nails on the correct side. No fused, melted, duplicated, missing or extra digits, no finger merging into the palm, the wrist or the sleeve. The hand supporting the body grips the branch with four separated fingers over the front edge and a solid palm; the hand raised near the cheek shows four fingers in correct order with clear gaps.
+
+DEFECT PRIORITY 3 - hair.
+Every lock is one unbroken tapered strand from root to tip; no strand fades into blur or stops in mid air. The long hair on the right side of the frame must read as continuous, countable clumps with closed outlines along the whole length. Keep the original hairstyle, volume and silhouette.
+
+STYLE: flat cel shading, flat colours filled to the line, one hard-edged shadow tone per material, bold even-weight continuous outlines closing at every corner and junction, limited pastel palette, no soft gradients, no painterly blending, no colour bleeding. Uniform crispness across the whole frame - the branch, moss, water, foliage and far shore as sharp-edged as the figure; no blurry region anywhere.
+
+Same palette, lighting direction and mood. Same aspect ratio.
+
+FINAL CHECK: lace scallops small, even and separate; frill row count unchanged; five fingers on each hand; long strands on the right side continuous. No blur, no noise, no text, no watermark.

@@ -1,0 +1,18 @@
+Repaint this image as a clean cel-shaded anime illustration and correct its defects, keeping the same composition, pose, camera angle, character design, outfit and background layout. Add and remove nothing; do not crop or reframe.
+
+Do not simplify the dress. Every layer, row of frills and line of trim that exists in the source must survive the repaint as a separate, countable structure.
+
+Lace and frills:
+- all lace trim is a narrow repeating band made of many small evenly spaced scallop arcs, each closed, with a small hole or gap between neighbours, and the same repeat count all along the edge; a row of small scallops must never become one large smooth wave;
+- every frill row keeps its own outline and its own scalloped bottom edge; rows must not merge, and the number of visible rows stays the same;
+- keep the vertical pintuck pleats on the bodice and overskirt, the piped seams along every panel edge, the ribbon threaded through eyelets, the horizontal waist seam and the separate cream apron panel with its own hem;
+- bows keep two loops, a knot and two tails with fold lines, never a flat blob;
+- where the lace is currently a smudge, rebuild the same motif clearly rather than inventing a simpler pattern.
+
+Defects to fix:
+- hands: the source hands are malformed - reconstruct both, five fingers each, correct thumb position and order, nails on the correct side, no fused, melted, duplicated, missing or extra digits; the supporting hand grips the branch with four separated fingers, the raised hand shows four fingers in order;
+- hair: every lock an unbroken tapered strand from root to tip; the long hair on the right side of the frame must be continuous countable clumps with closed outlines.
+
+Finishing: flat cel shading, flat colours filled to the line, one hard-edged shadow tone per material, bold even-weight continuous outlines closing at every corner, limited pastel palette, no soft gradients, no painterly blending, no colour bleeding, uniform crispness across the whole frame, no blurry region anywhere. Same palette, lighting and mood. Same aspect ratio.
+
+Self-check before output: are the lace scallops small, even and separate? Is the frill row count unchanged? Five fingers on each hand? No blur, no noise, no text, no watermark.

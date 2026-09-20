@@ -1,0 +1,19 @@
+Repaint this image as a clean cel-shaded anime illustration, keeping the same composition, pose, camera angle, character design, outfit and background layout. Add and remove nothing; do not crop or reframe.
+
+The single biggest problem to solve is that lace and frills must stay fine and structured instead of collapsing into simplified blobs.
+
+Lace rule: draw all lace as a narrow repeating band of many small, closely spaced, evenly sized scallop arcs along each edge, each arc closed with a visible gap or hole to its neighbour. Same repeat count, same spacing, same arc size along the whole edge. Never substitute one large smooth wave for a row of small scallops, and never leave the interior of the band blank.
+
+Frill rule: keep every frill row separate and countable. Each row has its own outline and its own scalloped bottom edge. Rows must not merge into one another, and the number of visible rows must be the same as the source.
+
+Fold rule: keep the fold and seam structure of the dress - the vertical pintuck pleats down the bodice and overskirt, the piped seams along panel edges, the ribbon threaded through eyelets, the horizontal waist seam, and the separate cream apron layer with its own hem. Shadows follow these folds as hard-edged shapes; they must not smear across them.
+
+Bow rule: two loops, a knot, two tails, fold lines inside the loops; never a flat blob.
+
+Also repair the two defects:
+- Hands: source hands are malformed, reconstruct both with correct anatomy - five fingers each, correct thumb position and order, no fused, melted, duplicated, missing or extra digits. The supporting hand grips the branch with four separated fingers; the raised hand shows four fingers in order.
+- Hair: every lock an unbroken tapered strand root to tip; the long hair on the right side of the frame must be continuous, countable clumps with closed outlines.
+
+Style: flat cel shading, flat colours filled to the line, one hard-edged shadow tone per material, bold even-weight continuous outlines, limited pastel palette, no soft gradients, no painterly blending, no colour bleeding, uniform crispness everywhere, no blurry region anywhere.
+
+Keep the palette, lighting and mood. Same aspect ratio. Before finishing, verify the lace scallops are still small, even and separate, and that the frill row count is unchanged. No blur, no noise, no text, no watermark.

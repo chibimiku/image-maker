@@ -1,0 +1,18 @@
+Redraw this image as a clean cel-shaded anime illustration, treating it as a correction pass over the existing artwork. Keep the same composition, pose, camera angle, character design, outfit and background layout; do not add or remove anything, do not crop or reframe.
+
+Step 1 - fix the gestures first, because they are the biggest defects in the source.
+Hand A (resting on the branch): rebuild it as a believable hand supporting the body weight. Thumb on the near side, four fingers curled down over the front edge of the bark with visible separations between them, knuckles following the branch curve, a solid palm plane, wrist entering the sleeve at a natural angle. Correct anatomy only: five fingers, correct thumb position, correct joints, fingernails on the correct side. Nothing fused, melted, duplicated or missing.
+Hand B (raised near the cheek): four visible fingers in the correct order with clean gaps between them, correct knuckle bends, a definite palm volume, wrist and cuff aligned.
+Draw both hands at the same line quality and size as the face; no soft or smudged fingertips, no ambiguous blobs where fingers meet.
+
+Step 2 - rebuild the hair as continuous line work.
+Every lock must be one unbroken tapered strand from the scalp to its tip. Strands may overlap but must never dissolve into blur, jump, or stop in mid air. Work especially on the long hair on the right side of the frame: it must read as flowing countable clumps with clean closed outlines along their whole length and a consistent direction of flow. Keep the original silhouette and volume of the hair; do not restyle it.
+
+Step 3 - clean up the rest of the drawing.
+Every frill layer, lace scallop, ribbon, bow and leaf becomes a distinct closed shape with a continuous outline. The branch bark, the lake surface and the distant scenery must be drawn as clearly defined shapes with the same edge crispness as the figure - no region may stay blurry.
+
+Style target: flat cel shading with one hard-edged shadow tone per material, flat base colours filled to the line, bold even-weight continuous outlines, limited pastel palette, no soft airbrush gradients, no painterly blending, no colour bleeding.
+
+Before you finish, verify: five fingers on each hand with the correct order, and every long strand on the right side of the frame continuous from root to tip.
+
+Keep the palette, lighting direction and mood of the original. Output one image at the same aspect ratio, no blur, no noise, no text, no watermark.

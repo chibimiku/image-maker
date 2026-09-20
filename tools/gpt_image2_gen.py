@@ -23,6 +23,10 @@
 
   # 看两个站点的配置状态
   python tools/gpt_image2_gen.py --list-sites
+
+  # 看某站点当前可用的 gpt-image 系列模型（实时 GET /v1/models）
+  python tools/gpt_image2_gen.py --list-models
+  python tools/gpt_image2_gen.py --site autodl --list-models
 """
 import argparse
 import json
@@ -37,6 +41,7 @@ if BASE_DIR not in sys.path:
 
 from modules.others.api_backend import (  # noqa: E402  (需要在 sys.path 之后导入)
     GPT_IMAGE2_MAX_REFERENCE_IMAGES,
+    GPT_IMAGE2_MODEL_NOTES,
     GPT_IMAGE2_OUTPUT_FORMATS,
     GPT_IMAGE2_QUALITIES,
     GPT_IMAGE2_SITE_AIGC2D,
@@ -44,14 +49,25 @@ from modules.others.api_backend import (  # noqa: E402  (需要在 sys.path 之�
     GPT_IMAGE2_SITE_AUTODL,
     GPT_IMAGE2_SITE_DEFAULT_SIZES,
     GPT_IMAGE2_SITE_FILE_PREFIXES,
+    GPT_IMAGE2_SITE_MODELS,
     GPT_IMAGE2_SITE_SAVE_SUB_DIRS,
     GPT_IMAGE2_SITE_SIZES,
     build_gpt_image2_payload,
     generate_image_aigc2d_gpt,
     generate_image_openai_image,
+    generate_image_repaint,
     get_api_config,
+    is_gpt_image_model,
+    list_available_models,
     normalize_gpt_image2_size,
     resolve_images_endpoint,
+    resolve_models_endpoint,
+)
+from utils.gpt_image_optimize import (  # noqa: E402
+    ASPECT_RATIO_AUTO,
+    build_repaint_prompt,
+    load_config as load_repaint_config,
+    resolve_aspect_ratio,
 )
 
 DEFAULT_CONFIG = os.path.join(BASE_DIR, "conf", "config-image.json")
@@ -85,6 +101,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true", help="只打印解析出的端点与请求体，不发请求")
     parser.add_argument("--json", action="store_true", help="最后额外打印一段 JSON 汇总")
     parser.add_argument("--list-sites", action="store_true", help="打印两个站点的配置状态后退出")
+    parser.add_argument("--list-models", action="store_true", help="实时拉取站点模型列表（GET /v1/models）后退出")
+    # ---- gpt-image 产物优化（重绘提线）：与 GUI「重绘」模式共用 prompts/gpt-image-optimize/ ----
+    parser.add_argument("--repaint", action="store_true",
+                        help="对 --image 指定的产物跑 Gemini 重绘提线（修手/连通发丝/保住蕾丝结构）")
+    parser.add_argument("--repaint-model", help="重绘模型，默认取 prompts/gpt-image-optimize/config.json")
+    parser.add_argument("--repaint-resolution", help="重绘分辨率 1K/2K/4K，默认取配置")
+    parser.add_argument("--repaint-aspect",
+                        help=f"重绘输出宽高比，默认 auto（不传该字段，跟随输入图比例）；"
+                             f"要强制可填 1:1/3:2/2:3/9:16/16:9 等")
+    parser.add_argument("--repaint-repeat", type=int, help="每张源图重绘几次（抽卡用），默认取配置")
+    parser.add_argument("--repaint-prompt-file", help="临时覆盖重绘提示词文件（相对仓库根或绝对路径）")
+    parser.add_argument("--repaint-show-prompt", action="store_true", help="打印最终重绘提示词后退出")
     return parser
 
 
@@ -164,7 +192,33 @@ def cmd_list_sites(config_path: str) -> int:
         _emit(f"  api_key  : {key_state}")
         _emit(f"  timeout  : {cfg.get('timeout', '(默认)')}s")
         _emit(f"  尺寸     : {', '.join(GPT_IMAGE2_SITE_SIZES[site])}")
+        _emit(f"  常用模型 : {', '.join(GPT_IMAGE2_SITE_MODELS[site])}")
         _emit(f"  输出目录 : data/<日期>/{GPT_IMAGE2_SITE_SAVE_SUB_DIRS[site]}/")
+    return EXIT_OK
+
+
+def cmd_list_models(config_path: str, site: str, timeout: int = 20) -> int:
+    """实时拉取站点模型列表，只展示 gpt-image / dall-e 系列（其余是文本/视频模型）。"""
+    api_type = GPT_IMAGE2_SITE_API_TYPES[site]
+    cfg = get_api_config(config_path=config_path, api_type=api_type)
+    if not str(cfg.get("api_key") or "").strip():
+        _emit(f"[错误] apis.{api_type} 缺少 api_key（配置文件: {config_path}）")
+        return EXIT_USAGE
+    endpoint = resolve_models_endpoint(str(cfg.get("base_url") or ""), api_type=api_type)
+    _emit(f"站点 {site}  {endpoint}")
+    try:
+        models = list_available_models(api_type=api_type, config_path=config_path, timeout=timeout)
+    except Exception as exc:  # noqa: BLE001 - CLI 需要把异常转成退出码
+        _emit(f"[错误] 获取模型列表失败: {type(exc).__name__}: {exc}")
+        return EXIT_FAIL
+    family = [name for name in models if is_gpt_image_model(name)]
+    _emit(f"共 {len(models)} 个模型，gpt-image / dall-e 系列 {len(family)} 个：")
+    for name in family:
+        note = GPT_IMAGE2_MODEL_NOTES.get(name)
+        _emit(f"  - {name}" + (f"    # {note}" if note else ""))
+    others = [name for name in models if name not in family]
+    if others:
+        _emit(f"  （另有 {len(others)} 个文本/视频等模型未列出）")
     return EXIT_OK
 
 
@@ -238,6 +292,102 @@ def _run_one(args, site: str, api_type: str, prompt: str, size: str) -> list:
         cleanup()
 
 
+def cmd_repaint(args) -> int:
+    """gpt-image 产物优化：对 --image 逐张走 Gemini 重绘提线（提示词来自 prompts/gpt-image-optimize/）。"""
+    conf = load_repaint_config()
+    override_file = str(args.repaint_prompt_file or "").strip()
+    if override_file:
+        if not os.path.isabs(override_file):
+            override_file = os.path.join(BASE_DIR, override_file)
+        if not os.path.isfile(override_file):
+            _emit(f"[错误] --repaint-prompt-file 不存在: {override_file}")
+            return EXIT_USAGE
+        with open(override_file, "r", encoding="utf-8") as f:
+            prompt_text = f.read().strip()
+        suffix_text = ""      # 覆盖文件视为完整提示词，不再叠加细节后缀
+        prompt_label = override_file
+    else:
+        prompt_text = build_repaint_prompt(conf)
+        suffix_text = None    # None = 由后端按配置再补后缀（保持与 GUI 一致）
+        prompt_label = str(conf.get("system_prompt"))
+
+    if args.repaint_show_prompt:
+        _emit(f"提示词来源: {prompt_label}")
+        _emit(f"提示词长度: {len(prompt_text)} 字符")
+        _emit("-" * 60)
+        _emit(prompt_text)
+        if suffix_text is None:
+            from utils.gpt_image_optimize import read_prompt_relative
+            suffix_relative = str(conf.get("detail_suffix") or "").strip()
+            if suffix_relative and conf.get("use_detail_suffix", True):
+                try:
+                    _emit("-" * 60)
+                    _emit(f"细节后缀({suffix_relative}):")
+                    _emit(read_prompt_relative(suffix_relative))
+                except FileNotFoundError:
+                    pass
+        return EXIT_OK
+
+    sources = [p for p in (args.image or []) if p]
+    if not sources:
+        _emit("[错误] --repaint 需要 --image 指定至少 1 张源图（gpt-image 的产物）")
+        return EXIT_USAGE
+    missing = [p for p in sources if not os.path.isfile(p)]
+    if missing:
+        _emit(f"[错误] 源图不存在: {', '.join(missing)}")
+        return EXIT_USAGE
+
+    model = args.repaint_model or str(conf.get("model") or "")
+    resolution = args.repaint_resolution or str(conf.get("resolution") or "")
+    repeat = args.repaint_repeat or int(conf.get("repeat") or 1)
+    api_type = str(conf.get("api_type") or "")
+    cfg = get_api_config(config_path=args.config, api_type=api_type)
+    if not str(cfg.get("api_key") or "").strip():
+        _emit(f"[错误] apis.{api_type} 缺少 api_key（配置文件: {args.config}）")
+        return EXIT_USAGE
+
+    _emit(f"重绘 {len(sources)} 张 -> 模型 {model} @{resolution}，每张 {repeat} 次")
+    resolved_aspect = resolve_aspect_ratio(
+        {"aspect_ratio": args.repaint_aspect} if args.repaint_aspect else conf, ASPECT_RATIO_AUTO
+    )
+    _emit(
+        "输出比例: " + ("auto（跟随输入图，不下发 aspectRatio）" if resolved_aspect == ASPECT_RATIO_AUTO
+                        else f"{resolved_aspect}（强制）")
+    )
+    if override_file:
+        _emit(f"提示词来源: {prompt_label}（覆盖文件，{len(prompt_text)} 字符）")
+    else:
+        _emit(f"提示词来源: {prompt_label} + 细节后缀（合计 {len(prompt_text)} 字符）")
+    if args.dry_run:
+        for path in sources:
+            _emit(f"DRY-RUN 将重绘: {path}")
+        return EXIT_OK
+
+    saved = generate_image_repaint(
+        source_paths=sources,
+        api_type=api_type,
+        config_path=args.config,
+        model=model,
+        resolution=resolution,
+        aspect_ratio=resolve_aspect_ratio(
+            {"aspect_ratio": args.repaint_aspect} if args.repaint_aspect else conf, ASPECT_RATIO_AUTO
+        ),
+        prompt=prompt_text if override_file else None,
+        prompt_suffix=suffix_text,
+        repeat=repeat,
+        save_sub_dir=args.output_subdir or None,
+        file_prefix=args.prefix or None,
+        log_callback=_emit,
+    ) or []
+    for path in saved:
+        _emit(f"SAVED {path}")
+    _emit(f"完成: 源图 {len(sources)} 张 -> 重绘产物 {len(saved)} 张")
+    if args.json:
+        _emit(json.dumps({"repaint": True, "sources": sources, "saved_files": saved},
+                         ensure_ascii=False, indent=2))
+    return EXIT_OK if saved else EXIT_FAIL
+
+
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -247,6 +397,10 @@ def main(argv=None) -> int:
         return EXIT_USAGE
     if args.list_sites:
         return cmd_list_sites(args.config)
+    if args.list_models:
+        return cmd_list_models(args.config, args.site, timeout=args.timeout or 20)
+    if args.repaint or args.repaint_show_prompt:
+        return cmd_repaint(args)
 
     site = args.site
     api_type = GPT_IMAGE2_SITE_API_TYPES[site]

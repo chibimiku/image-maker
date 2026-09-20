@@ -1,0 +1,18 @@
+Repaint this image as a clean cel-shaded anime illustration and correct the drawing defects. Keep the same composition, pose, camera angle, character design, outfit and background layout; add and remove nothing; do not crop or reframe.
+
+PRESERVE THE TEXTILE STRUCTURE - this is the highest priority.
+The dress must keep every layer, fold and trim motif that is visible in the source, and they must be drawn as separate readable structures, never merged into simplified shapes. In particular:
+- Each row of frills stays a distinct row. Do not merge two rows into one, and do not replace a row of small frills with one big rounded scallop.
+- Each lace trim is a narrow repeating band: a series of small, closely and evenly spaced scallop arcs, one after another along the edge, each arc a closed shape with a tiny hole or gap between neighbours. Keep the repeat count and the spacing even.
+- Keep the fine secondary detail that exists in the source: narrow piped seams, pintuck pleats running down the bodice and skirt, ribbon threading through eyelet holes, small bows with two loops and two tails, the rectangular lace apron layer with its own hem line, and the thin contrast piping along each panel edge.
+- Overlapping layers must stay separate: the pink overskirt, the white lace apron, the inner cream ruffle rows and the waistline each keep their own outline and never fuse into a single mass.
+- Bows stay bows: two loops, a knot and two tails, with folds indicated; no dissolving into a blob.
+
+CORRECT THE DEFECTS:
+1. Hands. The source hands are malformed - reconstruct, do not copy. Five fingers each, correct thumb placement and order, correct joints, nails on the correct side, no fused, melted, duplicated, missing or extra digits, no finger merging into the palm or sleeve. The hand supporting the body grips the branch with four separated fingers over the front edge and a solid palm; the raised hand shows four fingers in correct order.
+2. Hair. Every lock is one unbroken tapered strand from root to tip; the long hair on the right side of the frame must be continuous, countable clumps with closed outlines, never fading into blur. Keep the original hairstyle and volume.
+3. Lace legibility. Where the lace is currently a smudge, rebuild it as the same repeat motif drawn clearly - do not invent a different, simpler pattern.
+
+STYLE: flat cel shading, flat colours filled to the line, one hard-edged shadow tone per material, bold even-weight continuous outlines closing at every corner, limited pastel palette, no soft gradients, no painterly blending, no colour bleeding. Uniform crispness across the frame; no blurry region left anywhere.
+
+Keep the palette, lighting direction and mood of the original. Same aspect ratio. Before finishing, count the frill rows and the lace scallops to confirm they are all still there and separate. No blur, no noise, no text, no watermark.

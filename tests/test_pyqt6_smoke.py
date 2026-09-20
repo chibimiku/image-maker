@@ -174,7 +174,10 @@ def test_app_window_contains_sd_workflow_tab(qapp):
     assert isinstance(window.gpt_image2_tab, GptImage2Widget)
     gpt_tab = window.gpt_image2_tab
     assert gpt_tab.site_combo.count() == 2
-    assert gpt_tab.mode_combo.count() == 2
+    # 模式：生图 / 编辑 / 重绘（Gemini 优化产物）——重绘见 docs/gpt-image-optimize/
+    assert gpt_tab.mode_combo.count() == 3
+    assert "重绘" in gpt_tab.mode_combo.itemText(2)
+    assert hasattr(gpt_tab, "repaint_check")
     assert gpt_tab.size_combo.count() == 3
     assert gpt_tab.size_combo.currentData() in ("1024x1024", "1536x1024", "1024x1536")
     assert not hasattr(window, "autodl_image_edit_tab")
@@ -524,6 +527,60 @@ def test_sd_workflow_can_load_history_story_file(qapp, monkeypatch, tmp_path):
     assert widget.open_story_editor_btn.isEnabled()
     assert widget.render_story_btn.isEnabled()
     widget.close()
+
+
+def test_text_retry_settings_defaults_and_roundtrip(qapp, monkeypatch, tmp_path):
+    """设置 →「文本分析 API」的失败重试配置：默认 5 次 / 5 分钟，且能存能读。"""
+    app_module = load_module("app_module_retry_settings", "app.py", block_onnxruntime=True)
+    tmp_config = tmp_path / "config.json"
+    monkeypatch.setattr(app_module, "CONFIG_FILE", str(tmp_config))
+
+    window = app_module.AppWindow()
+    assert window.text_retry_enabled_cb.isChecked() is True
+    assert window.text_retry_times_spin.value() == 5
+    assert window.text_retry_interval_spin.value() == 5.0
+
+    window.text_retry_enabled_cb.setChecked(False)
+    window.text_retry_times_spin.setValue(9)
+    window.text_retry_interval_spin.setValue(2.5)
+    window.save_text_config(silent=True)
+
+    saved = json.loads(tmp_config.read_text(encoding="utf-8"))
+    assert saved["text_retry_enabled"] is False
+    assert saved["text_retry_times"] == 9
+    assert saved["text_retry_interval_seconds"] == 150
+
+    restored = app_module.AppWindow()
+    assert restored.text_retry_enabled_cb.isChecked() is False
+    assert restored.text_retry_times_spin.value() == 9
+    assert restored.text_retry_interval_spin.value() == 2.5
+
+    window.close()
+    restored.close()
+
+
+def test_app_window_startup_keeps_saved_style(qapp):
+    """启动流程不得把 conf/config.json 里记着的画风改掉。
+
+    真实事故：跑 pytest 时 AppWindow 构造 + 画风同步会把测试画风写进用户配置，
+    下次启动 app 读到无效画风后回落成「默认(无附加)」，表现为「画风记忆丢了」。
+    """
+    app_module = load_module("app_module_style_guard", "app.py", block_onnxruntime=True)
+    config_path = REPO_ROOT / "conf" / "config.json"
+    styles_path = REPO_ROOT / "conf" / "config-styles.json"
+
+    saved_style = json.loads(config_path.read_text(encoding="utf-8")).get("last_used_style")
+    known_styles = json.loads(styles_path.read_text(encoding="utf-8"))
+    if saved_style not in known_styles:
+        pytest.skip(f"当前 last_used_style={saved_style!r} 已不在画风表里，启动回落属预期行为")
+
+    window = app_module.AppWindow()
+    window.close()
+
+    after_style = json.loads(config_path.read_text(encoding="utf-8")).get("last_used_style")
+    assert after_style == saved_style, (
+        f"AppWindow 启动流程改写了已保存的画风: {saved_style!r} -> {after_style!r}"
+    )
 
 
 def test_sd_workflow_style_combo_shares_main_style_state(qapp):

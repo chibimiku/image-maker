@@ -1,0 +1,295 @@
+{
+  "title": "A/B 实验 · gpt-image-2 线条连贯性改善方案对比",
+  "subtitle": "站点 new.aigc2d · 1024×1536 / high / png / n=1 · A 组=对同一张 v3 图做 Gemini 3 Pro 重绘（两种 prompt）· B 组=在前置画风上做 6 种变体（内容部分逐字不改）· 2026-09-19",
+  "metric_note": "统一缩放到宽 1024 后测量。soft（梯度 2%~10% 的半软过渡像素占比）越低 = 画面越靠线条定义；edge_soft（硬边/半软 比值）越高 = 越线稿化；frag（细线碎片率）越低 = 线条越连续。B0/B2/B4/B5 各跑了两次，用来区分真实提升与单次抽卡噪声。",
+  "note": "A 组源图是 v3 的 gpt-image-2 产物；B 组每次都是独立生成（同 prompt 同参数），因此组间差异里混有抽卡噪声——所以 B0/B2/B4/B5 都做了复跑。所有产物原图在 data/20260919/ 对应子目录下。",
+  "metrics": [
+    {
+      "name": "源图 v3 gpt-image-2（1024×1536）",
+      "lap_var": 1181.4,
+      "hard": 9.4,
+      "soft": 38.83,
+      "edge_soft": 0.242,
+      "frag": 24.89,
+      "iso": 5.93,
+      "colors": 996
+    },
+    {
+      "name": "A1 带画风重绘（Gemini 2K）",
+      "lap_var": 2015.8,
+      "hard": 11.55,
+      "soft": 32.65,
+      "edge_soft": 0.354,
+      "frag": 40.19,
+      "iso": 5.53,
+      "colors": 810
+    },
+    {
+      "name": "A2 只求连贯重绘（Gemini 2K）",
+      "lap_var": 1413.4,
+      "hard": 9.71,
+      "soft": 37.37,
+      "edge_soft": 0.26,
+      "frag": 30.22,
+      "iso": 5.73,
+      "colors": 941
+    },
+    {
+      "name": "B0 基线（无前置）（run1）",
+      "lap_var": 845.5,
+      "hard": 7.9,
+      "soft": 38.51,
+      "edge_soft": 0.205,
+      "frag": 21.61,
+      "iso": 5.11,
+      "colors": 811
+    },
+    {
+      "name": "B0 基线 复跑（run2）",
+      "lap_var": 725.4,
+      "hard": 8.2,
+      "soft": 38.35,
+      "edge_soft": 0.214,
+      "frag": 19.48,
+      "iso": 4.8,
+      "colors": 935
+    },
+    {
+      "name": "B1 前置:赛璐璐平涂（run1）",
+      "lap_var": 1348.3,
+      "hard": 8.81,
+      "soft": 31.48,
+      "edge_soft": 0.28,
+      "frag": 36.95,
+      "iso": 5.85,
+      "colors": 818
+    },
+    {
+      "name": "B2 前置:矢量线稿+限预算（run1）",
+      "lap_var": 1354.6,
+      "hard": 7.39,
+      "soft": 28.46,
+      "edge_soft": 0.26,
+      "frag": 37.9,
+      "iso": 6.3,
+      "colors": 807
+    },
+    {
+      "name": "B2 复跑（run2）",
+      "lap_var": 781.2,
+      "hard": 6.33,
+      "soft": 27.89,
+      "edge_soft": 0.227,
+      "frag": 27.01,
+      "iso": 5.75,
+      "colors": 634
+    },
+    {
+      "name": "B3 前置:动画师语境（run1）",
+      "lap_var": 823.5,
+      "hard": 8.6,
+      "soft": 38.45,
+      "edge_soft": 0.224,
+      "frag": 20.17,
+      "iso": 4.94,
+      "colors": 814
+    },
+    {
+      "name": "B4 前置:结果指标式（run1）",
+      "lap_var": 1509.0,
+      "hard": 10.64,
+      "soft": 35.17,
+      "edge_soft": 0.302,
+      "frag": 27.97,
+      "iso": 5.94,
+      "colors": 1125
+    },
+    {
+      "name": "B4 复跑（run2）",
+      "lap_var": 926.1,
+      "hard": 6.55,
+      "soft": 36.92,
+      "edge_soft": 0.177,
+      "frag": 27.95,
+      "iso": 5.87,
+      "colors": 846
+    },
+    {
+      "name": "B5 前置+后置双重约束（run1）",
+      "lap_var": 1231.0,
+      "hard": 9.56,
+      "soft": 25.67,
+      "edge_soft": 0.373,
+      "frag": 26.15,
+      "iso": 4.81,
+      "colors": 1067
+    },
+    {
+      "name": "B5 复跑（run2）",
+      "lap_var": 1713.8,
+      "hard": 10.44,
+      "soft": 25.17,
+      "edge_soft": 0.415,
+      "frag": 38.08,
+      "iso": 5.74,
+      "colors": 1015
+    }
+  ],
+  "groups": [
+    {
+      "name": "A · 重绘 prompt 对比",
+      "desc": "同一张源图，两种重绘指令：A1 带画风要求 / A2 只要求线条连贯",
+      "panes": [
+        {
+          "img": "img/v3_source.png",
+          "name": "源图 v3 gpt-image-2",
+          "tag": "基准",
+          "cls": "src",
+          "meta": "1024×1536 · lap_var 1181 · soft 38.83%"
+        },
+        {
+          "img": "img/a1_style.jpg",
+          "name": "A1 带画风要求",
+          "tag": "锐度最高/改画风",
+          "cls": "best",
+          "meta": "1696×2528 · lap_var 2016 · soft 32.65% · edge/soft 0.354"
+        },
+        {
+          "img": "img/a2_lines.png",
+          "name": "A2 只求线条连贯",
+          "tag": "保画风/提升温和",
+          "cls": "",
+          "meta": "1696×2528 · lap_var 1413 · soft 37.37% · edge/soft 0.260"
+        }
+      ]
+    },
+    {
+      "name": "B0 · 基线（无前置，复现组）",
+      "desc": "v3 原始 prompt 原样，用来量抽卡噪声",
+      "panes": [
+        {
+          "img": "img/b0_baseline.png",
+          "name": "B0 run1",
+          "tag": "基线",
+          "cls": "src",
+          "meta": "lap_var 845 · soft 38.51% · frag 21.61%"
+        },
+        {
+          "img": "img/b0_baseline_r2.png",
+          "name": "B0 run2",
+          "tag": "基线复跑",
+          "cls": "src",
+          "meta": "lap_var 725 · soft 38.35% · frag 19.48%"
+        }
+      ]
+    },
+    {
+      "name": "B1/B3 · 只换前置风格名词",
+      "desc": "B1 赛璐璐平涂 / B3 动画师语境",
+      "panes": [
+        {
+          "img": "img/b0_baseline.png",
+          "name": "B0 基线",
+          "tag": "对照",
+          "cls": "src",
+          "meta": "lap_var 845"
+        },
+        {
+          "img": "img/b1_cel.png",
+          "name": "B1 赛璐璐平涂",
+          "tag": "soft↓ frag↑",
+          "cls": "",
+          "meta": "lap_var 1348 · soft 31.48% · frag 36.95%"
+        },
+        {
+          "img": "img/b3_animator.png",
+          "name": "B3 动画师语境",
+          "tag": "≈基线无收益",
+          "cls": "",
+          "meta": "lap_var 823 · soft 38.45% · frag 20.17%"
+        }
+      ]
+    },
+    {
+      "name": "B2 · 矢量线稿 + 限制细节预算（复现组）",
+      "desc": "flat colours + minimal shading + simple background，降渲染预算换干净线条",
+      "panes": [
+        {
+          "img": "img/b0_baseline.png",
+          "name": "B0 基线",
+          "tag": "对照",
+          "cls": "src",
+          "meta": "lap_var 845 · soft 38.51%"
+        },
+        {
+          "img": "img/b2_vector.png",
+          "name": "B2 run1",
+          "tag": "soft 最低档",
+          "cls": "best",
+          "meta": "lap_var 1355 · soft 28.46% · flat 53.61%"
+        },
+        {
+          "img": "img/b2_vector_r2.png",
+          "name": "B2 run2",
+          "tag": "复现性最好",
+          "cls": "best",
+          "meta": "lap_var 781 · soft 27.89% · flat 55.91%"
+        }
+      ]
+    },
+    {
+      "name": "B4 · 结果指标式前置（有噪声）",
+      "desc": "flawless unbroken line work, no blurry areas —— 同样措辞两次结果差很多",
+      "panes": [
+        {
+          "img": "img/b0_baseline.png",
+          "name": "B0 基线",
+          "tag": "对照",
+          "cls": "src",
+          "meta": "lap_var 845"
+        },
+        {
+          "img": "img/b4_metric.png",
+          "name": "B4 run1",
+          "tag": "抽到高锐度",
+          "cls": "",
+          "meta": "lap_var 1509 · edge/soft 0.303"
+        },
+        {
+          "img": "img/b4_metric_r2.png",
+          "name": "B4 run2",
+          "tag": "回落",
+          "cls": "",
+          "meta": "lap_var 926 · edge/soft 0.177"
+        }
+      ]
+    },
+    {
+      "name": "B5 · 前置+后置双重约束（复现组，推荐）",
+      "desc": "前置钉画风 + 后置钉可检查的线条/色块要求，两次都稳",
+      "panes": [
+        {
+          "img": "img/b0_baseline.png",
+          "name": "B0 基线",
+          "tag": "对照",
+          "cls": "src",
+          "meta": "lap_var 845 · soft 38.51% · frag 21.61%"
+        },
+        {
+          "img": "img/b5_both.png",
+          "name": "B5 run1",
+          "tag": "soft 最低 · 最线稿",
+          "cls": "best",
+          "meta": "lap_var 1231 · soft 25.67% · edge/soft 0.373 · frag 26.15%"
+        },
+        {
+          "img": "img/b5_both_r2.png",
+          "name": "B5 run2",
+          "tag": "复现成功",
+          "cls": "best",
+          "meta": "lap_var 1714 · soft 25.17% · edge/soft 0.415 · frag 38.08%"
+        }
+      ]
+    }
+  ]
+}

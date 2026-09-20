@@ -487,6 +487,98 @@ GPT_IMAGE2_SITE_DEFAULT_SIZES = {
     GPT_IMAGE2_SITE_AUTODL: GPT_IMAGE2_SIZE_PORTRAIT,
 }
 
+# ---- gpt-image 系列可选模型（GUI 模型下拉 / CLI 共用一份，避免两边漂移）----
+# 2026-09 实测 `GET {base}/v1/models` 的真实结果：aigc2d 站点有整族（含 2.5 的 flare/sunburst
+# 与它们的 `-c` 按次计费版），autodl 站点只有 gpt-image-2。清单只是常用项，下拉框仍可手输。
+GPT_IMAGE2_MODEL_DEFAULT = "gpt-image-2"
+GPT_IMAGE2_MODEL_PREFIXES = ("gpt-image", "dall-e", "dalle")
+GPT_IMAGE2_SITE_MODELS = {
+    GPT_IMAGE2_SITE_AIGC2D: (
+        "gpt-image-2",
+        "gpt-image-2-c",
+        "gpt-image-2.5-flare",
+        "gpt-image-2.5-flare-c",
+        "gpt-image-2.5-sunburst",
+        "gpt-image-2.5-sunburst-c",
+        "gpt-image-1.5",
+        "gpt-image-1",
+        "gpt-image-1-mini",
+        "dall-e-3",
+    ),
+    GPT_IMAGE2_SITE_AUTODL: (
+        "gpt-image-2",
+    ),
+}
+# 下拉项的悬浮说明（键为模型名，缺失则只显示模型名）
+GPT_IMAGE2_MODEL_NOTES = {
+    "gpt-image-2": "基线模型，稳定；尺寸仅 3 档",
+    "gpt-image-2-c": "与 gpt-image-2 同款，按次计费通道",
+    "gpt-image-2.5-flare": "ChatGPT Images 2.5，偏快（垫图 1024x1536 medium 实测约 30s）",
+    "gpt-image-2.5-flare-c": "2.5 flare 的按次计费通道",
+    "gpt-image-2.5-sunburst": "ChatGPT Images 2.5，偏精细（同参数实测约 180s）",
+    "gpt-image-2.5-sunburst-c": "2.5 sunburst 的按次计费通道",
+    "gpt-image-1.5": "上一代 gpt-image",
+    "gpt-image-1": "上一代 gpt-image",
+    "gpt-image-1-mini": "上一代小模型，便宜快速",
+    "dall-e-3": "DALL·E 3（字段与其他 gpt-image 略有差异）",
+}
+
+
+def resolve_models_endpoint(api_base: str, api_type: str = None) -> str:
+    """由 base_url 推出 OpenAI 兼容的 `GET /v1/models` 地址（与 images 端点同源推导）。"""
+    generations_url = resolve_images_endpoint(api_base, has_images=False, api_type=api_type)
+    suffix = "/images/generations"
+    if not generations_url.endswith(suffix):
+        return f"{generations_url.rstrip('/')}/models"
+    return generations_url[: -len(suffix)] + "/models"
+
+
+def is_gpt_image_model(model_name: str) -> bool:
+    """站点 /models 里夹着大量文本/视频模型，只认 gpt-image / dall-e 系列。"""
+    return str(model_name or "").strip().lower().startswith(GPT_IMAGE2_MODEL_PREFIXES)
+
+
+def pick_gpt_image_models(site: str = None, models=None, extra=()) -> list:
+    """拼出模型下拉的可选项：站点常用清单 → 额外指定（如配置里已保存的模型）→ 站点实时返回的系列模型。
+
+    `extra` 不做过滤（用户可能手输了自定义模型名）；`models`（站点实时清单）只保留 gpt-image / dall-e 系列。
+    """
+    ordered: list[str] = []
+    for candidate in list(GPT_IMAGE2_SITE_MODELS.get(site, ())) + list(extra or ()):
+        text = str(candidate or "").strip()
+        if text and text not in ordered:
+            ordered.append(text)
+    for candidate in (models or []):
+        text = str(candidate or "").strip()
+        if text and is_gpt_image_model(text) and text not in ordered:
+            ordered.append(text)
+    return ordered
+
+
+def list_available_models(api_type: str = None, config_path: str = None, timeout: int = 20) -> list:
+    """实时拉取站点模型列表（`GET /v1/models`），返回去重排序后的全部模型 id。
+
+    无 PyQt 依赖，GUI 的「刷新模型列表」与 CLI 都可以直接用；
+    调用方一般再用 `pick_gpt_image_models` 过滤出 gpt-image 系列。
+    """
+    config = get_api_config(config_path=config_path, api_type=api_type)
+    api_key = str(config.get("api_key") or "").strip()
+    if not api_key:
+        raise ValueError(f"apis.{api_type or 'current'} 缺少 api_key，无法获取模型列表")
+    url = resolve_models_endpoint(str(config.get("base_url") or ""), api_type=api_type)
+    logger.info(f"=== 获取模型列表: GET {url} ===")
+    resp = requests.get(url, headers={"Authorization": f"Bearer {api_key}"}, timeout=int(timeout or 20))
+    resp.raise_for_status()
+    payload = resp.json()
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    models = []
+    for row in rows or []:
+        if isinstance(row, dict) and row.get("id"):
+            models.append(str(row["id"]).strip())
+        elif isinstance(row, str) and row.strip():
+            models.append(row.strip())
+    return sorted(set(item for item in models if item))
+
 
 def _gpt_image2_size_by_ratio(ratio: float) -> str:
     candidates = [
@@ -1382,7 +1474,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     else:
         _emit(f"模式=/images/generations（无参考图）  尺寸={payload['size']}  画质={payload.get('quality', '服务端默认')}")
 
-    logger.info("=== 发起 gpt-image-2(aigc2d) API 请求 ===")
+    logger.info(f"=== 发起 gpt-image(aigc2d) API 请求  model={payload.get('model')} ===")
     logger.info(f"请求 URL: {request_url}")
     logger.info(f"请求 Headers: {_headers_for_log(headers)}")
     logger.info(f"请求数据:\n{_format_safe_log(payload)}")
@@ -2032,10 +2124,12 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
             logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None, post_instructions: str = "") -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None, post_instructions: str = "", prompt_suffix: str = "", face_quality_boost: bool = True) -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
-    入参跟 generate_image_whatai 保持完全一致
+    入参跟 generate_image_whatai 保持完全一致；
+    `prompt_suffix` 为追加段落（重绘通道用它挂「细节强化要求」，见 utils/gpt_image_optimize.py）；
+    `face_quality_boost=False` 时不追加「detailed face…」（重绘时 prompt 已自带更强约束）。
     """
     # 从统一配置文件中加载 aigc2d 配置
     config = get_api_config(api_type="aigc2d" if not api_type else api_type)
@@ -2070,7 +2164,12 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
 
     # 组合提示词
     _face_quality_boost = ", detailed face, clear facial features, sharp focus on face"
-    combined_prompt = f"{instructions} \n {prompt}{_face_quality_boost}".strip() if instructions else f"{prompt}{_face_quality_boost}"
+    boost = _face_quality_boost if face_quality_boost else ""
+    combined_prompt = f"{instructions} \n {prompt}{boost}".strip() if instructions else f"{prompt}{boost}"
+    # 重绘（gpt-image 产物优化）通道：用独立段落追加细节强化要求，替代逗号后缀
+    suffix_text = str(prompt_suffix or "").strip()
+    if suffix_text:
+        combined_prompt = f"{combined_prompt}\n\n{suffix_text}"
     parts = [{"text": combined_prompt}]
 
     # 处理传入的参考图片（支持多图，按照入参列表追加）
@@ -2092,6 +2191,12 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         parts.append({"text": post_instructions})
 
     # 构造请求 Payload
+    # 宽高比：空 / auto 时不传 aspectRatio —— 官方默认行为是按输入图比例输出，
+    # 这样换任何比例的源图都不会被拉伸或裁切（显式比例才下发该字段）。
+    image_config = {"imageSize": resolution}
+    ratio_text = str(aspect_ratio or "").strip()
+    if ratio_text and ratio_text.lower() not in {"auto", "自动", "跟随源图", "keep", "same", "original", "none", "null"}:
+        image_config = {"aspectRatio": ratio_text, "imageSize": resolution}
     payload = {
         "contents": [
             {
@@ -2099,10 +2204,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
             }
         ],
         "generationConfig": {
-            "imageConfig": {
-                "aspectRatio": aspect_ratio,
-                "imageSize": resolution
-            }
+            "imageConfig": image_config
         }
     }
 
@@ -2348,3 +2450,126 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
             "replay_json": replay_info.get("replay_json", "")
         }
     return saved_files
+
+
+def generate_image_repaint(source_paths, api_type: str = None, config_path: str = None, model: str = None, resolution: str = None, aspect_ratio: str = None, prompt: str = None, prompt_suffix: str = None, use_detail_suffix: bool = None, repeat: int = None, save_sub_dir: str = None, file_prefix: str = None, cancel_check: callable = None, log_callback=None, return_metadata: bool = False) -> list:
+    """gpt-image 产物优化：对 `source_paths` 逐张走 Gemini 重绘提线。
+
+    模型 / 分辨率 / 宽高比 / prompt / 输出目录**全部来自 `prompts/gpt-image-optimize/config.json`**
+    （本函数只在这些入参显式传入时才覆盖配置，没有任何写死的模型名或尺寸）。
+
+    设计要点（理论见 `docs/gpt-image-optimize/README.md`）：
+    - prompt 不写死在本文件：默认从 `prompts/gpt-image-optimize/` 装载，也可由调用方直接传 `prompt`
+    - 每张源图独立一次请求，输出前缀按源文件名派生，便于回溯「哪张产物被重绘成哪张」
+    - 宽高比默认 `auto`（不下发字段，由模型匹配输入图尺寸），换任意比例源图都不会变形
+    - 单张失败不影响其余（返回已成功的产物），失败原因照旧落 `log/<日期>.log`
+    - 走 `/v1beta/models/{model}:generateContent`（与 `generate_image_aigc2d` 同一通道）
+
+    返回落盘后的重绘产物路径列表。
+    """
+    from utils.gpt_image_optimize import (
+        ASPECT_RATIO_AUTO,
+        DEFAULTS as REPAINT_DEFAULTS,
+        build_repaint_prompt,
+        load_config,
+        plan_output,
+        resolve_aspect_ratio,
+    )
+
+    conf = load_config()
+    # 所有兜底都取自 prompts/gpt-image-optimize/config.json 的同义默认值（单一事实来源）
+    resolved_model = str(model or conf.get("model") or REPAINT_DEFAULTS["model"])
+    resolved_resolution = str(resolution or conf.get("resolution") or REPAINT_DEFAULTS["resolution"])
+    # 宽高比默认 auto：不传字段，由模型按输入图比例输出
+    resolved_aspect = resolve_aspect_ratio(
+        {"aspect_ratio": aspect_ratio} if aspect_ratio else conf, ASPECT_RATIO_AUTO
+    )
+    resolved_api_type = str(api_type or conf.get("api_type") or REPAINT_DEFAULTS["api_type"])
+    try:
+        resolved_repeat = max(1, int(repeat if repeat is not None else conf.get("repeat") or 1))
+    except (TypeError, ValueError):
+        resolved_repeat = 1
+
+    if prompt is None:
+        conf_for_prompt = dict(conf)
+        if use_detail_suffix is not None:
+            conf_for_prompt["use_detail_suffix"] = use_detail_suffix
+        resolved_prompt = build_repaint_prompt(conf_for_prompt)
+    else:
+        resolved_prompt = str(prompt or "")
+    if prompt_suffix is not None:
+        resolved_suffix = str(prompt_suffix or "")
+    elif use_detail_suffix is False:
+        resolved_suffix = ""
+    else:
+        suffix_relative = str(conf.get("detail_suffix") or "").strip()
+        try:
+            from utils.gpt_image_optimize import read_prompt_relative
+            resolved_suffix = read_prompt_relative(suffix_relative) if suffix_relative else ""
+        except Exception:  # noqa: BLE001 - 后缀缺失不影响主 prompt
+            resolved_suffix = ""
+
+    valid_sources = [p for p in (source_paths or []) if p and os.path.isfile(p)]
+    for path in [p for p in (source_paths or []) if p and not os.path.isfile(p)]:
+        logger.warning(f"重绘源图不存在，已跳过: {path}")
+    if not valid_sources:
+        logger.error("重绘需要至少 1 张已存在的源图。")
+        return []
+
+    all_saved = []
+    multi = len(valid_sources) > 1
+    for index, source in enumerate(valid_sources, start=1):
+        plan = plan_output(source, conf)
+        sub_dir = save_sub_dir or plan["save_sub_dir"]
+        if file_prefix:
+            base_prefix = f"{file_prefix}_{index:02d}" if multi else str(file_prefix)
+        else:
+            base_prefix = f"{plan['file_prefix']}_{index:02d}" if multi else plan["file_prefix"]
+        logger.info(f"=== 重绘 {index}/{len(valid_sources)}: {source} -> {resolved_model} @{resolved_resolution} ===")
+        saved = generate_image_aigc2d(
+            prompt=resolved_prompt,
+            image_paths=[source],
+            model=resolved_model,
+            aspect_ratio=resolved_aspect,
+            resolution=resolved_resolution,
+            api_type=resolved_api_type,
+            save_sub_dir=sub_dir,
+            file_prefix=base_prefix,
+            return_metadata=False,
+            log_callback=log_callback,
+            cancel_check=cancel_check,
+            prompt_suffix=resolved_suffix,
+            face_quality_boost=False,
+        ) or []
+        if not saved:
+            logger.warning(f"重绘第 {index} 张未返回图片（源图 {source}），继续下一张。")
+            continue
+        for extra in range(2, resolved_repeat + 1):
+            more = generate_image_aigc2d(
+                prompt=resolved_prompt,
+                image_paths=[source],
+                model=resolved_model,
+                aspect_ratio=resolved_aspect,
+                resolution=resolved_resolution,
+                api_type=resolved_api_type,
+                save_sub_dir=sub_dir,
+                file_prefix=f"{base_prefix}_r{extra}",
+                return_metadata=False,
+                log_callback=log_callback,
+                cancel_check=cancel_check,
+                prompt_suffix=resolved_suffix,
+                face_quality_boost=False,
+            ) or []
+            saved.extend(more)
+        all_saved.extend(saved)
+    logger.info(f"=== 重绘完成: 源图 {len(valid_sources)} 张 -> 产物 {len(all_saved)} 张 ===")
+    if return_metadata:
+        return {
+            "saved_files": all_saved,
+            "model": resolved_model,
+            "resolution": resolved_resolution,
+            "aspect_ratio": resolved_aspect,
+            "prompt_chars": len(resolved_prompt),
+            "sources": valid_sources,
+        }
+    return all_saved

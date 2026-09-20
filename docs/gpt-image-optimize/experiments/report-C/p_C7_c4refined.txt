@@ -1,0 +1,15 @@
+Repaint this image in a clean cel-shaded anime style and correct the drawing defects. Keep the same composition, pose, camera angle, character design, outfit and background layout; add and remove nothing; do not crop or reframe.
+
+HANDS - highest priority. The hands in the source are malformed, so do not copy them; reconstruct both from scratch:
+- the hand supporting the body on the branch: a believable grip on the bark, four separated fingers curling over the front edge of the branch, thumb placed on the near side, correct knuckle sequence along the branch curve, a solid palm plane, wrist joining the cuff cleanly;
+- the hand raised near the cheek: four fingers in the correct order with clear gaps between them, correct bends, a definite palm volume;
+- anatomically correct anime hands at this size: five fingers each, nails on the correct side of each fingertip, no fused, melted, duplicated, missing or extra digits, no blobs where fingers meet, no finger merging into the palm, wrist or sleeve;
+- both hands drawn with the same crisp closed outlines and hard-edged shadow tones as the face.
+
+HAIR - second priority. Every lock is one unbroken tapered strand from root to tip; strands may overlap but must not fade into blur or break into pieces. The long hair along the right side of the frame is the priority region: continuous flowing clumps, countable strands, closed outlines along their entire length. Keep the original hairstyle, volume and silhouette unchanged.
+
+EVERYTHING ELSE: all outlines continuous, connected and even in weight, closing at every corner; every frill, lace scallop, ribbon, bow and leaf a distinct closed shape instead of a soft blob; the branch, moss, water, foliage and far scenery drawn with the same edge crispness as the figure, with no blurry region left anywhere in the frame.
+
+STYLE: flat cel shading, flat colours filled to the line, one hard-edged shadow tone per material, bold even-weight pen outlines, limited pastel palette, no soft gradients, no painterly blending, no colour bleeding, no noise, no text, no watermark. Same aspect ratio, palette and lighting as the original.
+
+FINAL CHECK before output: count five fingers on each hand and confirm the order and separations; trace each long strand on the right side of the frame from root to tip and confirm it is continuous.
