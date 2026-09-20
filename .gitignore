@@ -125,3 +125,8 @@ models/**/hf-cache/**
 models/segmentation/GroundingDINO/GroundingDINO_SwinT_OGC.py
 models/segmentation/sam2/sam2.1_hiera_l.yaml
 !models/segmentation/hf-cache/put HF cache files here.txt
+
+# 本地密钥文件（要用环境变量/密钥时复制 .env.example 为 .env 填写；永不入库）
+.env
+.env.*
+!.env.example

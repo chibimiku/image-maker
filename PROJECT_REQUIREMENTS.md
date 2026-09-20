@@ -55,11 +55,15 @@
   **禁止硬编码模型名 / VAE / 采样器 / 尺寸 / API 地址**。
 - **写配置必须「读旧 → 只改自己的键 → 写回」**：`conf/config.json` 是统一配置（文本分析键 + `apis` / `current_api` / `gpt_image2` / `webui_img2img` / `diff_cg` / `style_ref_mode` 同处一个文件）。
   任何整文件覆盖写都会抹掉别人的节点——`app.py`（`save_text_config` 与 `save_image_config`）、`make-pic.py`、`gpt_image2_tab.py`、`diff_cg_tab.py`、`flux2_client_tab.py`、`utils/style_ref_widget.py` 都走读合并；新增写配置的代码照此办理。
-- **密钥优先用环境变量，别写进会被提交的文件**：`apis.<节点>.api_key` 可留空，改用
+- **密钥优先用环境变量，别写进会被提交的文件**：`apis.<节点>.api_key` 应留空，改用
   `IMAGE_MAKER_<节点名>_API_KEY`（节点名里的 `-` / `.` 换成 `_`；也可在节点里写 `env_slug` 让同家服务的多个节点共用一把，
   如 `aigc2d` 与 `aigc-2d-gpt` 都用 `IMAGE_MAKER_AIGC2D_API_KEY`）。
-  解析入口是 `api_backend.resolve_api_key` / `get_api_config`（返回的 `_api_key_source` 标明来源），
-  **任何把 key 打进日志或界面的地方都必须先 mask（`mask_secret`），只允许暴露环境变量名，不允许暴露密钥值**。
+  - **不要只依赖 setx**：任何在 setx 之前启动的进程（常驻的 DSH / 编辑器 / 老终端）内存里的环境块是旧的，
+    它 spawn 的子进程同样拿不到。因此密钥统一写**仓库根目录的 `.env`**（模板 `.env.example`，`.env` 已被 gitignore），
+    由 `utils/env_loader.ensure_env_loaded()` 在 `modules/others/api_backend.py` 导入时自动装载 —— 与父进程环境无关。
+  - 优先级：**真实环境变量 > `.env` > `conf/config.json`**。解析入口是 `api_backend.resolve_api_key` / `get_api_config`
+    （返回的 `_api_key_source` 标明来源），**任何把 key 打进日志或界面的地方都必须先 mask（`mask_secret`），
+    只允许暴露环境变量名，不允许暴露密钥值**。
 - 尺寸约定（与 `sd_workflow_core.STORY_RESOLUTION_PRESETS` 一致）：
   16:9=1824x1024，9:16=1024x1824，3:2=1536x1024，2:3=1024x1536，1:1=1024x1024。
 - 输出目录：生图到 `data/<YYYYMMDD>/<子目录>/`；采集素材到 `data/fashion-collector/<base>/...`；不要输出到根目录。

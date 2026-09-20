@@ -76,6 +76,15 @@ def load_config(config_path=None):
 # 优先级：IMAGE_MAKER_* > 通用名 > 配置文件里的值。
 ENV_KEY_PREFIX = "IMAGE_MAKER_"
 
+# .env（仓库根目录）兜底装载：父进程环境可能是在 setx 之前启动的旧环境块，
+# 靠 .env 才能做到"不管谁怎么拉起进程，密钥都拿得到"。放在模块导入时执行一次。
+try:
+    from utils.env_loader import ensure_env_loaded as _ensure_env_loaded
+
+    _ensure_env_loaded()
+except Exception as _env_exc:  # noqa: BLE001 - 环境装载失败不该影响出图功能
+    logger.warning("装载 .env 失败（已忽略）: %s", _env_exc)
+
 
 def _env_key_names(api_type: str, cfg: dict = None):
     """该节点可用的环境变量名（按优先级）。
