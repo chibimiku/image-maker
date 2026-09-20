@@ -652,7 +652,7 @@ class GptImage2Widget(QWidget):
             notices.append(f"⚠ 重绘提示词装载失败：{type(exc).__name__}: {exc}")
         api_type = str(conf.get("api_type") or "aigc2d")
         if not str(get_api_config(api_type=api_type).get("api_key") or "").strip():
-            notices.append(f"⚠ 重绘不可用：conf/config.json 的 apis.{api_type} 缺少 api_key")
+            notices.append(f"⚠ 重绘不可用：{self._key_hint(api_type)}")
         if hasattr(self, "repaint_aspect_combo"):
             chosen = self.current_repaint_config().get("aspect_ratio")
             if not is_auto_aspect_ratio(chosen):
@@ -796,7 +796,7 @@ class GptImage2Widget(QWidget):
         cfg = get_api_config(api_type=api_type)
         if not str(cfg.get("api_key") or "").strip():
             QMessageBox.warning(
-                self, "提示", f"conf/config.json 的 apis.{api_type} 缺少 api_key，无法获取模型列表。"
+                self, "提示", self._key_hint(api_type) + "，无法获取模型列表。"
             )
             return
         if self._model_worker is not None and self._model_worker.isRunning():
@@ -838,13 +838,26 @@ class GptImage2Widget(QWidget):
         if worker is not None:
             worker.deleteLater()
 
+    def _key_hint(self, api_type: str) -> str:
+        """缺 key 时的提示文案：说明两种来源（配置文件 / 环境变量），不暴露任何密钥值。"""
+        from modules.others.api_backend import _env_key_names
+
+        names = _env_key_names(api_type)
+        env_hint = f"，或设环境变量 {names[0]}" if names else ""
+        return f"apis.{api_type} 缺少 api_key（可在 conf/config.json 填写{env_hint}）"
+
     # ---------------- 配置 ----------------
     def refresh_api_hint(self):
         site = self.current_site()
         api_type = API_TYPE_BY_SITE.get(site, "")
         cfg = get_api_config(api_type=api_type)
         base_url = str(cfg.get("base_url") or "(未配置)")
-        key_state = "已配置" if str(cfg.get("api_key") or "").strip() else "未配置(请到设置→图片生成 API 填写)"
+        key_state = {
+            "config": "已配置(conf/config.json)",
+            "none": "未配置(请到设置→图片生成 API 填写，或设环境变量)",
+        }.get(str(cfg.get("_api_key_source") or ""), "")
+        if not key_state:
+            key_state = f"已配置({cfg.get('_api_key_source')})"   # env:VARNAME，只暴露变量名
         model = str(cfg.get("model") or "gpt-image-2")
         cancel_state = "支持取消" if site == SITE_AIGC2D else "不支持中断(请求返回后才结束)"
         self.api_hint.setText(
@@ -1064,7 +1077,7 @@ class GptImage2Widget(QWidget):
             if not str(get_api_config(api_type=repaint_api_type).get("api_key") or "").strip():
                 QMessageBox.warning(
                     self, "提示",
-                    f"conf/config.json 的 apis.{repaint_api_type} 缺少 api_key，无法重绘。",
+                    self._key_hint(repaint_api_type) + "，无法重绘。",
                 )
                 return
             self.save_repaint_defaults()
@@ -1099,7 +1112,7 @@ class GptImage2Widget(QWidget):
             QMessageBox.warning(
                 self,
                 "提示",
-                f"conf/config.json 的 apis.{api_type} 缺少 api_key，请先在「设置 → 图片生成 API」里填写。",
+                self._key_hint(api_type) + "，请先在「设置 → 图片生成 API」里填写。",
             )
             return
         # 生图与编辑都支持出图后接着重绘（gpt-image 两种模式出的分辨率都偏低）
@@ -1109,7 +1122,7 @@ class GptImage2Widget(QWidget):
             if not str(get_api_config(api_type=repaint_api_type).get("api_key") or "").strip():
                 QMessageBox.warning(
                     self, "提示",
-                    f"已勾选「出图后立即重绘优化」，但 apis.{repaint_api_type} 缺少 api_key，无法重绘。",
+                    "已勾选「出图后立即重绘优化」，但 " + self._key_hint(repaint_api_type) + "。",
                 )
                 return
             self.save_repaint_defaults()

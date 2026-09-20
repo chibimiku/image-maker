@@ -69,15 +69,60 @@ def load_config(config_path=None):
     with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
+# 密钥可用环境变量覆盖，避免明文躺在配置文件里（配置文件里留空即可）：
+#   IMAGE_MAKER_<节点名>_API_KEY   例：IMAGE_MAKER_AIGC2D_API_KEY / IMAGE_MAKER_AIGC_2D_GPT_API_KEY
+#   <节点名>_API_KEY  /  <节点名>_KEY   例：AIGC2D_API_KEY（节点名里的 - / . 会换成 _）
+# 优先级：IMAGE_MAKER_* > 通用名 > 配置文件里的值。
+ENV_KEY_PREFIX = "IMAGE_MAKER_"
+
+
+def _env_key_names(api_type: str, cfg: dict = None):
+    """该节点可用的环境变量名（按优先级）。
+
+    节点名会先规范化（`-` / `.` → `_`）；若配置里给了 `env_slug`，额外把那个名字排在前面，
+    这样同一家服务的多个节点（如 `aigc2d` 与 `aigc-2d-gpt`）能共用一把环境变量。
+    """
+    names = []
+    slug = re.sub(r"[^0-9A-Za-z]+", "_", str((cfg or {}).get("env_slug") or "")).strip("_").upper()
+    if slug:
+        names += [f"{ENV_KEY_PREFIX}{slug}_API_KEY", f"{slug}_API_KEY", f"{slug}_KEY"]
+    node_slug = re.sub(r"[^0-9A-Za-z]+", "_", str(api_type or "")).strip("_").upper()
+    if node_slug:
+        names += [f"{ENV_KEY_PREFIX}{node_slug}_API_KEY", f"{node_slug}_API_KEY", f"{node_slug}_KEY"]
+    return tuple(dict.fromkeys(names))
+
+
+def resolve_api_key(cfg: dict, api_type: str = None) -> str:
+    """取该 API 节点的 key：环境变量优先，其次配置文件。返回值只用于请求头，不要打进日志。"""
+    for name in _env_key_names(api_type, cfg):
+        value = str(os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return str((cfg or {}).get("api_key") or "").strip()
+
+
+def api_key_source(api_type: str = None, cfg: dict = None) -> str:
+    """告知界面 key 从哪来（env:VAR / config / none），只暴露变量名不暴露值。"""
+    for name in _env_key_names(api_type, cfg):
+        if str(os.environ.get(name) or "").strip():
+            return f"env:{name}"
+    if str((cfg or {}).get("api_key") or "").strip():
+        return "config"
+    return "none"
+
+
 def get_api_config(config_path=None, api_type=None):
-    """获取指定API类型的配置"""
+    """获取指定API类型的配置（返回值里的 api_key 已按环境变量优先解析）。"""
     config = load_config(config_path)
-    # 如果指定了api_type，直接返回对应配置
-    if api_type:
-        return config.get("apis", {}).get(api_type, {})
-    # 否则返回当前API类型的配置
-    current_api = config.get("current_api", "whatup")
-    return config.get("apis", {}).get(current_api, {})
+    node = api_type if api_type else config.get("current_api", "whatup")
+    cfg = dict(config.get("apis", {}).get(node, {}) or {})
+    resolved = resolve_api_key(cfg, node)
+    if resolved:
+        cfg["api_key"] = resolved
+    cfg["_api_key_source"] = api_key_source(node, cfg)
+    return cfg
+
 
 def to_base64(path):
     with open(path, "rb") as f:

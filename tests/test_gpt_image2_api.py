@@ -688,6 +688,84 @@ def test_tab_drop_event_adds_images_from_urls(tab, tmp_path):
     assert tab.image_paths == [os.path.normpath(str(image))]
 
 
+# ---------------- 密钥来源（环境变量优先，配置兜底） ----------------
+def test_env_var_key_names_normalize_node_id():
+    """节点名里的 - / . 要转成下划线再拼变量名。"""
+    names = api_backend._env_key_names("aigc-2d-gpt")
+    assert names[0] == "IMAGE_MAKER_AIGC_2D_GPT_API_KEY"
+    assert "AIGC_2D_GPT_KEY" in names
+    assert api_backend._env_key_names("") == ()
+
+
+def test_env_slug_lets_two_nodes_share_one_env_var(monkeypatch):
+    """同一家服务的两个节点（aigc2d / aigc-2d-gpt）可用 env_slug 共用一把环境变量。"""
+    cfg = {"api_key": "", "env_slug": "aigc2d"}
+    monkeypatch.setenv("IMAGE_MAKER_AIGC2D_API_KEY", "sk-SHARED-000000000000000000000000000")
+    assert api_backend._env_key_names("aigc-2d-gpt", cfg)[0] == "IMAGE_MAKER_AIGC2D_API_KEY"
+    assert api_backend.resolve_api_key(cfg, "aigc-2d-gpt") == "sk-SHARED-000000000000000000000000000"
+    assert api_backend.api_key_source("aigc-2d-gpt", cfg) == "env:IMAGE_MAKER_AIGC2D_API_KEY"
+
+
+def test_env_var_overrides_config_key(monkeypatch):
+    """设了环境变量就用环境变量，不用配置文件里那把。"""
+    cfg = {"api_key": "sk-FROM-CONFIG-000000000000000000000000000"}
+    monkeypatch.delenv("IMAGE_MAKER_AIGC2D_API_KEY", raising=False)
+    assert api_backend.resolve_api_key(cfg, "aigc2d") == cfg["api_key"]
+    assert api_backend.api_key_source("aigc2d", cfg) == "config"
+
+    monkeypatch.setenv("IMAGE_MAKER_AIGC2D_API_KEY", "sk-FROM-ENV-111111111111111111111111111")
+    assert api_backend.resolve_api_key(cfg, "aigc2d") == "sk-FROM-ENV-111111111111111111111111111"
+    assert api_backend.api_key_source("aigc2d", cfg) == "env:IMAGE_MAKER_AIGC2D_API_KEY"
+
+
+def test_config_key_may_be_empty_when_env_var_supplies_it(monkeypatch, tmp_path):
+    """配置文件留空 + 环境变量给 key：也能正常解析（不再报「缺少 api_key」）。"""
+    monkeypatch.setenv("IMAGE_MAKER_AIGC_2D_GPT_API_KEY", "sk-FROM-ENV-222222222222222222222222222")
+    conf = tmp_path / "config.json"
+    conf.write_text(json.dumps({
+        "current_api": "aigc-2d-gpt",
+        "apis": {"aigc-2d-gpt": {"base_url": "https://example.invalid/v1", "api_key": "", "model": "gpt-image-2"}},
+    }), encoding="utf-8")
+
+    cfg = api_backend.get_api_config(config_path=str(conf), api_type="aigc-2d-gpt")
+    assert cfg["api_key"] == "sk-FROM-ENV-222222222222222222222222222"
+    assert cfg["_api_key_source"] == "env:IMAGE_MAKER_AIGC_2D_GPT_API_KEY"
+
+    # 没有环境变量时，空 key 就是空
+    monkeypatch.delenv("IMAGE_MAKER_AIGC_2D_GPT_API_KEY")
+    cfg2 = api_backend.get_api_config(config_path=str(conf), api_type="aigc-2d-gpt")
+    assert cfg2["api_key"] == ""
+    assert cfg2["_api_key_source"] == "none"
+
+
+def test_get_api_config_does_not_mutate_cached_config(tab):
+    """get_api_config 返回副本：调用方改它不会污染后续读取。"""
+    from modules.others import api_backend as backend
+
+    cfg = backend.get_api_config(api_type=SITE_AIGC2D or "aigc2d")
+    cfg["api_key"] = "sk-MUTATED"
+    again = backend.get_api_config(api_type="aigc2d")
+    assert again["api_key"] != "sk-MUTATED"
+
+
+def test_tab_hint_shows_key_source(tab, monkeypatch):
+    """界面上的 Key 状态要标出「来自配置」还是「来自哪个环境变量」，且不含密钥本身。"""
+    # aigc-2d-gpt 节点配了 env_slug=aigc2d，所以设这一个变量即可
+    monkeypatch.setenv("IMAGE_MAKER_AIGC2D_API_KEY", "sk-FROM-ENV-333333333333333333333333333")
+    tab.refresh_api_hint()
+    text = tab.api_hint.text()
+    assert "IMAGE_MAKER_AIGC2D_API_KEY" in text
+    assert "sk-FROM-ENV" not in text
+    assert "未配置" not in text
+
+
+def test_key_hint_mentions_both_sources(tab):
+    """缺 key 的提示要同时给出两条路：配置文件 与环境变量名。"""
+    text = tab._key_hint("aigc-2d-gpt")
+    assert "conf/config.json" in text
+    assert "IMAGE_MAKER_AIGC_2D_GPT_API_KEY" in text
+
+
 # ---------------- 日志栏（UI 诊断） ----------------
 def test_mask_secret_hides_middle_of_key():
     # 用长度与真实 key 相同的**假** key（51 字符），只验证掩码规则，绝不写真实凭证进仓库

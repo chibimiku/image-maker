@@ -133,6 +133,7 @@
 
 - `conf/config.json`: **统一配置**——文本分析/通用开关 + 图片生成 API（`current_api` / `apis.*` / 顶层 `style_ref_mode`）、图片相关界面记忆（`gpt_image2` / `webui_img2img` / `diff_cg` / `cached_image_models`）。
   （原先图片 API 单独放在 `conf/config-image.json`，2026-09 已合并到本文件；`api_backend.load_config` 仍保留旧文件回退读取，仅为兼容没做迁移的老机器。）
+  - **密钥来源**：`apis.<节点>.api_key` 可留空，优先读环境变量 `IMAGE_MAKER_<节点名>_API_KEY`（`-`/`.`→`_`）；节点里写 `env_slug` 可让同家服务的多个节点共用一个变量（`aigc2d` 与 `aigc-2d-gpt` 都用 `IMAGE_MAKER_AIGC2D_API_KEY`）。解析在 `api_backend.resolve_api_key` / `get_api_config`，`_api_key_source` 标明 `env:变量名` / `config` / `none`；界面只显示变量名，永不显示密钥值。
 - `conf/config-sd.json`: SD 相关配置
 - `conf/config-styles.json`: 画风预设（运行时读取；版本化文件在子模块 `submodules/image-maker-artstyle/config-styles.json`，本地 `conf/` 副本为 gitignore）
 - `conf/config-z-image.json`: z-image 本地模型目录记忆
