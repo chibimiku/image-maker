@@ -1,0 +1,918 @@
+Image model stuck on the same style - Prompting - OpenAI Developer Community
+    
+    
+  
+    
+    
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+= 40rem)" rel="stylesheet" data-target="chat_desktop"  />
+  
+= 40rem)" rel="stylesheet" data-target="discourse-ai_desktop"  />
+  
+= 40rem)" rel="stylesheet" data-target="discourse-gamification_desktop"  />
+  
+= 40rem)" rel="stylesheet" data-target="discourse-reactions_desktop"  />
+  
+= 40rem)" rel="stylesheet" data-target="poll_desktop"  />
+  
+  
+  
+     
+    
+   
+   
+        
+    
+        
+     
+  
+  
+    
+    
+  
+OpenAI Developer Community
+    
+        
+    
+      
+Image model stuck on the same style
+    
+      
+          
+            
+              
+              
+                
+Prompting
+              
+            
+            
+          
+      
+      
+        
+            
+image-generation
+        
+      
+  
+  
+    
+      
+      
+      
+      
+        
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  4:13pm
+                  
+                  
+              
+1
+              
+            
+            
+              
+It seems that once I generate an image, it gets stuck on that same style/instructions and new adjustments/generations/prompt changes have very little effect.
+I started in Chatgpt, then went to Playground - hoping to start ‘ from scratch’
+but it does the same mistake.
+Here’s the prompt.  It keeps generating the images from the wrong side - the shadow side of the face, not the one facing the sun.
+Is there any way to fix it?
+A cinematic close-up profile shot of a strikingly beautiful russian model sitting poolside at a luxurious modern villa during sunrise. The camera is positioned from the sun-side of the pool, so the sunlight fully illuminates the side of her face visible to the camera. She has her eyes closed, a serene and grounded expression, meditating in calm stillness. A single tear slowly rolls down her cheek, reflecting the golden sun rays. The framing is a tight side-view profile (shoulders and head), with the villa softly blurred in the background. The aesthetic is warm, cinematic, and natural — like a still from an art-house film.
+            
+            
+          
+          
+            
+              
+                
+_j
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  5:06pm
+                  
+                  
+              
+2
+              
+            
+            
+              
+ChatGPT, and the same undocumented effect on Responses, uses your prior chat and “vision” of prior images when making a new response.
+When the image tool is triggered, a 
+gpt-4o
+ version with image creation takes over and looks at the chat. That includes billed images again also, of whatever length OpenAI decides to include, and will affect the generation which is then in “edit” mode, looking to improve what it sees.
+Don’t use Responses and a chat to make images with their tool.
+Use the API edits endpoint, and control the inputs of individual images and prompt language.
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  5:21pm
+                  
+                  
+              
+3
+              
+            
+            
+              
+I was using the Playground (API) so it should have no reference to any previous context.
+            
+            
+          
+          
+            
+              
+                
+_j
+                  
+                
+              
+                
+              
+                  
+                    September 10, 2025,  5:31pm
+                  
+                  
+              
+4
+              
+            
+            
+              
+If using the playground, and you previously attached or generated images in earlier turns of “chat”, those indeed are all seen again by the underlying tool model in a new image creation prompt triggering another generation.
+API calls are otherwise unconnected. If you whack the “new chat” reset button to clear the messages, it is just going to be the monotonic style of the model itself.
+DALL-E 3 used by the “generate” image endpoint (can’t see images) will make extremely varied fulfilling generations for a prompt, with less instruction-following, while gpt-image-1 is more consistent but unimaginative.
+Original generations from undersized prompt
+“a cubist style mischievous cat painting”
+gpt-image-1 (painfully slow)
+image
+1024×1024 125 KB
+image
+1024×1024 148 KB
+DALL-E 3
+image
+1024×1024 197 KB
+image
+1024×1024 132 KB
+            
+            
+          
+          
+            
+              
+                
+windysoliloquy
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  5:42pm
+                  
+                  
+              
+5
+              
+            
+            
+              
+i can’t think of any keywords to help me find the session faster for you OP, but at one point GPT explained to me that when a style get’s locked in it’s extremely difficult to knock it out of it, and it gave me a dumbed down version of what _J was explaining to you.
+My fastest fix, is just to wipe the slate clean when an entire new session, and upload something that was closest to what I wanted.
+This however has also caused the lock in to repeat itself at times.
+In those cases I start over again completely, and swap out whatever part of the image was being a problem with something completely different, and then after I have things set to where they work well, I swap that part of the image back in…
+It’s sometimes easier that way, but it does take a lot of image gen.
+best of luck to you OP!
+            
+            
+          
+          
+            
+              
+                
+jeffvpace
+                  
+                
+              
+                
+              
+                  
+                    September 10, 2025,  5:44pm
+                  
+                  
+              
+6
+              
+            
+            
+              
+Is this what you are looking for:
+WomanAtSunrise
+1536×1024 84.5 KB
+It 
+ALL
+ has to do with the prompt - nothing else.
+            
+            
+          
+          
+            
+              
+                
+jeffvpace
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  6:11pm
+                  
+                  
+              
+7
+              
+            
+            
+              
+TIP: Instead of “a strikingly beautiful russian model“, say something like “a beautiful high-fashion woman“ - it may not have a concept of a Russian model. No need to mention “sitting poolside“ because the image will not include it - it’s “a close-up profile shot” right? Also the word “sunrise“ is problematic because it is 
+trained
+ to show sunrises in the background, thus messing up your lighting of her face. Also, “grounded expression, meditating in calm stillness.“ is redundant - “serene“ is all you need. “The aesthetic is warm, cinematic, and natural — like a still from an art-house film.“ - also redundant.
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+                
+              
+                  
+                    September 10, 2025,  6:30pm
+                  
+                  
+              
+8
+              
+            
+            
+              
+@jeffvpace
+ awesome, thank you.  are there some best practices or training for image prompt writing?
+This was my image. While it does match the style I need, it’s completely ignoring |The camera is positioned from the sun-side, so the sunlight fully illuminates the side of her face visible to the camera”
+image
+1536×1024 64.7 KB
+            
+            
+          
+          
+            
+              
+                
+jeffvpace
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  6:35pm
+                  
+                  
+              
+9
+              
+            
+            
+              
+Here was my prompt:
+A close-up profile image (shoulders and head) of a beautiful high-fashion woman. The sun is fully illuminating the side of her face and a villa in the background. She has her eyes closed, appearing serene. A single tear slowly rolls down her cheek, reflecting the golden sun rays. Minimize sepia color tones and increase brightness.
+Prompting takes practice - trial and error 
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+                
+              
+                  
+                    September 10, 2025,  6:41pm
+                  
+                  
+              
+10
+              
+            
+            
+              
+A new session you mean  a new chat yes?
+The first image is from one session, then I wanted to ‘reset’ and started a new chat, with just the prompt - second image. It’s extremely similar, and both incorrect. That’s what’s frustrating. .Like there is no way to ‘reset’ or start a new session.
+image
+1536×1024 67.2 KB
+image
+1536×1024 52.6 KB
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  6:44pm
+                  
+                  
+              
+11
+              
+            
+            
+              
+If you say it’s trained to show the sunrise, I don’t know how else to describe that the time of the day / ambience / lighting conditions is as sunrise. No matter what I do, it keeps generating variations of the same image.
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+                
+              
+                  
+                    September 10, 2025,  6:53pm
+                  
+                  
+              
+12
+              
+            
+            
+              
+How exactly do you choose between the two models?
+Also, in the Playground, there is only the prompt and a gallery of generated images. I assumed sending the prompt acts as a single API call and there is no reference to previous generation whatsoever. Do I need to clear the history?
+image
+810×240 16 KB
+            
+            
+          
+          
+            
+              
+                
+jeffvpace
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  6:56pm
+                  
+                  
+              
+13
+              
+            
+            
+              
+Look at my prompt. No need to use the word “sunrise“ or to “describe that the time of the day / ambience / lighting conditions is as sunrise.“
+“The sun is fully illuminating the side of her face and a villa in the background.” and “… reflecting the golden sun rays.“ implies almost the same.
+            
+            
+          
+          
+            
+              
+                
+_j
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  6:57pm
+                  
+                  
+              
+14
+              
+            
+            
+              
+The playground teaches nothing except how to use ChatGPT patterns - but at high recurring chat history expense for image generation in a “chat”.
+The API is for programming. Here’s your API Reference starting point for “generate”, where “dall-e-3” is one of the models:
+https://platform.openai.com/docs/api-reference/images/create
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  7:07pm
+                  
+                  
+              
+15
+              
+            
+            
+              
+I thought the Playground is just a visual way to interact with the API (as it’s using my API balance)
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  7:08pm
+                  
+                  
+              
+16
+              
+            
+            
+              
+but yours doesn’t look like sunrise at all but like studio lighting. The sun is coming from the back, yet her face is illuminated from the front
+            
+            
+          
+          
+            
+              
+                
+jeffvpace
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  7:13pm
+                  
+                  
+              
+17
+              
+            
+            
+              
+Yeah, you are right. But like I said, the “sunrise“ is a real issue because the model is trained on what a sunrise is, and if you prompt “sunrise“, it will show the sunrise in the background and you won’t get the desired lighting on her face. Nuff said.
+            
+            
+          
+          
+            
+              
+                
+_j
+                  
+                
+              
+              
+                  
+                    September 10, 2025,  7:13pm
+                  
+                  
+              
+18
+              
+            
+            
+              
+ aureliodavinci:
+Playground is just a visual way to interact with the API
+If you go direct to “images”: 
+https://platform.openai.com/playground/images
+Then you are getting 
+https://api.openai.com/v1/images/generations
+ if you don’t send input images and just type some text.
+It changes the API endpoint on you whether there are images, doesn’t allow direct control of the parameters (like the dall-e-3 model), and is an “app”.
+            
+            
+          
+          
+            
+              
+                
+aureliodavinci
+                  
+                
+              
+                
+              
+                  
+                    September 10, 2025,  7:31pm
+                  
+                  
+              
+19
+              
+            
+            
+              
+It’s literally refusing to generate the image from the other side of her face.. I used the last image as a reference with this prompt  and got this lol
+Edit this image so the sun is not visible - shot is taken from the other side (from the sun/pool side) - so that the RIGHT side of her face, lit by the sun is visible. the villa is in the background (instead of the pool and sun)
+image
+1024×1024 44.9 KB
+            
+            
+          
+          
+            
+              
+                
+windysoliloquy
+                  
+                
+              
+                
+              
+                  
+                    September 10, 2025,  8:10pm
+                  
+                  
+              
+20
+              
+            
+            
+              
+shoot I read through your post too fast based on the title.
+ChatGPT Image Sep 10, 2025, 03_04_50 PM
+1536×1024 61.6 KB
+after achieving the same result i started doing some fishing
+Chatgpt says:
+Yeah, I see the snag — models love to interpret “sunrise” as backlit drama, even when you hammer “front-lit.” When the normal fixes don’t cut it, you need to crank the 
+light source instruction
+ up to almost absurd clarity. Here’s a stronger phrasing you can test:
+and here’s an absurbly long ‘triple stacked prompt’ that i was able to get the sort of thing I think you want with:
+3x stacked prompt
+Perfect — I’ll write you a 
+triple-stack prompt
+: one description in cinematic terms, one in photographic terms, and one in lighting-rig terms, all describing the same scene so the model can’t “wiggle out” of the front-lit instruction. I’ll keep it clean for imagegen (no need for explicit negatives — I’ll bake the constraints into the body of the prompt).
+Triple-Stack Prompt
+A cinematic close-up profile of a serene Eastern European model poolside at a modern villa during sunrise. The camera is placed on the sun-side of the pool, with the rising sun directly behind the camera, so the visible side of her face is 
+fully illuminated in warm golden light
+, glowing naturally with no shadows. She has her eyes closed in calm meditation, a single tear reflecting the sunlight as it rolls down her cheek. The villa is softly blurred in the background. Warm, cinematic, art-house aesthetic.
+Photography description: A 
+front-lit profile portrait
+ taken at golden hour. The subject’s camera-facing cheek is brightly exposed and evenly lit, while the far side of her face falls gently away. The visible side of her face is glowing and detailed, with no shadow or silhouette obscuring her features. The composition is tight — shoulders and head only, with the villa softened into bokeh in the background.
+Lighting rig description: Imagine a 
+giant key light as powerful as the sun mounted directly behind the camera
+, flooding the model’s face with golden light. The illumination is direct and frontal, with no backlighting. The key light ensures the camera-side profile is completely lit, with highlights on skin and tear, and the far side of the face in natural falloff.
+This prompt stacks cinematic style + photographic terminology + hard technical rigging instructions, so the model should have a very hard time flipping back to “shadow-side” mode.
+ Want me to go ahead and 
+run this version through imagegen now
+ so you can see if it breaks the loop?
+ChatGPT Image Sep 10, 2025, 03_08_46 PM
+1536×1024 74 KB
+            
+            
+          
+        
+    
+      
+            
+next page →
+      
+    
+  
+    Related topics
+  
+  
+    
+    
+      
+        
+          
+Topic
+          
+          
+Replies
+          
+Views
+          
+Activity
+        
+      
+      
+          
+            
+              
+              
+                
+How to force dalle to follow my prompt?
+              
+              
+                  
+                    
+                    
+                      
+Prompting
+                    
+                  
+                  
+                      
+gpt-4
+                      , 
+                      
+dalle3
+                      , 
+                      
+dalle
+                      
+                  
+              
+            
+            
+              
+15
+            
+            
+              
+6904
+            
+            
+              November 5, 2023
+            
+          
+          
+            
+              
+              
+                
+Same prompt, different results
+              
+              
+                  
+                    
+                    
+                      
+Prompting
+                    
+                  
+                  
+                      
+dalle3
+                      
+                  
+              
+            
+            
+              
+9
+            
+            
+              
+1517
+            
+            
+              June 23, 2026
+            
+          
+          
+            
+              
+              
+                
+Prompt to make exactly same image but different pose
+              
+              
+                  
+                    
+                    
+                      
+Prompting
+                    
+                  
+                  
+                      
+gpt-4
+                      , 
+                      
+dalle3
+                      , 
+                      
+gpt-image-1
+                      
+                  
+              
+            
+            
+              
+35
+            
+            
+              
+154843
+            
+            
+              June 25, 2025
+            
+          
+          
+            
+              
+              
+                
+4o image gen in custom GPTs not following any instructions
+              
+              
+                  
+                    
+                    
+                      
+GPT builders
+                    
+                  
+                  
+                      
+chatgpt
+                      , 
+                      
+custom-gpt
+                      , 
+                      
+4o-image-generation
+                      
+                  
+              
+            
+            
+              
+5
+            
+            
+              
+899
+            
+            
+              April 27, 2025
+            
+          
+          
+            
+              
+              
+                
+Sudden severe drop in ChatGPT image quality and reference adherence
+              
+              
+                  
+                    
+                    
+                      
+Use cases and examples
+                    
+                  
+                  
+                      
+image-generation
+                      , 
+                      
+gpt-image-2
+                      
+                  
+              
+            
+            
+              
+38
+            
+            
+              
+3452
+            
+            
+              August 27, 2026
+            
+          
+      
+    
+  
+    
+    
+  
+    
+      
+        
+          
+Home 
+        
+      
+      
+        
+          
+Categories 
+        
+      
+      
+        
+          
+Guidelines 
+        
+      
+        
+          
+            
+Terms of Service 
+          
+        
+        
+          
+            
+Privacy Policy 
+          
+        
+    
+  
+  
+Powered by 
+Discourse
+, best viewed with JavaScript enabled

@@ -1,0 +1,1 @@
+You are given 1 reference image. Extract ONLY its art style: watercolor-like soft digital illustration, delicate fine lineart, luminous pastel palette, airy white negative space, floating droplets and bubbles, translucent hair strands, glossy detailed eyes. Do NOT copy its subject, pose, outfit or scene.

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from unittest.mock import Mock
 
+import modules.fashion_collection.generation_plan as generation_plan
 from modules.fashion_collection.collection_service import build_image_download_candidates, score_item_for_theme
 from modules.fashion_collection.generation_plan import (
     build_reference_prompt,
@@ -14,6 +15,7 @@ from modules.fashion_collection.models import CatalogItem, CollectionBundle, Col
 from modules.fashion_collection.networking import request_with_proxy_fallback
 from modules.fashion_collection.theme_profiles import get_theme_profile
 from modules.fashion_collection.wear_adapter import PART_SEARCH_URLS, WearAdapter
+from modules.others import api_backend
 import requests
 
 
@@ -252,28 +254,35 @@ def test_build_reference_prompt_includes_brand_and_parts(tmp_path: Path):
     assert "主角描述" in prompt
 
 
-def test_hybrid_collection_splits_parts_by_theme(monkeypatch, tmp_path: Path):
+def _install_fake_hybrid_collectors(monkeypatch, tmp_path: Path):
+    """装一套假的 Lolibrary/WEAR 采集器，按调用顺序记录参数，返回 (service, calls)。"""
     from modules.fashion_collection.collection_service import FashionCollectionService
 
     service = FashionCollectionService()
-    calls = {"lolibrary": None, "wear": None}
+    calls: dict[str, list] = {"lolibrary": [], "wear": []}
 
-    def fake_lolibrary_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme):
-        calls["lolibrary"] = {
-            "brand_slug": brand_slug,
-            "preferred_parts": list(preferred_parts),
-            "theme": theme,
-        }
+    def fake_lolibrary_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme, log_callback=None):
+        calls["lolibrary"].append(
+            {
+                "brand_slug": brand_slug,
+                "preferred_parts": list(preferred_parts),
+                "theme": theme,
+                "log_callback": log_callback,
+            }
+        )
         item = CatalogItem("lolibrary", "dress-1", "https://lolibrary.org/items/1", "Sweet JSK", brand="Angelic Pretty")
         asset = CollectedAsset("dress", item, "https://img/dress.jpg", str(tmp_path / "dress.jpg"), "https://search", "dress prompt")
         return CollectionBundle("Lolibrary", brand_slug, "https://lolibrary.org/search?brands[]=angelic-pretty", output_dir, [asset], [])
 
-    def fake_wear_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme):
-        calls["wear"] = {
-            "brand_slug": brand_slug,
-            "preferred_parts": list(preferred_parts),
-            "theme": theme,
-        }
+    def fake_wear_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme, log_callback=None):
+        calls["wear"].append(
+            {
+                "brand_slug": brand_slug,
+                "preferred_parts": list(preferred_parts),
+                "theme": theme,
+                "log_callback": log_callback,
+            }
+        )
         shoe = CatalogItem("wear", "shoe-1", "https://wear.jp/item/1", "Tea Party Shoes", brand="BrandX")
         sock = CatalogItem("wear", "sock-1", "https://wear.jp/item/2", "Lace Socks", brand="BrandY")
         return CollectionBundle(
@@ -290,6 +299,13 @@ def test_hybrid_collection_splits_parts_by_theme(monkeypatch, tmp_path: Path):
 
     monkeypatch.setattr(service, "collect_lolibrary_bundle", fake_lolibrary_bundle)
     monkeypatch.setattr(service, "collect_wear_bundle", fake_wear_bundle)
+    return service, calls
+
+
+def test_hybrid_collection_follows_theme_profile_site_map(monkeypatch, tmp_path: Path):
+    """甜美洛丽塔画像把全部部位都指向 Lolibrary：不该再调 WEAR，品牌取画像默认。"""
+    service, calls = _install_fake_hybrid_collectors(monkeypatch, tmp_path)
+    logs = []
 
     bundle = service.collect_bundle(
         site_key="hybrid",
@@ -298,11 +314,44 @@ def test_hybrid_collection_splits_parts_by_theme(monkeypatch, tmp_path: Path):
         max_pages=1,
         preferred_parts=["dress", "shoes", "socks"],
         theme="甜美洛丽塔",
+        log_callback=logs.append,
     )
-    assert calls["lolibrary"]["preferred_parts"] == ["dress"]
-    assert calls["lolibrary"]["brand_slug"] == "angelic-pretty"
-    assert calls["wear"]["preferred_parts"] == ["shoes", "socks"]
+
+    assert [call["preferred_parts"] for call in calls["lolibrary"]] == [["dress", "shoes", "socks"]]
+    assert calls["lolibrary"][0]["brand_slug"] == "angelic-pretty"
+    # 假 Lolibrary 只回了一件连衣裙，缺失的鞋袜由 WEAR 兜底补齐
+    assert [call["preferred_parts"] for call in calls["wear"]] == [["shoes", "socks"]]
+    assert calls["wear"][0]["brand_slug"] == ""
+    assert any("[Hybrid] 路由" in line for line in logs)
+    # 日志回调要透传给子采集（传下去的是能写进 logs 的回调，不是 None）
+    calls["lolibrary"][0]["log_callback"]("[Hybrid] 测试探针")
+    assert logs[-1] == "[Hybrid] 测试探针"
     assert len(bundle.assets) == 3
+    assert bundle.missing_parts == []
+
+
+def test_hybrid_collection_splits_parts_without_theme_profile(monkeypatch, tmp_path: Path):
+    """没有命中画像时按默认规则拆分：dress → Lolibrary，其余 → WEAR。"""
+    service, calls = _install_fake_hybrid_collectors(monkeypatch, tmp_path)
+    logs = []
+
+    bundle = service.collect_bundle(
+        site_key="hybrid",
+        brand_slug="",
+        output_dir=str(tmp_path / "hybrid"),
+        max_pages=1,
+        preferred_parts=["dress", "shoes", "socks"],
+        theme="不存在的主题",
+        log_callback=logs.append,
+    )
+
+    assert [call["preferred_parts"] for call in calls["lolibrary"]] == [["dress"]]
+    assert calls["lolibrary"][0]["brand_slug"] == ""                 # 无画像就不臆造品牌
+    assert [call["preferred_parts"] for call in calls["wear"]] == [["shoes", "socks"]]
+    calls["wear"][0]["log_callback"]("[Hybrid] 测试探针")
+    assert logs[-1] == "[Hybrid] 测试探针"
+    assert len(bundle.assets) == 3
+    assert bundle.missing_parts == []
 
 
 def test_hybrid_collection_falls_back_to_wear_for_missing_dress(monkeypatch, tmp_path: Path):
@@ -311,10 +360,10 @@ def test_hybrid_collection_falls_back_to_wear_for_missing_dress(monkeypatch, tmp
     service = FashionCollectionService()
     wear_calls = []
 
-    def fake_lolibrary_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme):
+    def fake_lolibrary_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme, log_callback=None):
         return CollectionBundle("Lolibrary", brand_slug, "https://lolibrary.org/search?brands[]=angelic-pretty", output_dir, [], ["dress"])
 
-    def fake_wear_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme):
+    def fake_wear_bundle(*, brand_slug, output_dir, max_pages, preferred_parts, theme, log_callback=None):
         wear_calls.append(list(preferred_parts))
         assets = []
         if "dress" in preferred_parts:
@@ -353,17 +402,35 @@ def test_build_image_download_candidates_prefers_thumbnail_queries():
 def test_request_with_proxy_fallback_retries_direct_when_proxy_fails():
     session = Mock()
     proxy_error = requests.exceptions.ProxyError("proxy down")
-    direct_response = object()
+    direct_response = Mock()
     session.request.side_effect = [proxy_error, direct_response]
+    proxy_url = "http://proxy.example:7897"
+    logs = []
 
-    response = request_with_proxy_fallback(session, "GET", "https://example.com", timeout=8)
+    response = request_with_proxy_fallback(
+        session, "GET", "https://example.com", timeout=8, proxy_url=proxy_url, log_callback=logs.append
+    )
 
     assert response is direct_response
     assert session.request.call_count == 2
     first_call = session.request.call_args_list[0]
     second_call = session.request.call_args_list[1]
-    assert first_call.kwargs["proxies"]["http"] == "http://127.0.0.1:7897"
+    assert first_call.kwargs["proxies"] == {"http": proxy_url, "https": proxy_url}
     assert "proxies" not in second_call.kwargs
+    assert direct_response.raise_for_status.call_count == 1
+    assert any("回退直连" in line for line in logs)
+
+
+def test_request_with_proxy_fallback_skips_proxy_when_not_configured():
+    session = Mock()
+    direct_response = Mock()
+    session.request.return_value = direct_response
+
+    response = request_with_proxy_fallback(session, "GET", "https://example.com", timeout=8, proxy_url="")
+
+    assert response is direct_response
+    assert session.request.call_count == 1
+    assert "proxies" not in session.request.call_args_list[0].kwargs
 
 
 def test_wear_part_search_urls_cover_five_categories():
@@ -374,9 +441,8 @@ def test_wear_part_search_urls_cover_five_categories():
     assert PART_SEARCH_URLS["bag"].endswith("/women-category/bag/handbag/")
 
 
-def test_build_scene_and_character_description_supports_two_characters(tmp_path: Path):
-    profile = get_theme_profile("甜美洛丽塔")
-    bundle = CollectionBundle(
+def _two_character_bundle(tmp_path: Path) -> CollectionBundle:
+    return CollectionBundle(
         site_name="Hybrid",
         brand_slug="",
         search_url="https://wear.jp/",
@@ -400,7 +466,51 @@ def test_build_scene_and_character_description_supports_two_characters(tmp_path:
             ),
         ],
     )
+
+
+def test_build_scene_and_character_description_falls_back_to_static_pool(monkeypatch, tmp_path: Path):
+    """LLM 不可用时走静态随机池：双人/单人落在对应模板池，场景带上穿搭部位。"""
+    profile = get_theme_profile("甜美洛丽塔")
+    bundle = _two_character_bundle(tmp_path)
+    # 单测不联网：LLM 分支返回 None，落到确定性兜底池；随机选择固定取第一条
+    monkeypatch.setattr(generation_plan, "_llm_generate_scene_character", lambda **_kwargs: None)
+    monkeypatch.setattr(generation_plan.random, "choice", lambda seq: seq[0])
+
     scene_text, character_text = build_scene_and_character_description(bundle, profile, character_count=2)
+    single_scene_text, single_character_text = build_scene_and_character_description(bundle, profile, character_count=1)
+
     assert "场景设定" in scene_text
-    assert "两位" in character_text
-    assert "包袋" in scene_text
+    assert "两位" in character_text                 # 命中 characters_2 池
+    assert "包袋" in scene_text                     # part_summary 带上了包袋
+    assert "一位" in single_character_text          # 单人命中的是 characters_1 池
+    assert character_text != single_character_text
+
+
+def test_build_scene_and_character_description_uses_llm_result(monkeypatch, tmp_path: Path):
+    """LLM 可用时直接用它的结果，且把双人要求写进 system prompt。"""
+    profile = get_theme_profile("甜美洛丽塔")
+    bundle = _two_character_bundle(tmp_path)
+    captured = {}
+    monkeypatch.setattr(
+        api_backend,
+        "get_api_config",
+        lambda **_kwargs: {"base_url": "https://example.invalid/v1", "api_key": "test-key"},
+    )
+
+    def fake_fetch_llm_json(**kwargs):
+        captured.update(kwargs)
+        return json.dumps(
+            {"scene": "场景设定：LLM 生成的包袋陈列场景。", "character": "主角描述：两位少女同框互动。"},
+            ensure_ascii=False,
+        )
+
+    monkeypatch.setattr(api_backend, "fetch_llm_json", fake_fetch_llm_json)
+
+    scene_text, character_text = build_scene_and_character_description(bundle, profile, character_count=2)
+
+    assert scene_text == "场景设定：LLM 生成的包袋陈列场景。"
+    assert character_text == "主角描述：两位少女同框互动。"
+    assert captured["base_url"] == "https://example.invalid/v1"
+    assert captured["api_key"] == "test-key"
+    assert "双人" in captured["system_prompt"]
+    assert "连衣裙" in captured["user_content"]

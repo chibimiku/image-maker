@@ -1,0 +1,1 @@
+Use the art style of the attached reference image (Image 1) and draw a NEW image of the scene below. Keep from Image 1: <风格要点>. Change from Image 1: the character, pose, outfit, camera framing and background layout — all come only from the scene description. Do not copy the reference's person or composition. Scene: <主体描述>

@@ -4,9 +4,6 @@ from typing import Callable
 
 import requests
 
-DEFAULT_HTTP_PROXY = "http://127.0.0.1:7897"
-DEFAULT_HTTPS_PROXY = "http://127.0.0.1:7897"
-
 
 def get_default_proxy_settings(proxy_url: str | None = None) -> dict[str, str] | None:
     """Return proxies dict or None if proxy is not configured/enabled."""

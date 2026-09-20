@@ -1,0 +1,319 @@
+【GPT Image 2】Image API経由でリファレンス画像を渡したら、3回連続でプロンプトが無視された｜モア｜AIと共につくる
+    
+ 
+  
+  
+    
+ 
+ 
+ 
+  
+ 
+  
+ 
+  
+              投稿
+ 
+ 
+ログイン
+ 
+ 
+会員登録
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+      【GPT Image 2】Image API経由でリファレンス画像を渡したら、3回連続でプロンプトが無視された
+    
+ 
+ 
+ 
+  
+ 
+    14
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+          モア｜AIと共につくる
+        
+ 
+2026年4月30日 21:05
+ 
+ 
+ 
+ 
+ 
+こんばんは、More（モア）です。
+先日、gpt-image-2のAPI料金を品質×APIの4パターンで検証しました。
+その検証を終えた流れで、「せっかくだし自分のオリキャラ『夕凪あむり』の画像でも作ってみよう」とリファレンス画像を渡して作ろうとしたところ…
+Image APIでは、なんだか上手くいきませんでした。
+逆にResponses APIで同じ条件を試したら、一発で上手くいきました。
+なので、今回は
+Image APIで上手くいかなかったこと
+Responses APIで上手くいったこと
+について、まとめていきます。
+検証の前提と方法
+検証の条件は次のように揃えています。
+リファレンス画像は1枚
+プロンプトは英語のものを用意
+品質はMediumで固定
+同じ条件をImage APIとResponses APIの両方に渡し、それぞれ3枚ずつ出してみました。
+リファレンス画像：夕凪あむり
+プロンプトの全文はこちらです ↓
+A 1:1 square Japanese-style web advertisement banner for a limited-edition tea collaboration. Aspect ratio is 1:1.
+The reference image is a **design sheet** for the character.
+Use it only for hairstyle (purple-to-orange gradient long hair with two low ponytails and an ahoge), eye color (warm amber), clothing (holographic iridescent off-shoulder top with teal trim), body proportions (realistic adult-anime head-to-body ratio, NOT chibi), and art style (clean modern anime illustration with soft cel shading). 
+Ignore the pose, composition, framing, and standing position of the reference — draw a completely new pose according to the instructions below. 
+Composition: The character (amuri) is positioned on the LEFT side, shown from the chest up at a gentle 3/4 angle, both hands delicately cradling a white porcelain teacup of hot tea with soft steam rising, eyes looking warmly toward the camera with a soft closed-mouth smile. 
+Her purple-to-orange gradient hair frames her face beautifully.
+On the RIGHT side, upper area: large elegant Japanese text as the main copy. Render the Japanese text inside the image EXACTLY as shown in the quotation marks. 
+Do not translate. 
+- Main copy (largest, serif-ish modern Japanese font, dark brown #3A2418): 「あむり × 紅茶」 with a refined thin cross/multiplication mark between the two words 
+- Sub copy (medium, horizontal, light brown): 「特別な一杯を、きみに。」 
+- Small English tagline (thin sans-serif, burgundy accent): Special Tea Collaboration Right
+-bottom area: a styled product-like still life — an amber tea in a clear glass cup on a saucer, a scatter of dried tea leaves, a few dried rose petals or small dried flowers, and a silver tea spoon. 
+Everything is arranged editorially with generous whitespace.
+Color palette: base cream background #F5EBDC, text dark brown #3A2418, accent tea burgundy #8B3A2E. Add subtle gradient warmth like late-afternoon sunlight. 
+Decoration: Very subtle — a thin horizontal hairline divider, tiny burgundy accent dots, maybe one or two delicate floating tea leaf silhouettes. 
+Keep whitespace generous. Editorial, premium Japanese tea-brand advertising aesthetic, note-style modern minimal design. 
+Do not include any brand logos, trademarks, or corporate marks inside the image. 
+Do not place any logos or trademark marks inside the image. 
+Clean, minimal design suitable for a web advertisement. 
+Render the Japanese text inside the image EXACTLY as shown in the quotation marks. 
+Do not translate. 
+プロンプトは、要望を伝えるとClaudeが考えてくれるようにしています。
+要点だけ抜き出すとこんな感じです。
+リファレンス画像は「キャラクターのデザインシート」として扱う
+→ 髪・目の色・服装・絵柄だけを参照する
+ポーズや構図はリファレンスを無視して新規に描き起こす
+メインコピーは「あむり × 紅茶」、サブコピーは「特別な一杯を、きみに。」を画像内に入れる
+ロゴ、商標、実在する企業名は入れない
+なお、この記事に出てくるWeb広告風画像はすべて検証用に作った架空のものです。実在するブランドとは関係ありません。
+Image APIに3回試した結果、文言指示が3回とも無視された
+まずはImage API側で、同じ条件で3枚出してもらいました。
+Image API [medium品質] 1枚目
+キャラクターデザインはリファレンス画像どおりに保たれています。髪色も目の色も服装も、デザインシートに沿っているのでOK。
+表情・構図・配置やイラスト自体の仕上がりは結構好きでした。（ティーカップの取っ手と指の境界はあやしいのは気になる）
+問題は、テキストです。
+プロンプトで指定した「あむり × 紅茶」「特別な一杯を、きみに。」という文言は無視されています。
+AIが勝手に考えたコピーが画像に入っています。「甘美なる」って誰…？
+まあ、こういうこともあるだろうと、もう一度同じ指示で一枚作ってもらいました。
+Image API [medium品質] 2枚目
+こちらも、イラストはかわいらしく仕上がっています。
+1枚目よりはそれっぽい言葉が出ているのですが、こちらも指示した文言ではなくAI側が考えたものになっています。
+構図やレイアウトは従っていますが、
+文言指示だけ今回も完全に無視
+されています。
+3度目の正直で、もう一度同じ指示で作ってもらいました。
+Image API [medium品質] 3枚目
+やはり、イラストはやはり好印象なのですが、プロンプトの文言は今回も無視されています。
+さらに3枚目では
+「ブランドロゴ、商標、コーポレートマークは一切入れない」という禁止指示まで無視
+されてしまい、実在する企業名が画像に入ってしまいました。
+noteに載せるにあたって、その部分はマスキングしています。
+3枚連続で同じ傾向が出た時点で、
+これはガチャ要素ではないな
+と思っています。
+リファレンス画像のキャラクターデザインはちゃんと反映される一方で、プロンプトに書いた文言や禁止事項の指示は通りづらい。
+キャラクターデザインと構図は正しく反映されても、文言や禁止事項を守ってくれないのは、ちょっと困りますね。
+Responses APIで同じ条件を試したら、一発でOKだった
+気を取り直して、今度はResponses API側に同じリファレンス画像とプロンプトを渡してみました。
+こちらは1枚目で完全にOKでした。
+Responses API [medium品質] 1枚目
+リファレンス画像のキャラクターデザインが保たれつつ、プロンプトに書いた「あむり × 紅茶」「特別な一杯を、きみに。」という
+文言もしっかり画像に入っています。
+細かいところでは、ティーカップの取っ手と指の境界もImage APIより自然に描けています。
+念のため、もう2枚作ってみました。
+Responses API [medium品質] 2枚目
+Responses API [medium品質] 3枚目
+身体の向きや文字組み、「特別な一杯を、きみに。」に少しブレはあります。ただ、Image APIほどプロンプトから大きくズレることはありませんでした。
+リファレンス画像を絡めるなら、
+Responses APIを使った方がImage APIよりも再現性が高そう
+です。
+Image APIとResponses APIは、そもそも役割が違うAPI
+2つのAPIは、
+OpenAIの公式ドキュメント
+を見ると、ざっくり次のように使い分けが想定されています。
+Image API
+単発のプロンプトから画像を生成・編集するのに向いている
+Responses API
+会話形式やマルチステップで画像を生成・編集していく場面に向いている
+リファレンス画像を渡しつつ、プロンプトの文言指示も正確に反映させたい今回のような使い方は、
+Responses API側の用途に近そう
+です。
+Image APIとResponses APIの違いのイメージ
+Image APIで文言指示が抜け落ちるのは、こうした役割の違いが影響しているのかもしれません。
+特に困るのは、禁止事項まで無視される点です。
+「実在する企業名やロゴを入れないでほしい」という指示がスルーされて、実際に企業名が入った画像が出てきてしまうと、そのまま採用するわけにはいきません。
+Photoshopなどで置き換えるか、作り直す対応が必要になります。
+今回の検証では、リファレンス画像を渡す場面ではResponses API経由で作ったほうが、手戻りが少なく、結果的に早そうだなと感じました。
+おわりに
+前回の料金面の検証も踏まえると、
+プロンプトだけ → Image APIの品質Medium
+リファレンス画像も渡す → Responses APIの品質Medium
+とちゃんと使い分けるのが、コスパ的に良さそうです。
+前の検証から、Image API Mediumが1枚0.055ドル（約8.7円）、Responses API Mediumが1枚0.09ドル（約14.3円）と、約1.6倍と高くなりました。
+ただ、Image APIで3回連続でNG画像が出ることを考えると、1.6倍を払ってでも一発でOKが出るResponses APIで作った方が、手戻りも含めた総合的なコストは安く抑えられそうです。
+リファレンス画像を渡して上手くいかなかったときは、プロンプトを直す前に、どっちのAPIを使っているか見直してみてください。
+以上、最後まで読んでいただき、ありがとうございました！
+前回の記事はこちら ↓
+今回使っている三面図の作り方をまとめました ↓
+ 
+ 
+ 
+ 
+    ダウンロード
+  
+ 
+ 
+  copy
+ 
+ 
+ 
+ 
+ 
+ 
+    いいなと思ったら応援しよう！
+  
+ 
+ 
+ 
+ 
+チップで応援する
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+      #生成AI
+      
+ 
+ 
+ 
+ 
+      #ChatGPT
+      
+ 
+ 
+ 
+ 
+      #AIイラスト
+      
+ 
+ 
+ 
+ 
+      #画像生成AI
+      
+ 
+ 
+ 
+ 
+      #検証
+      
+ 
+ 
+ 
+ 
+      #AI画像
+      
+ 
+ 
+ 
+ 
+      #API
+      
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  
+ 
+    14
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+            モア｜AIと共につくる
+          
+ 
+ 
+ 
+ 
+                フォロー
+              
+ 
+AIに作らせて終わらないことをモットーに！「人がどこで考え、どう仕上げるか」「AI時代に必要そうなこと」など発信。AIとの働き方や、実際につくった作品も公開してます。水・土は『夜月点睛の協働戦線』を更新中！Amazonのアソシエイトとして、モアは適格販売により収入を得ています。
+ 
+ 
+ 
+ 
+        トップ
+      
+        科学・テクノロジー
+      
+        AI・機械学習
+      
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+        noteプレミアム
+      
+        note pro
+      
+        ヘルプ
+      
+        プライバシー
+      
+        クリエイターへのお問い合わせ
+      
+        フィードバック
+      
+        ご利用規約
+      
+        通常ポイント利用特約
+      
+        加盟店規約
+      
+        資金決済法に基づく表示
+      
+        特商法表記
+      
+        投資情報の免責事項
