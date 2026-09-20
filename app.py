@@ -9,7 +9,7 @@ warm_up_optional_module("onnxruntime", skip_env_var="IMAGE_MAKER_SKIP_ONNXRUNTIM
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSpinBox,
                              QLabel, QPushButton, QPlainTextEdit, QLineEdit, QInputDialog,
                              QComboBox, QFormLayout, QMessageBox, QTabWidget, QCheckBox,
-                             QFileDialog)
+                             QFileDialog, QDoubleSpinBox)
 from PyQt6.QtCore import QThread, pyqtSignal
 from openai import OpenAI
 
@@ -43,6 +43,11 @@ from modules.video_generation.video_gen_tab import VideoGenWidget
 from modules.reference.tag_quick_ref_tab import TagQuickRefWidget
 from utils.image_upscale_runtime import normalize_upscale_options
 from utils.styles import normalize_style_entry, build_style_entry, ref_image_valid
+from utils.llm_retry import (
+    DEFAULT_RETRY_ENABLED as DEFAULT_TEXT_RETRY_ENABLED,
+    DEFAULT_RETRY_TIMES as DEFAULT_TEXT_RETRY_TIMES,
+    DEFAULT_RETRY_INTERVAL_SECONDS as DEFAULT_TEXT_RETRY_INTERVAL_SECONDS,
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "conf", "config.json")
@@ -429,7 +434,36 @@ class AppWindow(QWidget):
         self.booru_tag_limit_spin.setValue(DEFAULT_BOORU_TAG_LIMIT)
         self.booru_tag_limit_spin.valueChanged.connect(lambda: self.save_text_config(silent=True))
         text_layout.addRow("booru-tags 数量上限:", self.booru_tag_limit_spin)
-        
+
+        # ================= 分析请求失败重试（429 限流 / 5xx / 超时） =================
+        self.text_retry_enabled_cb = QCheckBox("对面服务失败时自动重试")
+        self.text_retry_enabled_cb.setChecked(DEFAULT_TEXT_RETRY_ENABLED)
+        self.text_retry_enabled_cb.setToolTip(
+            "只对「对面服务的问题」重试：429 限流、5xx、请求超时/连接中断。\n"
+            "401/403/404、参数错误、审核拦截等重试无用的错误会立刻报错。"
+        )
+        self.text_retry_enabled_cb.toggled.connect(lambda _v: self.save_text_config(silent=True))
+        text_layout.addRow("失败重试:", self.text_retry_enabled_cb)
+
+        self.text_retry_times_spin = QSpinBox()
+        self.text_retry_times_spin.setRange(0, 20)
+        self.text_retry_times_spin.setValue(DEFAULT_TEXT_RETRY_TIMES)
+        self.text_retry_times_spin.setSuffix(" 次")
+        self.text_retry_times_spin.setToolTip("首次请求之外的重试次数；0 表示不重试。命中 429 时会在日志里明确提示。")
+        self.text_retry_times_spin.valueChanged.connect(lambda _v: self.save_text_config(silent=True))
+        text_layout.addRow("重试次数:", self.text_retry_times_spin)
+
+        self.text_retry_interval_spin = QDoubleSpinBox()
+        self.text_retry_interval_spin.setRange(0.0, 60.0)
+        self.text_retry_interval_spin.setDecimals(1)
+        self.text_retry_interval_spin.setSingleStep(0.5)
+        self.text_retry_interval_spin.setValue(DEFAULT_TEXT_RETRY_INTERVAL_SECONDS / 60.0)
+        self.text_retry_interval_spin.setSuffix(" 分钟")
+        self.text_retry_interval_spin.setToolTip("两次尝试之间的等待时间；等待期间可在分析 Tab 点取消。")
+        self.text_retry_interval_spin.valueChanged.connect(lambda _v: self.save_text_config(silent=True))
+        text_layout.addRow("重试间隔:", self.text_retry_interval_spin)
+        # ==========================================================================
+
         self.save_text_cfg_btn = QPushButton("保存分析配置")
         self.save_text_cfg_btn.clicked.connect(self.save_text_config)
         text_layout.addRow("", self.save_text_cfg_btn)
@@ -837,6 +871,31 @@ class AppWindow(QWidget):
                     self.booru_tag_limit_spin.blockSignals(True)
                     self.booru_tag_limit_spin.setValue(saved_booru_tag_limit)
                     self.booru_tag_limit_spin.blockSignals(False)
+
+                    # 分析请求失败重试（429/5xx/超时）配置
+                    self.text_retry_enabled_cb.blockSignals(True)
+                    self.text_retry_times_spin.blockSignals(True)
+                    self.text_retry_interval_spin.blockSignals(True)
+                    self.text_retry_enabled_cb.setChecked(
+                        bool(config.get("text_retry_enabled", DEFAULT_TEXT_RETRY_ENABLED))
+                    )
+                    try:
+                        saved_retry_times = int(config.get("text_retry_times", DEFAULT_TEXT_RETRY_TIMES))
+                    except Exception:
+                        saved_retry_times = DEFAULT_TEXT_RETRY_TIMES
+                    self.text_retry_times_spin.setValue(max(0, min(saved_retry_times, 20)))
+                    try:
+                        saved_retry_interval = float(
+                            config.get("text_retry_interval_seconds", DEFAULT_TEXT_RETRY_INTERVAL_SECONDS)
+                        )
+                    except Exception:
+                        saved_retry_interval = DEFAULT_TEXT_RETRY_INTERVAL_SECONDS
+                    self.text_retry_interval_spin.setValue(
+                        max(0.0, min(saved_retry_interval / 60.0, 60.0))
+                    )
+                    self.text_retry_enabled_cb.blockSignals(False)
+                    self.text_retry_times_spin.blockSignals(False)
+                    self.text_retry_interval_spin.blockSignals(False)
                     self.pic_cate_state = config.get("pic_cate", self.pic_cate_state)
                     if hasattr(self, "pic_cate_tab"):
                         self.pic_cate_tab.set_values(self.pic_cate_state)
@@ -1115,6 +1174,9 @@ class AppWindow(QWidget):
             "outfit_style_override_batch": self.get_batch_outfit_style_override(),
             "outfit_style_override_history": self._normalize_outfit_style_history(getattr(self, "outfit_style_override_history", [])),
             "booru_tag_limit": int(self.get_booru_tag_limit()),
+            "text_retry_enabled": bool(self.text_retry_enabled_cb.isChecked()),
+            "text_retry_times": int(self.text_retry_times_spin.value()),
+            "text_retry_interval_seconds": int(round(self.text_retry_interval_spin.value() * 60)),
             "last_used_style": getattr(self, "last_used_style", "默认(无附加)"),
             "upscale_options": normalize_upscale_options(getattr(self, "upscale_options", {})),
             "pic_cate": self.pic_cate_state,
