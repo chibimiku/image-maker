@@ -33,7 +33,7 @@
 ```
 
 - `prompt_compressed` 用于「参考优先」模式；缺失时生图会使用本地启发式压缩（头 900 + 尾 800 字符）兜底
-- 全局参考模式选择保存在 `conf/config-image.json` 顶层 `style_ref_mode`（所有 Tab 共享）
+- 全局参考模式选择保存在 `conf/config.json` 顶层 `style_ref_mode`（所有 Tab 共享）
 - 批量生成压缩版指令：`python tools/compress_styles.py [--only <样式名>]`
 - 样式编辑器（单图调试 Tab / 设置页画风管理）支持「请求 LLM 重新生成」压缩版指令按钮
 

@@ -199,7 +199,7 @@ def main():
         print(f"API: base_url={base_url[:40]}..., model={model}")
     except Exception as e:
         print(f"加载 API 配置失败: {e}")
-        print("请检查 conf/config-image.json")
+        print("请检查 conf/config.json")
         sys.exit(1)
     
     # 分批发送

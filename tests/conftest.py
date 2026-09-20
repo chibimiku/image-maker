@@ -10,7 +10,7 @@
 smoke 测试里的 `sync_selected_style("测试共享风格")` 会把一个并不存在的画风写进去，
 于是用户下次启动 app 时读到无效画风、回落成「默认(无附加)」——
 看起来就像「记住上次选择的画风预设的功能丢了」。
-`conf/config-image.json`（style_ref_mode 等）、`conf/config-sd.json`、
+`conf/config.json`（style_ref_mode 等）、`conf/config-sd.json`、
 `conf/config-collector.json` 同样会被用例改写。
 
 这里的做法：每个用例结束后比对 conf/*.json 的字节内容，被改了就直接还原，

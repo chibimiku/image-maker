@@ -55,7 +55,7 @@ def analyze_image_step1(image_path: str, api_type: str = "aigc2d", timeout_secon
     """出图后单图 Step 1 分析（不写文件），返回分析结果或 None。
 
     批量生图后自动分析用（原 data/fashion_pipeline_sexy.py / analyze_backless.py 的
-    analyze_and_save 逻辑），API 配置从 conf/config-image.json 的指定 api 取。
+    analyze_and_save 逻辑），API 配置从 conf/config.json 的指定 api 取。
     """
     from modules.others.api_backend import get_api_config
 

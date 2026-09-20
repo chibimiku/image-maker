@@ -51,11 +51,18 @@ if not logger.handlers:
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CONFIG_DIR = os.path.join(BASE_DIR, "conf")
+# 图片生成配置已并入统一的 conf/config.json（脚本 key / 文本 API 与图片 API 同处一个文件）；
+# LEGACY_CONFIG 仅为兼容老机器上还留着的旧文件，找不到新文件时回退读取。
+UNIFIED_CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+LEGACY_IMAGE_CONFIG_PATH = os.path.join(CONFIG_DIR, "config-image.json")
 
 # ================= 2. 核心功能函数 =================
 def load_config(config_path=None):
     if config_path is None:
-        config_path = os.path.join(CONFIG_DIR, "config-image.json")
+        config_path = UNIFIED_CONFIG_PATH
+        if not os.path.exists(config_path) and os.path.exists(LEGACY_IMAGE_CONFIG_PATH):
+            logger.warning("未找到 conf/config.json，回退读取已废弃的 conf/config-image.json（建议合并）")
+            config_path = LEGACY_IMAGE_CONFIG_PATH
     if not os.path.exists(config_path):
         logger.error(f"未找到配置文件: {config_path}")
         raise FileNotFoundError(f"未找到配置文件: {config_path}")
@@ -849,7 +856,7 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     debug_dump_full_http = _as_bool(config.get("debug_dump_full_http", False), False)
 
     if not api_key:
-        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config.json 中缺少 'api_key' 参数。")
         return []
 
     valid_image_paths = _existing_image_paths(image_paths)
@@ -1110,7 +1117,7 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
     download_referer = f"{str(api_base).rstrip('/')}/"
 
     if not api_key:
-        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config.json 中缺少 'api_key' 参数。")
         return []
 
     valid_image_paths = _existing_image_paths(image_paths)
@@ -1423,7 +1430,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
             return False
 
     if not api_key:
-        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config.json 中缺少 'api_key' 参数。")
         return []
 
     # 尺寸优先级：显式 size 参数 > 配置 size 字段 > 按长宽比收敛；最终一定是 3 档之一
@@ -1738,8 +1745,8 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     # TODO: 处理resolution，但是whatai其实根本不接受这个参数，目前只能放在prompt里让模型自己理解了
     
     if not api_key:
-        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
-        raise ValueError("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
+        logger.error("配置文件 conf/config.json 中缺少 'api_key' 参数。")
+        raise ValueError("配置文件 conf/config.json 中缺少 'api_key' 参数。")
 
     url = f"{api_base}/chat/completions"
     headers = {
@@ -2148,8 +2155,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         resolution = config.get("resolution", "1K")
 
     if not api_key:
-        _log("[生成/api] 错误: conf/config-image.json 中缺少 api_key")
-        logger.error("配置文件 conf/config-image.json 中缺少 'api_key' 参数。")
+        _log("[生成/api] 错误: conf/config.json 中缺少 api_key")
+        logger.error("配置文件 conf/config.json 中缺少 'api_key' 参数。")
         return []
 
     _log(f"[生成/api] 接口: {api_base.rstrip('/')}")

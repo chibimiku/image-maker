@@ -51,8 +51,10 @@
   （GUI `重绘(Gemini优化产物)` 模式 / `tools/gpt_image2_gen.py --repaint`），
   **提示词必须放 `prompts/gpt-image-optimize/`**，禁止把长 prompt 写死在 .py；
   改 prompt 后按 `docs/gpt-image-optimize/README.md` 第 5 节复跑 2 次以上再替换固件。
-- 配置一律读取 `conf/config-sd.json`（SD）与 `conf/config-image.json`（AIGC2D），
+- 配置一律读取 `conf/config-sd.json`（SD）与 `conf/config.json`（AIGC2D / 图片生成 API，2026-09 起图片 API 已从 `config-image.json` 并入本文件），
   **禁止硬编码模型名 / VAE / 采样器 / 尺寸 / API 地址**。
+- **写配置必须「读旧 → 只改自己的键 → 写回」**：`conf/config.json` 是统一配置（文本分析键 + `apis` / `current_api` / `gpt_image2` / `webui_img2img` / `diff_cg` / `style_ref_mode` 同处一个文件）。
+  任何整文件覆盖写都会抹掉别人的节点——`app.py`（`save_text_config` 与 `save_image_config`）、`make-pic.py`、`gpt_image2_tab.py`、`diff_cg_tab.py`、`flux2_client_tab.py`、`utils/style_ref_widget.py` 都走读合并；新增写配置的代码照此办理。
 - 尺寸约定（与 `sd_workflow_core.STORY_RESOLUTION_PRESETS` 一致）：
   16:9=1824x1024，9:16=1024x1824，3:2=1536x1024，2:3=1024x1536，1:1=1024x1024。
 - 输出目录：生图到 `data/<YYYYMMDD>/<子目录>/`；采集素材到 `data/fashion-collector/<base>/...`；不要输出到根目录。

@@ -72,7 +72,7 @@
     3. 提示词编辑框最小高度 140（它是布局里唯一可拉伸的控件，下限太小就会被压成一条）；`RefImageGrid(compact_when_empty=True)` 空图时只占一行占位。
     - 回归用例：`tests/test_gpt_image2_api.py` 的 `test_repaint_switch_is_visible_without_expanding`、`test_repaint_checkbox_enabled_in_generate_and_edit_mode`、`test_edit_mode_with_repaint_chains_repaint`、`test_repaint_options_always_usable`、`test_repaint_notice_only_shows_when_action_needed`、`test_reference_grid_is_compact_when_empty`、`test_repaint_mode_fills_firmware_into_prompt_box_and_restores_on_leave`、`test_repaint_mode_allows_empty_prompt_meaning_use_firmware`
 - `z_image_edit_tab.py`: z-image 编辑（代码保留，默认不在主 UI Tab 显示）
-- `conf/config-image.json`: 图片生成相关配置模板（模块内）
+- `conf/config.json`: 图片生成相关配置模板（模块内）
 
 ### `modules/others/`（通用与辅助能力）
 
@@ -131,15 +131,15 @@
 
 ## 4. 配置文件索引（按实际读取路径）
 
-- `conf/config.json`: 文本分析与通用开关配置（代码中读取）
-- `conf/config-image.json`: 图片生成 API 主配置（代码中读取，含顶层 `style_ref_mode` 全局参考模式持久化）
+- `conf/config.json`: **统一配置**——文本分析/通用开关 + 图片生成 API（`current_api` / `apis.*` / 顶层 `style_ref_mode`）、图片相关界面记忆（`gpt_image2` / `webui_img2img` / `diff_cg` / `cached_image_models`）。
+  （原先图片 API 单独放在 `conf/config-image.json`，2026-09 已合并到本文件；`api_backend.load_config` 仍保留旧文件回退读取，仅为兼容没做迁移的老机器。）
 - `conf/config-sd.json`: SD 相关配置
 - `conf/config-styles.json`: 画风预设（运行时读取；版本化文件在子模块 `submodules/image-maker-artstyle/config-styles.json`，本地 `conf/` 副本为 gitignore）
 - `conf/config-z-image.json`: z-image 本地模型目录记忆
 - `conf/config-autocomplete.json`: 自动补全配置
 - `conf/config-cohere.json`: Cohere 相关配置
 - `prompts/gpt-image-optimize/config.json`: **gpt-image 产物优化（重绘提线）的 prompt 与参数固件**（`system_prompt` / `detail_suffix` / `model` / `resolution` / `aspect_ratio` / `repeat` / `save_sub_dir`）；GUI 重绘模式会读写它，理论见 `docs/gpt-image-optimize/`
-- `modules/image_generation/conf/config-image.json`: 模块内配置模板/副本（非主读取路径）
+- `modules/image_generation/conf/config.json`: 模块内配置模板/副本（非主读取路径）
 
 ## 5. 艺术风格参考图模式
 
@@ -161,7 +161,7 @@
   - `build_ref_gen_params(styles, style_name, mode)`: **统一组装函数**，返回 `(head_instructions, post_instructions, ref_image_paths)`；参考图无效时自动回退 `off`
   - `save_styles_file(path, styles)`: 写回 config-styles.json
 - `utils/style_ref_widget.py`: `StyleRefModeCombo` 共享下拉控件
-  - `load_saved_style_ref_mode()` / `save_style_ref_mode(mode)`: 读写 `conf/config-image.json` 顶层 `style_ref_mode`
+  - `load_saved_style_ref_mode()` / `save_style_ref_mode(mode)`: 读写 `conf/config.json` 顶层 `style_ref_mode`
   - `set_modes_available(has_ref)`: 无参考图时禁用非 `off` 项并回退 `off`
   - `effective_mode(has_ref)`: 无参考图/关闭 → `off`
 - `modules/others/api_backend.py`:

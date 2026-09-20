@@ -51,7 +51,7 @@ from utils.llm_retry import (
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "conf", "config.json")
-CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "conf", "config-image.json")
+CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "conf", "config.json")   # 图片 API 配置已并入统一配置
 CONFIG_STYLES_FILE = os.path.join(BASE_DIR, "conf", "config-styles.json")
 DEFAULT_ASPECT_RATIO = "1:1"
 ASPECT_RATIO_OPTIONS = ["不覆盖(沿用原逻辑)", "1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2"]
@@ -1184,8 +1184,20 @@ class AppWindow(QWidget):
             "cached_nsfw_models": getattr(self, "_cached_nsfw_models", []),
         }
         try:
+            # 图片 API 配置已并入同一个 conf/config.json：整体覆盖写会把 apis / gpt_image2 /
+            # webui_img2img / diff_cg 等节点抹掉，所以这里必须「读旧配置 → 只更新文本节点 → 写回」。
+            merged = {}
+            if os.path.exists(CONFIG_FILE):
+                try:
+                    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                        old = json.load(f)
+                    if isinstance(old, dict):
+                        merged = old
+                except Exception:
+                    merged = {}
+            merged.update(config)
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump(config, f, ensure_ascii=False, indent=4)
+                json.dump(merged, f, ensure_ascii=False, indent=4)
             if not silent:
                 QMessageBox.information(self, "成功", f"配置已保存至 {CONFIG_FILE}")
         except Exception as e:

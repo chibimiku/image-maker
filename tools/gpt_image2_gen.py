@@ -70,7 +70,7 @@ from utils.gpt_image_optimize import (  # noqa: E402
     resolve_aspect_ratio,
 )
 
-DEFAULT_CONFIG = os.path.join(BASE_DIR, "conf", "config-image.json")
+DEFAULT_CONFIG = os.path.join(BASE_DIR, "conf", "config.json")
 SITE_CHOICES = (GPT_IMAGE2_SITE_AIGC2D, GPT_IMAGE2_SITE_AUTODL)
 EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 SIZE_LINE_RE = re.compile(r"^(auto|\d+x\d+)\s*$", re.IGNORECASE)
@@ -96,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", help="模型名，默认取配置")
     parser.add_argument("--output-subdir", help="data/<日期>/ 下的子目录，默认按站点")
     parser.add_argument("--prefix", help="输出文件名前缀，默认按站点")
-    parser.add_argument("--config", default=DEFAULT_CONFIG, help="配置文件，默认 conf/config-image.json")
+    parser.add_argument("--config", default=DEFAULT_CONFIG, help="配置文件，默认 conf/config.json（图片 API 已并入统一配置）")
     parser.add_argument("--timeout", type=int, help="覆盖该站点的请求超时秒数（不写回配置文件）")
     parser.add_argument("--dry-run", action="store_true", help="只打印解析出的端点与请求体，不发请求")
     parser.add_argument("--json", action="store_true", help="最后额外打印一段 JSON 汇总")

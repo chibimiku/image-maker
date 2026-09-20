@@ -31,7 +31,7 @@ from utils.webui_img2img_client import WebuiImg2ImgClient
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "conf", "config-image.json")
+CONFIG_IMAGE_FILE = os.path.join(BASE_DIR, "conf", "config.json")
 MERGE_MODE_SMART = "smart_anchor"
 MERGE_MODE_FULL = "full_base"
 MASK_BACKEND_GRABCUT = "grabcut"

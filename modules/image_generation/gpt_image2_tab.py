@@ -11,7 +11,7 @@
   autodl 只有 gpt-image-2）；下拉仍可手输，另有「刷新模型列表」按 `GET /v1/models` 现拉
 - 参考图用缩略图网格（`ref_image_grid.RefImageGrid`）展示：可点 × 删除、拖动缩略图调整顺序，
   单击预览、双击打开所在目录；顺序即提交给 `/images/edits` 的 `image[]` 顺序
-- 配置只从 conf/config-image.json 读取（`apis.*` + 顶层 `gpt_image2` 记忆），不受「设置」里全局 API 类型影响
+- 配置只从 conf/config.json 读取（`apis.*` + 顶层 `gpt_image2` 记忆），不受「设置」里全局 API 类型影响
 """
 import json
 import logging
@@ -106,7 +106,7 @@ QUALITY_CHOICES = (
     ("auto 服务端默认", "auto"),
 )
 
-CONFIG_IMAGE_FILE = os.path.join(CONFIG_DIR, "config-image.json")
+CONFIG_IMAGE_FILE = os.path.join(CONFIG_DIR, "config.json")   # 图片配置已并入统一 config.json
 CONFIG_NODE = "gpt_image2"
 
 MODE_GENERATE = "生图"
@@ -652,7 +652,7 @@ class GptImage2Widget(QWidget):
             notices.append(f"⚠ 重绘提示词装载失败：{type(exc).__name__}: {exc}")
         api_type = str(conf.get("api_type") or "aigc2d")
         if not str(get_api_config(api_type=api_type).get("api_key") or "").strip():
-            notices.append(f"⚠ 重绘不可用：conf/config-image.json 的 apis.{api_type} 缺少 api_key")
+            notices.append(f"⚠ 重绘不可用：conf/config.json 的 apis.{api_type} 缺少 api_key")
         if hasattr(self, "repaint_aspect_combo"):
             chosen = self.current_repaint_config().get("aspect_ratio")
             if not is_auto_aspect_ratio(chosen):
@@ -796,7 +796,7 @@ class GptImage2Widget(QWidget):
         cfg = get_api_config(api_type=api_type)
         if not str(cfg.get("api_key") or "").strip():
             QMessageBox.warning(
-                self, "提示", f"conf/config-image.json 的 apis.{api_type} 缺少 api_key，无法获取模型列表。"
+                self, "提示", f"conf/config.json 的 apis.{api_type} 缺少 api_key，无法获取模型列表。"
             )
             return
         if self._model_worker is not None and self._model_worker.isRunning():
@@ -1064,7 +1064,7 @@ class GptImage2Widget(QWidget):
             if not str(get_api_config(api_type=repaint_api_type).get("api_key") or "").strip():
                 QMessageBox.warning(
                     self, "提示",
-                    f"conf/config-image.json 的 apis.{repaint_api_type} 缺少 api_key，无法重绘。",
+                    f"conf/config.json 的 apis.{repaint_api_type} 缺少 api_key，无法重绘。",
                 )
                 return
             self.save_repaint_defaults()
@@ -1099,7 +1099,7 @@ class GptImage2Widget(QWidget):
             QMessageBox.warning(
                 self,
                 "提示",
-                f"conf/config-image.json 的 apis.{api_type} 缺少 api_key，请先在「设置 → 图片生成 API」里填写。",
+                f"conf/config.json 的 apis.{api_type} 缺少 api_key，请先在「设置 → 图片生成 API」里填写。",
             )
             return
         # 生图与编辑都支持出图后接着重绘（gpt-image 两种模式出的分辨率都偏低）
@@ -1191,7 +1191,7 @@ class GptImage2Widget(QWidget):
     def on_error(self, message):
         self.status_label.setText("出错")
         self._append_log(f"[结果] 调用失败: {message}")
-        self._append_log("       排查: 确认 conf/config-image.json 中该站点的 base_url / api_key / model；"
+        self._append_log("       排查: 确认 conf/config.json 中该站点的 base_url / api_key / model；"
                          "网络异常与 429/5xx 会自动重试，4xx（参数/审核）直接把服务器原文落盘")
         QMessageBox.critical(self, "生成错误", str(message)[:600])
 

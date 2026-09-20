@@ -2,7 +2,7 @@
 """风格参考图模式选择器（跨 Tab 共享）。
 
 - 4 种模式：关闭 / 头部插入 / 参考优先 / 图文交错（定义见 utils.styles）
-- 模式选择持久化到 conf/config-image.json 顶层键 "style_ref_mode"（全局共享）
+- 模式选择持久化到 conf/config.json 顶层键 "style_ref_mode"（全局共享）
 - 参考图不可用（未配置或文件不存在）时，只允许选择「关闭」
 
 用法（各 Tab）：
@@ -23,7 +23,7 @@ from utils.styles import (
 )
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_IMAGE_FILE = os.path.join(PROJECT_ROOT, "conf", "config-image.json")
+CONFIG_IMAGE_FILE = os.path.join(PROJECT_ROOT, "conf", "config.json")
 STYLE_REF_MODE_KEY = "style_ref_mode"
 
 

@@ -246,7 +246,7 @@
 
 配置文件：
 
-- `conf/config-image.json`
+- `conf/config.json`
 
 当前默认生图后端：
 

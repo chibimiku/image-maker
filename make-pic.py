@@ -26,7 +26,7 @@ from utils.styles import style_prompt, build_style_entry, style_ref_image, style
 os.makedirs("log", exist_ok=True)
 os.makedirs("cache", exist_ok=True)
 STATE_FILE = os.path.join("cache", "last_state.json")
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config-image.json")
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf", "config.json")
 
 # 【新增】正规的 PyQt 日志处理器
 class GUILogHandler(logging.Handler, QObject):
