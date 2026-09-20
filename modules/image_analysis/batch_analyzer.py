@@ -10,6 +10,7 @@ from utils.task_runtime import SystemNotifier, TaskCountdown
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 from utils.styles import style_prompt, style_ref_image, ref_image_valid, build_ref_gen_params
 from utils.style_ref_widget import StyleRefModeCombo
+from utils.output_isolation import resolve_output_target
 
 class BatchAnalyzerWidget(QWidget):
     quick_export_requested = pyqtSignal(list)
@@ -718,7 +719,10 @@ class BatchAnalyzerWidget(QWidget):
             else:
                 save_dir = os.path.join('data', date_str, 'batch-result')
                 base_filename = f"{now.strftime('%Y%m%d-%H%M%S')}-{safe_title}"
-            
+
+            # 测试模式下改道到 data/test-result/ 并加前缀，避免测试产出混进真实日期目录
+            save_dir, base_filename = resolve_output_target(save_dir, base_filename)
+
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             

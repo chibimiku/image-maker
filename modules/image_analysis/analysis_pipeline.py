@@ -27,6 +27,7 @@ from modules.image_analysis.single_analyzer import (
     step_5_recompute_pixiv_tags,
 )
 from utils.booru_tags import normalize_booru_tags
+from utils.output_isolation import resolve_output_target
 from utils.pixiv_tag_matcher import get_local_pixiv_tag_candidates
 from utils.wd14_tagger import predict_local_booru_tags
 
@@ -144,6 +145,7 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
         model_name,
         booru_tag_limit=booru_tag_limit,
         timeout_seconds=timeout_seconds,
+        log_callback=(lambda m: _log(log_callback, m)),
     )
     if not final_result:
         _log(log_callback, "❌ Step 2 失败，流程终止。")
@@ -169,6 +171,7 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
             model_name,
             timeout_seconds=timeout_seconds,
             outfit_style_override=outfit_style_override,
+            log_callback=(lambda m: _log(log_callback, m)),
         )
         if final_result is None:
             _log(log_callback, "⚠️ Step 3 执行失败，已保留 Step 2 结果。")
@@ -176,7 +179,8 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
     if final_result and remove_photo_style:
         _log(log_callback, "== Step 4: 去除照片风格 ==")
         final_result = step_4_remove_photo_style(
-            final_result, client, model_name, timeout_seconds=timeout_seconds
+            final_result, client, model_name, timeout_seconds=timeout_seconds,
+            log_callback=(lambda m: _log(log_callback, m)),
         )
         if final_result is None:
             _log(log_callback, "⚠️ Step 4 执行失败，已保留之前的 prompts 结果。")
@@ -184,7 +188,8 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
     if final_result and enable_recompute_pixiv_tags:
         _log(log_callback, "== Step 5: 重新计算 pixiv_tags ==")
         final_result = step_5_recompute_pixiv_tags(
-            final_result, client, model_name, timeout_seconds=timeout_seconds
+            final_result, client, model_name, timeout_seconds=timeout_seconds,
+            log_callback=(lambda m: _log(log_callback, m)),
         )
         if final_result is None:
             _log(log_callback, "⚠️ Step 5 执行失败，已保留之前的 pixiv_tags 结果。")
@@ -238,6 +243,9 @@ def save_result_to_source(result_json: dict, image_path: str,
     source_basename = os.path.basename(image_path)
     source_key = os.path.splitext(source_basename)[0].split("_")[0]
     base_filename = f"{now_str}-{source_key}-{safe_title}"
+
+    # 测试模式下改道到 data/test-result/ 并加前缀，避免测试产出混进真实日期目录
+    save_dir, base_filename = resolve_output_target(save_dir, base_filename)
 
     json_path = ensure_unique_path(os.path.join(save_dir, f"{base_filename}.json"))
     with open(json_path, "w", encoding="utf-8") as f:
