@@ -245,6 +245,14 @@ A0 基底稳定（饱和 100–120、段长 100±1），**N 基底方差极大�
 
 **结论**：① 色调/明度贴住各自参考图（色调校准这一步是关键）；② **线条每一族都变连贯**（段长 +6~+98，端点 −20~−45%，碎线降到 0.003~0.019）—— 配方对画风不敏感，是通用增益；③ 五张终图肉眼干净（无拼接带、无鬼影、鞋带/袜带可数）。
 
+> **两个重跑样本（一定要知道）**：
+> 1. **方差**：`say-hana-v5` 跑了两遍，完整那次终图 **145.6 / 139.5 / 90.6**，重跑那次 **132.1 / 162.9 / 82.0**（同参数、同输入）。
+> 2. **上游会拦局部裁切图**：重跑那次的最后一个区域被安全策略拦截
+>    （`{"error":{"message":"[CONTENT ERROR] content blocked by upstream safety policy","code":"CONTENT_BLOCKED"}}`），
+>    流水线**跳过该区域继续**，产物名带 **`-final-partialrp+sline-rp+…`** 标记照常交付。
+>    → **产物名里有 `partial` 就说明这次少了一道工序**；比较效果前先确认是完整产物。
+>    另外要注意：局部四区链里**任一区域**被拦都会走 partial 路径（`local` 状态在 `pipeline-manifest.json` 里是 `failed`）。
+
 ### 5.9 A 024958 的 repaint 参数（用户要求「查清楚并尝试重现」）
 
 日志实证（`log/2026-09-23.log` 行 24119–24460）：
@@ -492,7 +500,12 @@ RENDERING LANGUAGE (follow exactly):
 
 - **`/v1/images/generations` 的 `image` 字段会被部分通道拒绝**：返回 `{"error":{"message":"Unknown parameter: 'image'"}}`。中转站按请求随机挑上游，同批请求 3 成功 2 失败。现已在 `generate_image_aigc2d_gpt` 里做了 **重发（2 次）+ 回退 `/images/edits`** 两级兜底，回退时日志会写「已回退到编辑端点重发」，看到这行说明这次的首图语义是 edits（产物可能偏「编辑参考图」）。
 - **504 / ConnectionReset 偶发**；`max_retries` 默认 1，重试逻辑只对 429/5xx 生效。长提示词 + 大 base64 图更容易触发。
-- **审核 451**：局部重绘的裁切图偶发被拦（尤其贴身/腿部裁切），流水线会跳过该区域继续。
+- **拦截（content_blocked）**：局部重绘的裁切图偶发被拦，原始返回
+  `{"error":{"message":"[CONTENT ERROR] content blocked by upstream safety policy","type":"content_blocked","code":"CONTENT_BLOCKED"}}`
+  （2026-09-24 21:08 实际发生过一次，拦的是 `subject_no_face,shoes,waist,thigh` 的整身裁切）。
+  流水线把该区域当「未返回图片」跳过，`pipeline-manifest.json` 里 `local.status=failed`，
+  产物名变成 `…-final-partialrp+sline-rp+…`（**带 `partial` = 缺工序的产物**）。
+  历史上的「审核 451」是同一类问题的另一种表现。
 - **模型路由**：gpt-image/文本 → 分组 `Openai-Gpt-1`(×0.88236)，Gemini 图片 → `Discounted-Banana-1`(×0.110295)，计费见 `utils/cost_estimate.py`。实测价：首图 high $0.155 / medium $0.039，Gemini 重绘 2K $0.036，全工序（含四区）≈ $0.3/张。
 
 ### 7.2 模型侧行为
