@@ -49,16 +49,18 @@ ANALYSIS_GPT_UI_NODE = "analysis_gpt_pipeline"
 #   → 色调校准（目标 = 画风参考图）→ 线条加墨
 # 默认全勾。`recipe_version` 用来做一次性升级：老配置（没有这个字段）会在下次启动时套用新配方默认，
 # 之后用户自己的改动才会被记住（否则老配置里 repaint=False 之类会一直压着新默认）。
-GPT_RECIPE_VERSION = 2
+GPT_RECIPE_VERSION = 3
 STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
 ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gemini", "repaint": True, "structure": True,
-                            "local": True, "region": STABLE_LOCAL_REGIONS[0],
+                            "local": False, "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
                             "quality": "high", "dual_reference": True,
                             "use_source_base": False, "size_follow_input": True,
                             "tone": True, "tone_target": "style", "ink": True,
+                            "repaint_scope": "lines_only",
                             "recipe_version": GPT_RECIPE_VERSION}
-GPT_RECIPE_KEYS = ("repaint", "structure", "local", "region", "regions", "tone", "tone_target", "ink")
+GPT_RECIPE_KEYS = ("repaint", "structure", "local", "region", "regions", "tone", "tone_target", "ink",
+                   "repaint_scope")
 
 
 def analysis_gpt_ui_path() -> str:
@@ -1672,6 +1674,23 @@ class SingleAnalyzerWidget(QWidget):
         pp_row.addWidget(self.gpt_pp_structure)
         pp_row.addWidget(self.gpt_pp_local)
         pp_row.addWidget(self.gpt_pp_region)
+        pp_row.addWidget(QLabel("重绘范围:"))
+        self.gpt_pp_scope = QComboBox()
+        try:
+            from utils.post_process import REPAINT_SCOPE_LABELS
+            for _key, _label in REPAINT_SCOPE_LABELS.items():
+                self.gpt_pp_scope.addItem(_label, _key)
+            _i = self.gpt_pp_scope.findData("lines_only")
+            self.gpt_pp_scope.setCurrentIndex(_i if _i >= 0 else 0)
+        except Exception:  # noqa: BLE001
+            self.gpt_pp_scope.addItem("只连通线条（不改色不改内容）", "lines_only")
+        self.gpt_pp_scope.setToolTip(
+            "重绘的「编辑范围」：**不裁切、不贴回**，只在重绘提示词里要求模型保留不该动的部分（整张新图）。\n"
+            "实测（BEST-PIPELINE §三十一）：裁切+贴回的局部重绘会被模型重新构图搞成错位块（5 画风报废 2 张），\n"
+            "改用范围句后不可能拼错边界。\n"
+            "只连通线条：线条连贯最好（tid 段长 105→185）；只重绘人物：背景最稳；人物可动脸保原样：允许改动最多。"
+        )
+        pp_row.addWidget(self.gpt_pp_scope)
         pp_row.addStretch(1)
         self.gpt_pp_row = QWidget()
         self.gpt_pp_row.setLayout(pp_row)
@@ -3068,6 +3087,10 @@ class SingleAnalyzerWidget(QWidget):
         idx = self.gpt_quality_combo.findData(str(state.get("quality") or "high"))
         if idx >= 0:
             self.gpt_quality_combo.setCurrentIndex(idx)
+        if hasattr(self, "gpt_pp_scope"):
+            idx = self.gpt_pp_scope.findData(str(state.get("repaint_scope") or "lines_only"))
+            if idx >= 0:
+                self.gpt_pp_scope.setCurrentIndex(idx)
         self._on_gen_channel_changed()
         self._save_gpt_pipeline_ui()      # 记下配方版本：本次之后用户自己的改动才会被记住
 
@@ -3088,6 +3111,8 @@ class SingleAnalyzerWidget(QWidget):
             "tone": bool(self.gpt_pp_tone.isChecked()),
             "tone_target": str(self.gpt_pp_tone_target.currentData() or "style"),
             "ink": bool(self.gpt_pp_ink.isChecked()),
+            "repaint_scope": str(getattr(self, "gpt_pp_scope", None).currentData()
+                                 if getattr(self, "gpt_pp_scope", None) is not None else "lines_only"),
             "recipe_version": GPT_RECIPE_VERSION,
         }
 
@@ -3106,6 +3131,7 @@ class SingleAnalyzerWidget(QWidget):
                                (self.gpt_pp_tone, "toggled"),
                                (self.gpt_pp_ink, "toggled"),
                                (self.gpt_pp_tone_target, "currentIndexChanged"),
+                               (self.gpt_pp_scope, "currentIndexChanged"),
                                (self.gpt_pp_region, "currentIndexChanged"),
                                (self.gpt_quality_combo, "currentIndexChanged")):
             getattr(widget, signal).connect(self._save_gpt_pipeline_ui)
@@ -3133,6 +3159,7 @@ class SingleAnalyzerWidget(QWidget):
         combo = getattr(self, "gpt_pp_tone_target", None)
         if combo is not None:
             tone_target = str(combo.currentData() or "style")
+        scope_combo = getattr(self, "gpt_pp_scope", None)
         return pipeline_steps_from_flags(
             repaint=bool(getattr(self, "gpt_pp_repaint", None) and self.gpt_pp_repaint.isChecked()),
             structure=bool(getattr(self, "gpt_pp_structure", None) and self.gpt_pp_structure.isChecked()),
@@ -3141,6 +3168,7 @@ class SingleAnalyzerWidget(QWidget):
             tone=bool(getattr(self, "gpt_pp_tone", None) and self.gpt_pp_tone.isChecked()),
             tone_target=tone_target,
             ink=bool(getattr(self, "gpt_pp_ink", None) and self.gpt_pp_ink.isChecked()),
+            repaint_scope=str(scope_combo.currentData() or "lines_only") if scope_combo is not None else "lines_only",
         )
 
     def _pipeline_timeout_budget(self, timeout_seconds, steps) -> int:

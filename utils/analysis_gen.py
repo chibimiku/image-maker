@@ -133,28 +133,30 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
                               local_feather: int = 48, resolution: str = "2K",
                               detail_boost: bool = False, repaint_ref_mode: str = "style",
                               local_regions=None, tone: bool = False, tone_target: str = "style",
-                              ink: bool = False, ink_target: float = 8.0) -> dict:
+                              ink: bool = False, ink_target: float = 8.0,
+                              repaint_scope: str = "lines_only") -> dict:
     """把界面上的勾选翻译成 utils.post_process 的流水线步骤（repaint 由调用方单独处理）。
 
-    - `detail_boost=False`（默认）：局部重绘统一用 2K —— 不再把细节区自动升到 4K（用户要求）。
+    - `repaint_scope`：**「重绘编辑范围」** —— 不裁切、不贴回，只在重绘提示词里要求模型保留不该动的部分：
+      `full` / `person_only` / `person_noface` / `details` / `lines_only`（文本见
+      `post_process.REPAINT_SCOPE_CLAUSES`）。默认 `lines_only`（实测线条连贯最好：tid 105→185 段长）。
+    - `detail_boost=False`（默认）：局部重绘统一用 2K（局部重绘现已不是默认工序，见下）。
     - `repaint_ref_mode="style"`（默认）：重绘的第二张参考是**画风参考图**。
       **不要**默认成 `line_anchor`：那张自动生成的线锚图（白底长结构线）会被模型当成"渲染语言"，
       实测要么把整张图塌成白底线稿，要么把线网印成"碎玻璃"纹理铺满人物（用户 2026-09-24 指出这是完全错误的）。
-      线锚图仍然可用，但要显式传 `repaint_ref_mode="line_anchor"` / `"both"`。
-    - `local_regions`：一次跑多个区域（实测最稳的配方是
-      `["subject_no_face", "shoes", "waist", "thigh"]`）；不传就只用 `local_region` 一个区域。
-      单区域 `subject_no_face` 线条最好但**不稳定**（同一输入重跑有约 1/3 概率重排主体、出现双人鬼影，§二十八）。
+    - `local` / `local_regions`：**裁切→重绘→贴回**式的局部重绘。**默认关闭、慎用**：模型会在裁切里
+      重新构图，贴回原坐标就是一块错位内容（§三十：5 画风里报废 2 张）。要修细节请优先用 `repaint_scope`。
     - `tone` / `ink`：**本地工序**（不调 API）—— 色调校准（目标默认取画风参考图）+ 线条加墨。
       实测（§二十八）：当前首图那条链 163.9/68.5/+0.18 → **138.6/93.8/+2.54**；
       A 基底上 136.9/113.2/+1.78 → **131.7/117.8/+3.21**（参考图 135.6/114.3/+2.55）。
-      这是目前唯一能把"画风贴近参考图"稳定拉过去的杠杆，所以 GUI 默认勾上。
     """
     regions = [str(r).strip() for r in (local_regions or []) if str(r).strip()]
     if not regions:
         regions = [str(local_region or "hair")]
     return {
         "repaint": {"enabled": bool(repaint), "resolution": resolution,
-                    "reference_mode": str(repaint_ref_mode or "style")},
+                    "reference_mode": str(repaint_ref_mode or "style"),
+                    "scope": str(repaint_scope or "full")},
         "structure": {"enabled": bool(structure), "strength": float(structure_strength)},
         "local": {"enabled": bool(local), "region": regions[0], "regions": regions,
                   "feather": int(local_feather), "resolution": resolution,

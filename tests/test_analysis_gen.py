@@ -165,7 +165,10 @@ def test_run_gpt_image_pipeline_repaint_then_structure(tmp_path, monkeypatch):
     steps = ag.pipeline_steps_from_flags(repaint=True, structure=True)
     out = ag.run_gpt_image_pipeline([str(img)], steps, firmware="FIRMWARE",
                                     final_dir=str(tmp_path / "final"), work_dir=str(tmp_path / "work"))
-    assert seen["use_detail_suffix"] is False and seen["prompt"] == "FIRMWARE"
+    assert seen["use_detail_suffix"] is False
+    # 重绘提示词 = 固件 + 「编辑范围」句（默认 lines_only：不裁切不贴回，只要求把线条连通）
+    assert seen["prompt"].startswith("FIRMWARE")
+    assert "EDIT SCOPE (this pass)" in seen["prompt"]
     # 最终产物名带 -final- 标记（工序串说明经过了哪些处理），中间产物在 work 目录里
     assert out and "-final-rp+sline50" in os.path.basename(out[0])
     assert os.path.isfile(os.path.join(str(tmp_path / "work"), "pipeline-manifest.json"))

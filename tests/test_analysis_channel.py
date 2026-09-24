@@ -87,41 +87,56 @@ def test_selecting_gpt_channel_shows_post_process_row(analyzer):
 
 
 def test_build_gpt_image_steps_follows_checkboxes(analyzer):
-    """默认 = §二十八 实测最好的一整套（重绘/结构线/局部四区/色调校准/加墨），取消勾选能关掉。"""
+    """默认 = §三十一 的配方（重绘 + 结构线 + 色调校准 + 加墨，重绘范围=只连通线条）。
+
+    局部重绘（裁切→重绘→贴回）已被证实会把画面拼坏（§三十），**默认关闭**；取消/勾选都能生效。
+    """
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
     assert steps["repaint"]["enabled"] is True
+    assert steps["repaint"]["scope"] == "lines_only"
     assert steps["structure"]["enabled"] is True
-    assert steps["local"]["enabled"] is True
+    assert steps["local"]["enabled"] is False            # 默认不再做裁切贴回
     assert steps["tone"]["enabled"] is True and steps["tone"]["tone_target"] == "style"
     assert steps["ink"]["enabled"] is True
-    # 局部重绘默认走「稳定四区」链（单区域 subject_no_face 约 1/3 概率重排主体出鬼影）
+    # 打开局部重绘 → 用稳定四区链（单区域 subject_no_face 约 1/3 概率重排主体出鬼影）
+    analyzer.gpt_pp_local.setChecked(True)
+    steps = analyzer._build_gpt_image_steps()
+    assert steps["local"]["enabled"] is True
     assert steps["local"]["regions"] == ["subject_no_face", "shoes", "waist", "thigh"]
     assert steps["local"]["region"] == "subject_no_face"
+    # 单独选一个区域时不再是四区链
+    analyzer.gpt_pp_region.setCurrentIndex(max(0, analyzer.gpt_pp_region.findData("shoes")))
+    steps = analyzer._build_gpt_image_steps()
+    assert steps["local"]["regions"] == ["shoes"]
+    # 全部关掉
     for cb, key in ((analyzer.gpt_pp_repaint, "repaint"), (analyzer.gpt_pp_structure, "structure"),
                     (analyzer.gpt_pp_local, "local"), (analyzer.gpt_pp_tone, "tone"),
                     (analyzer.gpt_pp_ink, "ink")):
         cb.setChecked(False)
     steps = analyzer._build_gpt_image_steps()
     assert not any(steps[k]["enabled"] for k in steps)
-    # 单独选一个区域时不再是四区链
-    analyzer.gpt_pp_local.setChecked(True)
-    analyzer.gpt_pp_region.setCurrentIndex(max(0, analyzer.gpt_pp_region.findData("shoes")))
-    steps = analyzer._build_gpt_image_steps()
-    assert steps["local"]["regions"] == ["shoes"]
+    # 重绘范围可切换
+    if hasattr(analyzer, "gpt_pp_scope"):
+        analyzer.gpt_pp_scope.setCurrentIndex(max(0, analyzer.gpt_pp_scope.findData("person_only")))
+        analyzer.gpt_pp_repaint.setChecked(True)
+        assert analyzer._build_gpt_image_steps()["repaint"]["scope"] == "person_only"
 
 
 def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
     """超时预算按**联网调用**份数算：首图 + 重绘 + 每个局部区域；本地工序（结构线/色调/加墨）不占份额。"""
     analyzer.gen_channel_gpt.setChecked(True)
-    steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘 + 四区 + 本地的结构线/色调/加墨
+    steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘（局部关闭，结构线/色调/加墨是本地）
+    assert analyzer._pipeline_timeout_budget(120, steps) == 240
+    analyzer.gpt_pp_local.setChecked(True)             # 打开四区链 → 再多 4 份
+    steps = analyzer._build_gpt_image_steps()
     assert analyzer._pipeline_timeout_budget(120, steps) == 720
-    analyzer.gpt_pp_local.setChecked(False)
+    analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 四区
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 240       # 首图 + 重绘
-    analyzer.gpt_pp_repaint.setChecked(False)
+    assert analyzer._pipeline_timeout_budget(120, steps) == 600
+    analyzer.gpt_pp_local.setChecked(False)            # 只剩首图（加墨/色调/结构线都是本地工序）
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 120       # 只剩首图（加墨/色调是本地工序）
+    assert analyzer._pipeline_timeout_budget(120, steps) == 120
 
 
 def test_gpt_channel_request_uses_analysis_description_and_style_ref(analyzer, tmp_path):

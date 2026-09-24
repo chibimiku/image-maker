@@ -1155,6 +1155,39 @@ STYLE_REF_ROLE_IN_REPAINT = (
 )
 
 
+# 「重绘编辑范围」（`repaint.scope`）：**不裁切、不贴回**，只用提示词要求模型保留不该动的部分。
+# 为什么要有这个（§三十一）：裁切→重绘→贴回那条路（局部重绘）会被模型"重新构图"搞成错位块，
+# 实测 5 画风里报废 2 张；改成「整张新图 + 范围要求」后几何天然对齐，不可能拼错边界。
+REPAINT_SCOPE_CLAUSES = {
+    "full": "",
+    "person_only":
+        "\n\nEDIT SCOPE (this pass): repaint ONLY the character. Keep the background, furniture, props, floor, "
+        "walls, curtains and the lighting pattern exactly as they are in the source: same shapes, same colours, "
+        "same values, same placement. Do not repaint, restyle, move, add or remove any background element.",
+    "person_noface":
+        "\n\nEDIT SCOPE (this pass): you may refine the character's body, clothing, hair mass, hands, legwear and "
+        "footwear, but preserve the FACE exactly as drawn in the source - same eye shape and size, same lash pattern, "
+        "same iris colour and internal detail, same brows, nose, mouth, blush and face shading, same position. "
+        "Do not redraw, sharpen, enlarge, beautify or restyle the face.",
+    "details":
+        "\n\nEDIT SCOPE (this pass): concentrate on the small worn details - gloved hands and fingers, ribbons and bows, "
+        "corset lacing and buckle hardware, garter straps and stocking lace, shoe straps, laces and charms, necklace and "
+        "other jewellery. Make each of them read as a continuous, countable, physically anchored structure. "
+        "Leave the face, the hair mass, the dress silhouette, the pose and the background otherwise untouched.",
+    "lines_only":
+        "\n\nEDIT SCOPE (this pass): repair line structure only. Connect contours that are clearly broken and merge stray "
+        "fragments so the main curves read as continuous strokes. Do not change colours, shading, materials, shapes, "
+        "positions, framing or the amount of detail anywhere in the image.",
+}
+REPAINT_SCOPE_LABELS = {
+    "full": "整图重绘（不额外限制）",
+    "person_only": "只重绘人物（背景保持原样）",
+    "person_noface": "人物可动、脸保持原样",
+    "details": "只修细节（手/丝带/系带/袜带/鞋带/项链）",
+    "lines_only": "只连通线条（不改色不改内容）",
+}
+
+
 def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=None,
                  work_dir=None, resume=True, final_dir=None, style_ref_path=None, style_clauses=None):
     """对一批产物依次跑勾选的后处理步骤；返回最终产物路径列表。
@@ -1260,6 +1293,12 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
                         if clauses:
                             repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
+                    # 编辑范围：**不裁切、不贴回**，只用提示词要求模型保留不该动的部分（见 §三十一）
+                    scope_key = str(cfg.get("scope") or "").strip().lower()
+                    scope_clause = REPAINT_SCOPE_CLAUSES.get(scope_key, "")
+                    if scope_clause:
+                        repaint_prompt = (repaint_prompt or "") + scope_clause
+                        log(f"[工序] 重绘编辑范围：{REPAINT_SCOPE_LABELS.get(scope_key, scope_key)}")
                     saved = generate_image_repaint(
                         source_paths=[current], resolution=str(cfg.get("resolution") or "2K"),
                         prompt=repaint_prompt or None, use_detail_suffix=False,

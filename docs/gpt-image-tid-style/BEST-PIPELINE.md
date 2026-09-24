@@ -1197,6 +1197,58 @@ Gemini 对**裁切图**会**重新构图**（在裁切内部移动/缩放主体�
 > ⚠️ 因此 **「重绘 → sline50 → 四区 → 色调 + 加墨」这个配方里，`sline50` 之前的部分与 `tone/ink` 都成立，
 > 唯独 `四区` 不能用默认值**。GUI 默认（`ANALYSIS_GPT_UI_DEFAULTS` 里的四区链）在用户确认前**不要当成已验证配方**。
 
+---
+
+## 三十一、改掉硬拼接：**用重绘 prompt 的「编辑范围」控制覆盖面**（2026-09-24 用户指定，已实现）
+
+用户决定：**不要再做裁切→重绘→贴回这种硬拼接**，改成「图始终是一整张新图」，靠重绘提示词里的不同要求
+让模型自己保持不该动的部分（例如「只重绘人的部分」）。实验基底是**各画风的首图（不重跑首图）**，
+每次都带**画风参考图 + STYLE LANGUAGE 条款**，2K、v5 固件、无 detail suffix。完整对照页 `repaint-scope.html`。
+
+### 五个「编辑范围」档位（`post_process.REPAINT_SCOPE_CLAUSES`）
+
+| 档位 | 提示词要求（追加在固件 + 画风条款之后） |
+|---|---|
+| `full` | 不加（= 原来的整图重绘） |
+| `person_only` | 只重绘人物；背景/家具/道具/地面/墙/窗帘/光照一模一样，不许动 |
+| `person_noface` | 身体、衣服、头发、手、袜、鞋可以改；**脸原样保留**（眼形/睫毛/虹膜/五官/腮红/位置） |
+| `details` | 只修手/丝带/蝴蝶结/系带与扣件/袜带与花边/鞋带/项链之类小结构，其余不动 |
+| `lines_only` | **只连通线条**：接断线、去碎线，不改颜色/明暗/材质/形状/位置/取景/细节量 |
+
+### 实测（段长 / 端点 / 碎线；基底=各画风首图）
+
+| 基底（首图段长） | full | person_only | person_noface | details | **lines_only** |
+|---|---|---|---|---|---|
+| tinkle（72.9） | **134.8 / 19.83 / 0.010** | 87.0 / 27.74 / 0.017 | 100.9 / 25.21 / 0.014 | 103.5 / 22.28 / 0.012 | 98.5 / 25.18 / 0.015 |
+| tid（74.7，参考图 92.4） | 105.1 / 20.16 / 0.009 | 111.6 / 19.77 / 0.011 | 139.9 / 14.33 / 0.006 | 99.6 / 21.46 / 0.013 | **185.0 / 12.64 / 0.003** |
+| fuzichoco（69.1，参考图 78.6） | 81.5 / 25.49 / 0.018 | 81.2 / 25.82 / 0.018 | 82.2 / 26.51 / 0.018 | 82.5 / 26.03 / 0.019 | 83.3 / 24.93 / 0.016 |
+
+「与首图差异（背景区平均差，越小=背景越没被动）」：tinkle 21.8~27.9、tid 10.1~20.2、fuzichoco 18.3~23.9；
+`details` / `person_only` 的背景保持最好，`full` 改动最多。
+
+### 结论
+
+1. **不再有"拼坏"这回事**：整张新图出入，几何天然对齐，不可能出现一块错位内容（对比 §三十的 2/5 报废率）。
+2. **`lines_only` 平均线条最好**：tid 74.7 → **185.0**（超过它自己参考图的 92.4）、碎线 0.017→0.003；
+   tinkle 98.5；fuzichoco 83.3（三族里最高）。代价：它明确不许改色，所以画风贴合主要交给后面的色调校准。
+3. `person_only` / `details` 的背景保持最好（tinkle 背景差 21.8 / 18.5 vs full 23.3）；
+   `person_noface` 允许改动最多（tid 背景差 20.2，但线条也拿到了 139.9）。
+4. 范围句有时会**压低线条增益**（tinkle：full 134.8 > lines_only 98.5）—— 它是"保持"与"改动"的取舍，
+   不是越严越好；按素材/画风选档位即可。
+
+### 落地（已实现，`recipe_version=3`）
+
+- `utils/post_process.py`：`REPAINT_SCOPE_CLAUSES` / `REPAINT_SCOPE_LABELS`；`run_pipeline` 的重绘分支把范围句
+  追加在「固件 + 角色固有特征 + STYLE LANGUAGE」之后，并打日志 `[工序] 重绘编辑范围：…`。
+- `utils/analysis_gen.pipeline_steps_from_flags(..., repaint_scope="lines_only")` → `repaint.scope`。
+- GUI：工序行新增「重绘范围」下拉（5 档），**`local` 局部重绘默认关闭**（`ANALYSIS_GPT_UI_DEFAULTS`），
+  超时预算随之变成「首图 + 重绘」= 2 份（默认 240 秒）。
+- CLI：`python tools/analysis_gpt_run.py --repaint-scope lines_only|person_only|person_noface|details|full`。
+- 回归用例：`test_build_gpt_image_steps_follows_checkboxes`（默认档位/可切换）、
+  `test_gpt_timeout_budget_counts_network_slots_only`（2 份/6 份预算）、
+  `test_run_gpt_image_pipeline_repaint_then_structure`（范围句进提示词）。
+- 还没做：用新配方把 5 个画风**从头复跑一遍**做横向验收（下一步）。
+
 
 
 

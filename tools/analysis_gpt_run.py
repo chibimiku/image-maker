@@ -101,6 +101,12 @@ def main():
     ap.add_argument("--no-detail-boost", action="store_true", help="（保留参数）显式关闭细节区升分辨率")
     ap.add_argument("--repaint-ref", default="style", choices=["line", "style", "both", "none"],
                     help="重绘的第二张参考：line=线锚图 / style=画风参考图（Sol 建议，默认）/ both / none")
+    ap.add_argument("--repaint-scope",
+                    default="lines_only",
+                    choices=["full", "person_only", "person_noface", "details", "lines_only"],
+                    help="重绘的「编辑范围」：不裁切不贴回，只在提示词里要求模型保留不该动的部分（§三十一）。"
+                         "lines_only（默认）= 只把线条连通、不改色不改内容；person_only = 只重绘人物、背景保持；"
+                         "person_noface = 人物可动但脸保持；details = 只修手/丝带/系带/鞋带/项链；full = 不额外限制")
     ap.add_argument("--extra-region", default="", help="额外的局部重绘区域（逗号分隔），例如 shoes")
     ap.add_argument("--firmware", default="prompts/gpt-image-optimize/repaint-system-conservative-v5.md")
     ap.add_argument("--source-image", default="", help="覆盖分析 JSON 里的 original 图路径")
@@ -178,6 +184,7 @@ def main():
     steps["repaint"]["reference_mode"] = ("none" if args.no_dual else
                                           {"line": "line_anchor", "style": "style",
                                            "both": "both", "none": "none"}[args.repaint_ref])
+    steps["repaint"]["scope"] = str(args.repaint_scope)
     style_clauses = [str(c) for c in (style_entry.get("repaint_clauses") or []) if str(c).strip()]
 
     day = pp.date_output_dir()
