@@ -1752,6 +1752,15 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     resp = None
     last_exc = None
     request_trace_body = payload
+
+    def _post_once():
+        """发一次请求（edits 走 multipart，generations 走 JSON），返回 (resp, trace_body)。"""
+        if use_edits_mode:
+            r, files = _post_images_edits_request(url=request_url, api_key=api_key, form_payload=payload,
+                                                  image_paths=valid_image_paths, timeout_val=timeout_val)
+            return r, {"form": payload, "files": files}
+        return requests.post(request_url, headers=headers, json=payload, timeout=timeout_val), payload
+
     for attempt in range(max_retries + 1):
         if _is_cancelled():
             logger.info("AIGC-2D-GPT 请求在重试前被取消。")
@@ -1760,18 +1769,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         try:
             if attempt > 0:
                 logger.info(f"正在进行第 {attempt} 次重试 (最大重试次数: {max_retries})...")
-            if use_edits_mode:
-                resp, used_files = _post_images_edits_request(
-                    url=request_url,
-                    api_key=api_key,
-                    form_payload=payload,
-                    image_paths=valid_image_paths,
-                    timeout_val=timeout_val
-                )
-                request_trace_body = {"form": payload, "files": used_files}
-            else:
-                resp = requests.post(request_url, headers=headers, json=payload, timeout=timeout_val)
-                request_trace_body = payload
+            resp, request_trace_body = _post_once()
             # 只有 429/5xx 这类可重试状态才抛异常触发重试；4xx（含审核拦截）直接落盘原始返回
             status_code = getattr(resp, "status_code", None)
             if isinstance(status_code, int) and (status_code == 429 or 500 <= status_code < 600):
@@ -1845,6 +1843,60 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
     data_items = resp_json.get("data", []) if isinstance(resp_json, dict) else []
+    # 中转站按请求随机挑上游：某些通道不认我们发的字段（实测 `/images/generations` 的 `image` 字段会
+    # 被判成 `Unknown parameter: 'image'`，同一份请求换个通道就正常）。这类「上游报错 + 空 data」
+    # 重发一次基本就好，所以这里单独再试几次，别让画风生图随机失败。
+    upstream_retries = int(config.get("upstream_error_retries", 2) or 2)
+    while (not isinstance(data_items, list) or not data_items) and upstream_retries > 0 \
+            and isinstance(resp_json, dict) and resp_json.get("error"):
+        upstream_retries -= 1
+        err_text = str((resp_json.get("error") or {}).get("message") or resp_json.get("error"))[:200]
+        logger.warning(f"AIGC-2D-GPT 上游返回错误（{err_text}），重新发起请求（还剩 {upstream_retries} 次）…")
+        _emit(f"上游返回错误，重发请求：{err_text}")
+        time.sleep(max(0.5, retry_backoff_s))
+        if _is_cancelled():
+            logger.info("AIGC-2D-GPT 请求在重发前被取消。")
+            return []
+        try:
+            resp, request_trace_body = _post_once()
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"AIGC-2D-GPT 重发失败: {e}")
+            break
+        try:
+            if getattr(resp, "encoding", None) is None:
+                resp.encoding = "utf-8"
+            resp_text_raw = _response_text_utf8(resp)
+            resp_text = resp_text_raw
+            resp_json = resp.json()
+        except Exception:  # noqa: BLE001
+            resp_json = {"raw_text": resp_text, "status_code": getattr(resp, "status_code", None)}
+        _save_server_response_json(save_dir, file_prefix, "aigc-2d-gpt", resp_json)
+        logger.info(f"=== AIGC-2D-GPT 服务器原始返回信息（重发后） ===\n{_format_safe_log(resp_json)}")
+        data_items = resp_json.get("data", []) if isinstance(resp_json, dict) else []
+        stage_json_start = time.perf_counter()
+    # 最后兜底：某些上游通道压根不认 generations 的 `image` 字段（`Unknown parameter: 'image'`），
+    # 重发也一直落到这类通道 → 改用 `/images/edits`（multipart 传参考图）。语义上 edits 更像
+    # 「把参考图当原图编辑」，所以**只在报错时回退**，并且日志里写明，方便排查产物差异。
+    if (not isinstance(data_items, list) or not data_items) and isinstance(resp_json, dict) \
+            and resp_json.get("error") and not use_edits_mode \
+            and "image" in str(resp_json.get("error")).lower():
+        logger.warning("AIGC-2D-GPT 上游不认 generations 的 image 字段 → 回退 /images/edits 重发一次")
+        _emit("上游不支持「新建图片」模式的参考图字段，已回退到编辑端点重发")
+        use_edits_mode = True
+        request_url = _derive_edits_url_from_generations_url(url)
+        try:
+            resp, request_trace_body = _post_once()
+            if getattr(resp, "encoding", None) is None:
+                resp.encoding = "utf-8"
+            resp_text = _response_text_utf8(resp)
+            resp_json = resp.json()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"AIGC-2D-GPT 回退 edits 重发失败: {exc}")
+            resp_json = resp_json if isinstance(resp_json, dict) else {}
+        else:
+            _save_server_response_json(save_dir, file_prefix, "aigc-2d-gpt", resp_json)
+            logger.info(f"=== AIGC-2D-GPT 服务器原始返回信息（edits 回退后） ===\n{_format_safe_log(resp_json)}")
+        data_items = resp_json.get("data", []) if isinstance(resp_json, dict) else []
     if not isinstance(data_items, list) or not data_items:
         logger.warning("AIGC-2D-GPT 返回 JSON 中没有 data 节点。")
         logger.warning(f"=== AIGC-2D-GPT 服务器完整返回 ===\n{_format_safe_log(resp_json)}")
