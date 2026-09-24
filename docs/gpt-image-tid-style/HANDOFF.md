@@ -35,7 +35,7 @@
 | 首图 | `/v1/images/generations` + `image` 字段，1024x1536，quality=high | 定型内容/色相 |
 | 重绘 | `reference_mode=style`（画风图当第二张参考）、v5 固件、2K | 线条连贯 +29 段长 |
 | 结构线 | sline50（strength 0.5 / min_len 120 / darken 0.18 / 1px） | 结构边更清楚 |
-| 局部重绘 | **四区链** `subject_no_face,shoes,waist,thigh`（各 2K，feather 48） | 手/鞋带/袜带可数；比单区域稳 |
+| 局部重绘 | **四区链** `subject_no_face,shoes,waist,thigh`（各 2K，feather 48） | ⚠️ **实测会把画面拼坏，见 §7.7** —— 用户复核 5 画风批量的结论是这一环不可用（坏 2/5 张） |
 | 色调校准 | 目标 = **画风参考图**，contrast 1.00 / chroma 1.10 / highlight 0.85 / sat_scale 1.00 | 亮度 −25、饱和 +25 |
 | 线条加墨 | `target_sep=8`、`max_darken=40`、最多 4 遍 | 线−底从 +0.18 到 +2.54 |
 
@@ -531,7 +531,32 @@ RENDERING LANGUAGE (follow exactly):
 - `conf/config-styles.json` 是 **gitignore**；版本化副本在 `submodules/image-maker-artstyle/`（`submodules/` 也被父仓库 ignore，它是独立仓库）。改画风后必须：`python tools/sync_styles_to_submodule.py` 然后在子模块里单独 commit。
 - `docs/gpt-image-tid-style/` 下 **800MB 实验原图不进库**（`.gitignore` 挡了 `**/*.png|jpg|jpeg`），结论都在 `.md`，对照页在 `.html`（几个 MB，已进库）。
 
-### 7.6 指标 ≠ 画面（务必看图）
+### 7.7 ⚠️ 局部重绘的「裁切→重绘→贴回」会把画面拼坏（2026-09-24 复核，最高优先级）
+
+用户复核 5 画风批量结果时指出「fuzichoco 和 tid 两组都完全跑挂了，拼合阶段引入了太多问题」，检查后**成立**：
+
+- **坏的是局部重绘，不是 repaint/sline50/tone/ink**：两张图的 `sline50` 中间产物都干净，
+  坏块出现在 `thigh` 那一步（逐步差分，`log/diag-local-chain.txt`）：
+  tid 一步换掉 9.1% 像素、最大块 1179×855（7.6%，色差 +6.6/+11.9/+4.4）；
+  fuzichoco 一步换掉 16.4%、最大块 1254×1309（15.9%，色差 −33.1/−18.1/−27.9），`waist` 也有一块。
+- **机制**：Gemini 对裁切图**重新构图**（在裁切内移动/缩放主体），贴回原坐标 = 一块带硬边界的错位内容。
+- **免费对照（零 API，用已有 patch 重做贴回）**：default / `restrict_to_subject=True` / feather 16 / feather 96
+  **四种都一样坏** → 是几何错位，不是融合/遮罩/羽化问题。
+- **命中率**：5 画风 × 4 区域 = 20 次局部调用里拼坏 3 块、**报废 2 张图**；`thigh` 最危险，
+  `shoes`（1696×506 条带）相对安全，`subject_no_face` 也是大块（1526×2479）有风险。
+- **证据页**：`docs/gpt-image-tid-style/DIAG-local-chain.html`（含坏图、crop/patch 对照、四种贴回变体、差分表）。
+
+**改法（未实施，等用户拍板）**：
+1. **贴回前加几何一致性闸门**（推荐，零成本）：patch 与 crop 的梯度互相关 / 主体 bbox+质心比对，
+   超阈值就**丢弃该 patch**（保留 sline50 版本）——最坏只是少一次局部修补。
+2. 默认改成「不勾局部」或「只勾 `shoes`」，大块区域降为显式可选。
+3. 不裁切，改成「整幅图 + 只重画 X 区」的强调式重绘（几何天然对齐，代价是分辨率摊薄）。
+4. 给局部调用带整幅缩略图当第二张参考（需实测）。
+
+> 结论：**「repaint → sline50 → 四区 → tone + ink」里的 `四区` 不能当默认配方用**；
+> `repaint / sline50 / tone / ink` 四步都成立。GUI 默认里的四区链在用户确认前不要当成已验证配置。
+
+### 7.8 指标 ≠ 画面（务必看图）
 
 本轮矩阵里出现过 段长 107.3 / 端点 19.55 的「最优」样本其实是**双人鬼影**。任何自动优化都要配一个人工/视觉检查环节（例如把候选拼成接触表再看，见 `data/20260924/pipeline-steps/rp-matrix/_contact-sheet*.jpg`）。
 
@@ -547,10 +572,14 @@ RENDERING LANGUAGE (follow exactly):
 - 事实：同一条件跑 3 次，N 基底饱和 55 / 68.5 / **134.5**（跨了一倍），A0 基底却稳定在 100–120。推测原因：N 是白/棕低饱和基底，模型有时抓住画风参考图的蓝紫调、有时退回源图的白。
 - 方向：① 首图加「palette anchor 句」（把画风参考图的主色写进提示词，参考 §6.2 里的 `Build the palette from saturated sapphire…`）；② 用 `tools/style_ref_stats.py` 算出参考图的客观主色，自动写进首图提示词（比人工写更稳）；③ 首图一次出 N 张（`n=2/3`）再用指标 + 视觉挑一张。
 
-### 8.3 局部重绘的重排/鬼影
+### 8.3 局部重绘的重排/鬼影 → **已升级为最高优先级问题，见 §7.7**
 
-- 事实：`subject_no_face` 单区域 3 次里 1 次双人鬼影；四区链稳但会提亮画面。
-- 方向：① 贴回前做**对齐校验**（比较 patch 与源裁切的主体框/质心，偏移超过阈值就丢弃或平移对齐）；② 给局部重绘也加「不要移动/缩放主体」的强约束（现在只有固件里的通用约束）；③ 用 `full`/`subject` 之外的自定义坐标框（`local_repaint_composite --crop x0,y0,x1,y1`）避开脸部排除区的副作用；④ 羽化/遮罩层面：当前遮罩来自 GrabCut 主体检测，可以把「保脸排除区」换成「只排眼睛嘴」的窄框。
+- 事实（2026-09-24 复核 5 画风批量）：**四区链在 5 张图里报废 2 张**（tid / fuzichoco）——
+  模型对裁切图重新构图，贴回就是一块错位内容；用已有 patch 重做贴回（改羽化 / 限制主体遮罩）
+  四种变体全都一样坏 → **几何问题，融合技巧无解**。证据页 `DIAG-local-chain.html`。
+- 方向：① **几何一致性闸门**（推荐，零成本：patch vs crop 的梯度互相关 / 主体 bbox+质心比对，
+  超阈值丢弃该 patch）；② 默认不勾局部或只勾 `shoes`；③ 改成「整幅图 + 只重画 X 区」的强调式重绘；
+  ④ 局部调用带整幅缩略图当第二张参考（需实测）；⑤ 对齐后再贴（只能治轻微平移，备选）。
 
 ### 8.4 后处理参数的进一步搜索
 
