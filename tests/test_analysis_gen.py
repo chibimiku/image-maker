@@ -167,8 +167,10 @@ def test_run_gpt_image_pipeline_repaint_then_structure(tmp_path, monkeypatch):
                                     final_dir=str(tmp_path / "final"), work_dir=str(tmp_path / "work"))
     assert seen["use_detail_suffix"] is False
     # 重绘提示词 = 固件 + 「编辑范围」句（默认 lines_only：不裁切不贴回，只要求把线条连通）
+    # + 「身份/内容锁」（见 §三十一 补记：person_noface 那档曾把画风参考图的角色搬进来）
     assert seen["prompt"].startswith("FIRMWARE")
     assert "EDIT SCOPE (this pass)" in seen["prompt"]
+    assert "IDENTITY AND CONTENT LOCK" in seen["prompt"]
     # 最终产物名带 -final- 标记（工序串说明经过了哪些处理），中间产物在 work 目录里
     assert out and "-final-rp+sline50" in os.path.basename(out[0])
     assert os.path.isfile(os.path.join(str(tmp_path / "work"), "pipeline-manifest.json"))

@@ -1152,23 +1152,44 @@ STYLE_REF_ROLE_IN_REPAINT = (
     "Any further image is a STYLE REFERENCE that supplies rendering language only (palette, line character, "
     "brushwork, edge treatment, material handling). Never copy the style reference's character, features, outfit, "
     "pose, props, background or composition, and never let it override the source's content."
+    "\nThe style reference is NEVER a source of content: nothing in the output may come from it except the way "
+    "paint is applied. It is not a second character, not a second outfit, not a second scene."
+)
+
+# 「身份/内容锁」：**每一档编辑范围都会追加**（放在最后，权重最高）。
+# 为什么必须有（§三十一 补记）：`person_noface` 那档原本允许"可以改身体/衣服/头发"，
+# 结果 tid 那组把**画风参考图的角色**（粉色头发 + 水手服 + 金鱼/水波）整套搬了进来，只留下源图的姿势与场景。
+# 因此范围句只能放宽"渲染质量"，绝不能放宽"这个人是谁、穿什么、画面里有什么"。
+IDENTITY_LOCK_CLAUSE = (
+    "\n\nIDENTITY AND CONTENT LOCK (applies to every instruction above): the SOURCE image remains the only truth "
+    "for WHO and WHAT is in the picture. Keep the same character design, the same hair colour, length and hairstyle, "
+    "the same eye colour, the same skin tone, the same outfit (same cut, materials, colours and trims), the same "
+    "accessories, the same props, the same background and the same framing. Rendering quality may improve; the "
+    "design may not change. Never add anything that is not already in the source and never import anything from the "
+    "style reference: not its character, face, hair colour or length, not its eyes, clothing, uniform or accessories, "
+    "not its props, animals, plants, water, weather, motifs or background. When a detail could plausibly come from "
+    "either image, it must come from the source. If you cannot keep the source's design while improving the "
+    "rendering, keep the source's design and change nothing there."
 )
 
 
 # 「重绘编辑范围」（`repaint.scope`）：**不裁切、不贴回**，只用提示词要求模型保留不该动的部分。
 # 为什么要有这个（§三十一）：裁切→重绘→贴回那条路（局部重绘）会被模型"重新构图"搞成错位块，
 # 实测 5 画风里报废 2 张；改成「整张新图 + 范围要求」后几何天然对齐，不可能拼错边界。
+# ⚠️ 范围句只能放宽「渲染质量」，**不能放宽身份/设计/画面内容** —— 每次都会在最后追加 IDENTITY_LOCK_CLAUSE。
 REPAINT_SCOPE_CLAUSES = {
     "full": "",
     "person_only":
-        "\n\nEDIT SCOPE (this pass): repaint ONLY the character. Keep the background, furniture, props, floor, "
+        "\n\nEDIT SCOPE (this pass): work on the CHARACTER only. Keep the background, furniture, props, floor, "
         "walls, curtains and the lighting pattern exactly as they are in the source: same shapes, same colours, "
         "same values, same placement. Do not repaint, restyle, move, add or remove any background element.",
     "person_noface":
-        "\n\nEDIT SCOPE (this pass): you may refine the character's body, clothing, hair mass, hands, legwear and "
-        "footwear, but preserve the FACE exactly as drawn in the source - same eye shape and size, same lash pattern, "
-        "same iris colour and internal detail, same brows, nose, mouth, blush and face shading, same position. "
-        "Do not redraw, sharpen, enlarge, beautify or restyle the face.",
+        "\n\nEDIT SCOPE (this pass): improve how the character's body, clothing, hair mass, hands, legwear and "
+        "footwear are RENDERED - linework, edge cleanliness, material readability, small malformed details - while "
+        "keeping their design exactly as the source has it. Preserve the FACE pixel-faithfully: same eye shape and "
+        "size, same lash pattern, same iris colour and internal detail, same brows, nose, mouth, blush, face shading "
+        "and position. Do not restyle, beautify, enlarge or redraw the face, and do not treat this as licence to "
+        "redesign the character.",
     "details":
         "\n\nEDIT SCOPE (this pass): concentrate on the small worn details - gloved hands and fingers, ribbons and bows, "
         "corset lacing and buckle hardware, garter straps and stocking lace, shoe straps, laces and charms, necklace and "
@@ -1180,9 +1201,9 @@ REPAINT_SCOPE_CLAUSES = {
         "positions, framing or the amount of detail anywhere in the image.",
 }
 REPAINT_SCOPE_LABELS = {
-    "full": "整图重绘（不额外限制）",
+    "full": "整图重绘（不额外限制，身份锁仍然生效）",
     "person_only": "只重绘人物（背景保持原样）",
-    "person_noface": "人物可动、脸保持原样",
+    "person_noface": "人物可精修（脸保持原样，身份/设计不变）",
     "details": "只修细节（手/丝带/系带/袜带/鞋带/项链）",
     "lines_only": "只连通线条（不改色不改内容）",
 }
@@ -1294,11 +1315,14 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         if clauses:
                             repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
                     # 编辑范围：**不裁切、不贴回**，只用提示词要求模型保留不该动的部分（见 §三十一）
+                    # 范围句只能放宽「渲染质量」；身份/设计/内容由 IDENTITY_LOCK_CLAUSE 兜底（放在最后 = 权重最高）
                     scope_key = str(cfg.get("scope") or "").strip().lower()
                     scope_clause = REPAINT_SCOPE_CLAUSES.get(scope_key, "")
                     if scope_clause:
                         repaint_prompt = (repaint_prompt or "") + scope_clause
                         log(f"[工序] 重绘编辑范围：{REPAINT_SCOPE_LABELS.get(scope_key, scope_key)}")
+                    if scope_key in REPAINT_SCOPE_CLAUSES:
+                        repaint_prompt = (repaint_prompt or "") + IDENTITY_LOCK_CLAUSE
                     saved = generate_image_repaint(
                         source_paths=[current], resolution=str(cfg.get("resolution") or "2K"),
                         prompt=repaint_prompt or None, use_detail_suffix=False,
