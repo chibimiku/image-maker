@@ -24,9 +24,10 @@
     "repeat": 1,
     "save_sub_dir": "gpt_image_repaint",
     "file_prefix": "repaint",
-    "system_prompt": "gpt-image-optimize/repaint-system.md",
+    "_system_prompt_comment": "默认用 v5（= v4 + Sol 第 7 轮的三处保守化：禁止凭先验补全不可见肢体/衣物、眼部只做保留式局部修复、主结构边界与次级笔触分级）。实测 v5 修掉了 v4 会「凭空补一只手」的缺陷（say-hana 腹部），头部 MAE 三例全部改善（3.5→3.4 / 3.7→3.2 / 3.0→2.3），代价是线条指标小幅回落（段长 −1~8%）。要最大清线力度可换回 v4；明确要 cel 成稿才换 repaint-system.md。",
+    "system_prompt": "gpt-image-optimize/repaint-system-conservative-v5.md",
     "detail_suffix": "gpt-image-optimize/repaint-detail-suffix.md",
-    "use_detail_suffix": true,
+    "use_detail_suffix": false,
     "model_options": [
         "gemini-3-pro-image-preview",
         "gemini-3-pro-image",

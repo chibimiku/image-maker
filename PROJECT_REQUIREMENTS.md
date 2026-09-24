@@ -61,6 +61,12 @@
   - **不要只依赖 setx**：任何在 setx 之前启动的进程（常驻的 DSH / 编辑器 / 老终端）内存里的环境块是旧的，
     它 spawn 的子进程同样拿不到。因此密钥统一写**仓库根目录的 `.env`**（模板 `.env.example`，`.env` 已被 gitignore），
     由 `utils/env_loader.ensure_env_loaded()` 在 `modules/others/api_backend.py` 导入时自动装载 —— 与父进程环境无关。
+  - **顶层文本 API 的 key 也要能走环境变量**：`conf/config.json` 顶层的 `api_key` / `nsfw_api_key`
+    （「文本分析 API」「NSFW 文本 API」）必须留空，改用 `IMAGE_MAKER_TEXT_API_KEY` / `IMAGE_MAKER_NSFW_API_KEY`
+    （通用名 `TEXT_API_KEY` / `NSFW_API_KEY` 也认）。图片分析 Step 1、画风压缩、booru tag 翻译、
+    SD 工作流的 LLM 步骤都读这一对——只把 key 放进 `.env` 而这条链没接，会照样 401 `Invalid token`。
+    解析入口 `api_backend.resolve_text_api_key` / `resolve_nsfw_api_key` / `apply_secret_env_overrides`
+    （**只在内存副本上覆盖，绝不回写配置文件**）。
   - 优先级：**真实环境变量 > `.env` > `conf/config.json`**。解析入口是 `api_backend.resolve_api_key` / `get_api_config`
     （返回的 `_api_key_source` 标明来源），**任何把 key 打进日志或界面的地方都必须先 mask（`mask_secret`），
     只允许暴露环境变量名，不允许暴露密钥值**。

@@ -646,8 +646,14 @@ class CharDesignWidget(QWidget):
         styles_data = self.get_styles() or {}
         has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
         active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
+        # gpt-image 通道要换成短版字段式说明（长说明书会压掉参考图），api_type 从配置快照取
+        try:
+            _api_snapshot = self.img_config_getter_func()
+            _api_type = str(_api_snapshot[3] or "")
+        except Exception:  # noqa: BLE001
+            _api_type = ""
         style_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
-            styles_data, selected_style_name, active_mode
+            styles_data, selected_style_name, active_mode, api_type=_api_type
         )
         custom_prefix_prompt = self.custom_prefix_prompt.toPlainText().strip()
         custom_suffix_prompt = self.custom_suffix_prompt.toPlainText().strip()

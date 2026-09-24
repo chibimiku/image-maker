@@ -1,0 +1,272 @@
+[
+  {
+    "id": "01",
+    "title": "首图 only（无任何工序）high",
+    "quality": "high",
+    "slot": 0,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）"
+    ],
+    "files": [
+      "data\\20260924\\optmatrix_output_003748_0_84d408.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:35:56",
+    "triggered": true,
+    "seconds": 112.4
+  },
+  {
+    "id": "02",
+    "title": "重绘+结构线+局部(保脸) high  ← 023401 工序",
+    "quality": "high",
+    "repaint": true,
+    "structure": true,
+    "local": true,
+    "region": "subject_no_face",
+    "slot": 1,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）",
+      "🧩 工序加工: repaint → structure → local",
+      "[工序] 开始：重绘提线",
+      "[工序] 重绘参考：源图 + 1 张（line_anchor）",
+      "[工序] 重绘输出比例锁定为 2:3（按源图比例）",
+      "[工序] 开始：结构线叠加",
+      "[工序] 结构线叠加 覆盖率 0.0724",
+      "[工序] 开始：局部重绘+羽化贴回",
+      "[后处理] 主体限制贴回已启用（遮罩覆盖 0.392）",
+      "[后处理] 局部重绘 区域=人物·保脸（手参与重绘） box=(48, 11, 1610, 2422) 裁切 1364x2046（缩放 0.849x，接口长边上限 2048，补边 0/0/19/19）",
+      "[QA] 区域 subject_no_face：改动像素占比 0.084（补边 (0, 0, 19, 19)）",
+      "[后处理] 已贴回 → data\\20260924\\optmatrix_output_003659_0_783d72-003659-7bc5bc-final-rp+sline50+local-subject_no_face.png（保留原像素 1 块）"
+    ],
+    "files": [
+      "data\\20260924\\optmatrix_output_003659_0_783d72-003659-7bc5bc-final-rp+sline50+local-subject_no_face.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:35:57",
+    "triggered": true,
+    "seconds": 148.2
+  },
+  {
+    "id": "04",
+    "title": "023401 配方复现：关「重新构图」+ 重绘+结构线+局部(保脸) high",
+    "quality": "high",
+    "repaint": true,
+    "structure": true,
+    "local": true,
+    "region": "subject_no_face",
+    "recompose": false,
+    "slot": 1,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 1841 字符，参考图 1 张：画风参考图）",
+      "🧩 工序加工: repaint → structure → local",
+      "[工序] 开始：重绘提线",
+      "[工序] 重绘参考：源图 + 1 张（line_anchor）",
+      "[工序] 重绘输出比例锁定为 2:3（按源图比例）",
+      "[工序] 开始：结构线叠加",
+      "[工序] 结构线叠加 覆盖率 0.1210",
+      "[工序] 开始：局部重绘+羽化贴回",
+      "[后处理] 主体限制贴回已启用（遮罩覆盖 0.002）",
+      "[后处理] ⚠ 主体遮罩在区域内几乎没有覆盖（0.002）→ 改为整框贴回",
+      "[后处理] 局部重绘 区域=人物·保脸（手参与重绘） box=(101, 50, 1594, 2477) 裁切 1365x2048（缩放 0.844x，接口长边上限 2048，补边 0/0/52/53）",
+      "[QA] 区域 subject_no_face：改动像素占比 0.198（补边 (0, 0, 52, 53)）",
+      "[后处理] 已贴回 → data\\20260924\\optmatrix_output_003929_0_33ceb9-003929-59d618-final-rp+sline50+local-subject_no_face.png（保留原像素 1 块）"
+    ],
+    "files": [
+      "data\\20260924\\optmatrix_output_003929_0_33ceb9-003929-59d618-final-rp+sline50+local-subject_no_face.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:38:25",
+    "triggered": true,
+    "seconds": 273.5
+  },
+  {
+    "id": "03",
+    "title": "重绘+结构线+局部(保脸) medium（画质对比）",
+    "quality": "medium",
+    "repaint": true,
+    "structure": true,
+    "local": true,
+    "region": "subject_no_face",
+    "slot": 0,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）",
+      "🧩 工序加工: repaint → structure → local",
+      "[工序] 开始：重绘提线",
+      "[工序] 重绘参考：源图 + 1 张（line_anchor）",
+      "[工序] 重绘输出比例锁定为 2:3（按源图比例）",
+      "[工序] 开始：结构线叠加",
+      "[工序] 结构线叠加 覆盖率 0.0971",
+      "[工序] 开始：局部重绘+羽化贴回",
+      "[后处理] 主体限制贴回已启用（遮罩覆盖 0.012）",
+      "[后处理] ⚠ 主体遮罩在区域内几乎没有覆盖（0.014）→ 改为整框贴回",
+      "[后处理] 局部重绘 区域=人物·保脸（手参与重绘） box=(101, 50, 1594, 2477) 裁切 1365x2048（缩放 0.844x，接口长边上限 2048，补边 0/0/52/53）",
+      "⚠️ 已把最后成功的状态写成最终产物（partial）：optmatrix_output_003847_0_d5882e-003847-6fbec3-final-partialrp+sline-rp+sline50+local-subject_no_face.png",
+      "❌ 工序失败（可从这一步重试）：局部重绘+羽化贴回 - RuntimeError: 局部重绘没有返回图片"
+    ],
+    "files": [
+      "data\\20260924\\pipeline-steps\\003847-6fbec3\\repaint_003941-bf4267-sline50.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:37:49",
+    "triggered": true,
+    "seconds": 349.1
+  },
+  {
+    "id": "05",
+    "title": "重绘+结构线+局部(保脸保手) high",
+    "quality": "high",
+    "repaint": true,
+    "structure": true,
+    "local": true,
+    "region": "subject_keep_hands",
+    "slot": 0,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）",
+      "🧩 工序加工: repaint → structure → local",
+      "[工序] 开始：重绘提线",
+      "[工序] 重绘参考：源图 + 1 张（line_anchor）",
+      "[工序] 重绘输出比例锁定为 2:3（按源图比例）",
+      "[工序] 开始：结构线叠加",
+      "[工序] 结构线叠加 覆盖率 0.0905",
+      "[工序] 开始：局部重绘+羽化贴回",
+      "[后处理] 主体限制贴回已启用（遮罩覆盖 0.360）",
+      "[后处理] 局部重绘 区域=人物·保脸保手（手保持原样） box=(108, 23, 1629, 2514) 裁切 1250x2222（缩放 0.822x，接口长边上限 2048，补边 87/88/0/0）",
+      "⚠️ 已把最后成功的状态写成最终产物（partial）：optmatrix_output_004436_0_4418a4-004436-b67473-final-partialrp+sline-rp+sline50+local-subject_keep_hands.png",
+      "❌ 工序失败（可从这一步重试）：局部重绘+羽化贴回 - RuntimeError: 局部重绘没有返回图片"
+    ],
+    "files": [
+      "data\\20260924\\pipeline-steps\\004436-b67473\\repaint_004512-595614-sline50.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:43:38",
+    "triggered": true,
+    "seconds": 203.9
+  },
+  {
+    "id": "07",
+    "title": "重绘+局部(保脸) high（不叠结构线）",
+    "quality": "high",
+    "repaint": true,
+    "local": true,
+    "region": "subject_no_face",
+    "attempt": 2,
+    "slot": 0,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）",
+      "🧩 工序加工: repaint → local",
+      "[工序] 开始：重绘提线",
+      "[工序] 重绘参考：源图 + 1 张（line_anchor）",
+      "[工序] 重绘输出比例锁定为 2:3（按源图比例）",
+      "[工序] 开始：局部重绘+羽化贴回",
+      "[后处理] 主体限制贴回已启用（遮罩覆盖 0.000）",
+      "[后处理] ⚠ 主体遮罩在区域内几乎没有覆盖（0.000）→ 改为整框贴回",
+      "[后处理] 局部重绘 区域=人物·保脸（手参与重绘） box=(101, 50, 1594, 2477) 裁切 1365x2048（缩放 0.844x，接口长边上限 2048，补边 0/0/52/53）",
+      "[QA] 区域 subject_no_face：改动像素占比 0.202（补边 (0, 0, 52, 53)）",
+      "[后处理] 已贴回 → data\\20260924\\optmatrix_output_005116_0_92972b-005116-953e30-final-rp+local-subject_no_face.png（保留原像素 1 块）"
+    ],
+    "files": [
+      "data\\20260924\\optmatrix_output_005116_0_92972b-005116-953e30-final-rp+local-subject_no_face.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:47:23",
+    "triggered": true,
+    "seconds": 347.4
+  },
+  {
+    "id": "06",
+    "title": "结构线+局部(保脸) high（不重绘）",
+    "quality": "high",
+    "structure": true,
+    "local": true,
+    "region": "subject_no_face",
+    "attempt": 3,
+    "slot": 1,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）",
+      "🧩 工序加工: structure → local",
+      "[工序] 开始：结构线叠加",
+      "[工序] 结构线叠加 覆盖率 0.0996",
+      "[工序] 开始：局部重绘+羽化贴回",
+      "[后处理] 主体限制贴回已启用（遮罩覆盖 0.349）",
+      "[后处理] 局部重绘 区域=人物·保脸（手参与重绘） box=(46, 69, 984, 1488) 裁切 1014x1535（缩放 1.082x，接口长边上限 2048，补边 0/0/0/0）",
+      "⚠️ 已把最后成功的状态写成最终产物（partial）：optmatrix_output_005300_0_c77998-005300-38a3e1-final-partialsline-sline50+local-subject_no_face.png",
+      "❌ 工序失败（可从这一步重试）：局部重绘+羽化贴回 - RuntimeError: 局部重绘没有返回图片"
+    ],
+    "files": [
+      "data\\20260924\\pipeline-steps\\005300-38a3e1\\optmatrix_output_005300_0_c77998-sline50.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:52:01",
+    "triggered": true,
+    "seconds": 92.0
+  },
+  {
+    "id": "08",
+    "title": "重绘+结构线+局部(保脸)+勾上色调校准/线条加墨 high",
+    "quality": "high",
+    "repaint": true,
+    "structure": true,
+    "local": true,
+    "region": "subject_no_face",
+    "tone": true,
+    "ink": true,
+    "attempt": 3,
+    "slot": 1,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）"
+    ],
+    "files": [],
+    "first_pass": "",
+    "status": "no-output",
+    "started_at": "00:57:29",
+    "triggered": true,
+    "seconds": 7.9
+  },
+  {
+    "id": "09",
+    "title": "重绘 only high（不叠线不局部）",
+    "quality": "high",
+    "repaint": true,
+    "attempt": 3,
+    "slot": 0,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）",
+      "🧩 工序加工: repaint",
+      "[工序] 开始：重绘提线",
+      "[工序] 重绘参考：源图 + 1 张（line_anchor）",
+      "[工序] 重绘输出比例锁定为 2:3（按源图比例）"
+    ],
+    "files": [
+      "data\\20260924\\gpt_image_repaint\\optmatrix_output_005723_0_1ab7e1-005723-10dddf-final-rp_005816-011309.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:53:51",
+    "triggered": true,
+    "seconds": 265.9
+  },
+  {
+    "id": "10",
+    "title": "首图 only medium（画质对比）",
+    "quality": "medium",
+    "slot": 1,
+    "logs": [
+      "\n🚀 gpt-image-2 生图（gpt-image-2，提示词 3469 字符，参考图 1 张：画风参考图）"
+    ],
+    "files": [
+      "data\\20260924\\optmatrix_output_005836_0_d862f9.png"
+    ],
+    "first_pass": "",
+    "status": "done",
+    "started_at": "00:57:37",
+    "triggered": true,
+    "seconds": 59.6
+  }
+]

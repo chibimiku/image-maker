@@ -43,6 +43,18 @@ from modules.video_generation.video_gen_tab import VideoGenWidget
 from modules.reference.tag_quick_ref_tab import TagQuickRefWidget
 from utils.image_upscale_runtime import normalize_upscale_options
 from utils.styles import normalize_style_entry, build_style_entry, ref_image_valid
+# 文本 / NSFW 两把密钥的统一解析（环境变量 > .env > conf/config.json）
+from modules.others.api_backend import (
+    resolve_api_key,
+    api_key_source,
+    resolve_text_api_key,
+    resolve_nsfw_api_key,
+    text_api_key_source,
+    nsfw_api_key_source,
+    apply_env_nodes,          # 把 .env / 环境变量里的图片节点定义与 current_api 合进已读的配置
+    load_config as load_api_config,   # 已合入环境变量的整份配置
+    _env_key_names,           # 该节点可用的环境变量名（界面只提示变量名，不显示密钥）
+)
 from utils.llm_retry import (
     DEFAULT_RETRY_ENABLED as DEFAULT_TEXT_RETRY_ENABLED,
     DEFAULT_RETRY_TIMES as DEFAULT_TEXT_RETRY_TIMES,
@@ -62,6 +74,18 @@ DEFAULT_BOORU_TAG_LIMIT = 30
 DEFAULT_STYLES = {
     "默认(无附加)": ""
 }
+
+
+def load_image_node_config(api_type):
+    """取某个图片节点的配置（已合入 .env / 环境变量里的节点定义，含 `env_slug`）。
+
+    模块级函数而不是 AppWindow 方法：`get_img_config` 会被解析成未绑定函数用
+    （测试与多线程里都这样调），不依赖实例上的辅助方法。
+    """
+    try:
+        return (load_api_config().get("apis") or {}).get(str(api_type or "")) or {}
+    except Exception:  # noqa: BLE001 - 配置读不出来不该让界面/自动生图崩
+        return {}
 
 
 class FilterableComboBox(QComboBox):
@@ -215,7 +239,7 @@ class AppWindow(QWidget):
         # 【Tab 1: 单图内容分析】
         self.single_analyzer_tab = SingleAnalyzerWidget(
             config_getter_func=self.get_text_config,
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
             ar_policy_getter_func=self.get_ar_policy_config,
@@ -242,7 +266,7 @@ class AppWindow(QWidget):
         # 【新增 Tab 3: 批量提示词与生图】
         self.prompt_generator_tab = PromptGeneratorWidget(
             config_getter_func=self.get_text_config,
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
             ar_policy_getter_func=self.get_ar_policy_config,   # 新增
@@ -255,7 +279,7 @@ class AppWindow(QWidget):
         # 【新增 Tab 4: 批量图片分析】
         self.batch_analyzer_tab = BatchAnalyzerWidget(
             config_getter_func=self.get_text_config,
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
             ar_policy_getter_func=self.get_ar_policy_config,
@@ -279,7 +303,7 @@ class AppWindow(QWidget):
         # 【新增 Tab 5: 批量图片编辑】
         self.image_edit_tab = ImageEditWidget(
             config_getter_func=self.get_text_config,
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data
         )
         self.image_edit_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
@@ -287,14 +311,14 @@ class AppWindow(QWidget):
         # 【新增 Tab 6: 角色设计生成】
         self.char_design_tab = CharDesignWidget(
             config_getter_func=self.get_text_config,
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data,
             upscale_options_getter_func=self.get_upscale_options,
             upscale_options_changed_callback=self.update_upscale_options
         )
         self.char_design_tab.main_style_combo.currentTextChanged.connect(self.sync_selected_style)
         self.single_gen_debug_tab = SingleGenDebugWidget(
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data,
             save_img_cfg_callback=lambda: self.save_image_config(silent=True),
             ar_policy_getter_func=self.get_ar_policy_config,
@@ -308,7 +332,7 @@ class AppWindow(QWidget):
         self.style_analyzer_tab = StyleAnalyzerWidget(
             config_getter_func=self.get_text_config,
             timeout_getter_func=self.get_request_timeout_seconds,
-            img_config_getter_func=lambda: (self.img_url_input.text().strip(), self.img_key_input.text().strip(), self.img_model_combo.currentText().strip(), self.api_type_combo.currentText()),
+            img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data,
             test_gen_default_getter_func=lambda: self.style_analyzer_test_gen,
             test_gen_changed_callback=self.on_style_analyzer_test_gen_changed,
@@ -657,7 +681,63 @@ class AppWindow(QWidget):
         main_layout.addWidget(self.main_tabs)
         self.setLayout(main_layout)
 
+    def _img_node_config(self, api_type):
+        """取某个图片节点的配置（已合入 .env / 环境变量里的节点定义，含 `env_slug`）。"""
+        return load_image_node_config(api_type)
+
+    def _env_owned_fields(self, api_type):
+        """该节点里**由环境变量定义/拥有**的字段名集合。
+
+        用途：① 保存时不要把 env 的值抄进 conf/config.json（否则配置压过 .env，改了 .env 不生效）；
+        ② 界面上把这些字段置灰只读，用户才不会改了以为生效、重启后又变回去。
+        """
+        from modules.others.api_backend import nodes_from_env
+
+        try:
+            node = nodes_from_env().get(str(api_type or "")) or {}
+        except Exception:  # noqa: BLE001 - 环境变量格式坏掉时按"没有"处理
+            node = {}
+        return {key for key, value in node.items() if value not in ("", None)}
+
+    def _apply_img_field_locks(self, api_type):
+        """环境变量定义过的字段：界面显示其值但置灰只读（并说明来源）。"""
+        env_fields = self._env_owned_fields(api_type)
+        for widget, field, example in (
+            (getattr(self, "img_url_input", None), "base_url", "IMAGE_MAKER_NODES / IMAGE_MAKER_<节点>_BASE_URL"),
+            (getattr(self, "img_model_combo", None), "model", "IMAGE_MAKER_NODES / IMAGE_MAKER_<节点>_MODEL"),
+        ):
+            if widget is None:
+                continue
+            locked = field in env_fields
+            try:
+                widget.setEnabled(not locked)
+                widget.setToolTip(f"由环境变量提供（{example}），此处只读；改 .env 后重启生效" if locked else "")
+            except Exception:  # noqa: BLE001
+                pass
+
+    def get_img_config(self):
+        """图片 API 配置（注入给各分析/生图 Tab）：key 走统一解析，环境变量优先于输入框。
+
+        图片节点的 `apis.<节点>.api_key` 按约定在 conf/config.json 里留空（值在 `.env`），
+        只读界面输入框会拿到空串 —— 自动生图/批量生图会把"已配置"误判成未配置而跳过。
+        节点配置要连 `env_slug` 一起传进 `resolve_api_key`：同家服务的多个节点靠它共用一把
+        环境变量（`aigc-2d-gpt` 写 `env_slug=aigc2d` → 找 `IMAGE_MAKER_AIGC2D_API_KEY`），
+        只传 `{"api_key": 输入框}` 时会按节点名去找 `IMAGE_MAKER_AIGC_2D_GPT_API_KEY`，
+        永远找不到 → key 被误判为空。
+        """
+        api_type = self.api_type_combo.currentText().strip()
+        node = load_image_node_config(api_type)
+        manual = self.img_key_input.text().strip() or str(node.get("api_key") or "")
+        img_key = resolve_api_key({**node, "api_key": manual}, api_type)
+        return (
+            self.img_url_input.text().strip(),
+            img_key,
+            self.img_model_combo.currentText().strip(),
+            api_type,
+        )
+
     def get_text_config(self, use_nsfw=False):
+        # key 统一走 resolve_*：环境变量（含 .env）优先，其次才是配置文件 / 界面输入框里的值
         if not hasattr(self, "url_input") or not hasattr(self, "model_combo"):
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -667,25 +747,71 @@ class AppWindow(QWidget):
             if use_nsfw:
                 return (
                     str(config.get("nsfw_base_url", config.get("base_url", "")) or "").strip(),
-                    str(config.get("nsfw_api_key", "") or "").strip(),
+                    resolve_nsfw_api_key(config),
                     str(config.get("nsfw_model", config.get("model", "")) or "").strip(),
                 )
             return (
                 str(config.get("base_url", "") or "").strip(),
-                str(config.get("api_key", "") or "").strip(),
+                resolve_text_api_key(config),
                 str(config.get("model", "") or "").strip(),
             )
         if use_nsfw:
             return (
                 self.nsfw_url_input.text().strip(),
-                self.nsfw_key_input.text().strip(),
+                resolve_nsfw_api_key({"nsfw_api_key": self.nsfw_key_input.text().strip()}),
                 self.nsfw_model_combo.currentText().strip()
             )
         return (
             self.url_input.text().strip(),
-            self.key_input.text().strip(),
+            resolve_text_api_key({"api_key": self.key_input.text().strip()}),
             self.model_combo.currentText().strip()
         )
+
+    def _apply_text_key_hints(self, config):
+        """密钥由环境变量提供时，输入框留空并提示变量名（不显示密钥值本身）。
+
+        和图片 API 节点（apis.*）的显示约定一致：界面只暴露变量名，永不显示密钥。
+        """
+        text_source = text_api_key_source(config)
+        if text_source.startswith("env:"):
+            self.key_input.setPlaceholderText(f"已由环境变量 {text_source[4:]} 提供，此处留空即可")
+            self.key_input.setToolTip(f"当前生效：{text_source}（优先级高于 conf/config.json 的 api_key）")
+        nsfw_source = nsfw_api_key_source(config)
+        if nsfw_source.startswith("env:"):
+            self.nsfw_key_input.setPlaceholderText(f"已由环境变量 {nsfw_source[4:]} 提供，此处留空即可")
+            self.nsfw_key_input.setToolTip(f"当前生效：{nsfw_source}（优先级高于 conf/config.json 的 nsfw_api_key）")
+
+    def _apply_img_key_hint(self, api_config, api_type):
+        """图片节点 key 来自环境变量时，输入框留空并提示变量名（不显示密钥值）。
+
+        与「文本分析 API」同一套约定：`apis.<节点>.api_key` 留空、值放 `.env`，
+        界面上只暴露变量名。两边都没有时也要说清楚"应该是哪个变量"，
+        否则用户只看到一个空的密码框，不知道是没配还是被环境变量接管了。
+        """
+        source = api_key_source(api_type, api_config)
+        if source.startswith("env:"):
+            self.img_key_input.setPlaceholderText(f"已由环境变量 {source[4:]} 提供，此处留空即可")
+            self.img_key_input.setToolTip(
+                f"当前生效：{source}（优先级高于 conf/config.json 的 apis.{api_type}.api_key）"
+            )
+            try:
+                self.img_key_input.setEnabled(False)      # 环境变量接管 → 置灰，改了也没用
+            except Exception:  # noqa: BLE001
+                pass
+            return
+        try:
+            self.img_key_input.setEnabled(True)
+        except Exception:  # noqa: BLE001
+            pass
+        node_key = str((api_config or {}).get("api_key") or "").strip()
+        if not node_key and not self.img_key_input.text().strip():
+            names = _env_key_names(api_type, api_config)
+            name = names[0] if names else f"IMAGE_MAKER_{str(api_type).upper()}_API_KEY"
+            self.img_key_input.setPlaceholderText(f"未配置：可直接填这里，或用环境变量 {name}")
+            self.img_key_input.setToolTip(f"节点 {api_type} 当前没有可用的 key（配置文件与 {name} 都为空）")
+        else:
+            self.img_key_input.setPlaceholderText("")
+            self.img_key_input.setToolTip("")
 
     def get_booru_tag_limit(self):
         try:
@@ -848,6 +974,7 @@ class AppWindow(QWidget):
                     self.key_input.setText(config.get("api_key", ""))
                     self.nsfw_url_input.setText(config.get("nsfw_base_url", config.get("base_url", "")))
                     self.nsfw_key_input.setText(config.get("nsfw_api_key", ""))
+                    self._apply_text_key_hints(config)
                     # 【新增】读取上次保存的画风
                     self.last_used_style = config.get("last_used_style", "默认(无附加)")
                     self.use_nsfw_single = bool(config.get("use_nsfw_single", False))
@@ -939,6 +1066,15 @@ class AppWindow(QWidget):
             try:
                 with open(CONFIG_IMAGE_FILE, "r", encoding="utf-8") as f:
                     config = json.load(f)
+                    # 节点定义与密钥可能只写在 .env / 环境变量里（IMAGE_MAKER_NODES /
+                    # IMAGE_MAKER_CURRENT_API）。直接 json.load 的话界面看不到这些节点、
+                    # current_api 也读不到环境变量覆盖 → 界面停在 config.json 里剩下的那个节点
+                    # （例如 whatup），key 显示为空，自动生图报「生图 API Key 不能为空」。
+                    config = apply_env_nodes(config)
+                    # 环境变量里定义的节点也要出现在下拉里，否则用户根本选不到
+                    for _node in (config.get("apis") or {}):
+                        if self.api_type_combo.findText(str(_node)) == -1:
+                            self.api_type_combo.addItem(str(_node))
                     # 读取当前API类型
                     current_api = config.get("current_api", "whatup")
 
@@ -960,6 +1096,8 @@ class AppWindow(QWidget):
                     else:
                         self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
                     self.img_key_input.setText(api_config.get("api_key", ""))
+                    self._apply_img_key_hint(api_config, current_api)
+                    self._apply_img_field_locks(current_api)
                     saved_model = api_config.get("model", "")
                     if saved_model:
                         if self.img_model_combo.findText(saved_model) == -1:
@@ -1296,6 +1434,8 @@ class AppWindow(QWidget):
             try:
                 with open(CONFIG_IMAGE_FILE, "r", encoding="utf-8") as f:
                     config = json.load(f)
+                    # 同 __init__：节点可能只定义在 .env / 环境变量里，必须合进来才能读到 base_url/model
+                    config = apply_env_nodes(config)
                     
                     # 读取对应API的配置
                     api_config = config.get("apis", {}).get(api_type, {})
@@ -1313,6 +1453,8 @@ class AppWindow(QWidget):
                         self.img_url_input.setText(api_config.get("base_url", "https://api.whatai.cc/v1"))
                     
                     self.img_key_input.setText(api_config.get("api_key", ""))
+                    self._apply_img_key_hint(api_config, api_type)
+                    self._apply_img_field_locks(api_type)
                     saved_model = api_config.get("model", "")
                     if saved_model:
                         if self.img_model_combo.findText(saved_model) == -1:
@@ -1401,11 +1543,36 @@ class AppWindow(QWidget):
             "debug_dump_full_http": bool(self.img_debug_dump_checkbox.isChecked()),
             "resolution": self.img_resolution_combo.currentText().strip() or "2K",
         }
+        # `env_slug` / `api_type` / `site` 是「多个节点共用一把环境变量」「站点细节」这类部署信息，
+        # 界面上没有对应控件。保存时如果丢掉，节点下次只能按自己的名字找环境变量
+        # （aigc-2d-gpt → IMAGE_MAKER_AIGC_2D_GPT_API_KEY），共用变量的节点会突然变成"没配 key"。
+        node_before = self._img_node_config(target_api_node)
+        for key in ("env_slug", "api_type", "site"):
+            if node_before.get(key) and not api_config.get(key):
+                api_config[key] = node_before[key]
 
         # 保留 config-image.json 其他顶层节点（如 webui_img2img / diff_cg）
         config = existing_config if isinstance(existing_config, dict) else {}
         if not isinstance(config.get("apis"), dict):
             config["apis"] = {}
+        # 节点完全由环境变量定义（配置文件里原本没有这个名字）时，**不把 env 的值抄进配置文件**：
+        # 抄进去以后配置就盖过了 .env（`load_config` 是"配置优先、环境变量补缺"），
+        # 用户改了 .env 却看不到变化，等于把环境变量变成了"一次性导入"。
+        # 这里只保存界面自己的记忆项（超时/重试/比例策略/分辨率…），节点定义继续由 .env 负责。
+        env_owned = target_api_node not in (config.get("apis") or {})
+        if env_owned:
+            for key in ("base_url", "api_key", "model", "env_slug", "api_type", "site"):
+                api_config.pop(key, None)
+
+        raw_node = (config.get("apis") or {}).get(target_api_node) or {}
+        env_fields = self._env_owned_fields(target_api_node)
+        for field in env_fields:
+            if field not in raw_node:
+                # 该字段由环境变量提供、配置文件里原本没有 → 不抄进配置文件。
+                # 抄进去以后配置就压过 .env（`load_config` 是"配置优先、环境变量补缺"），
+                # 用户改了 .env 却看不到变化，等于把环境变量变成"一次性导入"。
+                api_config.pop(field, None)
+
         config["current_api"] = current_api_global
         # 【修改】将数据保存到正确的节点 target_api_node 下
         config["apis"][target_api_node] = api_config
@@ -1481,7 +1648,7 @@ class AppWindow(QWidget):
 
     def fetch_models(self):
         self._fetch_models_for(
-            api_key=self.key_input.text().strip(),
+            api_key=resolve_text_api_key({"api_key": self.key_input.text().strip()}),
             base_url=self.url_input.text().strip(),
             model_combo=self.model_combo,
             fetch_btn=self.fetch_btn
@@ -1489,7 +1656,7 @@ class AppWindow(QWidget):
 
     def fetch_nsfw_models(self):
         self._fetch_models_for(
-            api_key=self.nsfw_key_input.text().strip(),
+            api_key=resolve_nsfw_api_key({"nsfw_api_key": self.nsfw_key_input.text().strip()}),
             base_url=self.nsfw_url_input.text().strip(),
             model_combo=self.nsfw_model_combo,
             fetch_btn=self.fetch_nsfw_btn

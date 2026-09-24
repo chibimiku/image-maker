@@ -96,6 +96,10 @@ def save_step1_analysis(result: dict | None, image_path: str,
 def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 300,
                          log_callback: LogCallback = None) -> dict | None:
     """对单图执行完整 LLM 分析链（Step 1~5），返回分析结果 JSON，失败返回 None。"""
+    from modules.others.api_backend import apply_secret_env_overrides
+
+    # 只在内存副本上套用环境变量（IMAGE_MAKER_TEXT_API_KEY 优先），绝不回写磁盘配置
+    config = apply_secret_env_overrides(dict(config or {}))
     base_url = str(config.get("base_url", "")).strip()
     api_key = str(config.get("api_key", "")).strip()
     model_name = str(config.get("model", "")).strip()
@@ -106,7 +110,10 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
     enable_recompute_pixiv_tags = enable_outfit_check or remove_photo_style
 
     if not api_key or not model_name:
-        raise RuntimeError("API Key 或模型名为空，请检查 conf/config.json")
+        raise RuntimeError(
+            "API Key 或模型名为空：请配置环境变量 IMAGE_MAKER_TEXT_API_KEY（.env），"
+            "或检查 conf/config.json 顶层的 api_key / model"
+        )
 
     client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout_seconds)
 
@@ -207,6 +214,35 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
         if original_booru_tags:
             final_result["booru-tags"] = original_booru_tags
 
+    # gpt-image 通道专用短提示词：单独字段（与 Gemini 用的长 prompts 分开，不混用）。
+    # 两档：full（≤1400，不挂参考图/内容优先）与 short（≤500，要挂画风参考图时用；短文本才压得住参考图）。
+    if final_result and config.get("enable_gpt_image_prompt_single", True):
+        try:
+            from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
+                                                   SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)
+            desc = str(final_result.get("english_description") or "").strip()
+            if desc:
+                text_cfg = {"base_url": base_url, "api_key": api_key, "model": model_name}
+                _log(log_callback, "== 附加: 生成 gpt-image 专用短提示词（完整档） ==")
+                field = build_gpt_image_prompt(
+                    desc, text_cfg=text_cfg, max_chars=FIELD_MAX_CHARS, tier="full",
+                    log_callback=(lambda m: _log(log_callback, m)),
+                )
+                if field:
+                    final_result[FIELD_KEY] = field
+                    _log(log_callback, f"✅ gpt-image 完整档 {len(field)} 字符（与 Gemini 的 prompts 分开保存）")
+                if config.get("enable_gpt_image_prompt_short_single", True):
+                    _log(log_callback, "== 附加: 生成 gpt-image 专用短提示词（短锚档） ==")
+                    short_field = build_gpt_image_prompt(
+                        desc, text_cfg=text_cfg, max_chars=SHORT_FIELD_MAX_CHARS, tier="short",
+                        log_callback=(lambda m: _log(log_callback, m)),
+                    )
+                    if short_field:
+                        final_result[SHORT_FIELD_KEY] = short_field
+                        _log(log_callback, f"✅ gpt-image 短锚档 {len(short_field)} 字符")
+        except Exception as exc:  # noqa: BLE001 - 该附加步骤失败不影响分析结果
+            _log(log_callback, f"⚠️ gpt-image 短提示词生成失败，已跳过: {type(exc).__name__}: {exc}")
+
     return final_result
 
 
@@ -270,6 +306,20 @@ def save_result_to_source(result_json: dict, image_path: str,
     with open(orig_txt_path, "w", encoding="utf-8") as f:
         f.write(orig_prompt)
     _log(log_callback, f"📄 提示词已保存: {os.path.basename(txt_path)} | {os.path.basename(orig_txt_path)}")
+
+    # gpt-image 通道专用短提示词（与 Gemini 用的长 prompts 分开，绝不混用）
+    gpt_field = str(result_json.get("gpt_image_prompt") or "").strip()
+    if gpt_field:
+        gpt_txt_path = ensure_unique_path(os.path.join(save_dir, f"{base_filename}-gpt-image-prompts.txt"))
+        with open(gpt_txt_path, "w", encoding="utf-8") as f:
+            f.write(gpt_field)
+        _log(log_callback, f"📄 gpt-image 短提示词已保存: {os.path.basename(gpt_txt_path)}（{len(gpt_field)} 字符）")
+    gpt_short = str(result_json.get("gpt_image_prompt_short") or "").strip()
+    if gpt_short:
+        gpt_short_path = ensure_unique_path(os.path.join(save_dir, f"{base_filename}-gpt-image-short-prompts.txt"))
+        with open(gpt_short_path, "w", encoding="utf-8") as f:
+            f.write(gpt_short)
+        _log(log_callback, f"📄 gpt-image 短锚档已保存: {os.path.basename(gpt_short_path)}（{len(gpt_short)} 字符）")
 
     return json_path
 

@@ -59,6 +59,26 @@ LEGACY_TEST_ARTIFACT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# 测试用例里造的图片名（`utils/post_process.run_pipeline` 的产物名 = 源图 stem + run-id + 工序串）。
+# 真实产出是从素材名派生的（日期-时间-标题…），这些词只出现在测试里。
+_TEST_IMAGE_STEMS = (
+    "img", "img2", "img3", "in", "in2", "in3", "out", "src", "src2", "base", "base2",
+    "patch", "sub", "sub2", "shot", "shot1", "shot2", "shot3", "multi", "tight",
+    "maskless", "det", "shoe", "hand", "manual", "keep", "maskless2",
+)
+_TEST_STEM_ALT = "|".join(sorted(_TEST_IMAGE_STEMS, key=len, reverse=True))
+# 中间产物后缀（sline50 / local-hair / tone / ink / crop / lineanchor / pp）与最终产物（-final-）
+_PIPELINE_JUNK_SUFFIX = (
+    r"-final-[^/]*\.(?:png|jpg|jpeg|webp)"
+    r"|-sline\d+\.(?:png|jpg|jpeg|webp)"
+    r"|-local-[^/]*\.(?:png|jpg|jpeg|webp)"
+    r"|-(?:tone|ink|pp|lineanchor|crop)\.(?:png|jpg|jpeg|webp)"
+)
+PIPELINE_TEST_ARTIFACT_RE = re.compile(
+    r"^(?:" + _TEST_STEM_ALT + r")(?:-\d{6}-[0-9a-f]{6})?(?:" + _PIPELINE_JUNK_SUFFIX + r")$",
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # 环境开关
@@ -123,8 +143,15 @@ def resolve_output_target(save_dir: str, base_filename: str) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 
 def is_legacy_test_artifact(filename: str) -> bool:
-    """文件名是否是历史上的测试产物（`…-hash_0-title_0.json` 一族）。"""
-    return bool(LEGACY_TEST_ARTIFACT_RE.fullmatch(os.path.basename(filename)))
+    """文件名是否是历史上的测试产物。
+
+    - `…-hash_0-title_0.json` 一族（分析落盘）；
+    - 流水线产物：`img-233500-a35670-final-sline50.png` 这种「测试临时图名 + run-id + 工序串」
+      （`run_pipeline` 不传 final_dir 时默认落到 `data/<日期>/`，pytest 里就留下了一堆废文件）。
+    """
+    name = os.path.basename(filename)
+    return bool(LEGACY_TEST_ARTIFACT_RE.fullmatch(name)
+                or PIPELINE_TEST_ARTIFACT_RE.fullmatch(name))
 
 
 def repo_root() -> Path:

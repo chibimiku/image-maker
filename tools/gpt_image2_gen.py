@@ -69,8 +69,15 @@ from utils.gpt_image_optimize import (  # noqa: E402
     load_config as load_repaint_config,
     resolve_aspect_ratio,
 )
+from utils.style_gpt import (  # noqa: E402
+    is_gpt_image_api_type,
+    resolve_style_prompt,
+    style_prompt_gpt,
+    style_ref_image_for_api,
+)
 
 DEFAULT_CONFIG = os.path.join(BASE_DIR, "conf", "config.json")
+STYLES_FILE = os.path.join(BASE_DIR, "conf", "config-styles.json")
 SITE_CHOICES = (GPT_IMAGE2_SITE_AIGC2D, GPT_IMAGE2_SITE_AUTODL)
 EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 SIZE_LINE_RE = re.compile(r"^(auto|\d+x\d+)\s*$", re.IGNORECASE)
@@ -89,6 +96,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--prompt", action="append", default=[], help="提示词，可重复")
     parser.add_argument("--prompt-file", help="提示词文件：每行一条，`#` 注释，可用 `WxH|提示词` 覆盖单张尺寸")
     parser.add_argument("--image", action="append", default=[], help=f"参考图/原图，可重复，最多 {GPT_IMAGE2_MAX_REFERENCE_IMAGES} 张")
+    parser.add_argument("--style", help="画风名（conf/config-styles.json 的键）：自动用该画风给 gpt-image 通道准备的短版说明（prompt_gpt），"
+                                        "并把画风的参考图自动挂上；仍可与 --prompt 叠加主体描述")
+    parser.add_argument("--styles-file", default=STYLES_FILE, help="画风预设文件，默认 conf/config-styles.json")
+    parser.add_argument("--list-styles", action="store_true", help="列出画风预设（含是否有 prompt_gpt / 参考图）后退出")
     parser.add_argument("--size", help="尺寸；aigc2d 仅 3 档(1024x1024/1536x1024/1024x1536)，autodl 另含 auto/1792x1024")
     parser.add_argument("--quality", choices=GPT_IMAGE2_QUALITIES, help="画质，默认取配置或 high")
     parser.add_argument("--output-format", choices=GPT_IMAGE2_OUTPUT_FORMATS, help="输出格式，默认取配置或 png")
@@ -250,6 +261,58 @@ def _describe_request(args, site: str, api_type: str, prompt: str, size: str, qu
     return info
 
 
+def load_styles(path: str) -> dict:
+    """读取画风预设（缺失时返回空字典，不阻断普通生图）。"""
+    if not path or not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:  # noqa: BLE001
+        _emit(f"[提示] 画风文件读取失败（忽略 --style）: {exc}")
+        return {}
+
+
+def cmd_list_styles(args) -> int:
+    styles = load_styles(args.styles_file)
+    if not styles:
+        _emit(f"[错误] 没有可用画风: {args.styles_file}")
+        return EXIT_USAGE
+    _emit(f"画风预设 {len(styles)} 个（{args.styles_file}）")
+    for name in styles:
+        gpt = style_prompt_gpt(styles, name)
+        ref = style_ref_image_for_api(styles, name, "aigc-2d-gpt")
+        _emit(f"  - {name:26s} prompt_gpt={'有(' + str(len(gpt)) + '字)' if gpt else '缺':>12}  "
+              f"ref_image={'有' if os.path.isfile(ref) else '无'}")
+    return EXIT_OK
+
+
+def _apply_style(args, subject: str) -> str:
+    """把 --style 的 gpt 版画风说明与主体拼成单条 prompt（与 GUI 共用角色分工逻辑）。"""
+    if not args.style:
+        return subject
+    from utils.styles import compose_style_prompt, ordered_reference_images
+    styles = load_styles(args.styles_file)
+    if args.style not in styles:
+        _emit(f"[警告] --style {args.style} 不在画风文件里，按普通提示词处理")
+        return subject
+    style_text = resolve_style_prompt(styles, args.style, api_type=GPT_IMAGE2_SITE_API_TYPES[args.site])
+    ref = style_ref_image_for_api(styles, args.style, GPT_IMAGE2_SITE_API_TYPES[args.site])
+    content_images = [p for p in (args.image or []) if p]
+    has_ref = bool(ref and os.path.isfile(ref))
+    if has_ref:
+        args.image = ordered_reference_images(content_images, ref, style_ref_attached=True)
+        _emit(f"[画风] {args.style}: 已挂参考图 {ref}（放在内容图之后，最后一张）")
+    if not style_text:
+        _emit(f"[警告] 画风 {args.style} 没有可用说明文本")
+        return subject
+    label = "prompt_gpt" if style_prompt_gpt(styles, args.style) else "prompt/prompt_compressed"
+    _emit(f"[画风] {args.style}: 使用 {label}（{len(style_text)} 字符）+ 主体 {len(subject)} 字符")
+    return compose_style_prompt(style_text, subject, style_ref_attached=has_ref,
+                               content_image_count=len(content_images))
+
+
 def _run_one(args, site: str, api_type: str, prompt: str, size: str) -> list:
     quality = args.quality or ""
     output_format = args.output_format or ""
@@ -399,6 +462,8 @@ def main(argv=None) -> int:
         return cmd_list_sites(args.config)
     if args.list_models:
         return cmd_list_models(args.config, args.site, timeout=args.timeout or 20)
+    if args.list_styles:
+        return cmd_list_styles(args)
     if args.repaint or args.repaint_show_prompt:
         return cmd_repaint(args)
 
@@ -410,9 +475,13 @@ def main(argv=None) -> int:
     except ValueError as exc:
         _emit(f"[错误] {exc}")
         return EXIT_USAGE
+    if not prompts and args.style:
+        prompts = [("", None)]
     if not prompts:
-        _emit("[错误] 需要 --prompt 或 --prompt-file 提供提示词")
+        _emit("[错误] 需要 --prompt / --prompt-file / --style 提供提示词")
         return EXIT_USAGE
+    # --style：把画风短版说明与主体拼成单条，并自动挂上画风参考图
+    prompts = [(_apply_style(args, text), size_override) for text, size_override in prompts]
 
     images = list(args.image or [])
     missing = [p for p in images if not os.path.isfile(p)]

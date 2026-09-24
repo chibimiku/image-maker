@@ -1,0 +1,33 @@
+prompt_gpt 校验（tools/convert_styles_gpt.py --check 的等价结果）
+
+[n/a ] 默认(无附加)  画风本身为空
+[OK  ] puracotte-style           545 字符
+[OK  ] puracotte-style-v2        547 字符
+[OK  ] puracotte-v3              597 字符
+[OK  ] tinkle-style              543 字符
+[OK  ] fuzichoco                 637 字符
+[OK  ] fuzichoco-v2              528 字符
+[OK  ] dall-e                    541 字符
+[OK  ] dall-e-v2                 577 字符
+[OK  ] dall-e-v3                 600 字符
+[OK  ] satou_kuuki-style         557 字符
+[OK  ] satou_kuuki-style-v2      561 字符
+[OK  ] waterink-style            574 字符
+[OK  ] iris-mix-style            591 字符
+[OK  ] noir-art-style            562 字符
+[OK  ] shiratamaco-style         574 字符
+[OK  ] shiratamaco-v2-style      535 字符
+[OK  ] sheya-style               545 字符
+[OK  ] say-hana-style            550 字符
+[OK  ] say-hana-v2               498 字符
+[OK  ] say-hana-v3               587 字符
+[OK  ] say-hana-v4               534 字符
+[OK  ] say-hana-v5               578 字符
+[OK  ] tid                       543 字符
+[OK  ] ajicoma                   631 字符
+[OK  ] inf-nikki-v1              532 字符
+[OK  ] noir-aiart                514 字符
+[OK  ] goto-p                    572 字符
+[OK  ] komori-hikki-style        568 字符
+
+合规 28 个 / 占位 1 个

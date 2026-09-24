@@ -1,0 +1,112 @@
+[
+  {
+    "variant": "R1",
+    "clip": 0.7819,
+    "hsv": 0.4759,
+    "bright": 226.1,
+    "sat": 22.4,
+    "white": 0.439,
+    "edge": 0.0722,
+    "edge_delta": 0.0059,
+    "file": "luna-r1_output_005648_0_3f0adc.png"
+  },
+  {
+    "variant": "R2",
+    "clip": 0.7555,
+    "hsv": 0.53,
+    "bright": 227.5,
+    "sat": 9.9,
+    "white": 0.499,
+    "edge": 0.062,
+    "edge_delta": 0.0043,
+    "file": "luna-r2_output_005720_0_818e1d.png"
+  },
+  {
+    "variant": "R3",
+    "clip": 0.7628,
+    "hsv": 0.2676,
+    "bright": 215.5,
+    "sat": 18.0,
+    "white": 0.43,
+    "edge": 0.0731,
+    "edge_delta": 0.0069,
+    "file": "luna-r3_output_005752_0_0c5c1a.png"
+  },
+  {
+    "variant": "R4",
+    "clip": 0.763,
+    "hsv": 0.4688,
+    "bright": 228.4,
+    "sat": 17.0,
+    "white": 0.486,
+    "edge": 0.0595,
+    "edge_delta": 0.0068,
+    "file": "luna-r4_output_005830_0_dbdc32.png"
+  },
+  {
+    "variant": "R5",
+    "clip": 0.8254,
+    "hsv": 0.6442,
+    "bright": 238.8,
+    "sat": 13.3,
+    "white": 0.686,
+    "edge": 0.0364,
+    "edge_delta": 0.0299,
+    "file": "luna-r5_output_005918_0_1063ef.png"
+  },
+  {
+    "variant": "R6",
+    "clip": 0.7881,
+    "hsv": 0.372,
+    "bright": 237.5,
+    "sat": 10.6,
+    "white": 0.66,
+    "edge": 0.0497,
+    "edge_delta": 0.0166,
+    "file": "luna-r6_output_005953_0_842f79.png"
+  },
+  {
+    "variant": "R7",
+    "clip": 0.8015,
+    "hsv": 0.2955,
+    "bright": 215.3,
+    "sat": 31.3,
+    "white": 0.222,
+    "edge": 0.0934,
+    "edge_delta": 0.0271,
+    "file": "luna-r7_output_010030_0_331310.png"
+  },
+  {
+    "variant": "R8",
+    "clip": 0.7167,
+    "hsv": 0.3066,
+    "bright": 230.3,
+    "sat": 10.1,
+    "white": 0.59,
+    "edge": 0.047,
+    "edge_delta": 0.0193,
+    "file": "luna-r8_output_010109_0_f3cfb1.png"
+  },
+  {
+    "variant": "G1_校准版+原图(基线)",
+    "clip": 0.7882,
+    "hsv": 0.2869,
+    "bright": 220.6,
+    "sat": 27.4,
+    "white": 0.289,
+    "edge": 0.0782,
+    "edge_delta": 0.0119,
+    "file": "tid-G1.png"
+  },
+  {
+    "variant": "A1_全量11k无图(基线)",
+    "clip": 0.7328,
+    "hsv": 0.0151,
+    "bright": 96.1,
+    "sat": 157.3,
+    "white": 0.019,
+    "edge": 0.145,
+    "edge_delta": 0.0787,
+    "file": "tid-A1.png"
+  }
+]

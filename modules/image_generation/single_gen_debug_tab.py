@@ -8,12 +8,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 
 from modules.image_analysis.single_analyzer import ImageGenWorkerThread
-from modules.others.api_backend import fetch_llm_json, _extract_json_object
+from modules.others.api_backend import fetch_llm_json, _extract_json_object, resolve_text_api_key
 from utils.styles import (
     MODE_OFF,
     style_prompt, style_prompt_compressed, style_ref_image, ref_image_valid, build_style_entry,
     normalize_style_entry, assemble_style_instructions, save_styles_file,
 )
+from utils.style_gpt import is_gpt_image_api_type, style_prompt_gpt
 from utils.style_ref_widget import StyleRefModeCombo
 
 
@@ -53,10 +54,13 @@ class CompressPromptThread(QThread):
             with open(CONFIG_TEXT_FILE, "r", encoding="utf-8") as f:
                 text_cfg = json.load(f)
             base_url = str(text_cfg.get("base_url") or "").strip()
-            api_key = str(text_cfg.get("api_key") or "").strip()
+            api_key = resolve_text_api_key(text_cfg)
             model = str(text_cfg.get("model") or "").strip()
             if not (base_url and api_key and model):
-                self.failed.emit("conf/config.json 中缺少文本 API 配置（base_url / api_key / model）")
+                self.failed.emit(
+                    "缺少文本 API 配置：请在环境变量 IMAGE_MAKER_TEXT_API_KEY（.env）"
+                    "或 conf/config.json 中配置 base_url / api_key / model"
+                )
                 return
             system_prompt = COMPRESS_SYSTEM_PROMPT.format(max_chars=self.max_chars)
             raw = fetch_llm_json(
@@ -600,7 +604,10 @@ class SingleGenDebugWidget(QWidget):
 
         aspect_ratio = self._resolve_aspect_ratio()
         resolution = self._resolve_resolution()
+        style_name = self.main_style_combo.currentText()
         style_text = self._current_style_text()
+        # gpt-image 通道只认短版字段式说明（长说明书会抢走参考图的话语权）
+        gpt_style_text = style_prompt_gpt(self.get_styles() or {}, style_name) if is_gpt_image_api_type(api_type) else ""
         ref_path, ref_source = self._effective_style_ref_image()
         has_ref = ref_image_valid(ref_path)
         mode = self.style_mode_combo.effective_mode(has_ref)
@@ -609,7 +616,8 @@ class SingleGenDebugWidget(QWidget):
             mode,
             style_text,
             has_ref,
-            style_prompt_compressed(self.get_styles() or {}, self.main_style_combo.currentText()),
+            style_prompt_compressed(self.get_styles() or {}, style_name),
+            gpt_style_text,
         )
         image_paths = list(self.attach_image_paths)
         if has_ref and mode != MODE_OFF:

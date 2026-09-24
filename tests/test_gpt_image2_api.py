@@ -49,6 +49,8 @@ TAB_CONFIG = {
             "api_key": "test-key",
             "model": "gpt-image-2",
             "default_aspect_ratio": "2:3",
+            # 与真实部署一致：aigc-2d-gpt 与 aigc2d 共用一把环境变量（env_slug）
+            "env_slug": "aigc2d",
         },
         "autodl": {
             "base_url": "https://autodl.invalid/api/v1",
@@ -314,7 +316,10 @@ def test_tab_has_two_sites_with_per_site_sizes(tab):
     assert MODE_REPAINT in MODE_CHOICES
     # aigc2d 站点只给 3 档
     assert tab.current_site() == SITE_AIGC2D
-    assert [tab.size_combo.itemData(i) for i in range(tab.size_combo.count())] == list(GPT_IMAGE2_SIZES)
+    size_values = [tab.size_combo.itemData(i) for i in range(tab.size_combo.count())]
+    # aigc2d：三档固定尺寸 + 「自动（跟随参考图比例）」
+    assert [v for v in size_values if v in GPT_IMAGE2_SIZES] == list(GPT_IMAGE2_SIZES)
+    assert tab.SIZE_FOLLOW_INPUT in size_values
 
 
 def test_tab_loads_per_site_defaults(tab):
@@ -738,19 +743,39 @@ def test_config_key_may_be_empty_when_env_var_supplies_it(monkeypatch, tmp_path)
     assert cfg2["_api_key_source"] == "none"
 
 
-def test_get_api_config_does_not_mutate_cached_config(tab):
-    """get_api_config 返回副本：调用方改它不会污染后续读取。"""
+def test_get_api_config_does_not_mutate_cached_config(tmp_path):
+    """get_api_config 返回副本：调用方改它不会污染后续读取（含 load_config 的缓存）。
+
+    自带 tmp 配置：不依赖开发机 conf/config.json 或 .env 里有没有 aigc2d 节点
+    （没有节点时拿到的是空 dict，断言会退化成"空 dict 不等于被改过的 dict"而失去意义）。
+    """
     from modules.others import api_backend as backend
 
-    cfg = backend.get_api_config(api_type=SITE_AIGC2D or "aigc2d")
+    conf = tmp_path / "config.json"
+    conf.write_text(json.dumps({
+        "current_api": "aigc-2d-gpt",
+        "apis": {"aigc-2d-gpt": {"base_url": "https://example.invalid/v1",
+                                 "api_key": "sk-ORIGINAL", "model": "gpt-image-2"}},
+    }), encoding="utf-8")
+
+    cfg = backend.get_api_config(config_path=str(conf), api_type="aigc-2d-gpt")
+    assert cfg["api_key"] == "sk-ORIGINAL"
     cfg["api_key"] = "sk-MUTATED"
-    again = backend.get_api_config(api_type="aigc2d")
-    assert again["api_key"] != "sk-MUTATED"
+    again = backend.get_api_config(config_path=str(conf), api_type="aigc-2d-gpt")
+    assert again["api_key"] == "sk-ORIGINAL", "调用方改返回值不能污染缓存里的配置"
 
 
 def test_tab_hint_shows_key_source(tab, monkeypatch):
-    """界面上的 Key 状态要标出「来自配置」还是「来自哪个环境变量」，且不含密钥本身。"""
-    # aigc-2d-gpt 节点配了 env_slug=aigc2d，所以设这一个变量即可
+    """界面上的 Key 状态要标出「来自配置」还是「来自哪个环境变量」，且不含密钥本身。
+
+    这里自己定义节点（`IMAGE_MAKER_NODES`，含 `env_slug=aigc2d`）：Tab 的 key 解析走的是
+    `api_backend.get_api_config`（默认 conf/config.json + 环境变量合并），不会用 Tab 自己的
+    临时配置，所以断言不能依赖开发机上的 `.env` / 真实配置。
+    """
+    monkeypatch.setenv("IMAGE_MAKER_NODES", json.dumps({
+        "aigc-2d-gpt": {"base_url": "https://example.invalid/v1", "model": "gpt-image-2",
+                        "env_slug": "aigc2d"},
+    }))
     monkeypatch.setenv("IMAGE_MAKER_AIGC2D_API_KEY", "sk-FROM-ENV-333333333333333333333333333")
     tab.refresh_api_hint()
     text = tab.api_hint.text()
@@ -1015,7 +1040,8 @@ def test_repaint_output_prefix_appended_to_aigc2d_requests(monkeypatch, tmp_path
         assert call["resolution"] == "2K"
         assert call["face_quality_boost"] is False
         assert call["image_paths"] and len(call["image_paths"]) == 1
-        assert "PRESERVE EVERYTHING THE CHARACTER IS WEARING OR CARRYING" in call["prompt"]
+        assert "PRESERVE EVERYTHING THE CHARACTER IS WEARING OR CARRYING" in call["prompt"] or \
+            "You are a CONSERVATIVE restoration model" in call["prompt"]
     assert calls[0]["file_prefix"].endswith("01")
     assert calls[1]["file_prefix"].endswith("02")
 
@@ -1055,12 +1081,15 @@ def test_repaint_mode_fills_firmware_into_prompt_box_and_restores_on_leave(tab):
     tab.mode_combo.setCurrentText(MODE_REPAINT)
     text = tab.prompt_edit.toPlainText()
     assert len(text) > 1500, "重绘模式下提示词框应填入固件正文"
-    assert "PRESERVE EVERYTHING THE CHARACTER IS WEARING OR CARRYING" in text   # 固件主 prompt 的保留清单
-    assert "NON-NEGOTIABLE COMPLETENESS CHECK" in text                            # 细节后缀也在
+    # 固件主 prompt：默认已换成画风中性的保守修复版（旧版是 PRESERVE EVERYTHING … 的 cel 固件）
+    assert ("You are a CONSERVATIVE restoration model" in text
+            or "PRESERVE EVERYTHING THE CHARACTER IS WEARING OR CARRYING" in text)
+    assert "do not change the image content" in text or "NON-NEGOTIABLE COMPLETENESS CHECK" in text
     assert text != mine
     # 这份内容会被当作覆盖提示词发出去（等价于固件原文）
     params = tab.build_repaint_request(["x.png"])
-    assert params.get("prompt", "").startswith("Repaint this image")
+    assert params.get("prompt", "").startswith("You are a CONSERVATIVE restoration model") or \
+        params.get("prompt", "").startswith("Repaint this image")
 
     # 离开重绘模式应还原原来的文字，避免固件串到生图框
     tab.mode_combo.setCurrentText(MODE_GENERATE)
@@ -1068,7 +1097,8 @@ def test_repaint_mode_fills_firmware_into_prompt_box_and_restores_on_leave(tab):
 
     # 再进重绘模式：重新填入干净的固件（不带上次的临时修改）
     tab.mode_combo.setCurrentText(MODE_REPAINT)
-    assert "PRESERVE EVERYTHING" in tab.prompt_edit.toPlainText()
+    refilled = tab.prompt_edit.toPlainText()
+    assert "You are a CONSERVATIVE restoration model" in refilled or "PRESERVE EVERYTHING" in refilled
     tab.mode_combo.setCurrentText(MODE_GENERATE)
 
 
@@ -1101,9 +1131,16 @@ def test_repaint_switch_is_visible_without_expanding(tab):
     assert tab.repaint_panel.isHidden() is True
 
 
-def test_repaint_notice_only_shows_when_action_needed(tab):
-    """正常情况下不显示任何状态复述；只有缺 key / 强制比例这类才出提醒。"""
+def test_repaint_notice_only_shows_when_action_needed(tab, monkeypatch):
+    """正常情况下不显示任何状态复述；只有缺 key / 强制比例这类才出提醒。
+
+    重绘用的是 `prompts/gpt-image-optimize/config.json` 里配的节点（默认 aigc2d），
+    这里自己给一个 key，免得测试结果取决于开发机 .env 里有没有真密钥。
+    """
     from utils.gpt_image_optimize import ASPECT_RATIO_AUTO
+
+    monkeypatch.setenv("IMAGE_MAKER_AIGC2D_API_KEY", "sk-TEST-000000000000000000000000000")
+    tab._refresh_repaint_hint()   # 构造时还没这个 key，重算一次提示
 
     assert tab.repaint_notice.isHidden() is True
     assert tab.repaint_notice.text() == ""
@@ -1314,3 +1351,170 @@ def test_image_aspect_ratio_label_reads_pixels(tmp_path):
     Image.new("RGB", (512, 512)).save(square)
     assert image_aspect_ratio_label(str(square)) == "1:1"
     assert image_aspect_ratio_label(str(tmp_path / "nope.png")) == ""
+
+
+# ---------------- 画风选择：prompt_gpt + 参考图顺序 / 角色分工 ----------------
+
+def test_style_combo_lists_styles_with_default_first(tab):
+    from modules.image_generation.gpt_image2_tab import STYLE_NONE
+    assert tab.style_combo.count() >= 2
+    assert tab.style_combo.itemText(0) == STYLE_NONE
+    assert tab.style_combo.findText("tid") > 0
+
+
+def test_style_with_content_image_adds_role_block_and_orders_style_ref_last(tab, tmp_path):
+    """选了画风 + 用户自己的图：内容图在前、画风参考图最后，并在提示词里写明分工。"""
+    user_img = tmp_path / "user.png"
+    user_img.write_bytes(TINY_PNG)
+    tab.image_grid.add_paths([str(user_img)])
+    tab.style_combo.setCurrentText("tid")
+    tab.prompt_edit.setPlainText("a girl standing in shallow water")
+    _backend, params = tab.build_request()
+    prompt = params["prompt"]
+    assert "IMAGE ROLES" in prompt
+    assert "Palette:" in prompt
+    assert "a girl standing in shallow water" in prompt
+    assert len(params["image_paths"]) == 2
+    assert params["image_paths"][0] == str(user_img)
+    assert params["image_paths"][-1].endswith("tid.png")
+
+
+def test_style_only_no_content_image_skips_role_block(tab):
+    tab.style_combo.setCurrentText("tid")
+    tab.prompt_edit.setPlainText("a girl standing in shallow water")
+    _backend, params = tab.build_request()
+    assert "IMAGE ROLES" not in params["prompt"]
+    assert "Palette:" in params["prompt"]
+    assert params["image_paths"] and params["image_paths"][-1].endswith("tid.png")
+
+
+def test_style_none_keeps_prompt_and_images_as_is(tab, tmp_path):
+    from modules.image_generation.gpt_image2_tab import STYLE_NONE
+    user_img = tmp_path / "user2.png"
+    user_img.write_bytes(TINY_PNG)
+    tab.image_grid.add_paths([str(user_img)])
+    tab.style_combo.setCurrentText(STYLE_NONE)
+    tab.prompt_edit.setPlainText("plain prompt text")
+    _backend, params = tab.build_request()
+    assert params["prompt"] == "plain prompt text"
+    assert params["image_paths"] == [str(user_img)]
+
+
+def test_style_info_line_renders(tab):
+    tab.style_combo.setCurrentText("noir-art-style")
+    assert "字符" in tab.style_info_label.text()
+
+
+def test_styles_all_have_gpt_prompt_except_placeholder():
+    """除了「默认(无附加)」占位项，所有画风都应有 gpt-image 专用短版 prompt_gpt。"""
+    import json
+    from modules.image_generation.gpt_image2_tab import CONFIG_STYLES_FILE, STYLE_NONE
+    data = json.load(open(CONFIG_STYLES_FILE, encoding="utf-8"))
+    missing = [n for n, e in data.items()
+               if isinstance(e, dict) and n != STYLE_NONE and not str(e.get("prompt_gpt") or "").strip()]
+    assert missing == [], f"这些画风缺 prompt_gpt: {missing}"
+
+
+def test_style_only_adds_scene_from_text_clause(tab):
+    """只挂画风参考图时，必须声明场景/道具/构图来自文字（防参考图场景泄漏）。"""
+    from utils.styles import STYLE_REF_SCENE_FROM_TEXT
+    tab.style_combo.setCurrentText("tid")
+    tab.prompt_edit.setPlainText("a girl standing in shallow water at dusk")
+    _backend, params = tab.build_request()
+    assert STYLE_REF_SCENE_FROM_TEXT in params["prompt"]
+    assert "a girl standing in shallow water at dusk" in params["prompt"]
+
+
+
+
+def test_style_choice_is_remembered(tab, tmp_path, monkeypatch):
+    """画风选择要随 Tab 默认值持久化，并在下次构造时恢复。"""
+    tab.style_combo.setCurrentText("tid")
+    tab.save_defaults()
+    fresh = gpt_image2_tab.GptImage2Widget()
+    assert fresh.style_combo.currentText() == "tid"
+
+
+
+
+def test_pick_size_follows_input_orientation(tmp_path):
+    """宽图不能输出成竖图：尺寸按输入图实际比例挑。"""
+    import cv2
+    import numpy as np
+    from modules.others.api_backend import pick_gpt_image2_size_for_images
+
+    def _img(name, w, h):
+        p = tmp_path / name
+        cv2.imwrite(str(p), np.full((h, w, 3), 200, np.uint8))
+        return str(p)
+
+    assert pick_gpt_image2_size_for_images([_img("wide.png", 1600, 900)]) == "1536x1024"
+    assert pick_gpt_image2_size_for_images([_img("tall.png", 900, 1600)]) == "1024x1536"
+    assert pick_gpt_image2_size_for_images([_img("sq.png", 1000, 1000)]) == "1024x1024"
+    assert pick_gpt_image2_size_for_images([], fallback="1024x1536") == "1024x1536"
+
+
+def test_size_combo_has_follow_input_option(tab):
+    """尺寸下拉要有「自动（跟随参考图比例）」这一项。"""
+    values = [tab.size_combo.itemData(i) for i in range(tab.size_combo.count())]
+    assert tab.SIZE_FOLLOW_INPUT in values
+    tab.size_combo.setCurrentIndex(tab.size_combo.findData(tab.SIZE_FOLLOW_INPUT))
+    assert tab.size_combo.currentData() == tab.SIZE_FOLLOW_INPUT
+
+
+def test_resolve_request_size_uses_reference_orientation(tab, tmp_path):
+    import cv2
+    import numpy as np
+    wide = tmp_path / "wide_ref.png"
+    cv2.imwrite(str(wide), np.full((600, 1200, 3), 210, np.uint8))
+    tab.size_combo.setCurrentIndex(tab.size_combo.findData(tab.SIZE_FOLLOW_INPUT))
+    grid = tab.image_grid
+    for method in ("set_paths", "add_paths", "add_images", "set_images"):
+        if hasattr(grid, method):
+            getattr(grid, method)([str(wide)])
+            break
+    assert tab.resolve_request_size() == "1536x1024"
+
+
+# ---------------- 后处理流水线（结构线叠加 / 局部重绘）勾选框 ----------------
+
+def test_post_process_switches_visible_and_default_off(tab):
+    """两道后处理工序各有独立勾选框，默认关闭；参数放折叠区里。"""
+    assert tab.structure_check.parent() is not None
+    assert tab.local_repaint_check.parent() is not None
+    assert tab.structure_check.isChecked() is False
+    assert tab.local_repaint_check.isChecked() is False
+    assert tab.post_panel.isVisible() is False
+    assert tab.post_toggle_btn.isChecked() is False
+
+
+def test_post_pipeline_steps_follow_checkboxes(tab):
+    """勾选框与参数要真正反映到流水线配置上（未勾选的工序不会执行）。"""
+    steps = tab.post_pipeline_steps()
+    assert steps["structure"]["enabled"] is False
+    assert steps["local"]["enabled"] is False
+    tab.structure_check.setChecked(True)
+    tab.structure_strength_spin.setValue(0.35)
+    tab.local_repaint_check.setChecked(True)
+    tab.local_region_combo.setCurrentIndex(tab.local_region_combo.findData("face"))
+    tab.local_feather_spin.setValue(64)
+    steps = tab.post_pipeline_steps()
+    assert steps["structure"]["enabled"] is True
+    assert abs(steps["structure"]["strength"] - 0.35) < 1e-6
+    assert steps["local"]["enabled"] is True
+    assert steps["local"]["region"] == "face"
+    assert steps["local"]["feather"] == 64
+
+
+def test_post_process_defaults_persist(tab, tmp_path):
+    """后处理勾选与参数要按站点持久化。"""
+    tab.structure_check.setChecked(True)
+    tab.local_repaint_check.setChecked(True)
+    tab.local_region_combo.setCurrentIndex(tab.local_region_combo.findData("skirt"))
+    tab.save_defaults()
+    data = json.load(open(gpt_image2_tab.CONFIG_IMAGE_FILE, encoding="utf-8"))
+    node = data[gpt_image2_tab.CONFIG_NODE]["post_process"]
+    assert node["structure_enabled"] is True
+    assert node["local_enabled"] is True
+    assert node["local_region"] == "skirt"
+    assert node["local_feather"] == tab.local_feather_spin.value()

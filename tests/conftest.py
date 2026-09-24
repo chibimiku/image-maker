@@ -123,3 +123,23 @@ def isolate_test_output_artifacts():
                 f"\n[tests/conftest.py] 兜底搬迁 {len(moved)} 个测试产出 -> "
                 f"data/test-result/<日期>/（含 {moved[0][0].name} 等）"
             )
+
+@pytest.fixture(autouse=True)
+def _isolate_image_env(request, monkeypatch):
+    """清掉来自 .env 的图片节点/密钥环境变量，保证用例与开发机配置无关。
+
+    `api_backend` 在导入时会执行 `ensure_env_loaded()`，把仓库 `.env` 里的
+    `IMAGE_MAKER_*` 写进 os.environ；测试里若断言"配置文件的 key 生效"或"缺 key 报错"，
+    就会被开发机的真实密钥干扰（也会受 IMAGE_MAKER_NODES / IMAGE_MAKER_CURRENT_API 影响）。
+    用例需要哪个变量，自己在用例里 setenv 即可。
+
+    例外：`tests/test_env_loader.py` 专门验证「导入 api_backend 时把 .env 装进环境」，
+    清掉环境后它必然失败 —— 这个模块本身就是对真实 .env 的断言，故跳过清洗。
+    """
+    if getattr(getattr(request, "module", None), "__name__", "") == "test_env_loader":
+        yield
+        return
+    for name in list(os.environ):
+        if name.startswith("IMAGE_MAKER_"):
+            monkeypatch.delenv(name, raising=False)
+    yield

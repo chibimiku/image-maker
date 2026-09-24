@@ -1,0 +1,198 @@
+# -*- coding: utf-8 -*-
+"""「分析图片并生图」在 gpt-image 通道上的请求组装（与单图分析 Tab 共用，便于脱离 Qt 测试）。
+
+和 Gemini 通道的关系（2026-09-24 起按用户要求统一）：
+- **内容锚与 Gemini 通道同源**：用分析产物里那段描述素材**特征、构图、服装、道具**的文本
+  （Gemini 通道发的是同一份），不再用 gpt 专用短锚字段，也不再有「重新构图」这类开关；
+- **画风 `prompt_gpt` 拼在最前面**，后面接内容描述；
+- 挂画风参考图时追加「只借渲染语法、不得搬参考图角色/发色/瞳色/服装/姿势/构图」的排除句；
+- **不挂分析素材图**（素材图只用来做分析、产出文字）。
+"""
+import os
+
+from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
+                                       SHORT_FIELD_MAX_CHARS, STYLE_REF_EXCLUSION)
+
+
+def first_pass_sub_dir(steps: dict) -> str:
+    """gpt-image 首图的落盘子目录。
+
+    没有后续工序 → 首图就是最终产物 → 返回 ""（直接落 `data/<日期>/`，方便发布）；
+    有工序 → 首图是中间产物 → 落 `analysis-gpt-image/`，最终产物由流水线写回 `data/<日期>/`。
+    """
+    enabled = [k for k, v in (steps or {}).items() if isinstance(v, dict) and v.get("enabled")]
+    return "analysis-gpt-image" if enabled else ""
+
+
+def resolve_content_text(analysis_result: dict, tier: str = "short") -> str:
+    """老路径兜底：按档位取 gpt 专用字段（prompt_gpt 时代留下的兼容路径）。
+
+    现在 GUI 走的是 `content_text`（与 Gemini 同源的分析描述），只有显式要短锚/完整档的调用方
+    （例如 `tools/analysis_gpt_run.py`）才用这个函数。
+    """
+    data = analysis_result or {}
+    short = str(tier).lower() == "short"
+    limit = SHORT_FIELD_MAX_CHARS if short else FIELD_MAX_CHARS
+    primary, secondary = (SHORT_FIELD_KEY, FIELD_KEY) if short else (FIELD_KEY, SHORT_FIELD_KEY)
+    text = str(data.get(primary) or "").strip()
+    if not text:
+        text = str(data.get(secondary) or "").strip()
+    if not text:  # 两档都缺（老产物）：退回 refined 描述并按档位上限裁剪
+        text = str(data.get("english_description") or data.get("original_english_description") or "").strip()
+    if len(text) > limit:
+        cut = text[:limit]
+        for sep in (". ", "; ", ", "):
+            if sep in cut:
+                cut = cut[: cut.rfind(sep)]
+                break
+        text = cut.strip().rstrip(",;.")
+    return text
+
+
+def build_gpt_image_request(analysis_result: dict, style_text: str = "", style_ref_path: str = "",
+                           user_hint: str = "", tier: str = "short",
+                           extra_clauses=None, content_image_path: str = "",
+                           content_text: str = "") -> dict:
+    """组装 gpt-image 通道的 (prompt, image_paths)。
+
+    - `style_text` 传 prompt_gpt（取自 utils.style_gpt.resolve_style_prompt / utils.styles.style_prompt_gpt），
+      **排在提示词最前面**
+    - `content_text`：**和 Gemini 通道同源**的分析描述（素材特征 / 构图 / 服装 / 道具）。显式给了就用它、
+      不再按档位截断；没给才退回 `resolve_content_text`（老调用方兼容）。
+    - `style_ref_path` 传画风的参考图；路径不存在则不挂
+    - `content_image_path`：分析原图。**默认不传**（GUI 的 gpt 通道从不挂素材图）；只有明确要"描图"时才用
+    - `user_hint` 是可选的人工补充（放在内容描述之后）
+    - `extra_clauses`：画风条目的"渲染语言条款"（如 repaint_clauses），追加到提示词末尾，
+      让**眼睛/睫毛/头发/蕾丝**这类作画方法在**首图生成阶段**就正确（不然重绘阶段只能修线条，
+      修不回五官画法）。
+    """
+    content = str(content_text or "").strip() or resolve_content_text(analysis_result, tier=tier)
+    content_ref = str(content_image_path or "").strip()
+    has_content_ref = bool(content_ref) and os.path.isfile(content_ref)
+    parts = []
+    if has_content_ref and (style_ref_path and os.path.isfile(str(style_ref_path))):
+        # 两类图同时存在 → 必须先讲清角色分工（内容图在前、画风图最后）
+        from utils.styles import STYLE_REF_ROLE_INSTRUCTION
+        parts.append(STYLE_REF_ROLE_INSTRUCTION.replace("{content_count}", "1"))
+    if style_text:                       # 画风说明放最前面
+        parts.append(str(style_text).strip())
+    if content:
+        parts.append(content)
+    if user_hint:
+        parts.append(str(user_hint).strip())
+    images = []
+    if has_content_ref:
+        images.append(content_ref)
+    if style_ref_path and os.path.isfile(style_ref_path):
+        images.append(str(style_ref_path))
+        # 挂了画风参考图 → 必须写清"只借渲染、别搬角色"
+        parts.append(STYLE_REF_EXCLUSION)
+    clauses = [str(c).strip() for c in (extra_clauses or []) if str(c).strip()]
+    if clauses:
+        parts.append("RENDERING LANGUAGE (follow exactly):\n- " + "\n- ".join(clauses))
+    prompt = "\n\n".join(p for p in parts if p)
+    return {"prompt": prompt, "image_paths": images, "content_chars": len(content),
+            "style_chars": len(str(style_text or "")), "has_content_ref": has_content_ref}
+
+
+def build_first_pass_request(styles_data, style_name, analysis_result, content_text: str = "",
+                             user_hint: str = "", tier: str = "short",
+                             content_image_path: str = "", api_type: str = "") -> dict:
+    """**首图请求的唯一组装点**（GUI 的 gpt 通道与 `tools/analysis_gpt_run.py` 共用）。
+
+    以前 GUI 自己拼这一段，漏了渲染语言条款（`extra_clauses` 没传），于是 GUI 出的首图永远比 CLI
+    少一截"线条怎么画 / 颜色锚点在哪 / 别画成什么"的约束 —— 实测这正是首图偏白偏灰、线条碎的主因。
+    现在两处都从这里走，缺参数这类偏差不会再出现。
+
+    组装顺序：画风 `prompt_gpt` → 内容锚 → 参考图排除句 → `RENDERING LANGUAGE` 条款。
+    条款来源：画风条目手写的 `repaint_clauses` 优先，缺失时按 `prompt_gpt` 字段确定性派生。
+    """
+    from utils.style_gpt import resolve_style_clauses, style_prompt_gpt
+    from utils.styles import style_ref_image, ref_image_valid
+
+    name = str(style_name or "")
+    entry = (styles_data or {}).get(name) if name else None
+    style_text = style_prompt_gpt(styles_data or {}, name).strip()
+    if not style_text and isinstance(entry, str):
+        style_text = entry
+    elif not style_text and isinstance(entry, dict):
+        style_text = str(entry.get("prompt") or "").strip()
+    ref = style_ref_image(styles_data or {}, name) if name else ""
+    ref = str(ref or "") if ref_image_valid(ref) else ""
+    clauses, clauses_source = resolve_style_clauses(entry)
+    payload = build_gpt_image_request(analysis_result, style_text=style_text, style_ref_path=ref,
+                                      user_hint=user_hint, tier=tier, extra_clauses=clauses or None,
+                                      content_image_path=content_image_path, content_text=content_text)
+    payload.update({"style_name": name, "style_ref_path": ref, "clauses": clauses,
+                    "clauses_source": clauses_source, "api_type": str(api_type or "")})
+    return payload
+
+
+def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, local: bool = False,
+                              structure_strength: float = 0.5, local_region: str = "hair",
+                              local_feather: int = 48, resolution: str = "2K",
+                              detail_boost: bool = False, repaint_ref_mode: str = "style",
+                              local_regions=None, tone: bool = False, tone_target: str = "style",
+                              ink: bool = False, ink_target: float = 8.0) -> dict:
+    """把界面上的勾选翻译成 utils.post_process 的流水线步骤（repaint 由调用方单独处理）。
+
+    - `detail_boost=False`（默认）：局部重绘统一用 2K —— 不再把细节区自动升到 4K（用户要求）。
+    - `repaint_ref_mode="style"`（默认）：重绘的第二张参考是**画风参考图**。
+      **不要**默认成 `line_anchor`：那张自动生成的线锚图（白底长结构线）会被模型当成"渲染语言"，
+      实测要么把整张图塌成白底线稿，要么把线网印成"碎玻璃"纹理铺满人物（用户 2026-09-24 指出这是完全错误的）。
+      线锚图仍然可用，但要显式传 `repaint_ref_mode="line_anchor"` / `"both"`。
+    - `local_regions`：一次跑多个区域（实测最稳的配方是
+      `["subject_no_face", "shoes", "waist", "thigh"]`）；不传就只用 `local_region` 一个区域。
+      单区域 `subject_no_face` 线条最好但**不稳定**（同一输入重跑有约 1/3 概率重排主体、出现双人鬼影，§二十八）。
+    - `tone` / `ink`：**本地工序**（不调 API）—— 色调校准（目标默认取画风参考图）+ 线条加墨。
+      实测（§二十八）：当前首图那条链 163.9/68.5/+0.18 → **138.6/93.8/+2.54**；
+      A 基底上 136.9/113.2/+1.78 → **131.7/117.8/+3.21**（参考图 135.6/114.3/+2.55）。
+      这是目前唯一能把"画风贴近参考图"稳定拉过去的杠杆，所以 GUI 默认勾上。
+    """
+    regions = [str(r).strip() for r in (local_regions or []) if str(r).strip()]
+    if not regions:
+        regions = [str(local_region or "hair")]
+    return {
+        "repaint": {"enabled": bool(repaint), "resolution": resolution,
+                    "reference_mode": str(repaint_ref_mode or "style")},
+        "structure": {"enabled": bool(structure), "strength": float(structure_strength)},
+        "local": {"enabled": bool(local), "region": regions[0], "regions": regions,
+                  "feather": int(local_feather), "resolution": resolution,
+                  "detail_boost": bool(detail_boost)},
+        "tone": {"enabled": bool(tone), "tone_target": str(tone_target or "style"),
+                 "reference_path": "", "contrast": 1.00, "chroma": 1.10,
+                 "highlight_strength": 0.85, "skin_warm": 0.0, "sat_target_scale": 1.0},
+        "ink": {"enabled": bool(ink), "target_sep": float(ink_target), "max_darken": 40.0},
+    }
+
+
+def run_gpt_image_pipeline(paths, steps, firmware: str = "", log_callback=None,
+                           final_dir: str = None, work_dir: str = None,
+                           style_ref_path: str = "", style_clauses=None) -> list:
+    """按勾选对 gpt-image 产物跑「重绘 → 结构线叠加 → 局部重绘 → 色调校准 → 加墨」。
+
+    统一委托给 `utils.post_process.run_pipeline`：最后一道工序的产物落 `data/<日期>/`（发布目录），
+    中间产物落 `<产物目录>/pipeline-steps/`，并支持断点重试（resume）。
+
+    `style_ref_path` / `style_clauses` 传给重绘：`reference_mode="style"` 时第二张参考就是这张画风图
+    （GUI 以前没传 → 走默认的线锚图，会把线网印刷到画面上）。
+    色调校准（`tone`）的目标参考图也取 `style_ref_path`：目标=画风参考图时才能把画面压到参考图的亮度/饱和度。
+    """
+    from utils import post_process as pp
+    log = log_callback or (lambda m: None)
+    steps = steps or {}
+    if not any((steps.get(k) or {}).get("enabled")
+               for k in ("repaint", "structure", "local", "tone", "ink")):
+        return [p for p in (paths or []) if p and os.path.isfile(p)]
+    tone_cfg = dict(steps.get("tone") or {"enabled": False})
+    if tone_cfg.get("enabled") and str(tone_cfg.get("tone_target") or "style") == "style" \
+            and style_ref_path and os.path.isfile(str(style_ref_path)):
+        tone_cfg["reference_path"] = str(style_ref_path)      # 目标 = 画风参考图
+    return pp.run_pipeline(paths, {"structure": steps.get("structure") or {"enabled": False},
+                                   "local": steps.get("local") or {"enabled": False},
+                                   "tone": tone_cfg,
+                                   "ink": steps.get("ink") or {"enabled": False},
+                                   "repaint": steps.get("repaint") or {"enabled": False}},
+                           firmware=firmware, log_callback=log,
+                           final_dir=final_dir, work_dir=work_dir,
+                           style_ref_path=style_ref_path, style_clauses=style_clauses)

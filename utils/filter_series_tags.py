@@ -25,7 +25,7 @@ sys.path.insert(0, BASE_DIR)
 CACHE_FILE = os.path.join(BASE_DIR, "data", "pixiv_tags_cache.json")
 BACKUP_FILE = os.path.join(BASE_DIR, "data", "pixiv_tags_cache.before_series_filter.json")
 
-from modules.others.api_backend import fetch_llm_json
+from modules.others.api_backend import fetch_llm_json, resolve_nsfw_api_key
 
 
 def load_cache() -> list[dict]:
@@ -133,7 +133,8 @@ def load_api_config() -> tuple[str, str, str]:
     config_path = os.path.join(BASE_DIR, "conf", "config.json")
     with open(config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
-    return config["nsfw_base_url"], config["nsfw_api_key"], config["nsfw_model"]
+    # key 走统一解析：IMAGE_MAKER_NSFW_API_KEY（或 .env）优先于 conf/config.json
+    return config["nsfw_base_url"], resolve_nsfw_api_key(config), config["nsfw_model"]
 
 
 def main():

@@ -686,6 +686,14 @@ class ImageEditWidget(QWidget):
         self.log_msg(f"将执行 {len(checked_paths)} 个勾选任务")
         self._start_processing_with_scope(set(checked_paths))
 
+    @staticmethod
+    def _api_type_from_snapshot(img_config_snapshot) -> str:
+        """从主线程拍下的图片 API 配置快照里取 api_type（gpt-image 通道判定用）。"""
+        try:
+            return str(img_config_snapshot[3] or "")
+        except Exception:  # noqa: BLE001 - 快照结构异常时按非 gpt-image 通道处理
+            return ""
+
     def _get_next_unprocessed_path(self):
         for i in range(self.image_list.count()):
             item = self.image_list.item(i)
@@ -733,11 +741,12 @@ class ImageEditWidget(QWidget):
                 styles_data = self.get_styles() or {}
                 has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
                 active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
-                active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
-                    styles_data, selected_style_name, active_mode
-                )
                 # 关键修复：在主线程拍快照，避免工作线程读取 Qt 控件
                 img_config_snapshot = self.img_config_getter_func()
+                active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
+                    styles_data, selected_style_name, active_mode,
+                    api_type=self._api_type_from_snapshot(img_config_snapshot),
+                )
 
                 worker = ImageEditWorker(
                     next_path,

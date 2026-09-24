@@ -138,7 +138,7 @@ class PromptCellWidget(QFrame):
             
         current_prompt = self.text_edit.toPlainText().strip()
         if self.get_style_ref is not None:
-            active_instructions, post_instructions, style_ref_paths = self.get_style_ref()
+            active_instructions, post_instructions, style_ref_paths = self.get_style_ref(api_type)
         else:
             active_instructions = self.get_style()
             post_instructions, style_ref_paths = "", []
@@ -372,13 +372,17 @@ class PromptGeneratorWidget(QWidget):
         style_name = self.main_style_combo.currentText()
         return style_prompt(self.get_styles(), style_name)
 
-    def get_current_style_ref(self):
-        """供提示词单元格生图使用：按当前模式返回 (head, post, ref_paths)。"""
+    def get_current_style_ref(self, api_type=""):
+        """供提示词单元格生图使用：按当前模式返回 (head, post, ref_paths)。
+
+        `api_type` 由调用方（生图那一刻拿到的图片 API 节点）传入：gpt-image 通道会自动
+        改用画风条目里的 `prompt_gpt` 短版字段式说明（见 utils/style_gpt.py）。
+        """
         styles_data = self.get_styles() or {}
         style_name = self.main_style_combo.currentText()
         has_ref = ref_image_valid(style_ref_image(styles_data, style_name))
         mode = self.style_ref_mode_combo.effective_mode(has_ref)
-        return build_ref_gen_params(styles_data, style_name, mode)
+        return build_ref_gen_params(styles_data, style_name, mode, api_type=api_type)
 
     def _reload_upscale_models(self):
         current = self.upscale_model_combo.currentText().strip()

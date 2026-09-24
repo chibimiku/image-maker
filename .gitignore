@@ -130,3 +130,15 @@ models/segmentation/sam2/sam2.1_hiera_l.yaml
 .env
 .env.*
 !.env.example
+
+# ultralytics 在 cwd 留下的缓存（库自动生成，不是项目文件）
+Ultralytics/
+
+# gpt-image 画风实验的**原始图片产物**（约 800MB，本地留档）：只忽略图片，
+# 同目录的 .md / .txt / .json 是实验记录，仍然入库；结论都在 docs/gpt-image-tid-style/*.md 里。
+docs/gpt-image-tid-style/**/*.png
+docs/gpt-image-tid-style/**/*.jpg
+docs/gpt-image-tid-style/**/*.jpeg
+# 两个 15~20MB 的早期画廊页（太大，需要时用 tools/make_round_gallery.py 重新生成）
+docs/gpt-image-tid-style/overnight-20260920-21.html
+docs/gpt-image-tid-style/round-20260921.html

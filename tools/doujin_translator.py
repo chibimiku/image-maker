@@ -21,6 +21,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
 from PyQt6.QtGui import QPixmap
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 from utils.gui_entry import configure_qt_application_attributes
+from modules.others.api_backend import resolve_text_api_key
 
 # --- 读取配置文件 ---
 def load_config():
@@ -40,9 +41,9 @@ def load_config():
 
 config = load_config()
 
-# 初始化 OpenAI 客户端，直接使用配置文件中的值
+# 初始化 OpenAI 客户端，key 走统一解析：IMAGE_MAKER_TEXT_API_KEY（或 .env）优先于 conf/config.json
 client = OpenAI(
-    api_key=config.get("api_key"),
+    api_key=resolve_text_api_key(config),
     base_url=config.get("base_url")
 )
 

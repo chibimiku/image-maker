@@ -1,0 +1,1514 @@
+{
+  "puracotte-style": {
+    "size": "1868x2048",
+    "brightness_mean": 212.9,
+    "brightness_std": 50.3,
+    "deep_shadow_ratio": 0.015,
+    "highlight_ratio_230": 0.514,
+    "near_white_ratio_245": 0.371,
+    "saturation_mean": 35.3,
+    "saturation_std": 39.4,
+    "high_sat_ratio": 0.018,
+    "low_sat_ratio": 0.634,
+    "value_mean": 229.4,
+    "hue_shares": [
+      [
+        "purple",
+        0.497
+      ],
+      [
+        "magenta",
+        0.282
+      ],
+      [
+        "orange",
+        0.046
+      ],
+      [
+        "yellow",
+        0.046
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#fcf8f9",
+        "share": 0.492
+      },
+      {
+        "hex": "#e7c9e7",
+        "share": 0.229
+      },
+      {
+        "hex": "#c9a2c8",
+        "share": 0.137
+      },
+      {
+        "hex": "#9c7693",
+        "share": 0.098
+      },
+      {
+        "hex": "#68444e",
+        "share": 0.044
+      }
+    ],
+    "edge_density": 0.1042,
+    "line_brightness": 176.0,
+    "contrast_std": 50.3
+  },
+  "puracotte-style-v2": {
+    "size": "1868x2048",
+    "brightness_mean": 212.9,
+    "brightness_std": 50.3,
+    "deep_shadow_ratio": 0.015,
+    "highlight_ratio_230": 0.514,
+    "near_white_ratio_245": 0.371,
+    "saturation_mean": 35.3,
+    "saturation_std": 39.4,
+    "high_sat_ratio": 0.018,
+    "low_sat_ratio": 0.634,
+    "value_mean": 229.4,
+    "hue_shares": [
+      [
+        "purple",
+        0.497
+      ],
+      [
+        "magenta",
+        0.282
+      ],
+      [
+        "orange",
+        0.046
+      ],
+      [
+        "yellow",
+        0.046
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#fcf7f9",
+        "share": 0.5
+      },
+      {
+        "hex": "#e6c7e7",
+        "share": 0.234
+      },
+      {
+        "hex": "#c6a1c4",
+        "share": 0.131
+      },
+      {
+        "hex": "#997491",
+        "share": 0.094
+      },
+      {
+        "hex": "#66434c",
+        "share": 0.041
+      }
+    ],
+    "edge_density": 0.1042,
+    "line_brightness": 176.0,
+    "contrast_std": 50.3
+  },
+  "puracotte-v3": {
+    "size": "1868x2048",
+    "brightness_mean": 212.9,
+    "brightness_std": 50.3,
+    "deep_shadow_ratio": 0.015,
+    "highlight_ratio_230": 0.514,
+    "near_white_ratio_245": 0.371,
+    "saturation_mean": 35.3,
+    "saturation_std": 39.4,
+    "high_sat_ratio": 0.018,
+    "low_sat_ratio": 0.634,
+    "value_mean": 229.4,
+    "hue_shares": [
+      [
+        "purple",
+        0.497
+      ],
+      [
+        "magenta",
+        0.282
+      ],
+      [
+        "orange",
+        0.046
+      ],
+      [
+        "yellow",
+        0.046
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#fcf8f9",
+        "share": 0.479
+      },
+      {
+        "hex": "#e9cce8",
+        "share": 0.233
+      },
+      {
+        "hex": "#cba3ca",
+        "share": 0.145
+      },
+      {
+        "hex": "#9c7793",
+        "share": 0.1
+      },
+      {
+        "hex": "#68444e",
+        "share": 0.043
+      }
+    ],
+    "edge_density": 0.1042,
+    "line_brightness": 176.0,
+    "contrast_std": 50.3
+  },
+  "tinkle-style": {
+    "size": "832x1248",
+    "brightness_mean": 135.6,
+    "brightness_std": 75.9,
+    "deep_shadow_ratio": 0.213,
+    "highlight_ratio_230": 0.159,
+    "near_white_ratio_245": 0.087,
+    "saturation_mean": 114.3,
+    "saturation_std": 74.8,
+    "high_sat_ratio": 0.348,
+    "low_sat_ratio": 0.248,
+    "value_mean": 174.5,
+    "hue_shares": [
+      [
+        "blue",
+        0.866
+      ],
+      [
+        "cyan",
+        0.022
+      ],
+      [
+        "magenta",
+        0.021
+      ],
+      [
+        "purple",
+        0.007
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#e8e9ed",
+        "share": 0.268
+      },
+      {
+        "hex": "#3b6293",
+        "share": 0.261
+      },
+      {
+        "hex": "#152f53",
+        "share": 0.236
+      },
+      {
+        "hex": "#74a5d2",
+        "share": 0.151
+      },
+      {
+        "hex": "#d3a2b3",
+        "share": 0.085
+      }
+    ],
+    "edge_density": 0.1601,
+    "line_brightness": 125.3,
+    "contrast_std": 75.9
+  },
+  "fuzichoco": {
+    "size": "1273x1800",
+    "brightness_mean": 96.6,
+    "brightness_std": 65.3,
+    "deep_shadow_ratio": 0.342,
+    "highlight_ratio_230": 0.048,
+    "near_white_ratio_245": 0.027,
+    "saturation_mean": 124.4,
+    "saturation_std": 78.5,
+    "high_sat_ratio": 0.35,
+    "low_sat_ratio": 0.138,
+    "value_mean": 134.6,
+    "hue_shares": [
+      [
+        "blue",
+        0.621
+      ],
+      [
+        "cyan",
+        0.137
+      ],
+      [
+        "green",
+        0.116
+      ],
+      [
+        "yellow",
+        0.046
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#2a3d5f",
+        "share": 0.379
+      },
+      {
+        "hex": "#7e8f88",
+        "share": 0.165
+      },
+      {
+        "hex": "#1973ba",
+        "share": 0.159
+      },
+      {
+        "hex": "#c3dbe5",
+        "share": 0.155
+      },
+      {
+        "hex": "#0f1418",
+        "share": 0.142
+      }
+    ],
+    "edge_density": 0.1185,
+    "line_brightness": 117.5,
+    "contrast_std": 65.3
+  },
+  "fuzichoco-v2": {
+    "size": "1273x1800",
+    "brightness_mean": 96.6,
+    "brightness_std": 65.3,
+    "deep_shadow_ratio": 0.342,
+    "highlight_ratio_230": 0.048,
+    "near_white_ratio_245": 0.027,
+    "saturation_mean": 124.4,
+    "saturation_std": 78.5,
+    "high_sat_ratio": 0.35,
+    "low_sat_ratio": 0.138,
+    "value_mean": 134.6,
+    "hue_shares": [
+      [
+        "blue",
+        0.621
+      ],
+      [
+        "cyan",
+        0.137
+      ],
+      [
+        "green",
+        0.116
+      ],
+      [
+        "yellow",
+        0.046
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#384653",
+        "share": 0.323
+      },
+      {
+        "hex": "#0e51a5",
+        "share": 0.215
+      },
+      {
+        "hex": "#799aa1",
+        "share": 0.191
+      },
+      {
+        "hex": "#0d1218",
+        "share": 0.139
+      },
+      {
+        "hex": "#cce1e8",
+        "share": 0.132
+      }
+    ],
+    "edge_density": 0.1185,
+    "line_brightness": 117.5,
+    "contrast_std": 65.3
+  },
+  "dall-e": {
+    "size": "1024x1792",
+    "brightness_mean": 159.4,
+    "brightness_std": 67.7,
+    "deep_shadow_ratio": 0.079,
+    "highlight_ratio_230": 0.209,
+    "near_white_ratio_245": 0.124,
+    "saturation_mean": 55.2,
+    "saturation_std": 44.4,
+    "high_sat_ratio": 0.034,
+    "low_sat_ratio": 0.455,
+    "value_mean": 177.2,
+    "hue_shares": [
+      [
+        "blue",
+        0.347
+      ],
+      [
+        "red",
+        0.248
+      ],
+      [
+        "orange",
+        0.164
+      ],
+      [
+        "magenta",
+        0.081
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#f8f0e6",
+        "share": 0.24
+      },
+      {
+        "hex": "#cfc0b9",
+        "share": 0.229
+      },
+      {
+        "hex": "#605e70",
+        "share": 0.218
+      },
+      {
+        "hex": "#a28787",
+        "share": 0.208
+      },
+      {
+        "hex": "#402c37",
+        "share": 0.105
+      }
+    ],
+    "edge_density": 0.1868,
+    "line_brightness": 143.2,
+    "contrast_std": 67.7
+  },
+  "dall-e-v2": {
+    "size": "1024x1792",
+    "brightness_mean": 159.4,
+    "brightness_std": 67.7,
+    "deep_shadow_ratio": 0.079,
+    "highlight_ratio_230": 0.209,
+    "near_white_ratio_245": 0.124,
+    "saturation_mean": 55.2,
+    "saturation_std": 44.4,
+    "high_sat_ratio": 0.034,
+    "low_sat_ratio": 0.455,
+    "value_mean": 177.2,
+    "hue_shares": [
+      [
+        "blue",
+        0.347
+      ],
+      [
+        "red",
+        0.248
+      ],
+      [
+        "orange",
+        0.164
+      ],
+      [
+        "magenta",
+        0.081
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#f8f0e6",
+        "share": 0.241
+      },
+      {
+        "hex": "#cec0b9",
+        "share": 0.23
+      },
+      {
+        "hex": "#606072",
+        "share": 0.214
+      },
+      {
+        "hex": "#a28786",
+        "share": 0.205
+      },
+      {
+        "hex": "#412d38",
+        "share": 0.111
+      }
+    ],
+    "edge_density": 0.1868,
+    "line_brightness": 143.2,
+    "contrast_std": 67.7
+  },
+  "dall-e-v3": {
+    "size": "1024x1792",
+    "brightness_mean": 159.4,
+    "brightness_std": 67.7,
+    "deep_shadow_ratio": 0.079,
+    "highlight_ratio_230": 0.209,
+    "near_white_ratio_245": 0.124,
+    "saturation_mean": 55.2,
+    "saturation_std": 44.4,
+    "high_sat_ratio": 0.034,
+    "low_sat_ratio": 0.455,
+    "value_mean": 177.2,
+    "hue_shares": [
+      [
+        "blue",
+        0.347
+      ],
+      [
+        "red",
+        0.248
+      ],
+      [
+        "orange",
+        0.164
+      ],
+      [
+        "magenta",
+        0.081
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#f8f0e6",
+        "share": 0.24
+      },
+      {
+        "hex": "#cfc1ba",
+        "share": 0.227
+      },
+      {
+        "hex": "#626072",
+        "share": 0.219
+      },
+      {
+        "hex": "#a38887",
+        "share": 0.202
+      },
+      {
+        "hex": "#412e39",
+        "share": 0.112
+      }
+    ],
+    "edge_density": 0.1868,
+    "line_brightness": 143.2,
+    "contrast_std": 67.7
+  },
+  "satou_kuuki-style": {
+    "size": "921x1300",
+    "brightness_mean": 85.4,
+    "brightness_std": 73.8,
+    "deep_shadow_ratio": 0.572,
+    "highlight_ratio_230": 0.047,
+    "near_white_ratio_245": 0.015,
+    "saturation_mean": 128.7,
+    "saturation_std": 61.8,
+    "high_sat_ratio": 0.311,
+    "low_sat_ratio": 0.083,
+    "value_mean": 118.5,
+    "hue_shares": [
+      [
+        "purple",
+        0.407
+      ],
+      [
+        "magenta",
+        0.31
+      ],
+      [
+        "red",
+        0.051
+      ],
+      [
+        "blue",
+        0.032
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#421e41",
+        "share": 0.35
+      },
+      {
+        "hex": "#1e0b1c",
+        "share": 0.252
+      },
+      {
+        "hex": "#e98da7",
+        "share": 0.141
+      },
+      {
+        "hex": "#91416d",
+        "share": 0.129
+      },
+      {
+        "hex": "#f1d6da",
+        "share": 0.127
+      }
+    ],
+    "edge_density": 0.0542,
+    "line_brightness": 88.0,
+    "contrast_std": 73.8
+  },
+  "satou_kuuki-style-v2": {
+    "size": "921x1300",
+    "brightness_mean": 85.4,
+    "brightness_std": 73.8,
+    "deep_shadow_ratio": 0.572,
+    "highlight_ratio_230": 0.047,
+    "near_white_ratio_245": 0.015,
+    "saturation_mean": 128.7,
+    "saturation_std": 61.8,
+    "high_sat_ratio": 0.311,
+    "low_sat_ratio": 0.083,
+    "value_mean": 118.5,
+    "hue_shares": [
+      [
+        "purple",
+        0.407
+      ],
+      [
+        "magenta",
+        0.31
+      ],
+      [
+        "red",
+        0.051
+      ],
+      [
+        "blue",
+        0.032
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#421e41",
+        "share": 0.35
+      },
+      {
+        "hex": "#1e0b1c",
+        "share": 0.254
+      },
+      {
+        "hex": "#ea8ea8",
+        "share": 0.141
+      },
+      {
+        "hex": "#92416d",
+        "share": 0.129
+      },
+      {
+        "hex": "#f1d6da",
+        "share": 0.127
+      }
+    ],
+    "edge_density": 0.0542,
+    "line_brightness": 88.0,
+    "contrast_std": 73.8
+  },
+  "waterink-style": {
+    "size": "3840x5090",
+    "brightness_mean": 199.1,
+    "brightness_std": 58.9,
+    "deep_shadow_ratio": 0.04,
+    "highlight_ratio_230": 0.423,
+    "near_white_ratio_245": 0.246,
+    "saturation_mean": 12.3,
+    "saturation_std": 21.5,
+    "high_sat_ratio": 0.004,
+    "low_sat_ratio": 0.938,
+    "value_mean": 202.7,
+    "hue_shares": [
+      [
+        "orange",
+        0.218
+      ],
+      [
+        "blue",
+        0.199
+      ],
+      [
+        "green",
+        0.19
+      ],
+      [
+        "red",
+        0.158
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#f6f6f7",
+        "share": 0.415
+      },
+      {
+        "hex": "#d9d6d7",
+        "share": 0.214
+      },
+      {
+        "hex": "#b3aeb1",
+        "share": 0.199
+      },
+      {
+        "hex": "#767877",
+        "share": 0.1
+      },
+      {
+        "hex": "#323330",
+        "share": 0.072
+      }
+    ],
+    "edge_density": 0.0378,
+    "line_brightness": 144.2,
+    "contrast_std": 58.9
+  },
+  "iris-mix-style": {
+    "size": "768x1024",
+    "brightness_mean": 140.1,
+    "brightness_std": 68.4,
+    "deep_shadow_ratio": 0.021,
+    "highlight_ratio_230": 0.15,
+    "near_white_ratio_245": 0.069,
+    "saturation_mean": 85.9,
+    "saturation_std": 42.7,
+    "high_sat_ratio": 0.023,
+    "low_sat_ratio": 0.198,
+    "value_mean": 176.3,
+    "hue_shares": [
+      [
+        "blue",
+        0.7
+      ],
+      [
+        "magenta",
+        0.121
+      ],
+      [
+        "red",
+        0.018
+      ],
+      [
+        "purple",
+        0.016
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#49557f",
+        "share": 0.579
+      },
+      {
+        "hex": "#f5ccda",
+        "share": 0.185
+      },
+      {
+        "hex": "#fbf3f1",
+        "share": 0.137
+      },
+      {
+        "hex": "#e897b2",
+        "share": 0.071
+      },
+      {
+        "hex": "#ac596a",
+        "share": 0.029
+      }
+    ],
+    "edge_density": 0.0587,
+    "line_brightness": 164.9,
+    "contrast_std": 68.4
+  },
+  "shiratamaco-style": {
+    "size": "2406x3236",
+    "brightness_mean": 133.3,
+    "brightness_std": 69.8,
+    "deep_shadow_ratio": 0.202,
+    "highlight_ratio_230": 0.125,
+    "near_white_ratio_245": 0.071,
+    "saturation_mean": 48.7,
+    "saturation_std": 31.2,
+    "high_sat_ratio": 0.001,
+    "low_sat_ratio": 0.517,
+    "value_mean": 150.0,
+    "hue_shares": [
+      [
+        "blue",
+        0.455
+      ],
+      [
+        "red",
+        0.153
+      ],
+      [
+        "purple",
+        0.124
+      ],
+      [
+        "magenta",
+        0.098
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#323243",
+        "share": 0.294
+      },
+      {
+        "hex": "#c4b0c2",
+        "share": 0.267
+      },
+      {
+        "hex": "#6b5a66",
+        "share": 0.192
+      },
+      {
+        "hex": "#fcf0eb",
+        "share": 0.152
+      },
+      {
+        "hex": "#9d8089",
+        "share": 0.096
+      }
+    ],
+    "edge_density": 0.0176,
+    "line_brightness": 124.3,
+    "contrast_std": 69.8
+  },
+  "shiratamaco-v2-style": {
+    "size": "2406x3236",
+    "brightness_mean": 133.3,
+    "brightness_std": 69.8,
+    "deep_shadow_ratio": 0.202,
+    "highlight_ratio_230": 0.125,
+    "near_white_ratio_245": 0.071,
+    "saturation_mean": 48.7,
+    "saturation_std": 31.2,
+    "high_sat_ratio": 0.001,
+    "low_sat_ratio": 0.517,
+    "value_mean": 150.0,
+    "hue_shares": [
+      [
+        "blue",
+        0.455
+      ],
+      [
+        "red",
+        0.153
+      ],
+      [
+        "purple",
+        0.124
+      ],
+      [
+        "magenta",
+        0.098
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#323243",
+        "share": 0.294
+      },
+      {
+        "hex": "#c4b0c2",
+        "share": 0.266
+      },
+      {
+        "hex": "#6c5a66",
+        "share": 0.192
+      },
+      {
+        "hex": "#fcf0eb",
+        "share": 0.152
+      },
+      {
+        "hex": "#9d8189",
+        "share": 0.096
+      }
+    ],
+    "edge_density": 0.0176,
+    "line_brightness": 124.3,
+    "contrast_std": 69.8
+  },
+  "sheya-style": {
+    "size": "896x1152",
+    "brightness_mean": 119.7,
+    "brightness_std": 67.9,
+    "deep_shadow_ratio": 0.204,
+    "highlight_ratio_230": 0.094,
+    "near_white_ratio_245": 0.048,
+    "saturation_mean": 115.9,
+    "saturation_std": 61.1,
+    "high_sat_ratio": 0.26,
+    "low_sat_ratio": 0.15,
+    "value_mean": 162.3,
+    "hue_shares": [
+      [
+        "blue",
+        0.917
+      ],
+      [
+        "cyan",
+        0.033
+      ],
+      [
+        "magenta",
+        0.02
+      ],
+      [
+        "purple",
+        0.009
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#5f83bc",
+        "share": 0.303
+      },
+      {
+        "hex": "#425584",
+        "share": 0.252
+      },
+      {
+        "hex": "#151c3d",
+        "share": 0.187
+      },
+      {
+        "hex": "#a9c0d9",
+        "share": 0.151
+      },
+      {
+        "hex": "#f0f1f1",
+        "share": 0.107
+      }
+    ],
+    "edge_density": 0.1288,
+    "line_brightness": 117.4,
+    "contrast_std": 67.9
+  },
+  "say-hana-style": {
+    "size": "832x1216",
+    "brightness_mean": 145.8,
+    "brightness_std": 64.1,
+    "deep_shadow_ratio": 0.145,
+    "highlight_ratio_230": 0.053,
+    "near_white_ratio_245": 0.01,
+    "saturation_mean": 157.5,
+    "saturation_std": 87.0,
+    "high_sat_ratio": 0.57,
+    "low_sat_ratio": 0.135,
+    "value_mean": 183.2,
+    "hue_shares": [
+      [
+        "orange",
+        0.353
+      ],
+      [
+        "green",
+        0.28
+      ],
+      [
+        "yellow",
+        0.212
+      ],
+      [
+        "red",
+        0.051
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#ddd7cb",
+        "share": 0.231
+      },
+      {
+        "hex": "#e8881d",
+        "share": 0.223
+      },
+      {
+        "hex": "#254012",
+        "share": 0.191
+      },
+      {
+        "hex": "#817c1b",
+        "share": 0.183
+      },
+      {
+        "hex": "#c8b481",
+        "share": 0.171
+      }
+    ],
+    "edge_density": 0.2662,
+    "line_brightness": 140.6,
+    "contrast_std": 64.1
+  },
+  "say-hana-v2": {
+    "size": "832x1216",
+    "brightness_mean": 145.8,
+    "brightness_std": 64.1,
+    "deep_shadow_ratio": 0.145,
+    "highlight_ratio_230": 0.053,
+    "near_white_ratio_245": 0.01,
+    "saturation_mean": 157.5,
+    "saturation_std": 87.0,
+    "high_sat_ratio": 0.57,
+    "low_sat_ratio": 0.135,
+    "value_mean": 183.2,
+    "hue_shares": [
+      [
+        "orange",
+        0.353
+      ],
+      [
+        "green",
+        0.28
+      ],
+      [
+        "yellow",
+        0.212
+      ],
+      [
+        "red",
+        0.051
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#ddd7ca",
+        "share": 0.239
+      },
+      {
+        "hex": "#e8881c",
+        "share": 0.22
+      },
+      {
+        "hex": "#254012",
+        "share": 0.192
+      },
+      {
+        "hex": "#817d1b",
+        "share": 0.182
+      },
+      {
+        "hex": "#c8b27e",
+        "share": 0.168
+      }
+    ],
+    "edge_density": 0.2662,
+    "line_brightness": 140.6,
+    "contrast_std": 64.1
+  },
+  "say-hana-v3": {
+    "size": "832x1216",
+    "brightness_mean": 145.8,
+    "brightness_std": 64.1,
+    "deep_shadow_ratio": 0.145,
+    "highlight_ratio_230": 0.053,
+    "near_white_ratio_245": 0.01,
+    "saturation_mean": 157.5,
+    "saturation_std": 87.0,
+    "high_sat_ratio": 0.57,
+    "low_sat_ratio": 0.135,
+    "value_mean": 183.2,
+    "hue_shares": [
+      [
+        "orange",
+        0.353
+      ],
+      [
+        "green",
+        0.28
+      ],
+      [
+        "yellow",
+        0.212
+      ],
+      [
+        "red",
+        0.051
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#ddd6c9",
+        "share": 0.247
+      },
+      {
+        "hex": "#e8881c",
+        "share": 0.219
+      },
+      {
+        "hex": "#244012",
+        "share": 0.19
+      },
+      {
+        "hex": "#807c1a",
+        "share": 0.181
+      },
+      {
+        "hex": "#c6b17b",
+        "share": 0.163
+      }
+    ],
+    "edge_density": 0.2662,
+    "line_brightness": 140.6,
+    "contrast_std": 64.1
+  },
+  "say-hana-v4": {
+    "size": "832x1216",
+    "brightness_mean": 145.8,
+    "brightness_std": 64.1,
+    "deep_shadow_ratio": 0.145,
+    "highlight_ratio_230": 0.053,
+    "near_white_ratio_245": 0.01,
+    "saturation_mean": 157.5,
+    "saturation_std": 87.0,
+    "high_sat_ratio": 0.57,
+    "low_sat_ratio": 0.135,
+    "value_mean": 183.2,
+    "hue_shares": [
+      [
+        "orange",
+        0.353
+      ],
+      [
+        "green",
+        0.28
+      ],
+      [
+        "yellow",
+        0.212
+      ],
+      [
+        "red",
+        0.051
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#ddd6ca",
+        "share": 0.241
+      },
+      {
+        "hex": "#e8881d",
+        "share": 0.22
+      },
+      {
+        "hex": "#254012",
+        "share": 0.191
+      },
+      {
+        "hex": "#817c1a",
+        "share": 0.182
+      },
+      {
+        "hex": "#c7b27d",
+        "share": 0.166
+      }
+    ],
+    "edge_density": 0.2662,
+    "line_brightness": 140.6,
+    "contrast_std": 64.1
+  },
+  "say-hana-v5": {
+    "size": "832x1216",
+    "brightness_mean": 145.8,
+    "brightness_std": 64.1,
+    "deep_shadow_ratio": 0.145,
+    "highlight_ratio_230": 0.053,
+    "near_white_ratio_245": 0.01,
+    "saturation_mean": 157.5,
+    "saturation_std": 87.0,
+    "high_sat_ratio": 0.57,
+    "low_sat_ratio": 0.135,
+    "value_mean": 183.2,
+    "hue_shares": [
+      [
+        "orange",
+        0.353
+      ],
+      [
+        "green",
+        0.28
+      ],
+      [
+        "yellow",
+        0.212
+      ],
+      [
+        "red",
+        0.051
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#ddd6ca",
+        "share": 0.241
+      },
+      {
+        "hex": "#e8881d",
+        "share": 0.22
+      },
+      {
+        "hex": "#254012",
+        "share": 0.191
+      },
+      {
+        "hex": "#817c1a",
+        "share": 0.182
+      },
+      {
+        "hex": "#c6b27d",
+        "share": 0.166
+      }
+    ],
+    "edge_density": 0.2662,
+    "line_brightness": 140.6,
+    "contrast_std": 64.1
+  },
+  "tid": {
+    "size": "1000x1442",
+    "brightness_mean": 221.5,
+    "brightness_std": 54.5,
+    "deep_shadow_ratio": 0.024,
+    "highlight_ratio_230": 0.701,
+    "near_white_ratio_245": 0.545,
+    "saturation_mean": 25.0,
+    "saturation_std": 38.3,
+    "high_sat_ratio": 0.015,
+    "low_sat_ratio": 0.744,
+    "value_mean": 230.5,
+    "hue_shares": [
+      [
+        "orange",
+        0.335
+      ],
+      [
+        "red",
+        0.162
+      ],
+      [
+        "magenta",
+        0.137
+      ],
+      [
+        "green",
+        0.088
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#fafbfa",
+        "share": 0.642
+      },
+      {
+        "hex": "#e7e0d9",
+        "share": 0.14
+      },
+      {
+        "hex": "#cfab9c",
+        "share": 0.09
+      },
+      {
+        "hex": "#8c7774",
+        "share": 0.067
+      },
+      {
+        "hex": "#4e3e44",
+        "share": 0.061
+      }
+    ],
+    "edge_density": 0.0663,
+    "line_brightness": 181.9,
+    "contrast_std": 54.5
+  },
+  "ajicoma": {
+    "size": "1664x2560",
+    "brightness_mean": 225.2,
+    "brightness_std": 27.7,
+    "deep_shadow_ratio": 0.001,
+    "highlight_ratio_230": 0.505,
+    "near_white_ratio_245": 0.1,
+    "saturation_mean": 26.8,
+    "saturation_std": 18.0,
+    "high_sat_ratio": 0.001,
+    "low_sat_ratio": 0.793,
+    "value_mean": 239.4,
+    "hue_shares": [
+      [
+        "red",
+        0.95
+      ],
+      [
+        "orange",
+        0.024
+      ],
+      [
+        "cyan",
+        0.009
+      ],
+      [
+        "yellow",
+        0.0
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#fbf3ed",
+        "share": 0.499
+      },
+      {
+        "hex": "#eacac6",
+        "share": 0.239
+      },
+      {
+        "hex": "#eed5d2",
+        "share": 0.184
+      },
+      {
+        "hex": "#c4a39e",
+        "share": 0.046
+      },
+      {
+        "hex": "#95706c",
+        "share": 0.032
+      }
+    ],
+    "edge_density": 0.0348,
+    "line_brightness": 190.5,
+    "contrast_std": 27.7
+  },
+  "inf-nikki-v1": {
+    "size": "1080x1920",
+    "brightness_mean": 143.7,
+    "brightness_std": 48.0,
+    "deep_shadow_ratio": 0.039,
+    "highlight_ratio_230": 0.035,
+    "near_white_ratio_245": 0.007,
+    "saturation_mean": 154.3,
+    "saturation_std": 86.7,
+    "high_sat_ratio": 0.541,
+    "low_sat_ratio": 0.134,
+    "value_mean": 217.4,
+    "hue_shares": [
+      [
+        "blue",
+        0.835
+      ],
+      [
+        "orange",
+        0.037
+      ],
+      [
+        "red",
+        0.032
+      ],
+      [
+        "cyan",
+        0.013
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#169dee",
+        "share": 0.345
+      },
+      {
+        "hex": "#d0c8d6",
+        "share": 0.238
+      },
+      {
+        "hex": "#73addd",
+        "share": 0.181
+      },
+      {
+        "hex": "#1258b3",
+        "share": 0.154
+      },
+      {
+        "hex": "#937273",
+        "share": 0.083
+      }
+    ],
+    "edge_density": 0.1582,
+    "line_brightness": 145.0,
+    "contrast_std": 48.0
+  },
+  "noir-aiart": {
+    "size": "816x1456",
+    "brightness_mean": 114.6,
+    "brightness_std": 80.3,
+    "deep_shadow_ratio": 0.343,
+    "highlight_ratio_230": 0.064,
+    "near_white_ratio_245": 0.032,
+    "saturation_mean": 146.0,
+    "saturation_std": 85.5,
+    "high_sat_ratio": 0.493,
+    "low_sat_ratio": 0.149,
+    "value_mean": 157.7,
+    "hue_shares": [
+      [
+        "blue",
+        0.841
+      ],
+      [
+        "cyan",
+        0.115
+      ],
+      [
+        "purple",
+        0.034
+      ],
+      [
+        "magenta",
+        0.005
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#091330",
+        "share": 0.273
+      },
+      {
+        "hex": "#cbddf0",
+        "share": 0.243
+      },
+      {
+        "hex": "#274d85",
+        "share": 0.202
+      },
+      {
+        "hex": "#7e9ec7",
+        "share": 0.184
+      },
+      {
+        "hex": "#1cb0e5",
+        "share": 0.098
+      }
+    ],
+    "edge_density": 0.1307,
+    "line_brightness": 125.8,
+    "contrast_std": 80.3
+  },
+  "goto-p": {
+    "size": "1018x1440",
+    "brightness_mean": 210.6,
+    "brightness_std": 41.2,
+    "deep_shadow_ratio": 0.001,
+    "highlight_ratio_230": 0.419,
+    "near_white_ratio_245": 0.257,
+    "saturation_mean": 44.6,
+    "saturation_std": 33.2,
+    "high_sat_ratio": 0.001,
+    "low_sat_ratio": 0.488,
+    "value_mean": 236.3,
+    "hue_shares": [
+      [
+        "magenta",
+        0.317
+      ],
+      [
+        "blue",
+        0.24
+      ],
+      [
+        "purple",
+        0.139
+      ],
+      [
+        "red",
+        0.086
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#fbf3f8",
+        "share": 0.407
+      },
+      {
+        "hex": "#f7c9d8",
+        "share": 0.225
+      },
+      {
+        "hex": "#db96ab",
+        "share": 0.138
+      },
+      {
+        "hex": "#beb8e2",
+        "share": 0.125
+      },
+      {
+        "hex": "#8976a3",
+        "share": 0.105
+      }
+    ],
+    "edge_density": 0.0783,
+    "line_brightness": 189.5,
+    "contrast_std": 41.2
+  },
+  "komori-hikki-style": {
+    "size": "1176x1500",
+    "brightness_mean": 181.9,
+    "brightness_std": 45.4,
+    "deep_shadow_ratio": 0.0,
+    "highlight_ratio_230": 0.195,
+    "near_white_ratio_245": 0.132,
+    "saturation_mean": 37.9,
+    "saturation_std": 28.5,
+    "high_sat_ratio": 0.002,
+    "low_sat_ratio": 0.576,
+    "value_mean": 196.8,
+    "hue_shares": [
+      [
+        "blue",
+        0.398
+      ],
+      [
+        "orange",
+        0.275
+      ],
+      [
+        "red",
+        0.087
+      ],
+      [
+        "purple",
+        0.065
+      ]
+    ],
+    "dominant_palette": [
+      {
+        "hex": "#9698a3",
+        "share": 0.253
+      },
+      {
+        "hex": "#c8cacc",
+        "share": 0.219
+      },
+      {
+        "hex": "#f6f5ef",
+        "share": 0.218
+      },
+      {
+        "hex": "#c3a89c",
+        "share": 0.165
+      },
+      {
+        "hex": "#756d82",
+        "share": 0.145
+      }
+    ],
+    "edge_density": 0.1213,
+    "line_brightness": 176.6,
+    "contrast_std": 45.4
+  }
+}

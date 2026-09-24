@@ -19,7 +19,7 @@ import time
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from modules.others.api_backend import fetch_llm_json, _extract_json_object
+from modules.others.api_backend import fetch_llm_json, _extract_json_object, resolve_text_api_key
 
 CONFIG_TEXT_FILE = os.path.join(PROJECT_ROOT, "conf", "config.json")
 CONFIG_STYLES_FILE = os.path.join(PROJECT_ROOT, "conf", "config-styles.json")
@@ -71,10 +71,12 @@ def main():
 
     text_cfg = load_text_config()
     base_url = str(text_cfg.get("base_url") or "").strip()
-    api_key = str(text_cfg.get("api_key") or "").strip()
+    # key 走统一解析：IMAGE_MAKER_TEXT_API_KEY（或 .env）优先于 conf/config.json
+    api_key = resolve_text_api_key(text_cfg)
     model = str(text_cfg.get("model") or "").strip()
     if not (base_url and api_key and model):
-        print("[error] conf/config.json 中缺少文本 API 配置（base_url / api_key / model）")
+        print("[error] 缺少文本 API 配置：请配置环境变量 IMAGE_MAKER_TEXT_API_KEY（.env）"
+              "或 conf/config.json 中的 base_url / api_key / model")
         return 1
 
     with open(CONFIG_STYLES_FILE, "r", encoding="utf-8") as f:

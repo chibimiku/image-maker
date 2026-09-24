@@ -11,6 +11,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
 from openai import OpenAI
+from modules.others.api_backend import resolve_text_api_key
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 
 
@@ -29,7 +30,8 @@ def load_config(path: str) -> Dict[str, str]:
         cfg = json.load(f)
     return {
         "base_url": str(cfg.get("base_url", "")).strip(),
-        "api_key": str(cfg.get("api_key", "")).strip(),
+        # key 走统一解析：IMAGE_MAKER_TEXT_API_KEY（或 .env）优先于 conf/config.json
+        "api_key": resolve_text_api_key(cfg),
         "model": str(cfg.get("model", "")).strip() or "gpt-4o-mini",
     }
 

@@ -178,8 +178,10 @@ def test_app_window_contains_sd_workflow_tab(qapp):
     assert gpt_tab.mode_combo.count() == 3
     assert "重绘" in gpt_tab.mode_combo.itemText(2)
     assert hasattr(gpt_tab, "repaint_check")
-    assert gpt_tab.size_combo.count() == 3
-    assert gpt_tab.size_combo.currentData() in ("1024x1024", "1536x1024", "1024x1536")
+    # 3 档固定尺寸 + 「自动（跟随参考图比例）」
+    assert gpt_tab.size_combo.count() == 4
+    # 尺寸默认是「自动（跟随参考图比例）」，也可能是三档之一（取决于历史选择）
+    assert gpt_tab.size_combo.currentData() in ("1024x1024", "1536x1024", "1024x1536", "auto-follow-input")
     assert not hasattr(window, "autodl_image_edit_tab")
     assert isinstance(window.sd_workflow_tab, sd_workflow_module.SdWorkflowWidget)
     setting_labels = [window.config_tabs.tabText(i) for i in range(window.config_tabs.count())]

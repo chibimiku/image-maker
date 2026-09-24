@@ -26,7 +26,7 @@ BACKUP_FILE = os.path.join(BASE_DIR, "data", "pixiv_tags_cache.backup.json")
 RESULT_FILE = os.path.join(BASE_DIR, "data", "pixiv_tags_cache.verified.json")
 
 # 延迟导入，避免循环依赖
-from modules.others.api_backend import fetch_llm_json
+from modules.others.api_backend import fetch_llm_json, resolve_nsfw_api_key
 
 
 def load_cache() -> list[dict]:
@@ -156,11 +156,14 @@ def load_api_config() -> tuple[str, str, str]:
         config = json.load(f)
 
     base_url = config.get("nsfw_base_url", "https://api.deepseek.com")
-    api_key = config.get("nsfw_api_key", "")
+    # key 走统一解析：IMAGE_MAKER_NSFW_API_KEY（或 .env）优先于 conf/config.json
+    api_key = resolve_nsfw_api_key(config)
     model = config.get("nsfw_model", "deepseek-v4-pro")
 
     if not api_key:
-        raise RuntimeError("未找到 deepseek API key，请检查 conf/config.json 中的 nsfw_api_key")
+        raise RuntimeError(
+            "未找到 deepseek API key，请配置环境变量 IMAGE_MAKER_NSFW_API_KEY（.env）或 conf/config.json 中的 nsfw_api_key"
+        )
 
     return base_url, api_key, model
 
@@ -199,7 +202,7 @@ def main():
         print(f"API: base_url={base_url[:40]}..., model={model}")
     except Exception as e:
         print(f"加载 API 配置失败: {e}")
-        print("请检查 conf/config.json")
+        print("请检查环境变量 IMAGE_MAKER_NSFW_API_KEY（.env）或 conf/config.json 的 nsfw_api_key")
         sys.exit(1)
     
     # 分批发送

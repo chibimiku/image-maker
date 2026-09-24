@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
@@ -54,6 +55,7 @@ from modules.others.api_backend import (
     GPT_IMAGE2_SITE_MODELS,
     GPT_IMAGE2_SITE_SAVE_SUB_DIRS,
     GPT_IMAGE2_SITE_SIZES,
+    GPT_IMAGE2_SIZE_PORTRAIT,
     GPT_IMAGE2_SIZE_SQUARE,
     generate_image_aigc2d_gpt,
     generate_image_openai_image,
@@ -84,6 +86,9 @@ SITE_AIGC2D = GPT_IMAGE2_SITE_AIGC2D
 SITE_AUTODL = GPT_IMAGE2_SITE_AUTODL
 API_TYPE_BY_SITE = GPT_IMAGE2_SITE_API_TYPES
 SAVE_SUB_DIR_BY_SITE = GPT_IMAGE2_SITE_SAVE_SUB_DIRS
+CONFIG_STYLES_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                 "conf", "config-styles.json")
+STYLE_NONE = "默认(无附加)"
 FILE_PREFIX_BY_SITE = GPT_IMAGE2_SITE_FILE_PREFIXES
 DEFAULT_SIZE_BY_SITE = GPT_IMAGE2_SITE_DEFAULT_SIZES
 
@@ -115,6 +120,8 @@ MODE_EDIT = "编辑"
 MODE_REPAINT = "重绘(Gemini优化产物)"
 MODE_CHOICES = (MODE_GENERATE, MODE_EDIT, MODE_REPAINT)
 IMAGE_FILTER = "图片 (*.png *.jpg *.jpeg *.webp *.bmp)"
+# 尺寸=自动：按参考图实际比例在 1536x1024 / 1024x1536 / 1024x1024 里挑（宽图不会输出竖图）
+SIZE_FOLLOW_INPUT = "auto-follow-input"
 
 
 def _read_config_image() -> dict:
@@ -185,6 +192,42 @@ def format_request_dump(params: dict, api_cfg: dict, site: str, api_type: str, m
     else:
         lines.append("[请求] 参考图: 无")
     return lines
+
+
+class PricingWorker(QThread):
+    """后台拉价目表（/api/pricing），避免首屏卡在网络请求上。"""
+    done = pyqtSignal(bool)
+
+    def run(self):
+        try:
+            from utils.cost_estimate import fetch_pricing
+            pricing = fetch_pricing()
+            ok = bool((pricing or {}).get("models"))
+        except Exception:  # noqa: BLE001
+            ok = False
+        self.done.emit(ok)
+
+
+class PostProcessWorker(QThread):
+    """后台跑勾选的后处理工序（结构线叠加 / 局部重绘+羽化贴回）。"""
+    log = pyqtSignal(str)
+    done = pyqtSignal(list)
+
+    def __init__(self, paths, steps, firmware=None, parent=None):
+        super().__init__(parent)
+        self.paths = list(paths or [])
+        self.steps = steps or {}
+        self.firmware = firmware
+
+    def run(self):
+        try:
+            from utils.post_process import run_pipeline
+            result = run_pipeline(self.paths, self.steps, firmware=self.firmware,
+                                  log_callback=self.log.emit)
+        except Exception as exc:  # noqa: BLE001 - 后处理失败不能让结果列表空掉
+            self.log.emit(f"[后处理] 失败，改为使用重绘/生图原始产物：{type(exc).__name__}: {exc}")
+            result = list(self.paths)
+        self.done.emit(result)
 
 
 class GptImage2Worker(QThread):
@@ -287,6 +330,7 @@ class ModelListWorker(QThread):
 
 
 class GptImage2Widget(QWidget):
+    SIZE_FOLLOW_INPUT = SIZE_FOLLOW_INPUT          # 尺寸=自动（跟随参考图比例）
     """gpt-image-2 生图 / 编辑台（new.aigc2d 与 autodl 双站点）。"""
 
     def __init__(self, parent=None):
@@ -303,6 +347,24 @@ class GptImage2Widget(QWidget):
         self.initUI()
         self.load_defaults()
         self.refresh_api_hint()
+        # 长度护栏 + 成本估算（先用内置价目快照显示，首次显示窗口时再拉一次网络价目刷新）
+        self._connect_budget_signals()
+        self._refresh_budget()
+
+    def showEvent(self, event):  # noqa: N802 - Qt 命名
+        super().showEvent(event)
+        self._start_pricing_refresh()
+
+    def _connect_budget_signals(self):
+        """勾选框 / 画质 / 尺寸 / 参考图变化都会影响长度与成本估算，统一挂到刷新上。"""
+        for widget, signal in ((getattr(self, "repaint_check", None), "toggled"),
+                               (getattr(self, "structure_check", None), "toggled"),
+                               (getattr(self, "local_repaint_check", None), "toggled"),
+                               (getattr(self, "quality_combo", None), "currentIndexChanged"),
+                               (getattr(self, "size_combo", None), "currentIndexChanged"),
+                               (getattr(self, "site_combo", None), "currentIndexChanged")):
+            if widget is not None:
+                getattr(widget, signal).connect(lambda *_: self._refresh_budget())
 
     @property
     def image_paths(self) -> list:
@@ -348,6 +410,9 @@ class GptImage2Widget(QWidget):
 
         self.size_combo = QComboBox()
         form.addRow("尺寸:", self.size_combo)
+        self.size_info_label = QLabel("")
+        self.size_info_label.setStyleSheet("color: #666; font-size: 11px;")
+        form.addRow("", self.size_info_label)
 
         self.quality_combo = QComboBox()
         for label, value in QUALITY_CHOICES:
@@ -378,6 +443,96 @@ class GptImage2Widget(QWidget):
         )
         self.repaint_check.toggled.connect(self.on_repaint_toggled)
         layout.addWidget(self.repaint_check)
+
+        # ---------------- 后处理流水线（每道工序一个勾选框，可任意组合） ----------------
+        # 结构线叠加 = 纯本地像素精修（不调模型）；局部重绘 = 按区域裁切重绘再羽化贴回（一次 Gemini 调用）。
+        # 实测见 docs/gpt-image-tid-style/README.md §4.20 / §4.21。
+        from utils.post_process import DEFAULT_FEATHER, DEFAULT_STRUCTURE_STRENGTH, REGION_LABELS
+        self.structure_check = QCheckBox("结构线叠加（纯本地，不改内容；线条更连贯）")
+        self.structure_check.setToolTip(
+            "抽出画面里的长结构边，按局部色调整色后按强度叠回：纯本地、几毫秒、零 API 成本。\n"
+            "实测三族平均骨架段长 +6~22%、端点密度最多 −16%，配色与饱和度几乎不动。"
+        )
+        layout.addWidget(self.structure_check)
+
+        self.local_repaint_check = QCheckBox("局部重绘 + 羽化贴回（按区域强化头发 / 脸 / 裙子）")
+        self.local_repaint_check.setToolTip(
+            "按区域裁切 → 放大 → 走 Gemini 重绘（当前固件 + 区域强调句）→ 羽化贴回。\n"
+            "头发糊就选「头发」，脸部用「脸部」；Gemini 没有 mask，这是最接近遮罩式局部重绘的做法。"
+        )
+        layout.addWidget(self.local_repaint_check)
+
+        self.post_toggle_btn = QPushButton("▸ 后处理参数（结构线强度 / 局部区域）")
+        self.post_toggle_btn.setCheckable(True)
+        self.post_toggle_btn.setToolTip("展开/收起后处理参数；开关本身在上面两个勾选框。")
+        self.post_toggle_btn.toggled.connect(lambda on: self.post_panel.setVisible(bool(on)))
+        layout.addWidget(self.post_toggle_btn)
+
+        self.post_panel = QWidget()
+        self.post_panel.setVisible(False)
+        post_form = QFormLayout(self.post_panel)
+        post_form.setContentsMargins(16, 0, 0, 0)
+        self.structure_strength_spin = QDoubleSpinBox()
+        self.structure_strength_spin.setRange(0.05, 1.0)
+        self.structure_strength_spin.setSingleStep(0.05)
+        self.structure_strength_spin.setValue(DEFAULT_STRUCTURE_STRENGTH)
+        self.structure_strength_spin.setToolTip("结构线不透明度；0.35 轻微、0.50 推荐、0.70 以上偏硬。")
+        post_form.addRow("结构线强度:", self.structure_strength_spin)
+        self.local_region_combo = QComboBox()
+        for key, label in REGION_LABELS.items():
+            self.local_region_combo.addItem(label, key)
+        self.local_region_combo.setCurrentIndex(max(0, self.local_region_combo.findData("hair")))
+        self.local_region_combo.setToolTip(
+            "局部重绘区域：\n"
+            "  头发 / 脸部 / 头部 / 裙子 / 上半身 —— 固定比例区\n"
+            "  整个人物 —— 自动检测人物框（GrabCut 前景 + 人脸锚点，裁到不切发梢裙摆）\n"
+            "  人物（不含面部）—— 同样的人物框，但**脸区保留原像素**（贴回时反向羽化排除），适合只想修衣服/头发又不想动脸\n"
+            "  整张 —— 等于全图重绘（不如勾「出图后立即重绘优化」划算）"
+        )
+        post_form.addRow("局部重绘区域:", self.local_region_combo)
+        self.local_feather_spin = QSpinBox()
+        self.local_feather_spin.setRange(8, 200)
+        self.local_feather_spin.setValue(DEFAULT_FEATHER)
+        self.local_feather_spin.setToolTip("贴回时的羽化半径（像素），越大接缝越柔和、改动越局部。")
+        post_form.addRow("贴回羽化:", self.local_feather_spin)
+        layout.addWidget(self.post_panel)
+        # 重绘双参考（源图 + 线锚图）：§⑲ 实测线条最连贯的配方
+        self.post_dual_check = QCheckBox("重绘用双参考（源图+线锚图，线条更连贯）")
+        self.post_dual_check.setChecked(True)
+        self.post_dual_check.setToolTip(
+            "重绘时把源图与自动生成的线锚图（白底长结构线）一起作为参考送入；\n"
+            "实测线条连通性明显好于单参考（§⑲ E 组配方）。"
+        )
+        layout.addWidget(self.post_dual_check)
+        # 色调校准 + 线条加墨
+        self.post_tone_check = QCheckBox("色调校准（按参考图匹配亮度/饱和度）")
+        self.post_tone_check.setToolTip(
+            "目标选画风参考图时画面更深更饱和、线条更清楚（画质优先）；选输入照片更接近照片原色。"
+        )
+        self.post_tone_target = QComboBox()
+        self.post_tone_target.addItem("目标=画风参考图（画质优先）", "style")
+        self.post_tone_target.addItem("目标=输入照片（色彩保真）", "photo")
+        self.post_ink_check = QCheckBox("线条加墨（解决线条稀碎）")
+        self.post_ink_check.setChecked(True)
+        layout.addWidget(self.post_tone_check)
+        layout.addWidget(self.post_tone_target)
+        layout.addWidget(self.post_ink_check)
+
+        # 后处理失败重试：读取 pipeline-steps/pipeline-manifest.json，从失败节点继续
+        post_retry_row = QHBoxLayout()
+        self.post_retry_btn = QPushButton("重试失败步骤（从失败节点继续）")
+        self.post_retry_btn.setEnabled(False)
+        self.post_retry_btn.setToolTip(
+            "后处理按「重绘提线 → 结构线叠加 → 局部重绘」执行，每步产物与状态记录在\n"
+            "<产物目录>/pipeline-steps/pipeline-manifest.json；\n"
+            "某步失败时点这里会跳过已成功的步骤，只重跑失败的那一步。"
+        )
+        self.post_retry_btn.clicked.connect(self.retry_failed_post_steps)
+        post_retry_row.addWidget(self.post_retry_btn)
+        post_retry_row.addStretch(1)
+        self.post_retry_row = QWidget()
+        self.post_retry_row.setLayout(post_retry_row)
+        layout.addWidget(self.post_retry_row)
 
         self.repaint_toggle_btn = QPushButton("▸ 重绘参数（模型 / 分辨率 / 比例 / 次数）")
         self.repaint_toggle_btn.setCheckable(True)
@@ -466,6 +621,19 @@ class GptImage2Widget(QWidget):
         self.prompt_edit.setToolTip("提示词编辑区（可拖动下方边框调整高度）")
         layout.addWidget(self.prompt_edit)
 
+        # 长度护栏 + 成本估算：常驻显示，避免用户写出"太长会爆 / 让画风参考图失效"的提示词
+        self.budget_label = QLabel("")
+        self.budget_label.setWordWrap(True)
+        self.budget_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.budget_label.setToolTip(
+            "长度：软上限 2000 字符（超过它画风参考图基本失效）、硬上限 15000 字符"
+            "（本中转站实测 15662 字符直接断连），官网上限 32000。\n"
+            "成本：按中转站公开价目 + 本项目实测 token 用量估算（new-api 口径），"
+            "分组倍率取实测路由分组（gpt-image → Openai-Gpt-1，Gemini 图片 → Discounted-Banana-1）。"
+        )
+        layout.addWidget(self.budget_label)
+        self.prompt_edit.textChanged.connect(self._refresh_budget)
+
         self.ref_label = QLabel("")
         self.ref_label.setWordWrap(True)
         self.ref_label.setToolTip(
@@ -474,6 +642,26 @@ class GptImage2Widget(QWidget):
         )
         layout.addWidget(self.ref_label)
 
+        # 画风选择：gpt-image 通道用 config-styles.json 里的 prompt_gpt 短版 + 画风的参考图
+        style_row = QHBoxLayout()
+        style_row.addWidget(QLabel("画风:"))
+        self.style_combo = QComboBox()
+        self.style_combo.setMinimumWidth(220)
+        self.style_combo.setToolTip(
+            "选择画风后：提示词自动带上该画风的「gpt-image 专用短版说明」(prompt_gpt)，\n"
+            "并把画风的参考图追加到参考图列表**最后一张**（内容图在前、画风图在后），\n"
+            "同时在提示词里写明两者的职责分工——避免把画风参考图的角色/服装/构图搬进来。\n"
+            "要改画风说明就编辑 conf/config-styles.json 的 prompt_gpt 字段（或跑 tools/convert_styles_gpt.py）。"
+        )
+        self.style_combo.currentIndexChanged.connect(self._on_style_changed)
+        style_row.addWidget(self.style_combo)
+        self.style_info_label = QLabel("")
+        self.style_info_label.setWordWrap(True)
+        style_row.addWidget(self.style_info_label, stretch=1)
+        layout.addLayout(style_row)
+        self.reload_styles()
+
+        layout.addWidget(QLabel("画风参考图:"))
         self.image_grid = RefImageGrid(
             max_images=GPT_IMAGE2_MAX_REFERENCE_IMAGES,
             parent=self,
@@ -753,6 +941,8 @@ class GptImage2Widget(QWidget):
     def _populate_sizes(self, site: str):
         self.size_combo.blockSignals(True)
         self.size_combo.clear()
+        if site == SITE_AIGC2D:
+            self.size_combo.addItem("自动（跟随参考图比例）", SIZE_FOLLOW_INPUT)
         for label, value in SIZE_CHOICES_BY_SITE.get(site, SIZE_CHOICES_BY_SITE[SITE_AIGC2D]):
             self.size_combo.addItem(label, value)
         self.size_combo.blockSignals(False)
@@ -839,10 +1029,19 @@ class GptImage2Widget(QWidget):
             worker.deleteLater()
 
     def _key_hint(self, api_type: str) -> str:
-        """缺 key 时的提示文案：说明两种来源（配置文件 / 环境变量），不暴露任何密钥值。"""
+        """缺 key 时的提示文案：说明两种来源（配置文件 / 环境变量），不暴露任何密钥值。
+
+        节点配置要连着取（`_env_key_names` 需要 `env_slug`）——`aigc-2d-gpt` 的密钥变量
+        可能与 `aigc2d` 共用（`IMAGE_MAKER_AIGC2D_API_KEY`），只按节点名提示会指向一个
+        根本不存在的变量名。
+        """
         from modules.others.api_backend import _env_key_names
 
-        names = _env_key_names(api_type)
+        try:
+            cfg = get_api_config(api_type=api_type)
+        except Exception:  # noqa: BLE001 - 提示文案不该因为读配置失败而崩
+            cfg = {}
+        names = _env_key_names(api_type, cfg)
         env_hint = f"，或设环境变量 {names[0]}" if names else ""
         return f"apis.{api_type} 缺少 api_key（可在 conf/config.json 填写{env_hint}）"
 
@@ -883,9 +1082,13 @@ class GptImage2Widget(QWidget):
         self._populate_models(site, data)
         per_site = self._site_node(data, site)
         fallback_size = DEFAULT_SIZE_BY_SITE.get(site, GPT_IMAGE2_SIZE_SQUARE)
+        # 没有历史选择时，aigc2d 默认「自动（跟随参考图比例）」——固定竖图会让宽图输入输出成竖图
+        if site == SITE_AIGC2D and not per_site.get("size"):
+            fallback_size = SIZE_FOLLOW_INPUT
         saved_size = per_site.get("size")
         if saved_size and site == SITE_AIGC2D:
-            saved_size = normalize_gpt_image2_size(size=saved_size)
+            if str(saved_size) != SIZE_FOLLOW_INPUT:
+                saved_size = normalize_gpt_image2_size(size=saved_size)
         _set_combo_by_data(self.size_combo, saved_size, fallback_size)
         _set_combo_by_data(self.quality_combo, per_site.get("quality"), "high")
         output_format = str(per_site.get("output_format") or "png").lower()
@@ -912,6 +1115,13 @@ class GptImage2Widget(QWidget):
             mode = str(node.get("mode") or MODE_GENERATE)
             if mode in MODE_CHOICES:
                 self.mode_combo.setCurrentText(mode)
+            if hasattr(self, "post_dual_check") and "post_dual" in node:
+                self.post_dual_check.setChecked(bool(node.get("post_dual")))
+            saved_style = node.get("style")
+            if saved_style and hasattr(self, "style_combo"):
+                idx = self.style_combo.findText(str(saved_style))
+                if idx >= 0:
+                    self.style_combo.setCurrentIndex(idx)
             repaint_node = node.get("repaint") if isinstance(node.get("repaint"), dict) else {}
             if hasattr(self, "repaint_check"):
                 saved_enabled = repaint_node.get("enabled")
@@ -928,6 +1138,25 @@ class GptImage2Widget(QWidget):
                     self.repaint_repeat_spin.setValue(max(1, int(repaint_node.get("repeat") or 1)))
                 except (TypeError, ValueError):
                     self.repaint_repeat_spin.setValue(1)
+            post_node = node.get("post_process") if isinstance(node.get("post_process"), dict) else {}
+            if post_node and hasattr(self, "structure_check"):
+                self.structure_check.setChecked(bool(post_node.get("structure_enabled")))
+                try:
+                    self.structure_strength_spin.setValue(float(post_node.get("structure_strength") or 0.5))
+                except (TypeError, ValueError):
+                    pass
+                self.local_repaint_check.setChecked(bool(post_node.get("local_enabled")))
+                region = str(post_node.get("local_region") or "hair")
+                idx = self.local_region_combo.findData(region)
+                if idx >= 0:
+                    self.local_region_combo.setCurrentIndex(idx)
+                try:
+                    self.local_feather_spin.setValue(max(8, int(post_node.get("local_feather") or 48)))
+                except (TypeError, ValueError):
+                    pass
+                if post_node.get("panel_open"):
+                    self.post_toggle_btn.setChecked(True)
+                    self.post_panel.setVisible(True)
         finally:
             self._loading = False
 
@@ -947,6 +1176,10 @@ class GptImage2Widget(QWidget):
         node["sites"] = sites
         node["site"] = site
         node["mode"] = self.mode_combo.currentText()
+        if hasattr(self, "style_combo"):
+            node["style"] = self.style_combo.currentText()
+        if hasattr(self, "post_dual_check"):
+            node["post_dual"] = bool(self.post_dual_check.isChecked())
         if hasattr(self, "repaint_check"):
             node["repaint"] = {
                 "enabled": bool(self.repaint_check.isChecked()),
@@ -954,6 +1187,15 @@ class GptImage2Widget(QWidget):
                 "resolution": self.repaint_resolution_combo.currentText().strip(),
                 "aspect_ratio": self.current_repaint_config().get("aspect_ratio") or ASPECT_RATIO_AUTO,
                 "repeat": int(self.repaint_repeat_spin.value()),
+            }
+        if hasattr(self, "structure_check"):
+            node["post_process"] = {
+                "structure_enabled": bool(self.structure_check.isChecked()),
+                "structure_strength": float(self.structure_strength_spin.value()),
+                "local_enabled": bool(self.local_repaint_check.isChecked()),
+                "local_region": str(self.local_region_combo.currentData() or "hair"),
+                "local_feather": int(self.local_feather_spin.value()),
+                "panel_open": bool(self.post_toggle_btn.isChecked()),
             }
         data[CONFIG_NODE] = node
         try:
@@ -1008,21 +1250,54 @@ class GptImage2Widget(QWidget):
         event.acceptProposedAction()
 
     # ---------------- 生成 ----------------
+    def resolve_request_size(self):
+        """把「自动」解析成实际尺寸：有参考图就按参考图比例，否则用站点默认。"""
+        raw = self.size_combo.currentData() or DEFAULT_SIZE_BY_SITE.get(self.current_site(), GPT_IMAGE2_SIZE_SQUARE)
+        if str(raw) != SIZE_FOLLOW_INPUT:
+            return str(raw)
+        from modules.others.api_backend import pick_gpt_image2_size_for_images
+        grid = getattr(self, "image_grid", None) or getattr(self, "ref_grid", None)
+        images = []
+        if grid is not None:
+            for method in ("paths", "get_paths", "get_images"):
+                if hasattr(grid, method):
+                    value = getattr(grid, method)
+                    images = [p for p in (value() if callable(value) else value) if p]
+                    break
+        picked = pick_gpt_image2_size_for_images(
+            images, fallback=DEFAULT_SIZE_BY_SITE.get(self.current_site(), GPT_IMAGE2_SIZE_PORTRAIT))
+        self.size_info_label.setText(f"自动尺寸 → {picked}（按参考图比例）" if images else f"自动尺寸 → {picked}（无参考图）")
+        return picked
+
     def build_request(self):
         """按当前站点组装 (后端函数, 调用参数)，供 Worker 调用（也便于测试）。"""
         site = self.current_site()
-        prompt = self.prompt_edit.toPlainText().strip()
+        raw_prompt = self.prompt_edit.toPlainText().strip()
         model = self.current_model()
-        size = self.size_combo.currentData() or DEFAULT_SIZE_BY_SITE.get(site, GPT_IMAGE2_SIZE_SQUARE)
+        size = self.resolve_request_size() if hasattr(self, "resolve_request_size") else (
+            self.size_combo.currentData() or DEFAULT_SIZE_BY_SITE.get(site, GPT_IMAGE2_SIZE_SQUARE))
         quality = self.quality_combo.currentData() or "high"
         output_format = self.output_format_combo.currentText().strip() or "png"
         mode_text = self.mode_combo.currentText()
         mode = "edit" if mode_text == MODE_EDIT else "generate"
 
+        # 画风：gpt-image 通道用 prompt_gpt 短版；画风参考图追加到内容图**之后**（最后一张）
+        from utils.styles import compose_style_prompt, ordered_reference_images
+        style_text, style_ref = self.current_style_block()
+        content_images = list(self.image_paths)
+        prompt = compose_style_prompt(style_text, raw_prompt,
+                                      style_ref_attached=bool(style_ref),
+                                      content_image_count=len(content_images))
+        image_paths = ordered_reference_images(content_images, style_ref, style_ref_attached=bool(style_ref))
+        if style_text:
+            self._append_log(f"[画风] {self.current_style_name()}：说明 {len(style_text)} 字符"
+                             + (f" + 参考图 {os.path.basename(style_ref)}（提交顺序最后一张）" if style_ref
+                                else "（该画风无参考图）"))
+
         if site == SITE_AUTODL:
             params = {
                 "prompt": prompt,
-                "image_paths": list(self.image_paths),
+                "image_paths": image_paths,
                 "model": model,
                 "aspect_ratio": "1:1",       # 尺寸由 size 直控
                 "instructions": "",
@@ -1038,7 +1313,7 @@ class GptImage2Widget(QWidget):
 
         params = {
             "prompt": prompt,
-            "image_paths": list(self.image_paths),
+            "image_paths": image_paths,
             "model": model,
             "size": size,
             "quality": quality,
@@ -1146,6 +1421,13 @@ class GptImage2Widget(QWidget):
             )
         if site == SITE_AUTODL:
             self._append_log("[提示] autodl 通道一次只出一张，且无法中途取消（请求返回后才结束）。")
+        post_steps = self.post_pipeline_steps()
+        active_post = [name for name, cfg in post_steps.items() if isinstance(cfg, dict) and cfg.get("enabled")]
+        if active_post:
+            labels = {"structure": "结构线叠加", "local": "局部重绘+羽化贴回"}
+            self._append_log("[链路] 出图" + (" → 重绘" if chain_repaint else "")
+                             + " → " + " → ".join(labels.get(n, n) for n in active_post)
+                             + "，最终产物为最后一道工序的输出。")
         self._append_log("[状态] 已发出请求，等待服务器返回（high/max 画质单张可能需要 1~5 分钟）...")
 
         self.generate_btn.setEnabled(False)
@@ -1193,6 +1475,28 @@ class GptImage2Widget(QWidget):
             self._append_log("       3) 上方『服务器返回 JSON 已保存到: …』给出的文件，含完整原文")
             self._append_log("       4) 本机日志文件 log/<日期>.log，内容相同且含重试过程")
             return
+        steps = self.post_pipeline_steps()
+        if any(cfg.get("enabled") for cfg in steps.values()):
+            self._start_post_process(paths)
+            return
+        self._show_results(paths)
+
+    def _refresh_post_retry(self, paths):
+        """根据 pipeline-steps 里的清单决定「重试失败步骤」是否可用。"""
+        if not hasattr(self, "post_retry_btn"):
+            return
+        from utils.post_process import pipeline_failures
+        work_dir = os.path.join(os.path.dirname(os.path.abspath(paths[0])), "pipeline-steps") if paths else ""
+        failures = pipeline_failures(work_dir) if work_dir else []
+        self.post_retry_btn.setEnabled(bool(failures))
+        if failures:
+            self.status_label.setText(f"部分完成：{len(failures)} 个后处理步骤失败（可点「重试失败步骤」）")
+
+    def _show_results(self, paths):
+        paths = [p for p in (paths or []) if p]
+        if not paths:
+            self.status_label.setText("完成(后处理无产物) —— 详见下方日志")
+            return
         self.status_label.setText(f"完成, {len(paths)} 张")
         for path in paths:
             item = QListWidgetItem(f"{os.path.basename(path)}  ->  {path}")
@@ -1200,6 +1504,191 @@ class GptImage2Widget(QWidget):
             self.result_list.addItem(item)
             self._append_log(f"[结果] 已保存: {path}")
         self.show_preview(paths[0])
+
+    def reload_styles(self):
+        """从 conf/config-styles.json 加载画风列表（第一项 = 默认(无附加)）。"""
+        if not hasattr(self, "style_combo"):
+            return
+        current = self.style_combo.currentText()
+        self._styles_data = {}
+        try:
+            import json as _json
+            with open(CONFIG_STYLES_FILE, encoding="utf-8") as f:
+                self._styles_data = _json.load(f) or {}
+        except Exception as exc:  # noqa: BLE001 - 画风表读不到不该影响生图
+            self._append_log(f"[画风] 读取 {CONFIG_STYLES_FILE} 失败（忽略）: {exc}")
+        self.style_combo.blockSignals(True)
+        self.style_combo.clear()
+        self.style_combo.addItem(STYLE_NONE)
+        for name in self._styles_data:
+            self.style_combo.addItem(str(name))
+        idx = self.style_combo.findText(current)
+        self.style_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.style_combo.blockSignals(False)
+        self._refresh_style_info()
+
+    def current_style_name(self) -> str:
+        if not hasattr(self, "style_combo"):
+            return ""
+        text = self.style_combo.currentText().strip()
+        return "" if text == STYLE_NONE else text
+
+    def current_style_block(self) -> tuple:
+        """返回 (画风短版文本, 画风参考图路径)。gpt-image 通道优先用 prompt_gpt。"""
+        from utils.styles import ref_image_valid, style_prompt, style_prompt_gpt, style_ref_image
+        name = self.current_style_name()
+        if not name:
+            return "", ""
+        gpt_text = style_prompt_gpt(self._styles_data, name).strip()
+        text = gpt_text or style_prompt(self._styles_data, name).strip()
+        ref = style_ref_image(self._styles_data, name)
+        return text, (ref if ref_image_valid(ref) else "")
+
+    def _on_style_changed(self, _index=None):
+        self._refresh_style_info()
+        self._refresh_budget()
+
+    def _refresh_style_info(self):
+        if not hasattr(self, "style_info_label"):
+            return
+        name = self.current_style_name()
+        if not name:
+            self.style_info_label.setText("未附加画风说明（只用提示词框里的文字）")
+            return
+        text, ref = self.current_style_block()
+        src = "prompt_gpt（gpt-image 专用短版）" if str(
+            __import__("utils.styles", fromlist=["x"]).style_prompt_gpt(self._styles_data, name)).strip() \
+            else "prompt（全量说明，未转换 prompt_gpt）"
+        parts = [f"{len(text)} 字符 / {src}"]
+        parts.append("画风参考图: " + (os.path.basename(ref) if ref else "无（该画风没配参考图）"))
+        if not self._styles_data.get(name, {}).get("prompt_gpt"):
+            parts.append("⚠ 缺 prompt_gpt，建议跑 tools/convert_styles_gpt.py --only " + name)
+        self.style_info_label.setText(" ｜ ".join(parts))
+        self.style_info_label.setStyleSheet("color: #b26a00;" if not ref else "")
+
+    def _refresh_budget(self):
+        """刷新提示词长度护栏 + 单张全工序成本估算（常驻显示）。"""
+        if not hasattr(self, "budget_label"):
+            return
+        try:
+            from utils.cost_estimate import (format_budget, format_pipeline_cost, estimate_pipeline,
+                                             prompt_budget)
+        except Exception as exc:  # noqa: BLE001 - 估算不可用不该影响生图
+            self.budget_label.setText(f"（长度/成本估算不可用: {exc}）")
+            return
+        text = self.prompt_edit.toPlainText() if hasattr(self, "prompt_edit") else ""
+        style_text = self.current_style_block()[0] if hasattr(self, "style_combo") else ""
+        budget = prompt_budget(len(text), style_chars=len(style_text))
+        steps = self.post_pipeline_steps() if hasattr(self, "structure_check") else {}
+        chain_repaint = bool(self.repaint_check.isChecked()) if hasattr(self, "repaint_check") else False
+        try:
+            est = estimate_pipeline(
+                max(1, len(text) + len(style_text)),
+                size=str(self.resolve_request_size() if hasattr(self, "resolve_request_size") else
+                         self.size_combo.currentData() or DEFAULT_SIZE_BY_SITE.get(self.current_site(),
+                                                                                  GPT_IMAGE2_SIZE_SQUARE)),
+                quality=str(self.quality_combo.currentData() or "medium"),
+                ref_images=len(self.image_paths or []),
+                include_repaint=chain_repaint,
+                include_structure=bool(steps.get("structure", {}).get("enabled")),
+                include_local=bool(steps.get("local", {}).get("enabled")),
+            )
+        except Exception as exc:  # noqa: BLE001
+            est = None
+            self._append_log(f"[估算] 成本估算失败（忽略）: {exc}")
+        lines = [format_budget(budget)]
+        if est:
+            detail = " + ".join(f"{s['label'].split(' ')[0]} ${s['usd']:.4f}" for s in est["steps"])
+            lines.append(f"单张全工序估算 ≈ ${est['total_usd']:.3f}（≈¥{est['total_cny']:.2f}） ｜ {detail}")
+        self.budget_label.setText("\n".join(lines))
+        if budget["over_hard"]:
+            color = "#c62828"
+        elif budget["over_soft"]:
+            color = "#b26a00"
+        else:
+            color = "#3a6b35"
+        self.budget_label.setStyleSheet(f"color: {color};")
+
+    def _start_pricing_refresh(self):
+        """后台拉一次价目表（首次显示用内置快照，拿到网络价目后再刷新一次）。"""
+        if getattr(self, "_pricing_worker", None) is not None:
+            return
+        self._pricing_worker = PricingWorker(self)
+        self._pricing_worker.done.connect(self._on_pricing_ready)
+        self._pricing_worker.start()
+
+    def _on_pricing_ready(self, ok):
+        worker = getattr(self, "_pricing_worker", None)
+        self._pricing_worker = None
+        if worker is not None:
+            worker.deleteLater()
+        if ok:
+            self._refresh_budget()
+
+    def post_pipeline_steps(self):
+        """按界面勾选框组装后处理流水线（未勾选的工序不会执行）。"""
+        from utils.post_process import default_pipeline
+        steps = default_pipeline()
+        steps["structure"]["enabled"] = bool(self.structure_check.isChecked())
+        steps["structure"]["strength"] = float(self.structure_strength_spin.value())
+        steps["local"]["enabled"] = bool(self.local_repaint_check.isChecked())
+        steps["local"]["region"] = str(self.local_region_combo.currentData() or "hair")
+        steps["local"]["feather"] = int(self.local_feather_spin.value())
+        steps["local"]["resolution"] = str(self.repaint_resolution_combo.currentText() or "2K")
+        return steps
+
+    def _last_post_outputs(self):
+        """最近一次生成/重绘的产物路径（重试用）。"""
+        paths = []
+        for i in range(self.result_list.count()):
+            item = self.result_list.item(i)
+            p = item.data(Qt.ItemDataRole.UserRole)
+            if p and os.path.isfile(p):
+                paths.append(p)
+        return paths
+
+    def retry_failed_post_steps(self):
+        """从失败节点继续跑后处理（已成功的步骤会被跳过）。"""
+        from utils.post_process import pipeline_failures
+        sources = self._last_post_outputs()
+        if not sources:
+            QMessageBox.information(self, "提示", "结果列表里没有可用产物，先跑一次生成。")
+            return
+        work_dir = os.path.join(os.path.dirname(os.path.abspath(sources[0])), "pipeline-steps")
+        failures = pipeline_failures(work_dir)
+        if not failures:
+            QMessageBox.information(self, "提示", "没有发现失败的后处理步骤。")
+            return
+        names = "、".join(sorted({str(f.get("step")) for f in failures}))
+        self._append_log(f"[后处理] 重试失败步骤: {names}")
+        self._start_post_process(sources)
+
+    def _on_post_progress(self, message):
+        """把后处理进度同步到状态栏（避免"生成返回就算完成"的错觉）。"""
+        text = str(message or "")
+        if "[工序]" in text:
+            self.status_label.setText("后处理中… " + text.replace("[工序]", "").strip()[:60])
+
+    def _start_post_process(self, paths):
+        """在后台线程跑勾选的后处理工序（局部重绘要走网络，不能卡 UI）。"""
+        from utils.post_process import run_pipeline
+        steps = self.post_pipeline_steps()
+        self.status_label.setText("后处理中...(局部重绘可能要 1 分钟)")
+        firmware = None
+        if steps["local"]["enabled"]:
+            firmware = str(self.current_repaint_config().get("system_prompt") or "")
+        self._post_worker = PostProcessWorker(paths, steps, firmware, self)
+        self._post_worker.log.connect(self._append_log)
+        self._post_worker.log.connect(self._on_post_progress)
+        self._post_worker.done.connect(self._on_post_done)
+        self._post_worker.start()
+
+    def _on_post_done(self, paths):
+        worker = getattr(self, "_post_worker", None)
+        self._post_worker = None
+        if worker is not None:
+            worker.deleteLater()
+        self._show_results(paths)
 
     def on_error(self, message):
         self.status_label.setText("出错")

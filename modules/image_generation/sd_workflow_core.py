@@ -33,7 +33,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from modules.others.api_backend import fetch_llm_json
+from modules.others.api_backend import fetch_llm_json, resolve_text_api_key, resolve_nsfw_api_key
 from utils.prompt_loader import get_prompt_path
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -174,12 +174,12 @@ def load_text_api_config_from_file(use_nsfw=False):
     if use_nsfw:
         return (
             str(data.get("nsfw_base_url", data.get("base_url", "")) or "").strip(),
-            str(data.get("nsfw_api_key", "") or "").strip(),
+            resolve_nsfw_api_key(data),
             str(data.get("nsfw_model", data.get("model", "")) or "").strip(),
         )
     return (
         str(data.get("base_url", "") or "").strip(),
-        str(data.get("api_key", "") or "").strip(),
+        resolve_text_api_key(data),
         str(data.get("model", "") or "").strip(),
     )
 
