@@ -125,13 +125,13 @@ def test_build_gpt_image_steps_follows_checkboxes(analyzer):
 
 
 def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
-    """预算覆盖首图、重绘、身份审计/修订/复审和局部区域；本地工序不占份额。"""
+    """预算覆盖首图、重绘、质量/身份门禁和局部区域；本地工序不占份额。"""
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘（局部关闭，结构线/色调/加墨是本地）
-    assert analyzer._pipeline_timeout_budget(120, steps) == 840
+    assert analyzer._pipeline_timeout_budget(120, steps) == 1200
     analyzer.gpt_pp_local.setChecked(True)             # 打开四区链 → 再多 4 份
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 1320
+    assert analyzer._pipeline_timeout_budget(120, steps) == 1680
     analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 四区
     steps = analyzer._build_gpt_image_steps()
     assert analyzer._pipeline_timeout_budget(120, steps) == 600
@@ -203,7 +203,7 @@ def test_gpt_channel_local_step_is_2k_without_detail_boost(analyzer):
     assert steps["local"]["resolution"] == "2K"
     assert steps["local"]["detail_boost"] is False
     # 重绘链还含初审、最多两轮修订及每轮复审。
-    assert analyzer._pipeline_timeout_budget(120, steps) == 1320
+    assert analyzer._pipeline_timeout_budget(120, steps) == 1680
 
 
 def _first_pass_payload(analyzer, tmp_path, styles, style_name):

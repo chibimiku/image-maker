@@ -74,13 +74,17 @@ def load_text_api_config(config_path: str = None) -> dict:
 
 
 def call_text_model(base_url, api_key, model, system_prompt, user_prompt, timeout=DEFAULT_TIMEOUT,
-                    max_tokens=4000, image_path=""):
+                    max_tokens=4000, image_path="", image_paths=None):
     """POST /chat/completions（支持推理模型与可选附图）。"""
     url = f"{normalize_chat_base(base_url)}/chat/completions"
-    if image_path:
+    paths = [str(p) for p in (image_paths or []) if str(p or "").strip()]
+    if image_path and not paths:
+        paths = [str(image_path)]
+    if paths:
         from utils.style_gpt import to_data_url
-        content = [{"type": "text", "text": user_prompt},
-                   {"type": "image_url", "image_url": {"url": to_data_url(image_path)}}]
+        content = [{"type": "text", "text": user_prompt}]
+        content.extend({"type": "image_url", "image_url": {"url": to_data_url(path)}}
+                       for path in paths)
     else:
         content = user_prompt
     payload = {"model": model,

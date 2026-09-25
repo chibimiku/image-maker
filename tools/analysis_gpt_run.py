@@ -127,6 +127,11 @@ def main():
                     help="审计首图和最终图是否偏离分析出的角色/服装特征，并保存 JSON")
     ap.add_argument("--identity-correct", action="store_true",
                     help="最终图有高置信身份差异时，最多调用两次 Gemini 做定点修订，每次后重新审计")
+    quality_group = ap.add_mutually_exclusive_group()
+    quality_group.add_argument("--quality-refine", dest="quality_refine", action="store_true", default=True,
+                               help="默认：重绘后做三图+九宫格质量审计，必要时用当前图+GPT首图修订一次")
+    quality_group.add_argument("--no-quality-refine", dest="quality_refine", action="store_false",
+                               help="关闭重绘后的质量审计与一次定点修订")
     args = ap.parse_args()
 
     from modules.others.api_backend import (generate_image_aigc2d_gpt,
@@ -228,7 +233,7 @@ def main():
                 "size": size, "quality": args.quality, "mode": args.first_pass_mode,
                 "steps": steps, "firmware": args.firmware, "base": args.base_image,
                 "repaint_style_ref": repaint_style_ref,
-                "outputs": [], "identity": {}, "status": "planned"}
+                "outputs": [], "quality_refine": {}, "identity": {}, "status": "planned"}
     def save_manifest():
         if output_dir:
             with open(os.path.join(output_dir, "request.json"), "w", encoding="utf-8") as f:
@@ -301,6 +306,42 @@ def main():
                            resume=False,
                            log_callback=lambda m: print("      ", m)))
     manifest["outputs"] = outs
+    if args.quality_refine and outs and repaint_style_ref and os.path.isfile(repaint_style_ref):
+        from modules.others.api_backend import generate_image_repaint
+        from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
+                                          should_refine_quality)
+        try:
+            quality_audit = audit_refine_quality(
+                base_path, outs[-1], repaint_style_ref, first_pass_prompt=payload["prompt"])
+            manifest["quality_refine"]["before"] = quality_audit
+            if output_dir:
+                with open(os.path.join(output_dir, "refine-quality-audit-0.json"),
+                          "w", encoding="utf-8") as f:
+                    json.dump(quality_audit, f, ensure_ascii=False, indent=2)
+            if should_refine_quality(quality_audit):
+                quality_prompt = build_quality_correction_prompt(quality_audit)
+                refined = generate_image_repaint(
+                    [outs[-1]], resolution="2K", aspect_ratio="auto", prompt=quality_prompt,
+                    use_detail_suffix=False, save_sub_dir=output_dir or os.path.dirname(outs[-1]),
+                    file_prefix="quality-refine", extra_reference_paths=[base_path]) or []
+                if refined:
+                    outs.extend(refined)
+                    quality_after = audit_refine_quality(
+                        base_path, outs[-1], repaint_style_ref, first_pass_prompt=payload["prompt"])
+                    manifest["quality_refine"]["after"] = quality_after
+                    if output_dir:
+                        with open(os.path.join(output_dir, "refine-quality-audit-1.json"),
+                                  "w", encoding="utf-8") as f:
+                            json.dump(quality_after, f, ensure_ascii=False, indent=2)
+                    print("      质量门禁: 已用当前图 + GPT 首图做一次文字驱动修订（未再次发送画风图）")
+            else:
+                print("      质量门禁: 未发现需定点修复的高置信问题")
+        except Exception as exc:
+            manifest["quality_refine"]["audit_error"] = f"{type(exc).__name__}: {exc}"
+            print(f"      质量门禁失败，保留当前图: {type(exc).__name__}: {exc}")
+        manifest["outputs"] = outs
+        manifest["selected_output"] = outs[-1]
+        save_manifest()
     if (args.identity_audit or args.identity_correct) and outs:
         from utils.identity_audit import (audit_image_identity, build_identity_correction_prompt,
                                           identity_gate_action)

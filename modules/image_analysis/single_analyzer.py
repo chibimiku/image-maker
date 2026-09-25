@@ -44,9 +44,9 @@ CLIPBOARD_SNAPSHOT_DIR = os.path.join("cache", "temp", "single-analyzer-clipboar
 
 
 ANALYSIS_GPT_UI_NODE = "analysis_gpt_pipeline"
-# 线条优先默认：GPT 首图 → Gemini（源图 + 完整画风图）→ 最多两轮身份定点修订。
+# 默认链：GPT 首图 → Gemini（源图 + 完整画风图）→ 一次 source-only 质量修订 → 身份定点修订。
 # recipe_version 只迁移配方键一次；用户之后的自定义选择继续保留。
-GPT_RECIPE_VERSION = 5
+GPT_RECIPE_VERSION = 6
 STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
 # 注意：`dual_reference` 键**已废弃**（旧配置里可能还留着，读到会忽略）。
 # 重绘的第二张参考由 `analysis_gen.pipeline_steps_from_flags(repaint_ref_mode=...)` 决定，
@@ -1268,7 +1268,7 @@ class GptImageGenWorkerThread(QThread):
     与 Gemini 通道（ImageGenWorkerThread）的区别：
     - 不挂原分析图，只挂画风参考图；
     - 提示词 = 画风 prompt_gpt + 与 Gemini 通道同源的分析描述；
-    - 默认用源图 + 完整画风图重绘，再按实际首图 prompt 做最多两轮身份定点修订。
+    - 默认用源图 + 完整画风图重绘，必要时做一次 source-only 质量修订，再做身份定点修订。
     见 docs/gpt-image-tid-style/BEST-PIPELINE.md。
     """
     log_signal = pyqtSignal(str)
@@ -1354,6 +1354,45 @@ class GptImageGenWorkerThread(QThread):
                                                style_clauses=self.style_clauses) or saved
             except Exception as exc:  # noqa: BLE001 - 工序失败仍保留生图产物
                 self.log_signal.emit(f"⚠️ 工序加工失败，已保留生图产物: {type(exc).__name__}: {exc}")
+        # 完整画风图只用于第一次重绘。第二次质量修订改用「当前图 + GPT 首图」：
+        # 审计从画风图提取具体差异写进文字，但不再次发送画风图，避免参考角色/场景二次侵入。
+        if ((self.steps.get("repaint") or {}).get("enabled") and saved and self.style_ref_path
+                and os.path.isfile(self.style_ref_path) and not self.isInterruptionRequested()):
+            try:
+                import json as _json
+                from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
+                                                  should_refine_quality)
+                from modules.others.api_backend import generate_image_repaint
+                quality_dir = os.path.dirname(os.path.abspath(saved[-1]))
+                actual_prompt = str(self.request_payload.get("prompt") or "")
+                quality = audit_refine_quality(first_image, saved[-1], self.style_ref_path,
+                                               first_pass_prompt=actual_prompt)
+                with open(os.path.join(quality_dir, "refine-quality-audit-0.json"),
+                          "w", encoding="utf-8") as f:
+                    _json.dump(quality, f, ensure_ascii=False, indent=2)
+                if should_refine_quality(quality):
+                    quality_prompt = build_quality_correction_prompt(quality)
+                    refined = generate_image_repaint(
+                        [saved[-1]], resolution="2K", aspect_ratio="auto", prompt=quality_prompt,
+                        use_detail_suffix=False, save_sub_dir=quality_dir,
+                        file_prefix=(self.file_prefix or "analysis-gpt") + "-quality-refine",
+                        extra_reference_paths=[first_image]) or []
+                    if refined:
+                        saved = [refined[-1]]
+                        quality_after = audit_refine_quality(
+                            first_image, saved[-1], self.style_ref_path,
+                            first_pass_prompt=actual_prompt)
+                        with open(os.path.join(quality_dir, "refine-quality-audit-1.json"),
+                                  "w", encoding="utf-8") as f:
+                            _json.dump(quality_after, f, ensure_ascii=False, indent=2)
+                        self.log_signal.emit(
+                            "[质量门禁] 已用当前图 + GPT 首图完成一次文字驱动修订；"
+                            "画风图未再次发送。")
+                else:
+                    self.log_signal.emit("[质量门禁] 未发现需定点修复的高置信质量问题。")
+            except Exception as exc:
+                self.log_signal.emit(
+                    f"[质量门禁] 审计/修订失败，保留当前重绘图: {type(exc).__name__}: {exc}")
         # 重绘后的身份处理最多两轮定点修订。每轮都拿当前图与实际首图 prompt 重新审计，
         # 只修上一轮仍不符合的稳定身份特征；最终不回退 GPT 首图，以保留线条修复。
         if ((self.steps.get("repaint") or {}).get("enabled") and saved and self.analysis_result
@@ -3306,7 +3345,7 @@ class SingleAnalyzerWidget(QWidget):
         steps = steps or {}
         slots = 1                                                   # 首图
         if (steps.get("repaint") or {}).get("enabled"):
-            slots += 6  # Gemini 重绘 + 初审 + 最多两次 Gemini 定点修订及各自复审
+            slots += 9  # 重绘 + 质量审计/一次修订/复审 + 身份初审/最多两次修订及复审
         if (steps.get("local") or {}).get("enabled"):
             regions = (steps["local"].get("regions") or [steps["local"].get("region") or "hair"])
             slots += max(1, len([r for r in regions if str(r).strip()]))
