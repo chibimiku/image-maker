@@ -1,0 +1,64 @@
+{
+  "title": "线条优先重绘、风格参考泄露与 GPT 端点对照（2026-09-25）",
+  "summary": [
+    "固定历史 GPT 源图测试 Gemini：source-only 保持内容最稳；完整风格图显著提高线条连贯度，但会改变角色固有特征。一次定点身份修订保留了大部分线条收益，且工作流不再回退 GPT 源图。",
+    "GPT 首图采用完全相同的历史 4072 字符提示词、同一 tinkle 参考图、1024x1536 high；edits 两张成功一张审核拦截，generations 两张成功。端点差异小于随机采样差异。",
+    "本地结构线叠加能增强轮廓可见度，但本轮没有提高全局连通指标；过强加墨和白区对比反而增加碎线，因此不升级为默认。"
+  ],
+  "groups": [
+    {
+      "title": "A. 相同参数：/images/edits 与 /images/generations",
+      "note": "历史提示词、参考图、尺寸、quality 完全一致。edits-r2 被 moderation_blocked，失败请求保留在对应目录。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "历史满意 GPT 源图", "path": "data/20260923/analysis-gpt-image/20260921-234549-2026-07-_output_024958_0_afd8ee.png", "note": "历史 edits；段长 80.8，端点 33.51"},
+        {"label": "edits r1", "path": "data/test-result/20260925/endpoint-ab/edits-r1/20260921-234549-2026-07-_output_164233_0_c25f72.png", "note": "段长 87.8，端点 32.53"},
+        {"label": "edits r3", "path": "data/test-result/20260925/endpoint-ab/edits-r3/20260921-234549-2026-07-_output_164729_0_093558.png", "note": "段长 75.0，端点 39.05"},
+        {"label": "generations r1", "path": "data/test-result/20260925/endpoint-ab/generate-r1/20260921-234549-2026-07-_output_164226_0_7bc9c9.png", "note": "段长 82.4，端点 36.84"},
+        {"label": "generations r2", "path": "data/test-result/20260925/endpoint-ab/generate-r2/20260921-234549-2026-07-_output_164419_0_9b8d15.png", "note": "段长 84.4，端点 35.85"}
+      ],
+      "requests": ["data/test-result/20260925/endpoint-ab/edits-r1/request.json", "data/test-result/20260925/endpoint-ab/edits-r2/request.json", "data/test-result/20260925/endpoint-ab/generate-r1/request.json"]
+    },
+    {
+      "title": "B. 固定历史 GPT 源图：Gemini 是否再次接收风格图",
+      "note": "三组只改变 Gemini 的第二张输入及其画风条款。修订图是身份审计后的一次定点修订；不论复审结果均不回退。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "固定 GPT 源图", "path": "data/20260923/analysis-gpt-image/20260921-234549-2026-07-_output_024958_0_afd8ee.png", "note": "段长 80.8，端点 33.51"},
+        {"label": "source-only v5", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-source-only/20260921-234549-2026-07-_output_024958_0_afd8ee-165027-66eacd-final-rp_165047-666abc.jpg", "note": "段长 74.5，端点 34.35；身份 major"},
+        {"label": "source-only 修订", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-source-only/identity-correct_165124-b42115.jpg", "note": "段长 70.5；仍 minor"},
+        {"label": "style-neutral v5", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-style-neutral/20260921-234549-2026-07-_output_024958_0_afd8ee-165202-7b9ae1-final-rp_165230-8bb7a1.jpg", "note": "段长 75.7，端点 35.42；身份 major"},
+        {"label": "style-neutral 修订", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-style-neutral/identity-correct_165305-45d012.jpg", "note": "复审通过"},
+        {"label": "完整风格图 v5", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-style-full/20260921-234549-2026-07-_output_024958_0_afd8ee-165347-87cbd5-final-rp_165419-b629ab.jpg", "note": "段长 92.2，端点 33.07；线质最佳但身份 major"},
+        {"label": "完整风格图 + 定点修订", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-style-full/identity-correct_165459-bd3fe1.jpg", "note": "段长 89.1，端点 32.35；保留线质，仍 minor"}
+      ],
+      "requests": ["data/test-result/20260925/gemini-style-ref-record/historical-source/v5-source-only/request.json", "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-style-neutral/request.json", "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-style-full/request.json"]
+    },
+    {
+      "title": "C. 之前缺失记录的角色泄露样本",
+      "note": "棕发/紫瞳/短裙 GPT 首图再次接收 tinkle 风格图（style-neutral）后变为灰蓝发/绿瞳/长裙。这是此前结论对应的实际测试组。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "GPT 首图：棕发、紫瞳、短裙", "path": "data/test-result/20260925/e2e-short-tinkle/20260921-234549-2026-07-_output_142434_0_2e864d.png", "note": "Gemini 前"},
+        {"label": "Gemini style-neutral", "path": "data/test-result/20260925/e2e-short-tinkle/20260921-234549-2026-07-_output_142434_0_2e864d-142434-e52c53-final-rp_142510-3e4a17.png", "note": "灰蓝发、绿瞳、长裙；视觉参考仍泄露具体角色/配色"}
+      ],
+      "requests": ["data/test-result/20260925/e2e-short-tinkle/request.json"]
+    },
+    {
+      "title": "D. source-only 的强提线 prompt 与本地工序",
+      "note": "v6 两次未超过 v5。结构线 0.28/0.35/0.50 主要增强可见度，没有改善全局段长；加墨与白区对比在本样本继续降低段长。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "v5 source-only", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v5-source-only/20260921-234549-2026-07-_output_024958_0_afd8ee-165027-66eacd-final-rp_165047-666abc.jpg", "note": "74.5 / 34.35"},
+        {"label": "v6 source-only r1", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v6-source-only/20260921-234549-2026-07-_output_024958_0_afd8ee-165537-3706c7-final-rp_165557-8efe41.jpg", "note": "75.0 / 35.92"},
+        {"label": "v6 source-only r2", "path": "data/test-result/20260925/gemini-style-ref-record/historical-source/v6-source-only/20260921-234549-2026-07-_output_024958_0_afd8ee-165557-d7a399-final-rp_165618-3bac15.jpg", "note": "74.7 / 35.33"},
+        {"label": "结构线 0.28", "path": "data/test-result/20260925/line-local/v5-source-s028/20260921-234549-2026-07-_output_024958_0_afd8ee-165027-66eacd-final-rp_165047-666abc-165722-579ba7-final-sline28.png", "note": "73.8 / 34.06"},
+        {"label": "结构线 0.35", "path": "data/test-result/20260925/line-local/v5-source-s035/20260921-234549-2026-07-_output_024958_0_afd8ee-165027-66eacd-final-rp_165047-666abc-165723-ed20f0-final-sline35.png", "note": "72.8 / 34.29"},
+        {"label": "结构线 0.50", "path": "data/test-result/20260925/line-local/v5-source-s050/20260921-234549-2026-07-_output_024958_0_afd8ee-165027-66eacd-final-rp_165047-666abc-165725-2b751b-final-sline50.png", "note": "73.6 / 34.81"},
+        {"label": "0.35 + ink10", "path": "data/test-result/20260925/line-local/v5-source-s035-ink10/20260921-234549-2026-07-_output_024958_0_afd8ee-165027-66eacd-final-rp_165047-666abc-165726-cea7cb-final-sline35+ink.png", "note": "70.3 / 34.81"},
+        {"label": "contrast0.55 + 0.35 + ink10", "path": "data/test-result/20260925/line-local/v5-source-c055-s035-ink10/20260921-234549-2026-07-_output_024958_0_afd8ee-165027-66eacd-final-rp_165047-666abc-165734-b21636-final-sline35+contrast+ink.png", "note": "67.7 / 35.22"}
+      ],
+      "requests": ["data/test-result/20260925/gemini-style-ref-record/historical-source/v6-source-only/request.json"]
+    }
+  ]
+}

@@ -1,0 +1,356 @@
+{
+  "title": "画风泛化端到端实验（2026-09-25）",
+  "summary": [
+    "5 种画风 × 2 轮；首图使用身份完整锚 gpt_image_prompt 与画风参考图；重绘仅使用 GPT 首图。",
+    "每组内横向顺序：素材、画风参考、GPT 首图、Gemini 重绘、必要时身份定点修订。自动指标只用于故障筛查，最终仍应看图。"
+  ],
+  "groups": [
+    {
+      "title": "tinkle 历史与当前配方",
+      "layout": "horizontal",
+      "note": "历史好图来自旧 /images/edits；当前为 /images/generations。当前默认候选是身份完整锚 + source-only 重绘。",
+      "images": [
+        {
+          "label": "历史 GPT 源图",
+          "path": "data/20260923/analysis-gpt-image/20260921-234549-2026-07-_output_024958_0_afd8ee.png",
+          "note": "1024x1536 亮度 137.3 饱和 75.6 段长 73.5 端点 36.88 长线 0.757 碎线 0.022 边缘占比 0.294"
+        },
+        {
+          "label": "历史满意最终图",
+          "path": "data/20260923/20260921-234549-2026-07-_output_024958_0_afd8ee-024958-0ab2a1-final-rp+sline50+local-subject_no_face.png",
+          "note": "1696x2528 亮度 136.6 饱和 79.0 段长 75.9 端点 35.90 长线 0.749 碎线 0.018 边缘占比 0.307"
+        },
+        {
+          "label": "当前身份完整锚 GPT",
+          "path": "data/test-result/20260925/e2e-fullanchor-tinkle/20260921-234549-2026-07-_output_142754_0_c3e870.png",
+          "note": "1024x1536 亮度 167.4 饱和 63.8 段长 67.8 端点 38.52 长线 0.740 碎线 0.028 边缘占比 0.311"
+        },
+        {
+          "label": "当前身份完整锚 source-only 重绘",
+          "path": "data/test-result/20260925/e2e-fullanchor-tinkle/20260921-234549-2026-07-_output_142754_0_c3e870-142754-3cef3a-final-rp_142814-af4cfd.jpg",
+          "note": "1696x2528 亮度 168.1 饱和 61.6 段长 74.4 端点 37.06 长线 0.754 碎线 0.022 边缘占比 0.316"
+        },
+        {
+          "label": "当前短锚 GPT",
+          "path": "data/test-result/20260925/e2e-short-tinkle/20260921-234549-2026-07-_output_142434_0_2e864d.png",
+          "note": "1024x1536 亮度 148.2 饱和 57.2 段长 80.1 端点 36.83 长线 0.776 碎线 0.018 边缘占比 0.322"
+        },
+        {
+          "label": "短锚 source-only 重绘",
+          "path": "data/test-result/20260925/e2e-short-tinkle-source-only/20260921-234549-2026-07-_output_142434_0_2e864d-142550-b7daf3-final-rp_142619-4792aa.jpg",
+          "note": "1696x2528 亮度 149.2 饱和 57.5 段长 77.0 端点 36.53 长线 0.770 碎线 0.021 边缘占比 0.332"
+        }
+      ]
+    },
+    {
+      "title": "goto-p-r1",
+      "layout": "horizontal",
+      "note": "style=goto-p；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=accept；推荐产物=20260923-025937-天气好的时候穿上_output_143524_0_e99b06-143533-3f871c-final-rp_143552-7241a7.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/天气好的时候穿上喜欢的Lolita，足以_2.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/goto-p.jpg",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/goto-p-r1/20260923-025937-天气好的时候穿上_output_143524_0_e99b06.png",
+          "note": "1024x1536 亮度 205.8 饱和 37.2 段长 88.1 端点 26.85 长线 0.826 碎线 0.007 边缘占比 0.275；身份 通过"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/goto-p-r1/20260923-025937-天气好的时候穿上_output_143524_0_e99b06-143533-3f871c-final-rp_143552-7241a7.jpg",
+          "note": "1696x2528 亮度 205.2 饱和 38.8 段长 98.7 端点 26.81 长线 0.848 碎线 0.006 边缘占比 0.301；身份 通过"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/goto-p-r1/request.json"
+      ]
+    },
+    {
+      "title": "goto-p-r2",
+      "layout": "horizontal",
+      "note": "style=goto-p；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=correct；推荐产物=identity-correct_144357-68055e.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/00000-3348168191.png",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/goto-p.jpg",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/goto-p-r2/20260923-030315-00000-33_output_143622_0_c2f88c.png",
+          "note": "1024x1536 亮度 197.8 饱和 38.1 段长 77.3 端点 28.07 长线 0.755 碎线 0.015 边缘占比 0.308；身份 差异: bodice_neckline"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/goto-p-r2/20260923-030315-00000-33_output_143622_0_c2f88c-144302-7878f7-final-rp_144321-10af16.jpg",
+          "note": "1696x2528 亮度 198.1 饱和 39.9 段长 76.6 端点 28.75 长线 0.750 碎线 0.013 边缘占比 0.315；身份 差异: bodice_neckline"
+        },
+        {
+          "label": "身份定点修订",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/goto-p-r2/identity-correct_144357-68055e.jpg",
+          "note": "1696x2528 亮度 198.2 饱和 41.6 段长 80.4 端点 26.58 长线 0.783 碎线 0.012 边缘占比 0.314；复审 通过"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/goto-p-r2/request.json"
+      ]
+    },
+    {
+      "title": "noir-aiart-r1",
+      "layout": "horizontal",
+      "note": "style=noir-aiart；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=accept；推荐产物=20260923-030315-00000-33_output_143825_0_9dbdbc-143833-9b9fa2-final-rp_143858-6c14ce.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/00000-3348168191.png",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/noir-aiart.jpg",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/noir-aiart-r1/20260923-030315-00000-33_output_143825_0_9dbdbc.png",
+          "note": "1024x1536 亮度 125.9 饱和 118.4 段长 60.0 端点 40.51 长线 0.690 碎线 0.039 边缘占比 0.351；身份 通过"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/noir-aiart-r1/20260923-030315-00000-33_output_143825_0_9dbdbc-143833-9b9fa2-final-rp_143858-6c14ce.jpg",
+          "note": "1696x2528 亮度 126.7 饱和 116.4 段长 60.0 端点 39.36 长线 0.692 碎线 0.040 边缘占比 0.349；身份 通过"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/noir-aiart-r1/request.json"
+      ]
+    },
+    {
+      "title": "noir-aiart-r2",
+      "layout": "horizontal",
+      "note": "style=noir-aiart；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=accept；推荐产物=20260923-030133-天气好的时候穿上_output_143856_0_c5c747-143906-c7c80e-final-rp_143933-2c69bc.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/天气好的时候穿上喜欢的Lolita，足以_2.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/noir-aiart.jpg",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/noir-aiart-r2/20260923-030133-天气好的时候穿上_output_143856_0_c5c747.png",
+          "note": "1024x1536 亮度 138.9 饱和 110.0 段长 74.5 端点 38.85 长线 0.769 碎线 0.029 边缘占比 0.336；身份 通过"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/noir-aiart-r2/20260923-030133-天气好的时候穿上_output_143856_0_c5c747-143906-c7c80e-final-rp_143933-2c69bc.jpg",
+          "note": "1696x2528 亮度 140.4 饱和 104.2 段长 70.1 端点 38.77 长线 0.732 碎线 0.028 边缘占比 0.340；身份 通过"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/noir-aiart-r2/request.json"
+      ]
+    },
+    {
+      "title": "say-hana-v4-r1",
+      "layout": "horizontal",
+      "note": "style=say-hana-v4；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=review；推荐产物=20260923-025808-Lolita｜🌟_output_143631_0_b59328-143658-a75e96-final-rp_143727-6cf407.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/Lolita｜🌟AP小宇宙茶会💙_5.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/sayhana-test.png",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r1/20260923-025808-Lolita｜🌟_output_143631_0_b59328.png",
+          "note": "1024x1536 亮度 137.4 饱和 120.6 段长 74.9 端点 39.84 长线 0.765 碎线 0.026 边缘占比 0.345；身份 审计失败"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r1/20260923-025808-Lolita｜🌟_output_143631_0_b59328-143658-a75e96-final-rp_143727-6cf407.jpg",
+          "note": "1696x2528 亮度 138.4 饱和 114.7 段长 74.3 端点 36.38 长线 0.764 碎线 0.027 边缘占比 0.358；身份 审计失败"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r1/request.json"
+      ]
+    },
+    {
+      "title": "say-hana-v4-r2",
+      "layout": "horizontal",
+      "note": "style=say-hana-v4；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=fallback；推荐产物=20260921-234549-2026-07-_output_143704_0_4bd76e.png",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/2026-07-24 12_17_40_1.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/sayhana-test.png",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r2/20260921-234549-2026-07-_output_143704_0_4bd76e.png",
+          "note": "1024x1536 亮度 132.6 饱和 153.6 段长 75.6 端点 39.60 长线 0.753 碎线 0.027 边缘占比 0.345；身份 差异: outfit_neckline"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r2/20260921-234549-2026-07-_output_143704_0_4bd76e-143715-8af5e8-final-rp_143745-3b3e79.jpg",
+          "note": "1696x2528 亮度 111.3 饱和 117.8 段长 85.1 端点 25.80 长线 0.809 碎线 0.012 边缘占比 0.330；身份 差异: hair_colour_length_style, eye_colour, outfit_skirt_design, throat_bow, gloves, tiara"
+        },
+        {
+          "label": "身份定点修订",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r2/identity-correct_143816-4ebd92.jpg",
+          "note": "1696x2528 亮度 100.6 饱和 125.0 段长 74.7 端点 28.69 长线 0.767 碎线 0.013 边缘占比 0.336；复审 差异: skirt_length_and_design, neckline_design"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r2/request.json"
+      ]
+    },
+    {
+      "title": "tid-r1",
+      "layout": "horizontal",
+      "note": "style=tid；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=accept；推荐产物=20260923-030133-天气好的时候穿上_output_143935_0_728661-143941-eb70e9-final-rp_144206-b34fc3.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/天气好的时候穿上喜欢的Lolita，足以_2.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/tid.png",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tid-r1/20260923-030133-天气好的时候穿上_output_143935_0_728661.png",
+          "note": "1024x1536 亮度 190.0 饱和 34.1 段长 78.4 端点 31.43 长线 0.760 碎线 0.018 边缘占比 0.288；身份 通过"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tid-r1/20260923-030133-天气好的时候穿上_output_143935_0_728661-143941-eb70e9-final-rp_144206-b34fc3.jpg",
+          "note": "1696x2528 亮度 190.0 饱和 34.5 段长 81.7 端点 30.39 长线 0.798 碎线 0.013 边缘占比 0.291；身份 通过"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/tid-r1/request.json"
+      ]
+    },
+    {
+      "title": "tid-r2",
+      "layout": "horizontal",
+      "note": "style=tid；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=review；推荐产物=20260923-025808-Lolita｜🌟_output_144008_0_7c096c-144029-8962dc-final-rp_144058-868a46.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/Lolita｜🌟AP小宇宙茶会💙_5.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/tid.png",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tid-r2/20260923-025808-Lolita｜🌟_output_144008_0_7c096c.png",
+          "note": "1024x1536 亮度 211.9 饱和 21.9 段长 72.7 端点 32.97 长线 0.741 碎线 0.022 边缘占比 0.309；身份 审计失败"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tid-r2/20260923-025808-Lolita｜🌟_output_144008_0_7c096c-144029-8962dc-final-rp_144058-868a46.jpg",
+          "note": "1696x2528 亮度 212.7 饱和 21.6 段长 71.2 端点 31.93 长线 0.720 碎线 0.019 边缘占比 0.306；身份 审计失败"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/tid-r2/request.json"
+      ]
+    },
+    {
+      "title": "tinkle-r1",
+      "layout": "horizontal",
+      "note": "style=tinkle；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=accept；推荐产物=20260921-234549-2026-07-_output_143449_0_1c2600-143457-c5f118-final-rp_143519-85d383.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/2026-07-24 12_17_40_1.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/tinkle-test.png",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tinkle-r1/20260921-234549-2026-07-_output_143449_0_1c2600.png",
+          "note": "1024x1536 亮度 175.6 饱和 53.9 段长 72.5 端点 36.40 长线 0.747 碎线 0.020 边缘占比 0.317；身份 通过"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tinkle-r1/20260921-234549-2026-07-_output_143449_0_1c2600-143457-c5f118-final-rp_143519-85d383.jpg",
+          "note": "1696x2528 亮度 175.9 饱和 52.6 段长 68.3 端点 37.23 长线 0.717 碎线 0.022 边缘占比 0.329；身份 通过"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/tinkle-r1/request.json"
+      ]
+    },
+    {
+      "title": "tinkle-r2",
+      "layout": "horizontal",
+      "note": "style=tinkle；content=gpt_image_prompt；GPT generations/high；Gemini v5/source-only/full；身份门禁=review；推荐产物=20260923-025808-Lolita｜🌟_output_143438_0_d56512-144321-8ce4cb-final-rp_144350-2d00be.jpg",
+      "images": [
+        {
+          "label": "素材原图",
+          "path": "data/20260921/sucai/Lolita｜🌟AP小宇宙茶会💙_5.jpg",
+          "note": ""
+        },
+        {
+          "label": "画风参考图",
+          "path": "data/style-ref/tinkle-test.png",
+          "note": "只送 GPT 首图；Gemini 重绘不发送"
+        },
+        {
+          "label": "GPT 首图",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tinkle-r2/20260923-025808-Lolita｜🌟_output_143438_0_d56512.png",
+          "note": "1024x1536 亮度 164.5 饱和 60.2 段长 70.3 端点 31.46 长线 0.739 碎线 0.020 边缘占比 0.315；身份 审计失败"
+        },
+        {
+          "label": "Gemini source-only 重绘",
+          "path": "data/test-result/20260925/e2e-five-styles/runs/tinkle-r2/20260923-025808-Lolita｜🌟_output_143438_0_d56512-144321-8ce4cb-final-rp_144350-2d00be.jpg",
+          "note": "1696x2528 亮度 164.0 饱和 59.8 段长 69.6 端点 30.85 长线 0.721 碎线 0.023 边缘占比 0.330；身份 审计失败"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/e2e-five-styles/runs/tinkle-r2/request.json"
+      ]
+    }
+  ]
+}

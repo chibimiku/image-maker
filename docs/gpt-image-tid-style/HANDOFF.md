@@ -116,16 +116,20 @@
 `modules/image_analysis/single_analyzer.py`：
 
 ```python
-GPT_RECIPE_VERSION = 2                      # 老配置一次性升级用（没有这个字段就套用下面的默认）
+GPT_RECIPE_VERSION = 3                      # 老配置一次性升级用（没有这个字段就套用下面的默认）
 STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
 ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gemini", "repaint": True, "structure": True,
-                            "local": True, "region": STABLE_LOCAL_REGIONS[0],
+                            "local": False, "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
-                            "quality": "high", "dual_reference": True,
+                            "quality": "high",
                             "use_source_base": False, "size_follow_input": True,
                             "tone": True, "tone_target": "style", "ink": True,
+                            "repaint_scope": "lines_only",
                             "recipe_version": GPT_RECIPE_VERSION}
 ```
+
+> `dual_reference` 键已于 2026-09-24 从 UI 状态里删除（那个勾选框是死开关，详见
+> `BEST-PIPELINE.md` §十「GUI 里怎么选」）；旧 conf 里残留的键会被直接忽略。
 
 `utils/analysis_gen.pipeline_steps_from_flags(...)` 产出的步骤（GUI 与 CLI 共用）：
 
@@ -701,3 +705,6 @@ python -m pytest -q -p no:cacheprovider         # 全量测试（当前 414 pass
 **日志**：`log/rp-matrix.txt`、`log/rp-repeat.txt`、`log/rp-final.txt`（重绘矩阵与方差）、`log/style-batch.txt`、`log/style-batch-retry.txt`（5 画风）、`log/e2e-tinkle.txt`（端到端）、`log/style-batch-table.txt`（5 画风指标表）；请求/响应原始 dump 在 `log/2026-09-2x.log` 与 `data/<日期>/…server_response_*.json`
 **指标脚本**：`tests/style_render_metrics.py`（线稿/可读性指标，`analyze()`）；`tests/calc_style_similarity.py`（CLIP + HSV 画风贴近度，需 CLIP 权重）
 **关键代码**：见 §2.1；**默认配方**见 §4；**提示词全文**见 §6。
+# 2026-09-25 后续复核入口
+
+最新工作见 [AUDIT-20260925.md](AUDIT-20260925.md) 与 [离线图片对照](audit-20260925.html)。已追溯用户认可的 V6X 首图及 v4 单图重绘；完成指定照片既有分析结果的六组首图、八张重绘。单图分析 GUI 现默认单图保守重绘、高级工序折叠；尚未证明能稳定复现旧图画风或解决繁密画面的断线。以下旧交接记录保留作历史，不覆盖新版结论。

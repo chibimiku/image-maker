@@ -160,6 +160,39 @@ def resolve_style_clauses(entry) -> tuple:
     return (derived, "derived") if derived else ([], "none")
 
 
+def resolve_neutral_repaint_clauses(entry) -> tuple:
+    """只描述画法，不读取参考图的具体配色、构图或角色内容。"""
+    if not isinstance(entry, dict):
+        return [], "none"
+    body = str(entry.get("prompt_gpt") or entry.get("prompt_short") or entry.get("gpt_prompt") or "").strip()
+    if not body:
+        return [], "none"
+    fields = parse_fields(body)
+    clauses = [
+        "Use the reference only for abstract rendering mechanics. Ignore its exact palette, hue distribution, "
+        "colour temperature, saturation pattern and value placement; preserve the source image's own local colours.",
+        "Do not import any recognisable motif, object, facial construction, eye design, hairstyle, garment detail, "
+        "accessory or composition from the reference.",
+    ]
+    templates = {
+        "Brushwork": "Match only the brushwork mechanics: {v}.",
+        "Edges": "Match only the edge and stroke behaviour: {v}.",
+        "Texture": "Match only the non-semantic surface treatment: {v}.",
+        "Avoid": "Avoid these rendering defects where they do not conflict with the source: {v}.",
+    }
+    for key in ("Brushwork", "Edges", "Texture", "Avoid"):
+        value = _sentence_value(str(fields.get(key) or "").strip().rstrip("."))
+        if value:
+            clauses.append(templates[key].format(v=value))
+    clauses.extend((
+        "Preserve the source's hair, eye, skin, clothing, accessory and background colours exactly; style transfer "
+        "must not recolour any identity-bearing feature.",
+        "Improve continuity only on clearly intended structural contours; keep secondary painterly strokes soft, "
+        "irregular and locally coloured.",
+    ))
+    return clauses, "neutral-derived"
+
+
 def style_prompt_gpt(styles, name) -> str:
     """取样式的 gpt-image 短版说明（`prompt_gpt`），可能为空。"""
     entry = (styles or {}).get(name)

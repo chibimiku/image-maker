@@ -1,5 +1,8 @@
 # Image Maker Agent Guide
 
+> **2026-09-25 当前覆盖说明**：单图分析 GPT GUI 的配方版本为 5：Gemini 默认接收 GPT 首图和完整画风图（`reference_mode=style`、`scope=full`、v5 固件），随后按实际首图 prompt 做身份审计与最多两轮定点修订，始终不回退；额外本地工序默认关闭，高级选项默认折叠。五画风实测与结构修订边界见 `docs/gpt-image-tid-style/STYLE-REF-TWO-CORRECTIONS-20260925.md`；不能宣称已彻底解决断线或所有身份偏离。
+> **2026-09-25 下午补充**：GPT 首图的内容默认改为 `gpt_image_prompt`（约 1400 字符身份完整锚）；全文会压弱画风图，500 字符短锚可能漏发色/瞳色。画风图再次送 Gemini 即使配“忽略配色”文字仍会泄露角色颜色，因此只用于受控实验。身份审计/修订/重大漂移回退已接入无头实验 CLI，结论见 `docs/gpt-image-tid-style/E2E-GENERALIZATION-20260925.md`。
+
 本文件用于给 Trae/DSH/AI 助手提供项目快速索引。
 **每次开始改动前，先读 `PROJECT_REQUIREMENTS.md`（硬性要求）→ 本文档 → 具体代码文件。**
 
@@ -29,7 +32,23 @@
 
 ### `modules/image_analysis/`（图片分析）
 
-- `single_analyzer.py`: 单图分析（Step 1~5 模块级函数 + Qt WorkerThread）
+- `single_analyzer.py`: 单图分析（Step 1~5 模块级函数 + Qt WorkerThread）。**改这个 Tab 前先看这三条契约**：
+  - **生图通道两条链路**：`gen_channel_gemini`（老逻辑：`--ar + 画风完整指令 + 分析描述` → `generate_image_aigc2d`）与
+    `gen_channel_gpt`（`utils.analysis_gen.build_first_pass_request` 组装 → `generate_image_aigc2d_gpt` → `run_gpt_image_pipeline` 跑工序）。
+    两者**共用同一份分析产物**，只在「分析完成之后」分叉；完整对照表见 `docs/gpt-image-tid-style/BEST-PIPELINE.md` §八 末尾。
+  - **队列状态机**：绿色 `[已完成]` == 该任务**所有工序**（分析 + 生图 + 后处理）都跑完。
+    收尾点是 `_on_image_thread_stopped`（生图线程退出，补调 `_finalize_task_pipeline`）与
+    `_cleanup_post_thread`（后处理线程退出）；分析线程退出时的「兜底更新」必须在
+    `_pipeline_pending_for_hash()` 非空时跳过，否则会抢跑标绿、还把标题写成「已完成（兜底更新）」。
+    生图无产物（失败/取消）→ 记录标红 `error`（`pipeline_error`），不再停在「等待最终产物」。
+    回归用例在 `tests/test_analysis_channel.py`（`test_queue_*` 一族）。
+  - **布局契约（窗口默认 1100x750，别再加常驻行）**：固定区 = 图片预览（拖拽落点）+ ② 生成按钮 + 队列 + 日志；
+    选项区（① 按钮 / 自动生图 / 画风 / 生图通道 / gpt 工序与参数…）在 `controls_scroll` 里滚动，且滚动容器
+    **不接受拖拽**（否则拖图落点会变）。gpt 通道的选项**只有两行**（`gpt_pp_row` 工序 + `gpt_param_row` 参数）——
+    加行会把队列/日志挤没，`test_gpt_option_rows_are_compact_and_log_stays_visible` 会拦住。
+    **拉伸方向**：`controls_scroll` stretch=0（按内容取高）+ `bottom_panel` stretch=1 + 选项区末尾一个
+    `addStretch(1)` —— 窗口拉高/最大化时多出来的高度归队列与日志，**不能**分给每一行（否则按钮之间被撑出大片空白，
+    用户 2026-09-24 反馈「最大化之后界面不正常」）。回归用例：`test_window_growth_goes_to_queue_and_log_not_option_rows`。
 - `analysis_pipeline.py`: **无头全链路分析**（Step 1~5 编排 + 投稿格式落地 `save_result_to_source`，CLI 见 `tools/analyze_fashion.py`；`analyze_image_step1` 供批量出图后单步分析）
 - `batch_analyzer.py`: 批量分析
 - `style_analyzer.py`: 多图画风提取
@@ -73,6 +92,7 @@
     - 回归用例：`tests/test_gpt_image2_api.py` 的 `test_repaint_switch_is_visible_without_expanding`、`test_repaint_checkbox_enabled_in_generate_and_edit_mode`、`test_edit_mode_with_repaint_chains_repaint`、`test_repaint_options_always_usable`、`test_repaint_notice_only_shows_when_action_needed`、`test_reference_grid_is_compact_when_empty`、`test_repaint_mode_fills_firmware_into_prompt_box_and_restores_on_leave`、`test_repaint_mode_allows_empty_prompt_meaning_use_firmware`
   - **画风选择（2026-09-22 新增）**：Tab 顶部「画风」下拉（首项 `默认(无附加)`）把所选画风的 `prompt_gpt` 拼进提示词，并把画风的 `ref_image` 追加到参考图列表**最后一张**（用户内容图在前），同时在提示词里写明 IMAGE ROLES 分工（`utils/styles.py` 的 `compose_style_prompt` / `ordered_reference_images`）。画风信息行显示字符数/来源/参考图，缺 `prompt_gpt` 会橙色提醒。回归用例在 `tests/test_gpt_image2_api.py`（`test_style_*`）
   - **后处理流水线（勾选框）**：出图后可选「重绘提线 / 结构线叠加 / 局部重绘+羽化贴回（区域含头发/脸部/头部/裙子/上半身/整个人物/人物不含面部/整张）」，实现在 `utils/post_process.py`；见 `BEST-PIPELINE.md`
+  - **不要再加「重绘用双参考（源图+线锚图）」勾选框**（2026-09-24 删的死开关）：分析 Tab 的 `gpt_pp_dual` 连布局都没进、且 `_build_gpt_image_steps()` 从不读它；本 Tab 的 `post_dual_check` 也从不进 `post_pipeline_steps()`（repaint 步骤恒 disabled）。重绘第二张参考**恒为画风图**（`repaint_ref_mode="style"`），线锚图只留给无头 CLI `--repaint-ref line_anchor|both`（§三十一 实测会塌画面）。后端旧键 `dual_reference` 只在 `reference_mode` 缺失时兜底，见 `post_process.default_pipeline()` 注释。
 - `z_image_edit_tab.py`: z-image 编辑（代码保留，默认不在主 UI Tab 显示）
 - `conf/config.json`: 图片生成相关配置模板（模块内）
 

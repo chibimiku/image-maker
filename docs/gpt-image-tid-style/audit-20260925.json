@@ -1,0 +1,140 @@
+{
+  "title": "2026-09-25 画风流水线追溯与复测",
+  "summary": [
+    "结论：满意的旧图在 GPT 首图阶段就已经具备画风，Gemini 当时只接收首图。当前默认改为单图保守修复；新提示词未验证改善，不替换默认。",
+    "测试使用指定照片的既有分析 JSON（本轮未重新调用文字分析）；6 组首图请求中 4 组成功，8 张重绘成功。旧后端对审核拒绝自动重试，本轮已修复为停止重试。所有原始请求与失败结果保存在 data/test-result。",
+    "不同构图不能凭颜色/线段指标判断画风优劣。无证据证明当前配方能稳定复现旧图效果，也不能保证生成模型永不改动细节。"
+  ],
+  "groups": [
+    {
+      "title": "历史来源：say-hana-style",
+      "note": "首图 GPT-image-2 / high / 1024x1536 / edits / 2553 字符；重绘 Gemini 3 Pro / 2K / auto / v4 / 仅首图。此组主体是海边白裙，并非本次测试照片。",
+      "images": [
+        {
+          "label": "艺术风格参考图",
+          "path": "data/style-ref/sayhana-test.png"
+        },
+        {
+          "label": "GPT 首图（重绘前）",
+          "path": "docs/gpt-image-tid-style/sol-cases/V6X-SAY.png"
+        },
+        {
+          "label": "用户认可的 v4 重绘",
+          "path": "data/20260921/repaint-v3/v4-sayhana_031554-6e605f.jpg"
+        }
+      ]
+    },
+    {
+      "title": "历史来源：noir-aiart",
+      "note": "首图 GPT-image-2 / high / 1024x1536 / edits / 2553 字符；重绘 Gemini 3 Pro / 2K / auto / v4 / 仅首图。此组主体是海边白裙，并非本次测试照片。",
+      "images": [
+        {
+          "label": "艺术风格参考图",
+          "path": "data/style-ref/noir-aiart.jpg"
+        },
+        {
+          "label": "GPT 首图（重绘前）",
+          "path": "docs/gpt-image-tid-style/sol-cases/V6X-NOIR.png"
+        },
+        {
+          "label": "用户认可的 v4 重绘",
+          "path": "data/20260921/repaint-v3/v4-noir_031636-a10d3f.jpg"
+        }
+      ]
+    },
+    {
+      "title": "本轮 say-hana：首图对照",
+      "note": "generate 与 edits 使用同一 4406 字符内容；reference 为试验性的内容/画法分工模板，未采用为默认。无图的失败请求也保存在下方。",
+      "images": [
+        {
+          "label": "edits",
+          "path": "data/test-result/20260925/style-audit/say-edits/20260921-234549-2026-07-_output_004709_0_f39aee.png",
+          "note": "complete"
+        },
+        {
+          "label": "reference",
+          "path": "data/test-result/20260925/style-audit/say-reference/20260921-234549-2026-07-_output_005251_0_837492.png",
+          "note": "complete"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/style-audit/say-generate/request.json",
+        "data/test-result/20260925/style-audit/say-edits/request.json",
+        "data/test-result/20260925/style-audit/say-reference/request.json"
+      ]
+    },
+    {
+      "title": "本轮 say-hana：同底图重绘重复试验",
+      "note": "source-only = v5；v4 = 历史固件。全部只传 GPT 首图，保留身份锁，不调色、不加墨、不做局部贴回。角色/服装未整套替换，线条改善有限。",
+      "images": [
+        {
+          "label": "source-only 第1次",
+          "path": "data/test-result/20260925/style-audit/say-source-only/20260921-234549-2026-07-_output_004709_0_f39aee-005553-17477e-final-rp_005611-4622f4.jpg"
+        },
+        {
+          "label": "source-only 第2次",
+          "path": "data/test-result/20260925/style-audit/say-source-only/20260921-234549-2026-07-_output_004709_0_f39aee-005611-1eb6eb-final-rp_005641-8b82bb.jpg"
+        },
+        {
+          "label": "v4 第1次",
+          "path": "data/test-result/20260925/style-audit/say-v4/20260921-234549-2026-07-_output_004709_0_f39aee-005850-0707f2-final-rp_005928-2eadf0.jpg"
+        },
+        {
+          "label": "v4 第2次",
+          "path": "data/test-result/20260925/style-audit/say-v4/20260921-234549-2026-07-_output_004709_0_f39aee-005928-b50889-final-rp_010024-0d68b4.jpg"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/style-audit/say-source-only/request.json",
+        "data/test-result/20260925/style-audit/say-v4/request.json"
+      ]
+    },
+    {
+      "title": "本轮 noir：首图对照",
+      "note": "generate 与 edits 使用同一 4406 字符内容；reference 为试验性的内容/画法分工模板，未采用为默认。无图的失败请求也保存在下方。",
+      "images": [
+        {
+          "label": "generate",
+          "path": "data/test-result/20260925/style-audit/noir-generate/20260921-234549-2026-07-_output_004834_0_c75cb4.png",
+          "note": "complete"
+        },
+        {
+          "label": "edits",
+          "path": "data/test-result/20260925/style-audit/noir-edits/20260921-234549-2026-07-_output_004804_0_d2680e.png",
+          "note": "complete"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/style-audit/noir-generate/request.json",
+        "data/test-result/20260925/style-audit/noir-edits/request.json",
+        "data/test-result/20260925/style-audit/noir-reference/request.json"
+      ]
+    },
+    {
+      "title": "本轮 noir：同底图重绘重复试验",
+      "note": "source-only = v5；v4 = 历史固件。全部只传 GPT 首图，保留身份锁，不调色、不加墨、不做局部贴回。角色/服装未整套替换，线条改善有限。",
+      "images": [
+        {
+          "label": "source-only 第1次",
+          "path": "data/test-result/20260925/style-audit/noir-source-only/20260921-234549-2026-07-_output_004834_0_c75cb4-005609-4a433d-final-rp_005648-1b9b80.jpg"
+        },
+        {
+          "label": "source-only 第2次",
+          "path": "data/test-result/20260925/style-audit/noir-source-only/20260921-234549-2026-07-_output_004834_0_c75cb4-005648-f04a82-final-rp_005744-5d3b93.jpg"
+        },
+        {
+          "label": "v4 第1次",
+          "path": "data/test-result/20260925/style-audit/noir-v4/20260921-234549-2026-07-_output_004834_0_c75cb4-005905-cf91ea-final-rp_005926-2bc382.jpg"
+        },
+        {
+          "label": "v4 第2次",
+          "path": "data/test-result/20260925/style-audit/noir-v4/20260921-234549-2026-07-_output_004834_0_c75cb4-005926-2a9b8a-final-rp_010038-a135f7.jpg"
+        }
+      ],
+      "requests": [
+        "data/test-result/20260925/style-audit/noir-source-only/request.json",
+        "data/test-result/20260925/style-audit/noir-v4/request.json"
+      ]
+    }
+  ]
+}

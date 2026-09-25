@@ -140,6 +140,8 @@ def _isolate_image_env(request, monkeypatch):
         yield
         return
     for name in list(os.environ):
-        if name.startswith("IMAGE_MAKER_"):
+        if name.startswith("IMAGE_MAKER_") or name.endswith("_API_KEY") or name in {
+            "AIGC2D_KEY", "AIGC_2D_GPT_KEY", "AUTODL_KEY", "TEXT_KEY", "NSFW_KEY",
+        }:
             monkeypatch.delenv(name, raising=False)
     yield

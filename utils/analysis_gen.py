@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """「分析图片并生图」在 gpt-image 通道上的请求组装（与单图分析 Tab 共用，便于脱离 Qt 测试）。
 
-和 Gemini 通道的关系（2026-09-24 起按用户要求统一）：
-- **内容锚与 Gemini 通道同源**：用分析产物里那段描述素材**特征、构图、服装、道具**的文本
-  （Gemini 通道发的是同一份），不再用 gpt 专用短锚字段，也不再有「重新构图」这类开关；
+和 Gemini 通道的关系：
+- GUI 首图优先用分析产物的 `gpt_image_prompt`（约 1400 字符的身份完整锚）。2026-09-25 实测：
+  4400+ 字符全文会压弱画风参考图，500 字符短锚又可能漏发色/瞳色；完整锚兼顾身份和画风；
 - **画风 `prompt_gpt` 拼在最前面**，后面接内容描述；
 - 挂画风参考图时追加「只借渲染语法、不得搬参考图角色/发色/瞳色/服装/姿势/构图」的排除句；
 - **不挂分析素材图**（素材图只用来做分析、产出文字）。
@@ -13,6 +13,27 @@ import os
 from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
                                        SHORT_FIELD_MAX_CHARS, STYLE_REF_EXCLUSION)
 
+
+def save_generation_manifest(first_image, request, *, model, size, quality, mode, steps,
+                             firmware, outputs=None):
+    """为 GUI 产物留可复核的提示词/工序快照；不序列化 API 配置或密钥。"""
+    import hashlib
+    import json
+    from utils.post_process import resolve_firmware_text
+    references = []
+    for path in request.get("image_paths") or []:
+        if os.path.isfile(path):
+            with open(path, "rb") as f:
+                references.append({"path": os.path.abspath(path), "sha256": hashlib.sha256(f.read()).hexdigest()})
+    snapshot = {"first_image": first_image, "prompt": request.get("prompt", ""),
+                "style_name": request.get("style_name", ""), "references": references,
+                "requested_mode": mode, "model": model, "size": size, "quality": quality,
+                "steps": steps, "firmware_text": resolve_firmware_text(firmware),
+                "outputs": list(outputs or [])}
+    target = str(first_image) + ".request.json"
+    with open(target, "w", encoding="utf-8") as f:
+        json.dump(snapshot, f, ensure_ascii=False, indent=2)
+    return target
 
 def first_pass_sub_dir(steps: dict) -> str:
     """gpt-image 首图的落盘子目录。
@@ -27,8 +48,7 @@ def first_pass_sub_dir(steps: dict) -> str:
 def resolve_content_text(analysis_result: dict, tier: str = "short") -> str:
     """老路径兜底：按档位取 gpt 专用字段（prompt_gpt 时代留下的兼容路径）。
 
-    现在 GUI 走的是 `content_text`（与 Gemini 同源的分析描述），只有显式要短锚/完整档的调用方
-    （例如 `tools/analysis_gpt_run.py`）才用这个函数。
+    GUI 会显式传身份完整锚；这个函数供 CLI 选档和老调用方兜底。
     """
     data = analysis_result or {}
     short = str(tier).lower() == "short"
@@ -97,7 +117,8 @@ def build_gpt_image_request(analysis_result: dict, style_text: str = "", style_r
 
 def build_first_pass_request(styles_data, style_name, analysis_result, content_text: str = "",
                              user_hint: str = "", tier: str = "short",
-                             content_image_path: str = "", api_type: str = "") -> dict:
+                             content_image_path: str = "", api_type: str = "",
+                             prompt_recipe: str = "legacy") -> dict:
     """**首图请求的唯一组装点**（GUI 的 gpt 通道与 `tools/analysis_gpt_run.py` 共用）。
 
     以前 GUI 自己拼这一段，漏了渲染语言条款（`extra_clauses` 没传），于是 GUI 出的首图永远比 CLI
@@ -125,6 +146,15 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                                       content_image_path=content_image_path, content_text=content_text)
     payload.update({"style_name": name, "style_ref_path": ref, "clauses": clauses,
                     "clauses_source": clauses_source, "api_type": str(api_type or "")})
+    if prompt_recipe == "reference" and ref and not content_image_path:
+        from utils.prompt_loader import render_prompt_file
+        content = str(content_text or "").strip() or resolve_content_text(analysis_result, tier)
+        payload["prompt"] = render_prompt_file("analysis-style-reference.md", {
+            "style_text": style_text, "content_text": content, "user_hint": user_hint or "None."})
+        # Only genuinely authored additions are retained; derived clauses duplicate the eight fields.
+        if clauses_source == "entry" and clauses:
+            payload["prompt"] += "\n\nRENDERING LANGUAGE:\n- " + "\n- ".join(clauses)
+    payload["prompt_recipe"] = prompt_recipe
     return payload
 
 
@@ -134,16 +164,15 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
                               detail_boost: bool = False, repaint_ref_mode: str = "style",
                               local_regions=None, tone: bool = False, tone_target: str = "style",
                               ink: bool = False, ink_target: float = 8.0,
-                              repaint_scope: str = "lines_only") -> dict:
+                              repaint_scope: str = "full") -> dict:
     """把界面上的勾选翻译成 utils.post_process 的流水线步骤（repaint 由调用方单独处理）。
 
     - `repaint_scope`：**「重绘编辑范围」** —— 不裁切、不贴回，只在重绘提示词里要求模型保留不该动的部分：
       `full` / `person_only` / `person_noface` / `details` / `lines_only`（文本见
-      `post_process.REPAINT_SCOPE_CLAUSES`）。默认 `lines_only`（实测线条连贯最好：tid 105→185 段长）。
+      `post_process.REPAINT_SCOPE_CLAUSES`）。默认 `full`，让 v5 固件保守修复整图。
     - `detail_boost=False`（默认）：局部重绘统一用 2K（局部重绘现已不是默认工序，见下）。
-    - `repaint_ref_mode="style"`（默认）：重绘的第二张参考是**画风参考图**。
-      **不要**默认成 `line_anchor`：那张自动生成的线锚图（白底长结构线）会被模型当成"渲染语言"，
-      实测要么把整张图塌成白底线稿，要么把线网印成"碎玻璃"纹理铺满人物（用户 2026-09-24 指出这是完全错误的）。
+    - `repaint_ref_mode="style"`（默认）：重绘接收 GPT 首图和完整画风图，以提高主轮廓和线稿连续性；
+      角色偏离由首图 prompt 驱动的身份审计与最多两轮定点修订处理。`none` 可用于保真对照。
     - `local` / `local_regions`：**裁切→重绘→贴回**式的局部重绘。**默认关闭、慎用**：模型会在裁切里
       重新构图，贴回原坐标就是一块错位内容（§三十：5 画风里报废 2 张）。要修细节请优先用 `repaint_scope`。
     - `tone` / `ink`：**本地工序**（不调 API）—— 色调校准（目标默认取画风参考图）+ 线条加墨。

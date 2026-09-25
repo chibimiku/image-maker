@@ -81,6 +81,7 @@ def test_channel_radios_exist_and_default_to_gemini(analyzer):
 
 def test_selecting_gpt_channel_shows_post_process_row(analyzer):
     analyzer.gen_channel_gpt.setChecked(True)
+    analyzer.gpt_advanced_toggle.setChecked(True)
     assert analyzer.gpt_pp_row.isHidden() is False
     analyzer.gen_channel_gemini.setChecked(True)
     assert analyzer.gpt_pp_row.isHidden() is True
@@ -94,11 +95,11 @@ def test_build_gpt_image_steps_follows_checkboxes(analyzer):
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
     assert steps["repaint"]["enabled"] is True
-    assert steps["repaint"]["scope"] == "lines_only"
-    assert steps["structure"]["enabled"] is True
+    assert steps["repaint"]["scope"] == "full"
+    assert steps["structure"]["enabled"] is False
     assert steps["local"]["enabled"] is False            # 默认不再做裁切贴回
-    assert steps["tone"]["enabled"] is True and steps["tone"]["tone_target"] == "style"
-    assert steps["ink"]["enabled"] is True
+    assert steps["tone"]["enabled"] is False and steps["tone"]["tone_target"] == "style"
+    assert steps["ink"]["enabled"] is False
     # 打开局部重绘 → 用稳定四区链（单区域 subject_no_face 约 1/3 概率重排主体出鬼影）
     analyzer.gpt_pp_local.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
@@ -124,13 +125,13 @@ def test_build_gpt_image_steps_follows_checkboxes(analyzer):
 
 
 def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
-    """超时预算按**联网调用**份数算：首图 + 重绘 + 每个局部区域；本地工序（结构线/色调/加墨）不占份额。"""
+    """预算覆盖首图、重绘、身份审计/修订/复审和局部区域；本地工序不占份额。"""
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘（局部关闭，结构线/色调/加墨是本地）
-    assert analyzer._pipeline_timeout_budget(120, steps) == 240
+    assert analyzer._pipeline_timeout_budget(120, steps) == 840
     analyzer.gpt_pp_local.setChecked(True)             # 打开四区链 → 再多 4 份
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 720
+    assert analyzer._pipeline_timeout_budget(120, steps) == 1320
     analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 四区
     steps = analyzer._build_gpt_image_steps()
     assert analyzer._pipeline_timeout_budget(120, steps) == 600
@@ -139,12 +140,8 @@ def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
     assert analyzer._pipeline_timeout_budget(120, steps) == 120
 
 
-def test_gpt_channel_request_uses_analysis_description_and_style_ref(analyzer, tmp_path):
-    """gpt 通道：提示词 = 画风 prompt_gpt（最前）+ **与 Gemini 同源的分析描述** + 排除句；参考图只有画风图。
-
-    用户 2026-09-24 要求：内容用分析素材得到的那段描述（Gemini 通道发的是同一份），
-    不再用 gpt 专用短锚，也没有「重新构图」开关。
-    """
+def test_gpt_channel_request_uses_identity_complete_anchor_and_style_ref(analyzer, tmp_path):
+    """挂画风图时使用身份完整锚，避免全文压弱画风，也避免短锚漏发色/瞳色。"""
     import json
     analysis = {
         "gpt_image_prompt_short": "SHORT-ANCHOR-ONLY",
@@ -165,7 +162,8 @@ def test_gpt_channel_request_uses_analysis_description_and_style_ref(analyzer, t
     assert ok is True
     payload = _FakeGptWorker.last["request_payload"]
     assert payload["prompt"].startswith("Palette: pale")        # 画风在最前
-    assert "refined desc" in payload["prompt"]                  # 内容=与 Gemini 同源的分析描述
+    assert "FULL FULL" in payload["prompt"]                    # 约 1400 字符身份完整锚
+    assert "refined desc" not in payload["prompt"]
     assert "SHORT-ANCHOR-ONLY" not in payload["prompt"]         # 不再用 gpt 短锚
     assert "IMAGE ROLES" not in payload["prompt"]               # 只有画风参考图，不需要分工块
     from utils.analysis_gpt_prompt import STYLE_REF_EXCLUSION
@@ -204,8 +202,8 @@ def test_gpt_channel_local_step_is_2k_without_detail_boost(analyzer):
     steps = analyzer._build_gpt_image_steps()
     assert steps["local"]["resolution"] == "2K"
     assert steps["local"]["detail_boost"] is False
-    # 超时预算 = 每份联网调用 120 秒 ×（首图 1 + 重绘 1 + 四区各 1）= 720 —— 不再用总体 120 秒掐掉整条链
-    assert analyzer._pipeline_timeout_budget(120, steps) == 720
+    # 重绘链还含初审、最多两轮修订及每轮复审。
+    assert analyzer._pipeline_timeout_budget(120, steps) == 1320
 
 
 def _first_pass_payload(analyzer, tmp_path, styles, style_name):
@@ -242,6 +240,7 @@ def test_gpt_first_pass_includes_derived_render_clauses(analyzer, tmp_path):
     # 同一批条款要一路传给重绘（首图与重绘用同一份，别只在一边生效）
     assert kwargs.get("style_clauses") == payload["clauses"]
     assert kwargs.get("style_ref_path", "").endswith("tid.png")
+    assert kwargs.get("analysis_result", {}).get("english_description", "").startswith("desc ")
 
 
 def test_gpt_first_pass_prefers_handwritten_clauses(analyzer, tmp_path):
@@ -263,9 +262,10 @@ def test_gpt_first_pass_prefers_handwritten_clauses(analyzer, tmp_path):
 def test_gpt_quality_combo_defaults_to_high(analyzer):
     """首图质量默认 high（medium 的细节 token 只有 high 的 1/5，重绘放大后必糊）。"""
     assert analyzer.gpt_quality_combo.currentData() == "high"
-    assert analyzer.gpt_quality_row.isHidden() is True      # 未选 gpt 通道时隐藏
+    assert analyzer.gpt_param_row.isHidden() is True        # 未选 gpt 通道时隐藏
     analyzer.gen_channel_gpt.setChecked(True)
-    assert analyzer.gpt_quality_row.isHidden() is False
+    analyzer.gpt_advanced_toggle.setChecked(True)
+    assert analyzer.gpt_param_row.isHidden() is False
 
 
 def test_gpt_channel_passes_quality_to_worker(analyzer, tmp_path):
@@ -318,6 +318,21 @@ def test_gpt_pipeline_choices_are_remembered(analyzer, tmp_path, monkeypatch):
 def test_gpt_pipeline_memory_defaults_when_missing(tmp_path):
     state = sa.load_analysis_gpt_ui(str(tmp_path / "nope.json"))
     assert state == sa.ANALYSIS_GPT_UI_DEFAULTS
+
+
+def test_restore_recommended_recipe_and_advanced_do_not_reset_user_edits(analyzer):
+    analyzer.gen_channel_gpt.setChecked(True)
+    assert not analyzer.gpt_pp_repaint.isHidden()
+    analyzer.gpt_advanced_toggle.setChecked(True)
+    analyzer.gpt_pp_ink.setChecked(True)
+    analyzer.gpt_advanced_toggle.setChecked(False)
+    assert analyzer._build_gpt_image_steps()["ink"]["enabled"]
+    analyzer.gpt_reset_recipe.click()
+    steps = analyzer._build_gpt_image_steps()
+    assert [k for k, v in steps.items() if v["enabled"]] == ["repaint"]
+    assert steps["repaint"]["reference_mode"] == "style"
+    assert steps["repaint"]["scope"] == "full"
+    assert analyzer.gen_channel_gpt.isChecked()
 
 
 def test_gpt_first_pass_dir_follows_steps():
@@ -382,6 +397,277 @@ def test_history_status_text_shows_phase(analyzer):
                                                   "phase": "生图+后处理"}) == "进行中·生图+后处理"
     assert analyzer._refresh_history_status_text({"status": "success", "status_text": "已完成",
                                                   "phase": ""}) == "已完成"
+
+
+class _FakeGenThread:
+    """生图线程替身：只需要队列收尾用到的 meta_* 字段。"""
+
+    def __init__(self, task_hash="abc123", status="success", auto_group_id=None):
+        self.meta_task_hash = task_hash
+        self.meta_task_id = ""
+        self.meta_thread_no = 2
+        self.meta_analysis_thread_no = 1
+        self.meta_prompt_type = "refined"
+        self.meta_is_auto = True
+        self.meta_auto_group_id = auto_group_id
+        self.meta_analysis_json_path = ""
+        self.last_status = status
+
+
+class _FakeAnalysisThread:
+    """分析线程替身（用于 _on_analysis_thread_stopped 的兜底逻辑）。"""
+
+    def __init__(self, task_id, task_hash, status="success"):
+        self.meta_task_id = task_id
+        self.meta_task_hash = task_hash
+        self.meta_thread_no = 1
+        self.meta_source_snapshot = None
+        self.last_status = status
+        self.last_error = ""
+
+
+def test_queue_turns_green_when_image_gen_thread_exits(analyzer):
+    """生图线程退出时必须给队列收尾。
+
+    用户 2026-09-24 截图：日志已经打完「🕐 同步完成」，队列却永远停在「进行中·生图」。
+    原因是 `_finalize_task_pipeline` 只在 `on_image_generation_finished` 里调过一次，而那一刻
+    生图线程自己还在 `_active_img_threads` 里 → 判定"还有线程在跑"→ 返回 False；线程真正退出时
+    （`_on_image_thread_stopped`）没有人再调它。不勾「生图后自动处理 JPG」时根本没有后处理线程，
+    于是这条记录再也没有机会变绿。
+    """
+    task_id = _seed_record(analyzer)
+    analyzer._analysis_history[task_id]["phase"] = "生图/后处理中"
+    thread = _FakeGenThread("abc123")
+    analyzer._active_img_threads.append(thread)
+
+    analyzer.on_image_generation_finished(thread, ["data/20260924/x-final-sline50.png"])
+    assert analyzer._analysis_history[task_id]["status"] == "running"      # 线程还没退出 → 先别标绿
+
+    analyzer._on_image_thread_stopped(thread)
+    record = analyzer._analysis_history[task_id]
+    assert record["status"] == "success" and record["phase"] == ""
+    assert analyzer._status_to_color(record["status"]).name() == "#1b8f3a"  # 绿字 = 全部工序完成
+
+
+def test_image_thread_exit_keeps_running_while_post_process_alive(analyzer):
+    """生图线程退出但后处理还在跑 → 仍是「进行中·后处理」，不能抢跑标绿。"""
+    task_id = _seed_record(analyzer)
+    thread = _FakeGenThread("abc123")
+    analyzer._active_img_threads.append(thread)
+
+    class _PostThread:
+        meta_task_hash = "abc123"
+        meta_task_id = ""
+
+    post = _PostThread()
+    analyzer._active_post_threads.append(post)
+    analyzer.on_image_generation_finished(thread, ["data/20260924/x-final-sline50.png"])
+    analyzer._on_image_thread_stopped(thread)
+
+    record = analyzer._analysis_history[task_id]
+    assert record["status"] == "running" and "后处理" in record["phase"]
+
+    analyzer._cleanup_post_thread(post)
+    assert analyzer._analysis_history[task_id]["status"] == "success"
+    analyzer._active_post_threads.clear()
+
+
+def test_analysis_thread_fallback_does_not_clobber_live_pipeline(analyzer):
+    """分析线程退出时的「兜底更新」不能覆盖正在跑生图的记录。
+
+    分析完成时如果本任务还要自动生图，记录会被**故意**留在 running（phase=生图/后处理中）；
+    以前兜底逻辑只看 `status == running` 就当"线程死了没上报"，于是把它标成
+    「已完成（兜底更新）」，随后生图完成又被改回 running —— 队列文案因此来回跳。
+    """
+    task_id = _seed_record(analyzer)
+    record = analyzer._analysis_history[task_id]
+    record["phase"] = "生图/后处理中"
+    record["title"] = "白发少女"
+
+    gen_thread = _FakeGenThread("abc123")
+    analyzer._active_img_threads.append(gen_thread)
+    analysis_thread = _FakeAnalysisThread(task_id, "abc123")
+
+    analyzer._on_analysis_thread_stopped(analysis_thread)
+    assert record["status"] == "running" and record["title"] == "白发少女"
+    assert "兜底更新" not in record["title"]
+
+    # 管线真死了（没有任何线程）→ 兜底仍然生效
+    analyzer._active_img_threads.clear()
+    analyzer._on_analysis_thread_stopped(analysis_thread)
+    assert record["status"] == "success" and record["title"] == "已完成（兜底更新）"
+
+
+def test_generation_failure_marks_record_error(analyzer):
+    """生图彻底失败（没有任何产物）→ 队列标红失败，不能永远「进行中·等待最终产物」。"""
+    task_id = _seed_record(analyzer)
+    record = analyzer._analysis_history[task_id]
+    record["phase"] = "生图/后处理中"
+    record["title"] = "白发少女"
+
+    thread = _FakeGenThread("abc123", status="error")
+    analyzer._active_img_threads.append(thread)
+    analyzer.on_image_generation_finished(thread, [])
+    analyzer._on_image_thread_stopped(thread)
+
+    record = analyzer._analysis_history[task_id]
+    assert record["status"] == "error"
+    assert record["phase"] == ""
+    assert record["title"] == "白发少女"        # 标题保留分析标题，失败信息在状态/日志里
+
+
+def test_repaint_reference_is_always_style_image(analyzer, tmp_path):
+    """「重绘用双参考（线锚图）」在分析 Tab 是死开关，2026-09-24 已删；重绘第二张参考恒为画风图。
+
+    以前 `gpt_pp_dual` 只读写 conf 状态、没进布局也没人读：`_build_gpt_image_steps()` 从不传
+    `dual_reference`，实际恒定走 `repaint_ref_mode="style"`。线锚图只留给无头 CLI
+    （`--repaint-ref line_anchor|both`）——§三十一 实测它会把画面塌成白底线稿/铺「碎玻璃」。
+    """
+    assert not hasattr(analyzer, "gpt_pp_dual")
+    assert "dual_reference" not in sa.ANALYSIS_GPT_UI_DEFAULTS
+    analyzer.gen_channel_gpt.setChecked(True)
+    steps = analyzer._build_gpt_image_steps()
+    assert steps["repaint"]["reference_mode"] == "style"
+    # UI 记忆里也不再写这个键（否则旧死键会一直留在 conf/config.json）
+    assert "dual_reference" not in analyzer._gpt_pipeline_ui_state()
+
+
+def test_window_growth_goes_to_queue_and_log_not_option_rows(analyzer):
+    """窗口拉高/最大化时，多出来的高度必须给队列 + 日志，不能把选项区每一行撑开。
+
+    用户 2026-09-24 反馈「更新之后界面最大化之后不正常了」：选项区当时是 stretch=1 且没有
+    末尾 stretch，于是多余的像素被平均分到每一行上 —— 按钮之间被撑出大片空白、行高被拉高。
+    """
+    outer = analyzer.layout()
+    idx_scroll = outer.indexOf(analyzer.controls_scroll)
+    idx_bottom = outer.indexOf(analyzer.bottom_panel)
+    assert idx_scroll >= 0 and idx_bottom >= 0
+    assert outer.stretch(idx_scroll) == 0        # 选项区按内容取高
+    assert outer.stretch(idx_bottom) == 1        # 队列 + 日志吃掉多余空间
+
+    body_layout = analyzer.controls_body.layout()
+    assert body_layout.itemAt(body_layout.count() - 1).spacerItem() is not None   # 末尾留白 stretch
+
+    analyzer.resize(1080, 1040)
+    analyzer.show()
+    QApplication.processEvents()
+    assert analyzer.send_btn.height() <= 40                      # 固定 40，不能长高
+    assert analyzer.auto_gen_orig_cb.height() <= 24              # 勾选框保持一行
+    assert analyzer.controls_scroll.viewport().height() >= 250   # 选项区拿到接近内容的高度
+    assert analyzer.log_text.height() > analyzer.log_text.minimumHeight()   # 日志吃掉多余空间
+    analyzer.close()
+
+
+def test_gpt_option_rows_are_compact_and_log_stays_visible(analyzer):
+    """gpt 通道只多两行工序/参数；选项区可滚动，队列 + 日志固定在下方（用户反馈日志被挤没了）。"""
+    assert analyzer.gpt_pp_row.isHidden() is True
+    assert analyzer.gpt_param_row.isHidden() is True
+    analyzer.gen_channel_gpt.setChecked(True)
+    analyzer.gpt_advanced_toggle.setChecked(True)
+    assert analyzer.gpt_pp_row.isHidden() is False
+    analyzer.gpt_advanced_toggle.setChecked(True)
+    assert analyzer.gpt_param_row.isHidden() is False
+    analyzer.gen_channel_gemini.setChecked(True)
+    assert analyzer.gpt_param_row.isHidden() is True
+
+    assert analyzer.log_text.minimumHeight() >= 100
+    assert analyzer.history_list.minimumHeight() >= 100
+    assert analyzer.controls_scroll.widget() is analyzer.controls_body
+
+
+def test_option_area_does_not_steal_file_drops(analyzer, tmp_path):
+    """选项区收进滚动容器后，拖图落点不能变。
+
+    滚动容器（含 viewport）一律**不接受**拖拽：这样拖到选项区的图片会被 Qt 上抛到
+    最近的接受拖拽的祖先（本 Widget），和改动前一样能加载。
+    """
+    from PyQt6.QtCore import QMimeData, QUrl
+    from PIL import Image as _PILImage
+
+    assert analyzer.controls_scroll.acceptDrops() is False
+    assert analyzer.controls_scroll.viewport().acceptDrops() is False
+    assert analyzer.acceptDrops() is True
+
+    image_path = tmp_path / "drop-me.png"
+    _PILImage.new("RGB", (12, 12), "white").save(image_path)
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(str(image_path))])
+
+    class _DropStub:
+        def mimeData(self):
+            return mime
+
+    analyzer.dropEvent(_DropStub())
+    assert os.path.normpath(str(analyzer.image_source)) == os.path.normpath(str(image_path))
+
+
+def test_queue_lifecycle_from_analysis_to_green(analyzer, monkeypatch):
+    """端到端（不调 API）：分析完成 → 显示「进行中·生图/后处理中」→ 生图线程退出 → 绿[已完成]。
+
+    这就是用户要的契约：绿色[完成] == 这个任务的所有工序都跑完了。
+    """
+    task_id = _seed_record(analyzer)
+    analyzer.auto_gen_ref_cb.setChecked(True)
+    analysis_thread = _FakeAnalysisThread(task_id, "abc123")
+    gen_threads = []
+
+    def _fake_trigger(prompt_type, is_auto=False, prompt_bundle=None, analysis_thread_no=None,
+                      auto_group_id=None):
+        thread = _FakeGenThread(str(prompt_bundle.get("task_hash") or ""), auto_group_id=auto_group_id)
+        analyzer._active_img_threads.append(thread)
+        gen_threads.append(thread)
+        return True
+
+    monkeypatch.setattr(analyzer, "trigger_image_generation", _fake_trigger)
+
+    analyzer.on_process_finished(analysis_thread, {
+        "japanese_title": "白发少女", "english_description": "refined desc",
+        "original_english_description": "orig desc", "aspect_ratio": "2:3",
+    })
+    record = analyzer._analysis_history[task_id]
+    assert record["status"] == "running" and record["phase"] == "生图/后处理中"
+    assert record["title"] == "白发少女"
+    assert len(gen_threads) == 1
+
+    # 分析线程随后退出：记录正在跑管线，兜底不得抢跑
+    analyzer._on_analysis_thread_stopped(analysis_thread)
+    assert record["status"] == "running" and "兜底" not in record["title"]
+
+    # 生图 + 工序全部结束
+    analyzer.on_image_generation_finished(gen_threads[0], ["data/20260924/x-final-rp+sline50.png"])
+    analyzer._on_image_thread_stopped(gen_threads[0])
+    assert record["status"] == "success" and record["phase"] == ""
+    assert record["final_products"] == ["data/20260924/x-final-rp+sline50.png"]
+
+
+def test_auto_gen_that_never_starts_does_not_hang_queue(analyzer, monkeypatch):
+    """勾了自动生图但一个线程都没起来（缺 key 等）→ 记录按「只做分析」收尾，不能吊在「进行中」。"""
+    task_id = _seed_record(analyzer)
+    analyzer.auto_gen_ref_cb.setChecked(True)
+    monkeypatch.setattr(analyzer, "trigger_image_generation", lambda *a, **k: False)
+    analysis_thread = _FakeAnalysisThread(task_id, "abc123")
+
+    analyzer.on_process_finished(analysis_thread, {
+        "japanese_title": "白发少女", "english_description": "refined desc",
+        "original_english_description": "orig desc", "aspect_ratio": "2:3",
+    })
+
+    record = analyzer._analysis_history[task_id]
+    assert record["status"] == "success" and record["phase"] == ""
+    assert not analyzer._auto_gen_groups
+
+
+def test_failed_pipeline_record_still_offers_analysis_result(analyzer):
+    """生图失败（status=error）时，分析结果本身仍然可用：「设为当前结果」不能一起锁死。"""
+    task_id = _seed_record(analyzer)
+    record = analyzer._analysis_history[task_id]
+    record.update({"status": "error", "status_text": "失败",
+                   "result_json": {"english_description": "refined desc",
+                                   "original_english_description": "orig desc",
+                                   "aspect_ratio": "2:3"},
+                   "original_prompt": "orig desc", "refined_prompt": "refined desc"})
+    assert analyzer._apply_history_record_to_current_state(record) is True
+    assert analyzer.current_refine_desc == "refined desc"
 
 
 def test_analysis_size_follows_input_orientation(analyzer, tmp_path, monkeypatch):

@@ -1,0 +1,74 @@
+{
+  "title": "完整画风图默认方案与两轮身份修订实验（2026-09-25）",
+  "summary": [
+    "五种画风复用固定 GPT 首图，只重新执行完整画风图 Gemini 重绘与身份闭环。五组中四组首轮审计通过，say-hana 仅高领变低领，第一轮修订后通过。",
+    "压力样本中，第一轮修正发色和瞳色，第二轮处理裙长；通用结构措辞仍留下长裙，加入明确裙摆几何和背景补全约束后审计通过。",
+    "默认配方已改为完整画风图；身份审计使用实际 GPT 首图 prompt 提取稳定锚点，最多执行两轮逐轮复审的定点修订，始终不回退。"
+  ],
+  "groups": [
+    {
+      "title": "tinkle：常规样本",
+      "note": "完整画风图重绘后身份审计直接通过。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "固定 GPT 首图", "path": "data/test-result/20260925/e2e-five-styles/runs/tinkle-r1/20260921-234549-2026-07-_output_143449_0_1c2600.png", "note": "不重新抽样"},
+        {"label": "完整画风图重绘", "path": "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-style-2fix/20260921-234549-2026-07-_output_143449_0_1c2600-172414-df63a7-final-rp_172444-804ef8.jpg", "note": "审计通过；段长 74.1，端点 35.92"}
+      ],
+      "requests": ["data/test-result/20260925/style-ref-two-corrections/runs/tinkle-style-2fix/request.json"]
+    },
+    {
+      "title": "goto-p：常规样本",
+      "note": "完整画风图重绘后身份审计直接通过。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "固定 GPT 首图", "path": "data/test-result/20260925/e2e-five-styles/runs/goto-p-r1/20260923-025937-天气好的时候穿上_output_143524_0_e99b06.png", "note": "不重新抽样"},
+        {"label": "完整画风图重绘", "path": "data/test-result/20260925/style-ref-two-corrections/runs/goto-p-style-2fix/20260923-025937-天气好的时候穿上_output_143524_0_e99b06-172416-f1b56f-final-rp_172435-3cc8db.jpg", "note": "审计通过；段长 89.3，端点 26.68"}
+      ],
+      "requests": ["data/test-result/20260925/style-ref-two-corrections/runs/goto-p-style-2fix/request.json"]
+    },
+    {
+      "title": "say-hana-v4：一次局部修订",
+      "note": "完整风格重绘把高领改成低领；第一轮只修领口，复审通过。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "固定 GPT 首图", "path": "data/test-result/20260925/e2e-five-styles/runs/say-hana-v4-r1/20260923-025808-Lolita｜🌟_output_143631_0_b59328.png", "note": "不重新抽样"},
+        {"label": "完整画风图重绘", "path": "data/test-result/20260925/style-ref-two-corrections/runs/say-hana-v4-style-2fix/20260923-025808-Lolita｜🌟_output_143631_0_b59328-172502-2f3c32-final-rp_172523-5536d2.jpg", "note": "领口 minor；段长 76.3"},
+        {"label": "第一轮身份修订", "path": "data/test-result/20260925/style-ref-two-corrections/runs/say-hana-v4-style-2fix/identity-correct-1_172610-0aeaaf.jpg", "note": "复审通过；段长 73.2，端点 33.60"}
+      ],
+      "requests": ["data/test-result/20260925/style-ref-two-corrections/runs/say-hana-v4-style-2fix/request.json", "data/test-result/20260925/style-ref-two-corrections/runs/say-hana-v4-style-2fix/identity-final.json", "data/test-result/20260925/style-ref-two-corrections/runs/say-hana-v4-style-2fix/identity-corrected-1.json"]
+    },
+    {
+      "title": "noir-aiart：常规样本",
+      "note": "完整画风图重绘后身份审计直接通过。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "固定 GPT 首图", "path": "data/test-result/20260925/e2e-five-styles/runs/noir-aiart-r1/20260923-030315-00000-33_output_143825_0_9dbdbc.png", "note": "不重新抽样"},
+        {"label": "完整画风图重绘", "path": "data/test-result/20260925/style-ref-two-corrections/runs/noir-aiart-style-2fix/20260923-030315-00000-33_output_143825_0_9dbdbc-172532-ca9ca0-final-rp_172551-0dad3f.jpg", "note": "审计通过；段长 58.5，端点 40.16"}
+      ],
+      "requests": ["data/test-result/20260925/style-ref-two-corrections/runs/noir-aiart-style-2fix/request.json"]
+    },
+    {
+      "title": "tid：常规样本",
+      "note": "完整画风图重绘后身份审计直接通过。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "固定 GPT 首图", "path": "data/test-result/20260925/e2e-five-styles/runs/tid-r1/20260923-030133-天气好的时候穿上_output_143935_0_728661.png", "note": "不重新抽样"},
+        {"label": "完整画风图重绘", "path": "data/test-result/20260925/style-ref-two-corrections/runs/tid-style-2fix/20260923-030133-天气好的时候穿上_output_143935_0_728661-172616-7a0776-final-rp_172643-df2448.jpg", "note": "审计通过；段长 83.5，端点 32.81"}
+      ],
+      "requests": ["data/test-result/20260925/style-ref-two-corrections/runs/tid-style-2fix/request.json"]
+    },
+    {
+      "title": "tinkle 历史大偏离压力样本：两轮修订与提示词 A/B",
+      "note": "第一轮修发色/瞳色；旧第二轮只说缩短裙子仍留长裙。通用结构例外仍失败；明确裙摆必须止于大腿、删除全部拖尾并补回椅子/地面后通过。",
+      "layout": "horizontal",
+      "images": [
+        {"label": "完整画风图重绘", "path": "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/20260921-234549-2026-07-_output_024958_0_afd8ee-172754-17fc16-final-rp_172814-2b84d6.jpg", "note": "蓝发蓝眼长裙；major；段长 77.2"},
+        {"label": "第一轮：发色/瞳色", "path": "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/identity-correct-1_172934-8332e5.jpg", "note": "暖棕发青绿瞳；剩余长裙 major"},
+        {"label": "旧第二轮：普通缩短", "path": "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/identity-correct-2_173054-cec8e5.jpg", "note": "仍是长裙；minor；段长 82.1"},
+        {"label": "通用结构例外", "path": "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/identity-correct-2-structural_173319-333187.jpg", "note": "仍是长裙；major"},
+        {"label": "裙摆几何约束", "path": "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/identity-correct-2-skirt-geometry_191912-7c2982.png", "note": "短裙完成，审计通过；段长 73.2，端点 35.53"}
+      ],
+      "requests": ["data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/request.json", "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/identity-corrected-1.json", "data/test-result/20260925/style-ref-two-corrections/runs/tinkle-historical-drift-2fix/skirt-geometry-ab.json"]
+    }
+  ]
+}

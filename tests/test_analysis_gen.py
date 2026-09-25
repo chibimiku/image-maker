@@ -20,6 +20,25 @@ def test_resolve_content_prefers_short_field():
     assert ag.resolve_content_text(data, "full") == "FULL"
 
 
+def test_generation_manifest_keeps_reproducible_request_without_api_secrets(tmp_path):
+    source = tmp_path / "first.png"
+    source.write_bytes(b"first image")
+    ref = tmp_path / "reference.png"
+    ref.write_bytes(b"style image")
+    path = ag.save_generation_manifest(str(source), {
+        "prompt": "exact prompt", "style_name": "style", "image_paths": [str(ref)],
+        "api_key": "secret-not-for-manifest"}, model="test-model", size="1024x1536",
+        quality="high", mode="generate", steps={"repaint": {"reference_mode": "none"}},
+        firmware="exact firmware", outputs=["final.png"])
+    body = open(path, encoding="utf-8").read()
+    snapshot = json.loads(body)
+    assert snapshot["prompt"] == "exact prompt"
+    assert snapshot["firmware_text"] == "exact firmware"
+    assert snapshot["outputs"] == ["final.png"]
+    assert len(snapshot["references"][0]["sha256"]) == 64
+    assert "secret-not-for-manifest" not in body
+
+
 def test_resolve_content_falls_back_and_trims():
     long_desc = "sentence one. " * 400
     text = ag.resolve_content_text({"english_description": long_desc}, "short")
@@ -93,6 +112,42 @@ def test_resolve_style_clauses_prefers_entry_then_derives():
     assert resolve_style_clauses(None) == ([], "none")
 
 
+def test_neutral_repaint_clauses_omit_palette_and_content_fields():
+    from utils.style_gpt import resolve_neutral_repaint_clauses
+    entry = {"prompt_gpt": (
+        "Palette: sapphire, turquoise, rose pink\nLighting: cool blue key\n"
+        "Brushwork: smooth cel base, transparent glazes\nEdges: tapered navy linework\n"
+        "Texture: satin sheen, restrained grain\nComposition density: centred figure\n"
+        "Detail level: ribbons, shoes and eyelashes\nAvoid: uniform black outlines")}
+    clauses, source = resolve_neutral_repaint_clauses(entry)
+    text = " ".join(clauses)
+    assert source == "neutral-derived"
+    assert "smooth cel base" in text and "tapered navy linework" in text
+    assert "sapphire" not in text and "turquoise" not in text and "rose pink" not in text
+    assert "cool blue key" not in text and "centred figure" not in text
+    assert "ribbons, shoes and eyelashes" not in text
+    assert "Ignore its exact palette" in text
+
+
+def test_neutral_style_reference_uses_colour_agnostic_role(tmp_path, monkeypatch):
+    from PIL import Image
+    from modules.others import api_backend
+    source, reference, output = [tmp_path / name for name in ("source.png", "style.png", "output.png")]
+    for path in (source, reference, output):
+        Image.new("RGB", (80, 120), "white").save(path)
+    seen = {}
+    monkeypatch.setattr(api_backend, "generate_image_repaint",
+                        lambda **kwargs: seen.update(kwargs) or [str(output)])
+    steps = ag.pipeline_steps_from_flags(repaint=True, repaint_ref_mode="style_neutral")
+    ag.run_gpt_image_pipeline([str(source)], steps, firmware="FIRMWARE",
+        style_ref_path=str(reference), style_clauses=["NEUTRAL SENTINEL"],
+        final_dir=str(tmp_path / "final"), work_dir=str(tmp_path / "work"))
+    assert seen["extra_reference_paths"] == [str(reference)]
+    assert pp.STYLE_REF_ROLE_NEUTRAL_IN_REPAINT in seen["prompt"]
+    assert pp.STYLE_REF_ROLE_IN_REPAINT not in seen["prompt"]
+    assert "NEUTRAL SENTINEL" in seen["prompt"]
+
+
 def test_build_first_pass_request_orders_style_content_exclusion_clauses(tmp_path):
     """首图组装顺序：画风 → 内容 → 排除句 → RENDERING LANGUAGE；参考图只挂画风图。"""
     ref = _ref(tmp_path)
@@ -123,6 +178,29 @@ def test_build_first_pass_request_without_style_has_no_clause_block():
     assert "RENDERING LANGUAGE" not in req["prompt"]
     assert req["clauses"] == [] and req["clauses_source"] == "none"
     assert req["image_paths"] == []
+
+
+def test_source_only_repaint_does_not_describe_absent_style_image(tmp_path, monkeypatch):
+    from PIL import Image
+    from modules.others import api_backend
+    source, reference, output = [tmp_path / name for name in ("source.png", "style.png", "output.png")]
+    for path in (source, reference, output):
+        Image.new("RGB", (80, 120), "white").save(path)
+    seen = {}
+    def repaint(**kwargs):
+        seen.update(kwargs)
+        return [str(output)]
+    monkeypatch.setattr(api_backend, "generate_image_repaint", repaint)
+    steps = ag.pipeline_steps_from_flags(repaint=True, repaint_ref_mode="none", repaint_scope="full")
+    ag.run_gpt_image_pipeline([str(source)], steps, firmware="PRESERVE SOURCE",
+        style_ref_path=str(reference), style_clauses=["STYLE SENTINEL"],
+        final_dir=str(tmp_path / "final"), work_dir=str(tmp_path / "work"))
+    assert seen["source_paths"] == [str(source)]
+    assert seen["extra_reference_paths"] == []
+    assert "STYLE SENTINEL" not in seen["prompt"]
+    assert pp.STYLE_REF_ROLE_IN_REPAINT not in seen["prompt"]
+    assert "IDENTITY AND CONTENT LOCK" in seen["prompt"]
+    assert seen["save_sub_dir"] == str(tmp_path / "final")
 
 
 def test_run_gpt_image_pipeline_structure_only(tmp_path, monkeypatch):
@@ -166,11 +244,11 @@ def test_run_gpt_image_pipeline_repaint_then_structure(tmp_path, monkeypatch):
     out = ag.run_gpt_image_pipeline([str(img)], steps, firmware="FIRMWARE",
                                     final_dir=str(tmp_path / "final"), work_dir=str(tmp_path / "work"))
     assert seen["use_detail_suffix"] is False
-    # 重绘提示词 = 固件 + 「编辑范围」句（默认 lines_only：不裁切不贴回，只要求把线条连通）
-    # + 「身份/内容锁」（见 §三十一 补记：person_noface 那档曾把画风参考图的角色搬进来）
+    # 默认 full 不追加局部范围句；身份/内容锁仍必须存在。
     assert seen["prompt"].startswith("FIRMWARE")
-    assert "EDIT SCOPE (this pass)" in seen["prompt"]
     assert "IDENTITY AND CONTENT LOCK" in seen["prompt"]
+    assert seen["source_paths"] == [str(img)]
+    assert seen["extra_reference_paths"] == []
     # 最终产物名带 -final- 标记（工序串说明经过了哪些处理），中间产物在 work 目录里
     assert out and "-final-rp+sline50" in os.path.basename(out[0])
     assert os.path.isfile(os.path.join(str(tmp_path / "work"), "pipeline-manifest.json"))
@@ -251,13 +329,10 @@ def test_pipeline_steps_use_2k_local_without_detail_boost():
     assert steps["local"]["detail_boost"] is False
 
 
-def test_pipeline_steps_repaint_uses_style_reference_by_default():
-    """重绘的第二张参考默认是**画风参考图**，不是自动生成的线锚图。
-
-    线锚图（白底长结构线）会被模型当成"渲染语言"，实测把整张图塌成白底线稿或印成"碎玻璃"纹理
-    （用户 2026-09-24：「给参考图加个玻璃是完全错误的」）。要线锚图必须显式传。
-    """
+def test_pipeline_steps_repaint_uses_complete_style_reference_by_default():
+    """线条优先默认把完整画风图作为 Gemini 第二张参考。"""
     steps = ag.pipeline_steps_from_flags(repaint=True)
     assert steps["repaint"]["reference_mode"] == "style"
+    assert steps["repaint"]["scope"] == "full"
     steps2 = ag.pipeline_steps_from_flags(repaint=True, repaint_ref_mode="line_anchor")
     assert steps2["repaint"]["reference_mode"] == "line_anchor"

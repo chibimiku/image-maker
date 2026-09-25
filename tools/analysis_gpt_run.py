@@ -54,7 +54,7 @@ def main():
     ap.add_argument("--style", default="", help="画风名（config-styles.json 的键）")
     ap.add_argument("--quality", default="high", choices=["low", "medium", "high"])
     ap.add_argument("--size", default="auto", help="auto=按输入图比例挑；也可写 1024x1536 等")
-    ap.add_argument("--steps", default="repaint,structure,local",
+    ap.add_argument("--steps", default="repaint",
                     help="要跑的工序，逗号分隔：repaint,structure,local（空 = 只出首图）")
     ap.add_argument("--region", default="subject_no_face", help="局部重绘区域（默认 subject_no_face）")
     ap.add_argument("--feather", type=int, default=40)
@@ -99,10 +99,15 @@ def main():
                     help="把细节区（waist/thigh/shoes/face/hair）额外升到 4K。默认关 —— "
                          "2026-09-24 的契约是局部重绘统一 2K（4K 慢且不稳，实测收益不稳定）")
     ap.add_argument("--no-detail-boost", action="store_true", help="（保留参数）显式关闭细节区升分辨率")
-    ap.add_argument("--repaint-ref", default="style", choices=["line", "style", "both", "none"],
-                    help="重绘的第二张参考：line=线锚图 / style=画风参考图（Sol 建议，默认）/ both / none")
+    ap.add_argument("--repaint-ref", default="style",
+                    choices=["line", "style", "style-neutral", "both", "none"],
+                    help="重绘额外参考：style（默认，完整画风图）/ none / style-neutral / line / both")
+    ap.add_argument("--repaint-style-ref", default="",
+                    help="仅覆盖 Gemini 重绘使用的画风参考图；用于无角色风格板等受控实验，不改首图参考图")
+    ap.add_argument("--repaint-no-style-clauses", action="store_true",
+                    help="重绘仍可挂画风参考图，但不追加该画风的渲染条款；用于分离图片参考与文字条款的影响")
     ap.add_argument("--repaint-scope",
-                    default="lines_only",
+                    default="full",
                     choices=["full", "person_only", "person_noface", "details", "lines_only"],
                     help="重绘的「编辑范围」：不裁切不贴回，只在提示词里要求模型保留不该动的部分（§三十一）。"
                          "lines_only（默认）= 只把线条连通、不改色不改内容；person_only = 只重绘人物、背景保持；"
@@ -110,6 +115,18 @@ def main():
     ap.add_argument("--extra-region", default="", help="额外的局部重绘区域（逗号分隔），例如 shoes")
     ap.add_argument("--firmware", default="prompts/gpt-image-optimize/repaint-system-conservative-v5.md")
     ap.add_argument("--source-image", default="", help="覆盖分析 JSON 里的 original 图路径")
+    ap.add_argument("--content-field", default="gpt_image_prompt",
+                    help="内容字段；默认身份完整锚 gpt_image_prompt，可指定 english_description 或短锚做对照")
+    ap.add_argument("--prompt-file", default="", help="完整首图提示词快照（复现实验用）")
+    ap.add_argument("--base-image", default="", help="跳过首图，对已有 GPT 产物跑工序")
+    ap.add_argument("--output-dir", default="", help="隔离实验产物和请求清单的目录")
+    ap.add_argument("--dry-run", action="store_true", help="保存请求清单，不调用图片接口")
+    ap.add_argument("--prompt-recipe", choices=["legacy", "reference"], default="legacy")
+    ap.add_argument("--repeat", type=int, default=1, help="同一首图独立复跑后处理次数")
+    ap.add_argument("--identity-audit", action="store_true",
+                    help="审计首图和最终图是否偏离分析出的角色/服装特征，并保存 JSON")
+    ap.add_argument("--identity-correct", action="store_true",
+                    help="最终图有高置信身份差异时，最多调用两次 Gemini 做定点修订，每次后重新审计")
     args = ap.parse_args()
 
     from modules.others.api_backend import (generate_image_aigc2d_gpt,
@@ -131,9 +148,23 @@ def main():
     # 首图请求与 GUI 走**同一个组装点**（画风说明 + 内容锚 + 排除句 + 渲染语言条款），
     # 内容锚沿用分析产物里的 gpt 字段（GUI 那条链用与 Gemini 同源的分析描述）。
     payload = build_first_pass_request(styles, args.style, result, tier="short",
+                                       content_text=str(result.get(args.content_field) or ""),
+                                       prompt_recipe=args.prompt_recipe,
                                        content_image_path=content_ref)
+    if args.prompt_file:
+        with open(args.prompt_file, encoding="utf-8") as f:
+            payload["prompt"] = f.read()
     ref = str(payload.get("style_ref_path") or "")
+    repaint_style_ref = (os.path.abspath(args.repaint_style_ref)
+                         if args.repaint_style_ref else ref)
+    if args.repaint_style_ref and not os.path.isfile(repaint_style_ref):
+        raise FileNotFoundError(repaint_style_ref)
     style_clauses = list(payload.get("clauses") or [])
+    if args.repaint_no_style_clauses:
+        style_clauses = []
+    if args.repaint_ref == "style-neutral":
+        from utils.style_gpt import resolve_neutral_repaint_clauses
+        style_clauses, _ = resolve_neutral_repaint_clauses((styles or {}).get(args.style))
     print(f"[2/4] 画风 {args.style or '(无)'}：说明 {payload['style_chars']} 字符 / "
           f"内容锚 {payload['content_chars']} 字符 / 参考图 {'画风图' if ref else '无'} / "
           f"渲染条款 {len(style_clauses)} 条（{payload.get('clauses_source')}）")
@@ -183,12 +214,34 @@ def main():
     steps["local"]["detail_boost"] = bool(args.detail_boost) and not bool(args.no_detail_boost)
     steps["repaint"]["reference_mode"] = ("none" if args.no_dual else
                                           {"line": "line_anchor", "style": "style",
+                                           "style-neutral": "style_neutral",
                                            "both": "both", "none": "none"}[args.repaint_ref])
     steps["repaint"]["scope"] = str(args.repaint_scope)
-    style_clauses = [str(c) for c in (style_entry.get("repaint_clauses") or []) if str(c).strip()]
-
-    day = pp.date_output_dir()
-    if args.use_source_base:
+    output_dir = os.path.abspath(args.output_dir) if args.output_dir else None
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    size = args.size
+    if str(size).lower() == "auto":
+        size = pick_gpt_image2_size_for_images([source] if os.path.isfile(source) else payload["image_paths"])
+    manifest = {"analysis_json": os.path.abspath(args.json), "content_field": args.content_field,
+                "source": source, "style": args.style, "request": payload,
+                "size": size, "quality": args.quality, "mode": args.first_pass_mode,
+                "steps": steps, "firmware": args.firmware, "base": args.base_image,
+                "repaint_style_ref": repaint_style_ref,
+                "outputs": [], "identity": {}, "status": "planned"}
+    def save_manifest():
+        if output_dir:
+            with open(os.path.join(output_dir, "request.json"), "w", encoding="utf-8") as f:
+                json.dump(manifest, f, ensure_ascii=False, indent=2)
+    save_manifest()
+    if args.dry_run:
+        print("预检完成；未调用图片接口。")
+        return 0
+    if args.base_image:
+        if not os.path.isfile(args.base_image):
+            raise FileNotFoundError(args.base_image)
+        base_path = os.path.abspath(args.base_image)
+    elif args.use_source_base:
         if not os.path.isfile(source):
             print("❌ --use-source-base 需要可用的原图")
             return 1
@@ -207,20 +260,109 @@ def main():
             prompt=payload["prompt"], image_paths=list(payload.get("image_paths") or []),
             model="gpt-image-2", size=size, quality=args.quality, output_format="png", n=1,
             api_type="aigc-2d-gpt", file_prefix=os.path.splitext(os.path.basename(args.json))[0][:24],
-            save_sub_dir=first_pass_sub_dir(steps), return_metadata=False,
+            save_sub_dir=output_dir or first_pass_sub_dir(steps), return_metadata=False,
             mode=args.first_pass_mode,
             log_callback=lambda m: None) or []
         if not saved:
+            manifest["status"] = "first_pass_failed"
+            save_manifest()
             print("❌ 首图生成失败（看 log/<日期>.log）")
             return 1
         base_path = saved[0]
         print(f"      首图: {os.path.relpath(base_path, BASE)}  {_metrics(base_path)}")
 
+    manifest["base"] = base_path
+    manifest["status"] = "first_pass_complete"
+    if args.identity_audit or args.identity_correct:
+        from utils.identity_audit import audit_image_identity, build_identity_correction_prompt
+        try:
+            first_audit = audit_image_identity(base_path, result, expected_prompt=payload["prompt"])
+            first_audit["correction_prompt"] = build_identity_correction_prompt(first_audit, 1, 2)
+        except Exception as exc:  # 审计是质量门，不应让已成功的生图链报废
+            first_audit = {"mismatch": False, "severity": "unknown", "confidence": 0.0,
+                           "differences": [], "audit_error": f"{type(exc).__name__}: {exc}"}
+        manifest["identity"]["first"] = first_audit
+        if output_dir:
+            with open(os.path.join(output_dir, "identity-first.json"), "w", encoding="utf-8") as f:
+                json.dump(first_audit, f, ensure_ascii=False, indent=2)
+        first_status = "审计失败" if first_audit.get("audit_error") else ("有差异" if first_audit["mismatch"] else "通过")
+        print(f"      首图身份审计: {first_status} "
+              f"({first_audit['severity']}, {first_audit['confidence']:.2f})")
+    save_manifest()
+
     print(f"[4/4] 工序: {', '.join(wanted) or '(无)'} | 区域 {regions} | "
           f"重绘参考 {steps['repaint']['reference_mode']} | 画风条款 {len(style_clauses)} 条")
-    outs = pp.run_pipeline([base_path], steps, firmware=args.firmware,
-                           style_ref_path=ref, style_clauses=style_clauses,
-                           log_callback=lambda m: print("      ", m))
+    outs = []
+    for trial in range(max(1, args.repeat)):
+        outs.extend(pp.run_pipeline([base_path], steps, firmware=args.firmware,
+                           style_ref_path=repaint_style_ref, style_clauses=style_clauses,
+                           final_dir=output_dir,
+                           work_dir=os.path.join(output_dir, f"steps-{trial + 1}") if output_dir else None,
+                           resume=False,
+                           log_callback=lambda m: print("      ", m)))
+    manifest["outputs"] = outs
+    if (args.identity_audit or args.identity_correct) and outs:
+        from utils.identity_audit import (audit_image_identity, build_identity_correction_prompt,
+                                          identity_gate_action)
+        from modules.others.api_backend import generate_image_repaint
+        try:
+            final_audit = audit_image_identity(outs[-1], result, expected_prompt=payload["prompt"])
+            final_audit["correction_prompt"] = build_identity_correction_prompt(final_audit, 1, 2)
+        except Exception as exc:  # 保留最终图并把审计故障写进清单
+            final_audit = {"mismatch": False, "severity": "unknown", "confidence": 0.0,
+                           "differences": [], "audit_error": f"{type(exc).__name__}: {exc}",
+                           "correction_prompt": ""}
+        manifest["identity"]["final"] = final_audit
+        if output_dir:
+            with open(os.path.join(output_dir, "identity-final.json"), "w", encoding="utf-8") as f:
+                json.dump(final_audit, f, ensure_ascii=False, indent=2)
+        final_status = "审计失败" if final_audit.get("audit_error") else ("有差异" if final_audit["mismatch"] else "通过")
+        print(f"      最终图身份审计: {final_status} "
+              f"({final_audit['severity']}, {final_audit['confidence']:.2f})")
+        action = identity_gate_action(final_audit)
+        manifest["identity"]["action"] = action
+        manifest["selected_output"] = outs[-1]
+        current = outs[-1]
+        current_audit = final_audit
+        correction_rounds = []
+        if args.identity_correct:
+            for correction_round in range(1, 3):
+                if identity_gate_action(current_audit) != "correct":
+                    break
+                prompt = build_identity_correction_prompt(
+                    current_audit, iteration=correction_round, max_iterations=2)
+                corrected = generate_image_repaint(
+                    [current], resolution="2K", aspect_ratio="auto", prompt=prompt,
+                    use_detail_suffix=False, save_sub_dir=output_dir or os.path.dirname(current),
+                    file_prefix=f"identity-correct-{correction_round}") or []
+                if not corrected:
+                    break
+                current = corrected[-1]
+                outs.extend(corrected)
+                try:
+                    current_audit = audit_image_identity(
+                        current, result, expected_prompt=payload["prompt"])
+                    current_audit["correction_prompt"] = build_identity_correction_prompt(
+                        current_audit, min(2, correction_round + 1), 2)
+                except Exception as exc:
+                    current_audit = {"mismatch": False, "severity": "unknown", "confidence": 0.0,
+                                     "stable_anchors": [], "differences": [],
+                                     "audit_error": f"{type(exc).__name__}: {exc}"}
+                correction_rounds.append({"round": correction_round, "image": current,
+                                          "audit": current_audit})
+                if output_dir:
+                    with open(os.path.join(output_dir, f"identity-corrected-{correction_round}.json"),
+                              "w", encoding="utf-8") as f:
+                        json.dump(current_audit, f, ensure_ascii=False, indent=2)
+                print(f"      定点修订 {correction_round}/2 复审: "
+                      f"{'仍有差异' if current_audit.get('mismatch') else '通过'} "
+                      f"({current_audit.get('severity')}, {float(current_audit.get('confidence') or 0):.2f})")
+        manifest["identity"]["correction_rounds"] = correction_rounds
+        manifest["selected_output"] = current
+        if correction_rounds and identity_gate_action(current_audit) != "accept":
+            print("      身份门禁: 两轮后仍有差异，按不回退策略保留最后一轮修订图")
+    manifest["status"] = "complete" if outs else "pipeline_failed"
+    save_manifest()
     print("\n最终产物:")
     for path in outs:
         print(f"  {os.path.relpath(path, BASE)}")

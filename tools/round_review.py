@@ -115,13 +115,69 @@ Gemini 重绘（v5 保守固件 + 源图与 tinkle 参考图双参考 + 18 条�
 6. 下一步最该做的 2 件事。"""
 
 
+def write_gallery(manifest_path, output_path):
+    """离线对照页：清单只引用图片/请求快照，不读取 API 配置或密钥。"""
+    import hashlib
+    import html
+    import io
+    from pathlib import Path
+    from PIL import Image
+    spec = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    esc = html.escape
+    sections = []
+    for group in spec.get("groups", []):
+        cards = []
+        for item in group.get("images", []):
+            path = Path(BASE) / item["path"]
+            im = Image.open(path).convert("RGB")
+            im.thumbnail((1000, 1200))
+            buf = io.BytesIO()
+            im.save(buf, format="JPEG", quality=88)
+            uri = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            cards.append(f'<figure><figcaption><b>{esc(item["label"])}</b><p>{esc(item.get("note", ""))}</p></figcaption>'
+                         f'<a href="{uri}" target="_blank"><img src="{uri}" loading="lazy"></a>'
+                         f'<details><summary>来源 / SHA256</summary><pre>{esc(item["path"])}\n{digest}</pre></details></figure>')
+        requests = []
+        for request in group.get("requests", []):
+            data = json.loads((Path(BASE) / request).read_text(encoding="utf-8"))
+            requests.append(f'<details><summary>{esc(request)}</summary><pre>{esc(json.dumps(data, ensure_ascii=False, indent=2))}</pre></details>')
+        layout_class = " horizontal" if group.get("layout") == "horizontal" else ""
+        sections.append(f'<section class="{layout_class.strip()}"><h2>{esc(group["title"])}</h2><p>{esc(group.get("note", ""))}</p>'
+                        f'<div class="grid">{"".join(cards)}</div>{"".join(requests)}</section>')
+    document = ('<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                f'<title>{esc(spec["title"])}</title><style>'
+                'body{font:16px/1.65 system-ui;margin:32px;background:#f4f3ef;color:#24282c}'
+                'main{max-width:1500px;margin:auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}'
+                'section.horizontal .grid{display:flex;overflow-x:auto;align-items:flex-start;padding-bottom:12px}'
+                'section.horizontal figure{flex:0 0 300px;min-width:300px}'
+                'figure{margin:0;background:white;padding:14px;border-radius:10px}img{width:100%;height:auto}'
+                'h2{margin-top:42px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}'
+                'details{margin:12px 0}figcaption p{font-size:14px}section{border-top:1px solid #ccc;margin-top:32px}'
+                '</style><main>' + f'<h1>{esc(spec["title"])}</h1>' +
+                ''.join(f'<p>{esc(p)}</p>' for p in spec.get("summary", [])) + ''.join(sections) + '</main></html>')
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(output_path).write_text(document, encoding="utf-8")
+    print(output_path)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--image", required=True)
-    ap.add_argument("--tag", required=True)
+    ap.add_argument("--image")
+    ap.add_argument("--tag")
+    ap.add_argument("--gallery-manifest", help="按 JSON 清单生成离线图片对照页")
+    ap.add_argument("--gallery-out", help="对照页 HTML 路径")
     ap.add_argument("--ask-sol", action="store_true")
     ap.add_argument("--prompt", default=PROMPT)
     args = ap.parse_args()
+    if args.gallery_manifest:
+        if not args.gallery_out:
+            ap.error("--gallery-manifest requires --gallery-out")
+        write_gallery(args.gallery_manifest, args.gallery_out)
+        return 0
+    if not args.image or not args.tag:
+        ap.error("--image and --tag are required unless generating a gallery")
 
     crops = write_crops(args.image, args.tag)
     print("裁切:", [os.path.relpath(p, BASE) for p in crops])

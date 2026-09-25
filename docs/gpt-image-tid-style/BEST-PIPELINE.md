@@ -1,5 +1,9 @@
 # gpt-image-2 画风生图 · 当前最优解与完整工作流
 
+> **2026-09-25 配方 v5 覆盖说明**：分析 Tab 默认是 GPT 首图挂画风参考图，Gemini 再接收 GPT 首图和完整画风图做 v5 全图重绘（`reference_mode=style`、`scope=full`），随后按实际首图 prompt 做身份审计和最多两轮定点修订；结构线、局部重绘、色调和加墨默认关闭。复现实验与局限见 [STYLE-REF-TWO-CORRECTIONS-20260925.md](STYLE-REF-TWO-CORRECTIONS-20260925.md)。
+>
+> 这轮测试没有证明断线已被彻底修复，也没有证明存在跨图片、跨画风的通用最优参数；v4 的目标是稳定复现输入角色并减少参考角色污染。
+
 > 这份是操作手册（要改 prompt / 调指标口径先看 `README.md`；要只看首图提示词看 `BEST-PROMPT.md`）。
 > 全部结论都有实测数据支撑，索引在每节末尾。
 
@@ -242,10 +246,57 @@ CLI 行为一致：`tools/overlay_structure_lines.py`、`tools/local_repaint_com
 1. 分析完成时，如果本任务还会自动生图 → 记录保持 `进行中·生图/后处理中`，**不标绿**；
 2. 生图完成后如果还有后处理线程（JPG upscale / WebP 等）→ 继续 `进行中·后处理`；
 3. 只有**所有线程都结束 + 确实拿到最终产物**（`final_products`，或 `data/<日期>/` 里带 `-final-` 的产物）才标绿；
-4. 线程都结束但没产物 → 停在 `进行中·等待最终产物`，并在日志里告警，不假装完成。
+4. 生图线程退出但**没有任何产物**（失败 / 被取消）→ 记录标红 `失败`（`pipeline_error`），不再停在
+   `进行中·等待最终产物`；分析结果本身仍可用（`设为当前结果` 不再要求 status=success）；
+5. 勾了自动生图却一个线程都没起来（缺 API key / 描述为空）→ 按「只做分析」收尾标完成，不能吊着队列。
+
+**2026-09-24 修的 bug（用户截图：日志已打完 `🕐 同步完成`，队列却永远 `进行中·生图`）**：
+`_finalize_task_pipeline` 只在 `on_image_generation_finished` 里被调过一次，而那一刻生图线程自己还在
+`_active_img_threads` 里 → 判定「还有线程在跑」返回 False；线程真正退出时（`_on_image_thread_stopped`）
+没有人再调它。默认配方不产生后处理线程（JPG 后处理只对 `.jpg` 生效，Gemini 通道常出 `.png`），
+所以这条记录**再也没有机会变绿**。现在 `_on_image_thread_stopped` 会补一次收尾。
+同一批修的还有「兜底更新抢跑」：分析线程退出时若该任务的生图/后处理线程还在跑，
+不再把记录改成「已完成（兜底更新）」并抢跑标绿。
 
 回归用例：`test_queue_marks_success_only_with_final_product`、`test_queue_stays_running_while_post_process_running`、
-`test_queue_stays_running_without_final_product`、`test_history_status_text_shows_phase`。
+`test_queue_stays_running_without_final_product`、`test_history_status_text_shows_phase`、
+`test_queue_turns_green_when_image_gen_thread_exits`、`test_image_thread_exit_keeps_running_while_post_process_alive`、
+`test_generation_failure_marks_record_error`、`test_analysis_thread_fallback_does_not_clobber_live_pipeline`、
+`test_auto_gen_that_never_starts_does_not_hang_queue`、`test_queue_lifecycle_from_analysis_to_green`。
+
+### Gemini / gpt-image 两条生图链路的完整关系（2026-09-24 复核）
+
+分析阶段两条链路**完全共用**（同一个 `WorkerThread`、同一份分析产物 JSON），分叉点在「分析完成之后」：
+
+| 阶段 | Gemini 通道（老逻辑，默认选中） | gpt-image-2 通道 |
+|---|---|---|
+| 通道开关 | `gen_channel_gemini` | `gen_channel_gpt`（`_gpt_image_channel_active()`） |
+| 提示词 | `--ar <比例> + 画风完整指令 + 分析描述 + face 保护后缀`（`utils.styles.style_prompt`） | `画风 prompt_gpt`（最前）+ **与 Gemini 同源的内容锚** + 参考图排除句 + `RENDERING LANGUAGE` 条款（`utils.analysis_gen.build_first_pass_request`） |
+| 参考图 | 画风参考图，按参考模式 `head/priority/interleave` 摆放 | **只挂画风参考图**，绝不挂分析素材图 |
+| 出图调用 | `api_backend.generate_image_aigc2d`（`/v1beta/models`） | `api_backend.generate_image_aigc2d_gpt`（`/v1/images/generations`，`mode="generate"`） |
+| 尺寸 | `--ar`（`_resolve_ar_for_second_stage`） | `1024x1024 / 1536x1024 / 1024x1536`，跟随输入图比例 |
+| 落盘 | `data/<日期>/<task_hash>_<HHMMSS>-<rand>.<ext>` | 有工序时首图落 `analysis-gpt-image/`；最终产物 `<…>-final-<工序串>.png` 落 `data/<日期>/` |
+| 后处理 | 只有「生图后自动处理 JPG」（Gemini 常出 `.png` → 实际常常没有后处理） | `utils.post_process.run_pipeline`：重绘提线 → 结构线 → 局部重绘 → 色调校准 → 加墨 |
+| 线程类 | `ImageGenWorkerThread` | `GptImageGenWorkerThread` |
+
+两条链路在**队列状态机**上共用同一套代码（`_analysis_history` 记录 + `_finalize_task_pipeline` 收尾）：
+
+```
+分析线程完成 on_process_finished
+  ├─ 本任务还要自动生图 → 记录保持 running + phase=「生图/后处理中」（不标绿）
+  └─ 不需要生图        → 直接 success（绿）
+生图线程完成 on_image_generation_finished（sync mtime → JPG 后处理 → 记 final_products）
+  └─ 此刻线程自己还在池里 → 只标成「进行中·生图」，收尾交给下一步
+生图线程退出 _on_image_thread_stopped（★ 真正的收尾点）
+  ├─ 管线没别的线程 + 有产物 → 绿「已完成」
+  ├─ 还有后处理线程         → 「进行中·后处理」，「✅ 全流程完成（生图 + 后处理）」由后处理线程退出时打印
+  └─ 没产物（失败/取消）    → 红「失败」
+后处理线程退出 _cleanup_post_thread → 再收尾一次
+```
+
+失败链路：`on_image_generation_finished` 收到空产物时给记录打 `pipeline_error`（"生图失败（无产物）" /
+"生图已取消"），线程退出后由 `_finalize_task_pipeline` 标红；`result_json` 保留，右键仍可重跑分析/重跑生图。
+
 
 ---
 
@@ -271,12 +322,16 @@ CLI 行为一致：`tools/overlay_structure_lines.py`、`tools/local_repaint_com
    线条连续性优于 §⑲ E，也不发白了。代价是构图与姿势基本沿用原图，本质是「把照片重绘成目标画风」。
 
 ### GUI 里怎么选
-- 分析 Tab →「生图通道 = gpt-image-2」→ 勾选 **「首图直接用分析原图（保线条，走 §⑲ E 路线）」**：
-  跳过 gpt-image 首图，直接把分析原图送进工序（重绘时用「原图 + 线锚图」双参考）。**要线条就用这个。**
+- 分析 Tab →「生图通道 = gpt-image-2」→ 勾选 **「首图直接用分析原图」**：
+  跳过 gpt-image 首图，直接把分析原图送进工序（重绘时用「原图 + 画风参考图」）。**要线条就用这个。**
 - 不勾则保持原流程（gpt-image 生成首图再加工），适合要让 AI 重新构图/换姿势的场景。
-- 另新增 **「重绘用双参考（源图 + 线锚图）」** 勾选框（两个 Tab 都有，默认开）：
-  重绘前本地生成白底线锚图（`post_process.build_line_anchor`，不花 API 费用），与源图一起送进重绘，
-  对应固件里的「OPTIONAL MULTI-IMAGE MODE」（Image 1 = 内容真值，Image 2 = 只借渲染语法）。
+- **重绘的第二张参考固定 = 画风参考图**（`repaint_ref_mode="style"`），分析 Tab 不再给"参考图组合"开关：
+  以前那两个 **「重绘用双参考（源图 + 线锚图）」** 勾选框（分析 Tab 的 `gpt_pp_dual`、gpt-image-2 Tab 的
+  `post_dual_check`）**是死开关**——只读写 conf、从不进流水线（分析 Tab 那个连布局都没进，界面上根本看不见），
+  2026-09-24 已删除，conf 里的 `dual_reference` / `post_dual` 键一并清掉。
+  线锚图能力仍在后端（`post_process.build_line_anchor` + `reference_mode="line_anchor"|"both"`），
+  但只有无头 CLI 显式开：`python tools/analysis_gpt_run.py --json <产物.json> --repaint-ref both`。
+  为什么默认不给：§三十一 实测线锚图会被模型当成"渲染语言"，要么把整张塌成白底线稿，要么把线网印成碎玻璃。
 
 ## 十一、尺寸跟随输入图（横图不再输出竖图）
 

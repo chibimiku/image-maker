@@ -1037,6 +1037,8 @@ def local_repaint_composite(image_path, out_path, region="upper", firmware=None,
 
 def default_pipeline():
     return {
+        # `dual_reference` 是**旧键**：只在 `reference_mode` 缺失时兜底（True → 线锚图）。
+        # 新调用方请显式传 `reference_mode`；GUI 默认 none，style 仅供显式实验。
         "repaint": {"enabled": False, "dual_reference": True},
         "contrast": {"enabled": False, "amount": 0.55, "protect_white": True, "radius": 12},
         "ink": {"enabled": False, "target_sep": 10.0, "amount": 1.0, "max_darken": 40.0,
@@ -1156,6 +1158,15 @@ STYLE_REF_ROLE_IN_REPAINT = (
     "paint is applied. It is not a second character, not a second outfit, not a second scene."
 )
 
+STYLE_REF_ROLE_NEUTRAL_IN_REPAINT = (
+    "\n\nNEUTRAL STYLE REFERENCE MODE: Image 1 is the SOURCE and controls every concrete colour, value relationship, "
+    "character feature, object, garment, accessory, pose and composition. Image 2 may influence only abstract "
+    "brush motion, stroke taper, edge softness, paint layering and non-semantic surface finish. Do not read or "
+    "transfer Image 2's palette, hue distribution, lighting colour, saturation, eye construction, hair design, "
+    "clothing, motifs or objects. If a rendering method cannot be separated from Image 2's content or colours, "
+    "do not transfer it."
+)
+
 # 「身份/内容锁」：**每一档编辑范围都会追加**（放在最后，权重最高）。
 # 为什么必须有（§三十一 补记）：`person_noface` 那档原本允许"可以改身体/衣服/头发"，
 # 结果 tid 那组把**画风参考图的角色**（粉色头发 + 水手服 + 金鱼/水波）整套搬了进来，只留下源图的姿势与场景。
@@ -1219,7 +1230,9 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
     - `final_dir`：**最后一个启用工序**的落盘目录，默认 `data/<YYYYMMDD>/`（发布目录）；
       中间步骤的产物仍写在 `work_dir`（pipeline-steps）。
     - `style_ref_path` / `style_clauses`：画风参考图与画风条款。重绘时 `cfg["reference_mode"]` 决定第二张参考是
-      **线锚图（line_anchor，默认）**、**画风图（style）**还是**两者（both）**；给画风图时会追加
+      **线锚图（line_anchor）**、**画风图（style）**还是**两者（both）**；**没给 `reference_mode` 时按旧键
+      `cfg["dual_reference"]` 兜底（True → line_anchor）** —— 新调用方请显式传 `reference_mode`（GUI 默认 none）；
+      给画风图时会追加
       `STYLE_REF_ROLE_IN_REPAINT` + `style_clauses`（Sol 第 3 轮给的英文条款）。
     """
     steps = steps or {}
@@ -1285,7 +1298,7 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                     ref_mode = str(cfg.get("reference_mode") or "").strip().lower()
                     if not ref_mode:
                         ref_mode = "line_anchor" if cfg.get("dual_reference", True) else "none"
-                    if ref_mode in ("style", "both") and style_ref_path and os.path.isfile(str(style_ref_path)):
+                    if ref_mode in ("style", "style_neutral", "both") and style_ref_path and os.path.isfile(str(style_ref_path)):
                         extra_refs.append(str(style_ref_path))
                     if ref_mode in ("line_anchor", "both"):
                         from utils.post_process import build_line_anchor as _bla  # noqa: PLC0415
@@ -1300,17 +1313,19 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                     # 最后一步 → 直接落 data/<日期>/；否则落 pipeline-steps/（中间产物）
                     if key == last_key:
                         os.makedirs(final_dir, exist_ok=True)
-                        sub_dir = ""
+                        sub_dir = os.path.abspath(final_dir)
                         prefix = f"{base_stem}-{run_id}-final-rp"
                     else:
                         # 后端把 save_sub_dir 拼在 data/<日期>/ 下；直接给约定路径，
                         # 不用 os.path.relpath（跨盘符会 ValueError）
-                        sub_dir = os.path.join("pipeline-steps", run_id)
+                        sub_dir = os.path.abspath(work_dir)
                         prefix = "repaint"
                     repaint_ratio = snapped_aspect_ratio(current)
                     repaint_prompt = fw_text
-                    if style_ref_path and os.path.isfile(str(style_ref_path)):
-                        repaint_prompt = (repaint_prompt or "") + STYLE_REF_ROLE_IN_REPAINT
+                    if ref_mode in ("style", "style_neutral", "both") and style_ref_path and os.path.isfile(str(style_ref_path)):
+                        repaint_prompt = (repaint_prompt or "") + (
+                            STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
+                            else STYLE_REF_ROLE_IN_REPAINT)
                         clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
                         if clauses:
                             repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)

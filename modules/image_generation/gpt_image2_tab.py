@@ -496,14 +496,6 @@ class GptImage2Widget(QWidget):
         self.local_feather_spin.setToolTip("贴回时的羽化半径（像素），越大接缝越柔和、改动越局部。")
         post_form.addRow("贴回羽化:", self.local_feather_spin)
         layout.addWidget(self.post_panel)
-        # 重绘双参考（源图 + 线锚图）：§⑲ 实测线条最连贯的配方
-        self.post_dual_check = QCheckBox("重绘用双参考（源图+线锚图，线条更连贯）")
-        self.post_dual_check.setChecked(True)
-        self.post_dual_check.setToolTip(
-            "重绘时把源图与自动生成的线锚图（白底长结构线）一起作为参考送入；\n"
-            "实测线条连通性明显好于单参考（§⑲ E 组配方）。"
-        )
-        layout.addWidget(self.post_dual_check)
         # 色调校准 + 线条加墨
         self.post_tone_check = QCheckBox("色调校准（按参考图匹配亮度/饱和度）")
         self.post_tone_check.setToolTip(
@@ -1115,8 +1107,6 @@ class GptImage2Widget(QWidget):
             mode = str(node.get("mode") or MODE_GENERATE)
             if mode in MODE_CHOICES:
                 self.mode_combo.setCurrentText(mode)
-            if hasattr(self, "post_dual_check") and "post_dual" in node:
-                self.post_dual_check.setChecked(bool(node.get("post_dual")))
             saved_style = node.get("style")
             if saved_style and hasattr(self, "style_combo"):
                 idx = self.style_combo.findText(str(saved_style))
@@ -1178,8 +1168,6 @@ class GptImage2Widget(QWidget):
         node["mode"] = self.mode_combo.currentText()
         if hasattr(self, "style_combo"):
             node["style"] = self.style_combo.currentText()
-        if hasattr(self, "post_dual_check"):
-            node["post_dual"] = bool(self.post_dual_check.isChecked())
         if hasattr(self, "repaint_check"):
             node["repaint"] = {
                 "enabled": bool(self.repaint_check.isChecked()),

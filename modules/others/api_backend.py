@@ -1847,8 +1847,13 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     # 被判成 `Unknown parameter: 'image'`，同一份请求换个通道就正常）。这类「上游报错 + 空 data」
     # 重发一次基本就好，所以这里单独再试几次，别让画风生图随机失败。
     upstream_retries = int(config.get("upstream_error_retries", 2) or 2)
+    def _terminal_image_error(body):
+        error = body.get("error") if isinstance(body, dict) else None
+        text = str(error or "").lower()
+        return any(term in text for term in ("moderation_blocked", "safety system", "content_policy_violation"))
+
     while (not isinstance(data_items, list) or not data_items) and upstream_retries > 0 \
-            and isinstance(resp_json, dict) and resp_json.get("error"):
+            and isinstance(resp_json, dict) and resp_json.get("error") and not _terminal_image_error(resp_json):
         upstream_retries -= 1
         err_text = str((resp_json.get("error") or {}).get("message") or resp_json.get("error"))[:200]
         logger.warning(f"AIGC-2D-GPT 上游返回错误（{err_text}），重新发起请求（还剩 {upstream_retries} 次）…")
@@ -1879,6 +1884,8 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     # 「把参考图当原图编辑」，所以**只在报错时回退**，并且日志里写明，方便排查产物差异。
     if (not isinstance(data_items, list) or not data_items) and isinstance(resp_json, dict) \
             and resp_json.get("error") and not use_edits_mode \
+            and not _terminal_image_error(resp_json) \
+            and "unknown parameter" in str(resp_json.get("error")).lower() \
             and "image" in str(resp_json.get("error")).lower():
         logger.warning("AIGC-2D-GPT 上游不认 generations 的 image 字段 → 回退 /images/edits 重发一次")
         _emit("上游不支持「新建图片」模式的参考图字段，已回退到编辑端点重发")
@@ -2622,6 +2629,12 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         safe_resp_json = copy.deepcopy(resp_json)
         for cand in safe_resp_json.get("candidates", []):
             for part in cand.get("content", {}).get("parts", []):
+                # Gemini 3 的 thoughtSignature 可能达到数 MB；它不是诊断图片结果所需信息，
+                # 原样写控制台/日志会淹没真正的响应字段。
+                if "thoughtSignature" in part:
+                    part["thoughtSignature"] = "<THOUGHT_SIGNATURE_OMITTED>"
+                if "thought_signature" in part:
+                    part["thought_signature"] = "<THOUGHT_SIGNATURE_OMITTED>"
                 if "inlineData" in part:
                     part["inlineData"]["data"] = "<BASE64_IMAGE_DATA_OMITTED>"
                 elif "inline_data" in part:
@@ -2754,6 +2767,39 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                     saved_files.append(file_path)
                 except Exception as e:
                     logger.error(f"写入图片文件失败: {e}")
+
+            # 部分 Gemini 3 响应会把生成图放到临时文件 URL，而不是内嵌 Base64。
+            # new.aigc2d 同时出现过 camelCase / snake_case 两种字段名。
+            elif part.get("fileData") or part.get("file_data"):
+                file_data = part.get("fileData") or part.get("file_data") or {}
+                file_uri = file_data.get("fileUri") or file_data.get("file_uri")
+                mime_type = file_data.get("mimeType") or file_data.get("mime_type") or ""
+                if not file_uri:
+                    logger.warning("[跳过] fileData 图片片段缺少 fileUri")
+                    continue
+                try:
+                    img_resp = requests.get(str(file_uri), timeout=min(int(timeout_val or 180), 60))
+                    img_resp.raise_for_status()
+                    image_bytes = img_resp.content
+                    if len(image_bytes) < 1024:
+                        logger.warning(f"[跳过] fileData 下载结果为空或过小（{len(image_bytes)} 字节）")
+                        continue
+                    ext = {
+                        "image/png": ".png",
+                        "image/jpeg": ".jpg",
+                        "image/webp": ".webp",
+                    }.get(str(mime_type).lower(), gpt_image2_output_extension(data=image_bytes))
+                    time_str = datetime.now().strftime('%H%M%S')
+                    random_str = uuid.uuid4().hex[:6]
+                    prefix = f"{file_prefix}_" if file_prefix else ""
+                    file_name = f"{prefix}{time_str}-{random_str}{ext}"
+                    file_path = os.path.join(save_dir, file_name)
+                    with open(file_path, "wb") as f:
+                        f.write(image_bytes)
+                    logger.info(f"✅ 成功下载并保存 fileData 图片 ({ext} 格式): {file_path}")
+                    saved_files.append(file_path)
+                except Exception as e:
+                    logger.error(f"下载 fileData 图片失败 {file_uri}: {e}")
                     
             elif "text" in part:
                 # 顺手记录一下模型可能返回的额外文本提示

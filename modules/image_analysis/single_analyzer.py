@@ -10,7 +10,7 @@ from PIL import Image, ImageGrab
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
                              QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox, QCompleter,
-                             QListWidget, QListWidgetItem, QDialog, QMenu, QApplication)
+                             QListWidget, QListWidgetItem, QDialog, QMenu, QApplication, QScrollArea, QFrame)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel
 from PyQt6.QtGui import QPixmap, QColor, QDesktopServices
 from PyQt6.QtCore import QUrl
@@ -44,20 +44,21 @@ CLIPBOARD_SNAPSHOT_DIR = os.path.join("cache", "temp", "single-analyzer-clipboar
 
 
 ANALYSIS_GPT_UI_NODE = "analysis_gpt_pipeline"
-# gpt-image 通道的「效果最好且稳」配方（docs/gpt-image-tid-style/BEST-PIPELINE.md §二十八 实测）：
-#   整图重绘（第二张参考 = 画风参考图）→ 结构线 sline50 → 局部四区逐个重绘羽化贴回
-#   → 色调校准（目标 = 画风参考图）→ 线条加墨
-# 默认全勾。`recipe_version` 用来做一次性升级：老配置（没有这个字段）会在下次启动时套用新配方默认，
-# 之后用户自己的改动才会被记住（否则老配置里 repaint=False 之类会一直压着新默认）。
-GPT_RECIPE_VERSION = 3
+# 线条优先默认：GPT 首图 → Gemini（源图 + 完整画风图）→ 最多两轮身份定点修订。
+# recipe_version 只迁移配方键一次；用户之后的自定义选择继续保留。
+GPT_RECIPE_VERSION = 5
 STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
-ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gemini", "repaint": True, "structure": True,
+# 注意：`dual_reference` 键**已废弃**（旧配置里可能还留着，读到会忽略）。
+# 重绘的第二张参考由 `analysis_gen.pipeline_steps_from_flags(repaint_ref_mode=...)` 决定，
+# 分析 Tab 默认为 "style"（源图 + 完整画风图）；其它参考组合留给无头 CLI 对照实验。
+# —— §三十一 实测线锚图会把画面塌成白底线稿 / 铺满「碎玻璃」纹理。
+ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gemini", "repaint": True, "structure": False,
                             "local": False, "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
-                            "quality": "high", "dual_reference": True,
-                            "use_source_base": False, "size_follow_input": True,
-                            "tone": True, "tone_target": "style", "ink": True,
-                            "repaint_scope": "lines_only",
+                            "quality": "high",
+                            "size_follow_input": True,
+                            "tone": False, "tone_target": "style", "ink": False,
+                            "repaint_scope": "full", "first_pass_mode": "generate",
                             "recipe_version": GPT_RECIPE_VERSION}
 GPT_RECIPE_KEYS = ("repaint", "structure", "local", "region", "regions", "tone", "tone_target", "ink",
                    "repaint_scope")
@@ -72,7 +73,7 @@ def load_analysis_gpt_ui(path: str = None) -> dict:
     """读取上次的「生图通道 / gpt 工序」选择（缺字段用默认值）。
 
     配方升级：老配置里没有 `recipe_version`（或版本落后）时，**配方相关的键一次性回到新默认**
-    （= 实测最好的一套：重绘/结构线/局部四区/色调校准/加墨），之后用户自己的开关才会被记住。
+    （= 完整画风图重绘 + 两轮身份闭环，额外本地工序关闭），之后保留用户的自定义开关。
     """
     state = dict(ANALYSIS_GPT_UI_DEFAULTS)
     try:
@@ -1262,12 +1263,12 @@ class ImageGenWorkerThread(QThread):
             self.finish_signal.emit([])
 
 class GptImageGenWorkerThread(QThread):
-    """gpt-image-2 通道的生图线程：分析产物短锚 + 画风参考图 → 出图 → 按勾选跑工序加工。
+    """gpt-image-2 通道的生图线程：分析内容锚 + 画风参考图 → 出图 → 按勾选跑工序加工。
 
     与 Gemini 通道（ImageGenWorkerThread）的区别：
     - 不挂原分析图，只挂画风参考图；
-    - 提示词 = 画风 prompt_gpt + 分析产物的 gpt-image 专用字段（短锚优先）；
-    - 出图后按勾选依次跑「重绘提线 → 结构线叠加 → 局部重绘+羽化贴回」。
+    - 提示词 = 画风 prompt_gpt + 与 Gemini 通道同源的分析描述；
+    - 默认用源图 + 完整画风图重绘，再按实际首图 prompt 做最多两轮身份定点修订。
     见 docs/gpt-image-tid-style/BEST-PIPELINE.md。
     """
     log_signal = pyqtSignal(str)
@@ -1275,7 +1276,7 @@ class GptImageGenWorkerThread(QThread):
 
     def __init__(self, request_payload, steps=None, firmware="", size="1024x1536", quality="high",
                  output_format="png", file_prefix=None, model_name="gpt-image-2", api_type="aigc-2d-gpt",
-                 mode="generate", style_ref_path="", style_clauses=None):
+                 mode="generate", style_ref_path="", style_clauses=None, analysis_result=None):
         super().__init__()
         self.request_payload = dict(request_payload or {})
         self.steps = dict(steps or {})
@@ -1291,6 +1292,7 @@ class GptImageGenWorkerThread(QThread):
         # 重绘的第二张参考：画风参考图 + 画风渲染条款（`reference_mode="style"` 时用得上）
         self.style_ref_path = str(style_ref_path or "")
         self.style_clauses = [str(c) for c in (style_clauses or []) if str(c).strip()]
+        self.analysis_result = dict(analysis_result or {})
         self.last_status = "idle"
 
     def request_cancel(self):
@@ -1298,7 +1300,7 @@ class GptImageGenWorkerThread(QThread):
 
     def run(self):
         from modules.others.api_backend import generate_image_aigc2d_gpt
-        from utils.analysis_gen import first_pass_sub_dir, run_gpt_image_pipeline
+        from utils.analysis_gen import first_pass_sub_dir, run_gpt_image_pipeline, save_generation_manifest
         self.last_status = "running"
         if self.isInterruptionRequested():
             self.last_status = "cancelled"
@@ -1331,6 +1333,17 @@ class GptImageGenWorkerThread(QThread):
             self.last_status = "error"
             self.finish_signal.emit([])
             return
+        first_image = saved[0]
+        def record_request(outputs=None):
+            try:
+                if os.path.isfile(first_image):
+                    target = save_generation_manifest(first_image, self.request_payload,
+                        model=self.model_name, size=self.size, quality=self.quality, mode=self.mode,
+                        steps=self.steps, firmware=self.firmware, outputs=outputs)
+                    self.log_signal.emit(f"[gpt 通道] 首图与工序快照：{target}")
+            except Exception as exc:
+                self.log_signal.emit(f"[gpt 通道] 请求快照保存失败：{exc}")
+        record_request()
         active = [k for k, v in self.steps.items() if isinstance(v, dict) and v.get("enabled")]
         if active and not self.isInterruptionRequested():
             self.log_signal.emit("🧩 工序加工: " + " → ".join(active))
@@ -1341,11 +1354,53 @@ class GptImageGenWorkerThread(QThread):
                                                style_clauses=self.style_clauses) or saved
             except Exception as exc:  # noqa: BLE001 - 工序失败仍保留生图产物
                 self.log_signal.emit(f"⚠️ 工序加工失败，已保留生图产物: {type(exc).__name__}: {exc}")
+        # 重绘后的身份处理最多两轮定点修订。每轮都拿当前图与实际首图 prompt 重新审计，
+        # 只修上一轮仍不符合的稳定身份特征；最终不回退 GPT 首图，以保留线条修复。
+        if ((self.steps.get("repaint") or {}).get("enabled") and saved and self.analysis_result
+                and not self.isInterruptionRequested()):
+            try:
+                import json as _json
+                from utils.identity_audit import (audit_image_identity, build_identity_correction_prompt,
+                                                  identity_gate_action)
+                from modules.others.api_backend import generate_image_repaint
+                audit_dir = os.path.dirname(os.path.abspath(saved[-1]))
+                current = saved[-1]
+                actual_prompt = str(self.request_payload.get("prompt") or "")
+                audit = audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt)
+                with open(os.path.join(audit_dir, "identity-audit-0.json"), "w", encoding="utf-8") as f:
+                    _json.dump(audit, f, ensure_ascii=False, indent=2)
+                for correction_round in range(1, 3):
+                    action = identity_gate_action(audit)
+                    if action != "correct":
+                        if action == "review":
+                            self.log_signal.emit("[身份门禁] 审计结果需人工复核；保留当前图。")
+                        break
+                    correction_prompt = build_identity_correction_prompt(
+                        audit, iteration=correction_round, max_iterations=2)
+                    corrected = generate_image_repaint(
+                        [current], resolution="2K", aspect_ratio="auto", prompt=correction_prompt,
+                        use_detail_suffix=False, save_sub_dir=audit_dir,
+                        file_prefix=(self.file_prefix or "analysis-gpt") + f"-identity-correct-{correction_round}") or []
+                    if not corrected:
+                        break
+                    current = corrected[-1]
+                    audit = audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt)
+                    with open(os.path.join(audit_dir, f"identity-audit-{correction_round}.json"),
+                              "w", encoding="utf-8") as f:
+                        _json.dump(audit, f, ensure_ascii=False, indent=2)
+                    saved = [current]
+                    self.log_signal.emit(
+                        f"[身份门禁] 第 {correction_round}/2 轮定点修订完成；"
+                        f"复审{'仍有差异' if audit.get('mismatch') else '通过'}。")
+                self.log_signal.emit("[身份门禁] 按不回退策略保留最后一轮图。")
+            except Exception as exc:  # 审计故障不能让已经成功的重绘任务失败
+                self.log_signal.emit(f"[身份门禁] 审计/定点修订失败，保留当前重绘图: {type(exc).__name__}: {exc}")
         if self.isRequestInterruption_requested_safe():
             self.last_status = "cancelled"
             self.finish_signal.emit([])
             return
         self.last_status = "success"
+        record_request(saved)
         self.finish_signal.emit([p for p in saved if p])
 
     def isRequestInterruption_requested_safe(self):
@@ -1485,13 +1540,34 @@ class SingleAnalyzerWidget(QWidget):
     def initUI(self):
         self.setAcceptDrops(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        layout = QVBoxLayout()
+        outer_layout = QVBoxLayout()
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(6)
 
+        # 【布局契约】窗口默认只有 1100x750，而本 Tab 的控件行数远超这个高度：
+        # 固定区 = 预览（拖拽落点）+ ② 生成按钮 + 队列 + 日志（用户必须随时看得见，日志以前被
+        # gpt 选项行挤成 0 高）；选项区（① 按钮 / 自动生图 / 画风 / 生图通道 / gpt 工序与参数…）
+        # 放进滚动容器 —— 它们是一次性设置，滚动看即可。
+        # 注意：滚动容器**不接受**拖拽，这样拖图落到选项区时事件会继续上抛到本 Widget（拖拽落点不变）。
         self.image_label = QLabel("请将图片拖拽至此，\n或在窗口内按 Ctrl+V 粘贴")
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setStyleSheet("QLabel { background-color : #f0f0f0; border: 2px dashed #aaa; font-size: 16px; }")
-        self.image_label.setMinimumHeight(220)
-        layout.addWidget(self.image_label)
+        self.image_label.setMinimumHeight(160)
+        outer_layout.addWidget(self.image_label)
+
+        self.controls_scroll = QScrollArea()
+        self.controls_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.controls_scroll.setWidgetResizable(True)
+        self.controls_scroll.setMinimumHeight(100)
+        self.controls_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.controls_body = QWidget()
+        layout = QVBoxLayout(self.controls_body)
+        layout.setContentsMargins(0, 0, 6, 0)
+        layout.setSpacing(4)      # 行距压紧：选项区能少滚一点（内容高度直接省掉 20+ 像素）
+        self.controls_scroll.setWidget(self.controls_body)
+        # 选项区**按内容高度**取尺寸（不给 stretch）：窗口拉大/最大化时多出来的高度要归
+        # 队列和日志，而不是把每一行拉高 —— 否则按钮之间被撑出大片空白（用户 2026-09-24 反馈）。
+        outer_layout.addWidget(self.controls_scroll, 0)
 
         self.send_btn = QPushButton("① 发送并生成分析描述")
         self.send_btn.setFixedHeight(40)
@@ -1625,8 +1701,8 @@ class SingleAnalyzerWidget(QWidget):
         channel_row = QHBoxLayout()
         channel_row.addWidget(QLabel("生图通道:"))
         self.gen_channel_group = QButtonGroup(self)
-        self.gen_channel_gemini = QRadioButton("Gemini（老逻辑：分析后按 prompts 生图）")
-        self.gen_channel_gpt = QRadioButton("gpt-image-2（gpt 专用短锚 + 画风参考图 + 工序）")
+        self.gen_channel_gemini = QRadioButton("Gemini")
+        self.gen_channel_gpt = QRadioButton("gpt-image-2 + 艺术风格")
         self.gen_channel_gemini.setChecked(True)
         self.gen_channel_group.addButton(self.gen_channel_gemini, 0)
         self.gen_channel_group.addButton(self.gen_channel_gpt, 1)
@@ -1639,26 +1715,29 @@ class SingleAnalyzerWidget(QWidget):
 
         # gpt-image-2 通道的工序勾选（不选该通道时沿用老逻辑，不受影响）
         pp_row = QHBoxLayout()
-        self.gpt_pp_repaint = QCheckBox("出图后重绘提线（Gemini）")
+        self.gpt_pp_repaint = QCheckBox("重绘提线(Gemini)")
+        self.gpt_basic_controls = QWidget()
+        basic_row = QHBoxLayout(self.gpt_basic_controls)
+        basic_row.setContentsMargins(0, 0, 0, 0)
+        basic_row.addWidget(self.gpt_pp_repaint)
+        self.gpt_advanced_toggle = QCheckBox("高级选项")
+        basic_row.addWidget(self.gpt_advanced_toggle)
+        self.gpt_reset_recipe = QPushButton("恢复推荐")
+        basic_row.addWidget(self.gpt_reset_recipe)
+        channel_row.insertWidget(channel_row.count() - 1, self.gpt_basic_controls)
+        self.gpt_advanced_toggle.toggled.connect(self._on_gen_channel_changed)
+        self.gpt_reset_recipe.clicked.connect(lambda: self._load_gpt_pipeline_ui(
+            dict(ANALYSIS_GPT_UI_DEFAULTS, channel="gpt-image")))
+        self.gpt_pp_repaint.setToolTip("把 GPT 首图与完整画风图交给 Gemini 提线；随后按首图 prompt 最多做两轮身份定点修订。")
 
-        self.gpt_pp_dual = QCheckBox("重绘用双参考（源图+线锚图，线条更连贯）")
-
-        self.gpt_pp_dual.setChecked(True)
-
-        self.gpt_pp_dual.setToolTip(
-
-            "重绘时把源图和自动生成的线锚图（白底长结构线）一起作为参考送入（§⑲ 实测线条连通性最好的配方）。"
-
-            "\n不想让线锚图影响构图时可取消。"
-
-        )
         self.gpt_pp_structure = QCheckBox("结构线叠加")
-        self.gpt_pp_local = QCheckBox("局部重绘+羽化贴回")
+        self.gpt_pp_local = QCheckBox("局部重绘贴回")
         self.gpt_pp_region = QComboBox()
+        self.gpt_pp_region.setMaximumWidth(220)          # 标签很长：限宽 + tooltip 兜住完整解释
         try:
             from utils.post_process import REGION_LABELS
             # 第一项 = 实测最稳的多区域链（§二十八）：单区域 subject_no_face 线条最好但约 1/3 概率重排主体出鬼影
-            self.gpt_pp_region.addItem("稳定四区：人物保脸+鞋+腰+大腿（推荐）", list(STABLE_LOCAL_REGIONS))
+            self.gpt_pp_region.addItem("四区串联（实验）", list(STABLE_LOCAL_REGIONS))
             for _key, _label in REGION_LABELS.items():
                 self.gpt_pp_region.addItem(_label, _key)
             self.gpt_pp_region.setCurrentIndex(0)
@@ -1670,12 +1749,12 @@ class SingleAnalyzerWidget(QWidget):
             "但同一输入重跑约 1/3 概率把主体重排（保脸区的原脸 + 新身体 = 双人鬼影），所以默认用更稳的四区链。"
         )
         pp_row.addWidget(QLabel("gpt 工序:"))
-        pp_row.addWidget(self.gpt_pp_repaint)
         pp_row.addWidget(self.gpt_pp_structure)
         pp_row.addWidget(self.gpt_pp_local)
         pp_row.addWidget(self.gpt_pp_region)
         pp_row.addWidget(QLabel("重绘范围:"))
         self.gpt_pp_scope = QComboBox()
+        self.gpt_pp_scope.setMaximumWidth(220)           # 同上：范围标签很长，限宽避免把整行撑爆
         try:
             from utils.post_process import REPAINT_SCOPE_LABELS
             for _key, _label in REPAINT_SCOPE_LABELS.items():
@@ -1685,78 +1764,66 @@ class SingleAnalyzerWidget(QWidget):
         except Exception:  # noqa: BLE001
             self.gpt_pp_scope.addItem("只连通线条（不改色不改内容）", "lines_only")
         self.gpt_pp_scope.setToolTip(
-            "重绘的「编辑范围」：**不裁切、不贴回**，只在重绘提示词里要求模型保留不该动的部分（整张新图）。\n"
-            "实测（BEST-PIPELINE §三十一）：裁切+贴回的局部重绘会被模型重新构图搞成错位块（5 画风报废 2 张），\n"
-            "改用范围句后不可能拼错边界。\n"
-            "只连通线条：线条连贯最好（tid 段长 105→185）；只重绘人物：背景最稳；人物可动脸保原样：允许改动最多。"
+            "在整张图上用提示词限制修复范围，不是像素遮罩。所有档位都要求保留身份和设计；模型仍可能改变细节。"
         )
+        self.gpt_pp_region.setToolTip("裁切后重绘再贴回，可能产生错位或鬼影；四区串联是历史实验，不作为默认。")
         pp_row.addWidget(self.gpt_pp_scope)
+        self.gpt_first_pass_mode = QComboBox()
+        self.gpt_first_pass_mode.addItem("首图：新建接口", "generate")
+        self.gpt_first_pass_mode.addItem("首图：参考图接口（历史）", "edits")
+        self.gpt_first_pass_mode.setMaximumWidth(180)
+        self.gpt_first_pass_mode.setToolTip("历史 V6 首图走 edits。新建接口的参考图字段是中转站扩展；两条路效果不保证相同。拒绝请求后不会切换接口重试。")
+        pp_row.addWidget(self.gpt_first_pass_mode)
         pp_row.addStretch(1)
         self.gpt_pp_row = QWidget()
         self.gpt_pp_row.setLayout(pp_row)
         layout.addWidget(self.gpt_pp_row)
 
+        # gpt 通道的「参数」行：画质 / 尺寸 / 首图来源 / 色调 / 加墨。
+        # 以前这五组各自占一行，切到 gpt 通道就多出 5 行，把下面固定的队列与日志挤没了
+        # （用户 2026-09-24 反馈「UI 混乱、日志看不见」）——现在合并成一行，选项一行、参数一行。
         q_row = QHBoxLayout()
-        q_row.addWidget(QLabel("gpt 画质:"))
+        q_row.addWidget(QLabel("gpt 参数:"))
         self.gpt_quality_combo = QComboBox()
-        for _label, _val, _tip in (("high（细节最好，推荐）", "high", "输出 token 约为 medium 的 5 倍，细节/发丝/蕾丝最清楚"),
-                                   ("medium（快、省）", "medium", "细节明显少于 high，重绘放大后容易发糊"),
-                                   ("low（预览）", "low", "只适合构图预览")):
+        for _label, _val, _tip in (("high 细节最好(推荐)", "high", "输出 token 约为 medium 的 5 倍，细节/发丝/蕾丝最清楚"),
+                                   ("medium 快省", "medium", "细节明显少于 high，重绘放大后容易发糊"),
+                                   ("low 预览", "low", "只适合构图预览")):
             self.gpt_quality_combo.addItem(_label, _val)
             self.gpt_quality_combo.setItemData(self.gpt_quality_combo.count() - 1, _tip, 3)  # Qt.ToolTipRole
+        self.gpt_quality_combo.setToolTip("首图质量：high 的细节 token 约为 medium 的 5 倍（重绘放大后差别明显）。")
         self.gpt_quality_combo.setCurrentIndex(0)
+        self.gpt_quality_combo.setMaximumWidth(180)
         q_row.addWidget(self.gpt_quality_combo)
-        q_row.addStretch(1)
-        self.gpt_quality_row = QWidget()
-        self.gpt_quality_row.setLayout(q_row)
-        layout.addWidget(self.gpt_quality_row)
 
-        src_row = QHBoxLayout()
-        self.gpt_use_source_cb = QCheckBox("首图直接用分析原图（保线条，走 §⑲ E 路线）")
-        self.gpt_use_source_cb.setToolTip(
-            "跳过 gpt-image 首图，直接把分析用的原图送进工序（重绘时用「原图 + 线锚图」双参考）。\n"
-            "实测：这样出来的线条连通性（段长/端点）明显好于让 gpt-image 重新生成一张；\n"
-            "代价是构图/姿势基本沿用原图，只是被画风重绘。"
-        )
-        src_row.addWidget(self.gpt_use_source_cb)
-        src_row.addStretch(1)
-        self.gpt_use_source_row = QWidget()
-        self.gpt_use_source_row.setLayout(src_row)
-        layout.addWidget(self.gpt_use_source_row)
-
-        size_row = QHBoxLayout()
-        self.gpt_size_follow_cb = QCheckBox("尺寸跟随输入图（宽图不会输出竖图）")
+        self.gpt_size_follow_cb = QCheckBox("尺寸跟随输入图")
         self.gpt_size_follow_cb.setChecked(True)
         self.gpt_size_follow_cb.setToolTip(
             "gpt-image-2 只有 1024x1024 / 1536x1024 / 1024x1536 三档尺寸；\n"
             "勾上后按**输入图的实际比例**挑：横图 → 1536x1024，竖图 → 1024x1536，方图 → 1024x1024。\n"
             "取消勾选则固定用 1024x1536。"
         )
-        size_row.addWidget(self.gpt_size_follow_cb)
-        size_row.addStretch(1)
-        self.gpt_size_row_widget = QWidget()
-        self.gpt_size_row_widget.setLayout(size_row)
-        layout.addWidget(self.gpt_size_row_widget)
+        q_row.addWidget(self.gpt_size_follow_cb)
 
-        # 色调校准 + 线条加墨（画质优先预设的两个开关）
-        tone_row = QHBoxLayout()
         self.gpt_pp_tone = QCheckBox("色调校准")
         self.gpt_pp_tone.setToolTip(
             "按参考图匹配亮度与饱和度：目标选画风参考图时画面更深更饱和、线条更清楚（画质优先）；\n"
             "选输入照片则更接近照片原色（色彩保真）。只改亮度/饱和度，不动色相。"
         )
+        q_row.addWidget(self.gpt_pp_tone)
         self.gpt_pp_tone_target = QComboBox()
-        self.gpt_pp_tone_target.addItem("目标=画风参考图（画质优先）", "style")
-        self.gpt_pp_tone_target.addItem("目标=输入照片（色彩保真）", "photo")
+        self.gpt_pp_tone_target.addItem("目标=画风参考图", "style")
+        self.gpt_pp_tone_target.addItem("目标=输入照片", "photo")
+        self.gpt_pp_tone_target.setToolTip("色调校准的目标：画风参考图 = 画质优先；输入照片 = 色彩保真。")
+        q_row.addWidget(self.gpt_pp_tone_target)
+
         self.gpt_pp_ink = QCheckBox("线条加墨")
         self.gpt_pp_ink.setToolTip("只把已有线条压深，让线明显深于局部底色 —— 解决「线条看着稀碎」的问题。")
-        tone_row.addWidget(self.gpt_pp_tone)
-        tone_row.addWidget(self.gpt_pp_tone_target)
-        tone_row.addWidget(self.gpt_pp_ink)
-        tone_row.addStretch(1)
-        self.gpt_tone_row_widget = QWidget()
-        self.gpt_tone_row_widget.setLayout(tone_row)
-        layout.addWidget(self.gpt_tone_row_widget)
+        q_row.addWidget(self.gpt_pp_ink)
+        q_row.addStretch(1)
+        self.gpt_param_row = QWidget()
+        self.gpt_param_row.setLayout(q_row)
+        layout.addWidget(self.gpt_param_row)
+
         self.gen_channel_gemini.toggled.connect(lambda _checked: self._on_gen_channel_changed())
         self._on_gen_channel_changed()
         self._load_gpt_pipeline_ui()
@@ -1769,9 +1836,16 @@ class SingleAnalyzerWidget(QWidget):
         
         style_select_layout.addStretch()
         layout.addLayout(style_select_layout)
+        layout.addStretch(1)      # 选项区多余的高度收在底部留白里，别把每一行撑开（最大化时最明显）
         
 
         
+        # ---- 以下是固定区（不随选项区滚动）：② 生成图片 / 队列 / 日志，必须一直看得见 ----
+        self.bottom_panel = QWidget()
+        bottom = QVBoxLayout(self.bottom_panel)
+        bottom.setContentsMargins(0, 0, 0, 0)
+        bottom.setSpacing(6)
+
         gen_img_layout = QHBoxLayout()
         self.gen_orig_btn = QPushButton("② 生成图片 (基于 原始 提示词)")
         self.gen_orig_btn.setFixedHeight(35)
@@ -1785,7 +1859,7 @@ class SingleAnalyzerWidget(QWidget):
         
         gen_img_layout.addWidget(self.gen_orig_btn)
         gen_img_layout.addWidget(self.gen_ref_btn)
-        layout.addLayout(gen_img_layout)
+        bottom.addLayout(gen_img_layout)
 
         gen_control_layout = QHBoxLayout()
         self.gen_countdown_label = QLabel("生图超时倒计时: --")
@@ -1795,7 +1869,7 @@ class SingleAnalyzerWidget(QWidget):
         gen_control_layout.addWidget(self.gen_countdown_label)
         gen_control_layout.addStretch()
         gen_control_layout.addWidget(self.cancel_gen_btn)
-        layout.addLayout(gen_control_layout)
+        bottom.addLayout(gen_control_layout)
 
         history_header_layout = QHBoxLayout()
         history_header_layout.addWidget(QLabel("历史分析结果:"))
@@ -1808,31 +1882,35 @@ class SingleAnalyzerWidget(QWidget):
         self.open_history_btn.setEnabled(False)
         self.open_history_btn.clicked.connect(self.open_selected_history_detail)
         history_header_layout.addWidget(self.open_history_btn)
-        layout.addLayout(history_header_layout)
+        bottom.addLayout(history_header_layout)
 
         self.history_list = QListWidget()
-        self.history_list.setMinimumHeight(150)
+        self.history_list.setMinimumHeight(120)          # 队列常驻：绿色[完成] 就靠它看
         self.history_list.setToolTip(
             "分析队列：每行一条分析任务（批量提交会排进同一列表）。\n"
+            "状态 = 该任务**全部工序**的状态：绿色[已完成] 表示分析、生图、后处理都跑完了。\n"
             "在失败/超时的记录上点右键可「重跑分析」或「重跑分析并生图」。"
         )
         self.history_list.itemSelectionChanged.connect(self._update_history_action_buttons)
         self.history_list.itemDoubleClicked.connect(lambda _item: self.open_selected_history_detail())
         self.history_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.history_list.customContextMenuRequested.connect(self._on_history_context_menu)
-        layout.addWidget(self.history_list)
+        bottom.addWidget(self.history_list)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
+        self.log_text.setMinimumHeight(120)              # 日志常驻：以前被 gpt 选项行挤成 0 高
         log_toolbar_layout = QHBoxLayout()
         log_toolbar_layout.addStretch()
         self.clear_log_btn = QPushButton("清空日志")
         self.clear_log_btn.clicked.connect(self.log_text.clear)
         log_toolbar_layout.addWidget(self.clear_log_btn)
-        layout.addLayout(log_toolbar_layout)
-        layout.addWidget(self.log_text)
+        bottom.addLayout(log_toolbar_layout)
+        bottom.addWidget(self.log_text)
 
-        self.setLayout(layout)
+        outer_layout.addWidget(self.bottom_panel, 1)   # 多余空间给队列 + 日志（两者都是 Expanding）
+
+        self.setLayout(outer_layout)
         self._reload_upscale_models()
         self.set_upscale_options_defaults(self.get_upscale_options() if self.get_upscale_options else {})
         self.set_outfit_style_options(
@@ -2120,8 +2198,12 @@ class SingleAnalyzerWidget(QWidget):
                    if _belongs(t)]
         return pending
 
-    def _finalize_task_pipeline(self, task_hash, final_products=None, phase=""):
-        """只有「没有待跑线程 + 有最终产物」时，队列才置为绿色已完成。"""
+    def _finalize_task_pipeline(self, task_hash, final_products=None, require_products=True):
+        """只有「没有待跑线程 + 有最终产物」时，队列才置为绿色已完成。
+
+        `require_products=False`：这条任务本来就不产图（没勾自动生图 / 生图线程一个都没启动），
+        只要有线程活着就不再吊着队列，直接标完成 —— 否则它会永远停在「进行中」。
+        """
         pending = self._pipeline_pending_for_hash(task_hash)
         if pending:
             kinds = []
@@ -2138,7 +2220,18 @@ class SingleAnalyzerWidget(QWidget):
             products = list(final_products or record.get("final_products") or [])
             if not products:
                 products = self._guess_final_products(task_hash)     # 以 -final- 产物为准
-            if not products:
+            if not products and require_products:
+                # 生图这条线自己失败了（线程已退出且没产物）→ 标红，别让它永远「进行中·等待最终产物」
+                failure = str(record.get("pipeline_error") or "").strip()
+                if failure:
+                    self._update_history_record(
+                        task_id,
+                        status="error",
+                        phase="",
+                        finish_time_text=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    )
+                    self.log_msg(f"❌ 队列标记失败（{failure}）：{record.get('title', '未命名')}")
+                    continue
                 self._update_history_record(task_id, status="running", phase="等待最终产物")
                 self.log_msg(f"⚠️ 任务 {task_hash} 的线程都结束了，但还没有最终产物，暂不标记完成。")
                 continue
@@ -2146,22 +2239,29 @@ class SingleAnalyzerWidget(QWidget):
                 task_id,
                 status="success",
                 phase="",
+                pipeline_error="",
                 finish_time_text=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 final_products=products,
             )
-            self.log_msg(f"✅ 队列标记完成（以最终产物为准）: {os.path.basename(str(products[-1]))}")
+            if products:
+                self.log_msg(f"✅ 队列标记完成（以最终产物为准）: {os.path.basename(str(products[-1]))}")
+            else:
+                self.log_msg("✅ 队列标记完成（本任务不含生图工序，分析结果已落盘）")
             finalized = True
         return finalized
 
     def _update_history_action_buttons(self):
         record = self._selected_history_record()
         self.open_history_btn.setEnabled(record is not None)
-        self.apply_history_btn.setEnabled(bool(record and record.get("status") == "success" and record.get("result_json")))
+        # 生图失败（status=error）但分析结果本身是好的 → 仍然允许「设为当前结果」，别把可用产物锁死
+        self.apply_history_btn.setEnabled(bool(
+            record and str(record.get("status") or "").strip().lower() != "running"
+            and record.get("result_json")))
 
     def _apply_history_record_to_current_state(self, record):
         if not record:
             return False
-        if str(record.get("status") or "").strip().lower() != "success":
+        if str(record.get("status") or "").strip().lower() == "running":
             return False
         result_json = record.get("result_json")
         if not isinstance(result_json, dict):
@@ -2180,7 +2280,7 @@ class SingleAnalyzerWidget(QWidget):
             QMessageBox.information(self, "提示", "请先在历史分析结果中选择一条记录。")
             return
         if not self._apply_history_record_to_current_state(record):
-            QMessageBox.information(self, "提示", "只有已完成并带结果的历史记录才能设为当前结果。")
+            QMessageBox.information(self, "提示", "只有已结束（含「分析成功但生图失败」）并带结果的历史记录才能设为当前结果。")
             return
         self.log_msg(
             f"已将历史分析结果设为当前结果: 线程#{record.get('thread_no', '?')} / {record.get('task_hash', '--------')} / {record.get('title', '未命名')}"
@@ -2688,10 +2788,20 @@ class SingleAnalyzerWidget(QWidget):
         self._update_analysis_cancel_btn()
         # 兜底检查：如果线程已退出但历史记录仍处于"处理中"状态，说明 on_process_finished
         # 未能成功更新历史记录（可能是 task_id 不匹配或信号丢失），此时强制更新为完成。
+        # 【例外】本任务还要自动生图/后处理时，记录是**故意**留在 running 的（phase=生图/后处理中），
+        # 那种情况必须跳过兜底，否则会把标题改成「已完成（兜底更新）」并抢跑标绿，
+        # 随后生图完成又被改回 running —— 队列文案来回跳（用户 2026-09-24 截图就是这个）。
         task_id = getattr(thread, "meta_task_id", "")
         if task_id:
             record = self._analysis_history.get(task_id)
             if record and record.get("status") == "running":
+                task_hash = str(record.get("task_hash") or getattr(thread, "meta_task_hash", "") or "").strip()
+                if self._pipeline_pending_for_hash(task_hash):
+                    self.log_msg(
+                        f"⏳ 分析线程 #{getattr(thread, 'meta_thread_no', '?')} 已退出，"
+                        f"但该任务的生图/后处理还在跑：队列保持「进行中」，等管线全部结束后再标完成。"
+                    )
+                    return
                 finish_time_text = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 last_error = str(getattr(thread, "last_error", "") or "").strip()
                 warn_text = (
@@ -2956,9 +3066,18 @@ class SingleAnalyzerWidget(QWidget):
                     self._auto_gen_groups[auto_group_id]["expected"] = started_count
                     self.log_msg(f"🤖 检测到自动生图任务，共 {started_count} 项，通知将于全部生图结束后发送。", prefix=thread_prefix)
                 else:
+                    # 一个生图线程都没起来（缺 key / 目标提示词为空…）：本任务到此结束，
+                    # 不能因为前面按「还会生图」把记录留在 running，就让它永远吊在「进行中」。
                     self._auto_gen_groups.pop(auto_group_id, None)
+                    self.log_msg("⚠️ 自动生图没有启动任何任务（上方有原因），本任务按「只做分析」收尾。",
+                                 prefix=thread_prefix)
+                    self._finalize_task_pipeline(local_task_hash, require_products=False)
                     self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
             else:
+                # 勾了自动生图但没拿到可用提示词 → 同样按「只做分析」收尾（同上）
+                if (getattr(thread, "meta_force_gen_targets", None)
+                        or self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked()):
+                    self._finalize_task_pipeline(local_task_hash, require_products=False)
                 self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
 
     def _start_image_gen_runtime(self, timeout_seconds):
@@ -3018,18 +3137,21 @@ class SingleAnalyzerWidget(QWidget):
         self.log_msg("✅ 全流程完成（生图 + 后处理）")
 
     def _on_image_thread_stopped(self, thread):
+        """生图线程真正退出（QThread.finished）：清引用 → 队列收尾。
+
+        【关键】`on_image_generation_finished` 里那次 `_finalize_task_pipeline` 必然**失败**（那一刻
+        线程自己还在 `_active_img_threads` 里），那时只是把队列标成「进行中·生图」；真正的收尾必须
+        放在这里。以前这里什么都不做，只在后处理线程结束时收尾 —— 默认配方根本不产生后处理线程
+        （JPG 后处理只对 .jpg 生效），于是队列永远停在「进行中·生图」（用户 2026-09-24 截图）。
+        """
         if thread in self._active_img_threads:
             self._active_img_threads.remove(thread)
-        # 生图线程结束 ≠ 任务完成：后处理（JPG upscale / WebP 等）可能还在跑
-        if self._active_img_threads:
-            return
-        if getattr(self, "_active_post_threads", []):
-            self.log_msg(f"⏳ 生图已结束，仍在跑后处理 {len(self._active_post_threads)} 个；"
-                         "全部结束后才恢复按钮并提示完成。")
-            return
-        self.gen_orig_btn.setEnabled(True)
-        self.gen_ref_btn.setEnabled(True)
-        self._stop_image_gen_runtime()
+        task_hash = str(getattr(thread, "meta_task_hash", "") or "").strip()
+        if not self._active_img_threads:
+            self._stop_image_gen_runtime()
+        self._mark_pipeline_idle_if_done()          # 生图 + 后处理都结束才恢复按钮并提示完成
+        if task_hash:
+            self._finalize_task_pipeline(task_hash)  # 管线没别的线程了 → 有产物就标绿
 
     def cancel_image_generation(self, reason="manual"):
         if not self._active_img_threads:
@@ -3062,16 +3184,17 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg("🛑 已发出生图终止请求，等待当前任务退出。")
             self._send_system_notification("生图任务已终止", "当前生图任务已手动取消。")
 
-    def _load_gpt_pipeline_ui(self):
+    def _load_gpt_pipeline_ui(self, state=None):
         """恢复上次的通道 / 工序 / 区域 / 画质选择；老配置按「效果最好的配方」升级一次。"""
-        state = load_analysis_gpt_ui()
+        state = load_analysis_gpt_ui() if state is None else state
+        for widget, key in ((self.gpt_first_pass_mode, "first_pass_mode"),):
+            idx = widget.findData(state.get(key, ANALYSIS_GPT_UI_DEFAULTS[key]))
+            widget.setCurrentIndex(max(0, idx))
         if state.get("channel") == "gpt-image":
             self.gen_channel_gpt.setChecked(True)
         self.gpt_pp_repaint.setChecked(bool(state.get("repaint")))
         self.gpt_pp_structure.setChecked(bool(state.get("structure")))
         self.gpt_pp_local.setChecked(bool(state.get("local")))
-        self.gpt_pp_dual.setChecked(bool(state.get("dual_reference", True)))
-        self.gpt_use_source_cb.setChecked(bool(state.get("use_source_base", False)))
         self.gpt_size_follow_cb.setChecked(bool(state.get("size_follow_input", True)))
         self.gpt_pp_tone.setChecked(bool(state.get("tone")))
         self.gpt_pp_ink.setChecked(bool(state.get("ink")))
@@ -3088,7 +3211,7 @@ class SingleAnalyzerWidget(QWidget):
         if idx >= 0:
             self.gpt_quality_combo.setCurrentIndex(idx)
         if hasattr(self, "gpt_pp_scope"):
-            idx = self.gpt_pp_scope.findData(str(state.get("repaint_scope") or "lines_only"))
+            idx = self.gpt_pp_scope.findData(str(state.get("repaint_scope") or "full"))
             if idx >= 0:
                 self.gpt_pp_scope.setCurrentIndex(idx)
         self._on_gen_channel_changed()
@@ -3105,15 +3228,14 @@ class SingleAnalyzerWidget(QWidget):
             "region": regions[0],
             "regions": regions,
             "quality": str(self.gpt_quality_combo.currentData() or "high"),
-            "dual_reference": bool(self.gpt_pp_dual.isChecked()),
-            "use_source_base": bool(self.gpt_use_source_cb.isChecked()),
             "size_follow_input": bool(self.gpt_size_follow_cb.isChecked()),
             "tone": bool(self.gpt_pp_tone.isChecked()),
             "tone_target": str(self.gpt_pp_tone_target.currentData() or "style"),
             "ink": bool(self.gpt_pp_ink.isChecked()),
             "repaint_scope": str(getattr(self, "gpt_pp_scope", None).currentData()
-                                 if getattr(self, "gpt_pp_scope", None) is not None else "lines_only"),
+                                 if getattr(self, "gpt_pp_scope", None) is not None else "full"),
             "recipe_version": GPT_RECIPE_VERSION,
+            "first_pass_mode": self.gpt_first_pass_mode.currentData(),
         }
 
     def _save_gpt_pipeline_ui(self, *_args):
@@ -3125,18 +3247,15 @@ class SingleAnalyzerWidget(QWidget):
                                (self.gpt_pp_repaint, "toggled"),
                                (self.gpt_pp_structure, "toggled"),
                                (self.gpt_pp_local, "toggled"),
-                               (self.gpt_pp_dual, "toggled"),
-                               (self.gpt_use_source_cb, "toggled"),
                                (self.gpt_size_follow_cb, "toggled"),
                                (self.gpt_pp_tone, "toggled"),
                                (self.gpt_pp_ink, "toggled"),
                                (self.gpt_pp_tone_target, "currentIndexChanged"),
                                (self.gpt_pp_scope, "currentIndexChanged"),
                                (self.gpt_pp_region, "currentIndexChanged"),
+                               (self.gpt_first_pass_mode, "currentIndexChanged"),
                                (self.gpt_quality_combo, "currentIndexChanged")):
             getattr(widget, signal).connect(self._save_gpt_pipeline_ui)
-        # 「首图直接用分析原图」会锁定构图 → 联动「重新构图」开关的可用性
-        self.gpt_use_source_cb.toggled.connect(lambda _checked: self._on_gen_channel_changed())
 
     def _gpt_image_channel_active(self) -> bool:
         widget = getattr(self, "gen_channel_gpt", None)
@@ -3144,11 +3263,14 @@ class SingleAnalyzerWidget(QWidget):
 
     def _on_gen_channel_changed(self):
         active = self._gpt_image_channel_active()
-        for name in ("gpt_pp_row", "gpt_quality_row", "gpt_use_source_row", "gpt_size_row_widget",
-                     "gpt_tone_row_widget"):
+        basic = getattr(self, "gpt_basic_controls", None)
+        if basic is not None:
+            basic.setVisible(active)
+        advanced = getattr(self, "gpt_advanced_toggle", None)
+        for name in ("gpt_pp_row", "gpt_param_row"):
             row = getattr(self, name, None)
             if row is not None:
-                row.setVisible(active)
+                row.setVisible(active and advanced is not None and advanced.isChecked())
 
     def _build_gpt_image_steps(self) -> dict:
         from utils.analysis_gen import pipeline_steps_from_flags
@@ -3160,6 +3282,7 @@ class SingleAnalyzerWidget(QWidget):
         if combo is not None:
             tone_target = str(combo.currentData() or "style")
         scope_combo = getattr(self, "gpt_pp_scope", None)
+        # 线条优先配方：Gemini 同时接收 GPT 首图和完整画风图；身份偏离交给两轮闭环修订。
         return pipeline_steps_from_flags(
             repaint=bool(getattr(self, "gpt_pp_repaint", None) and self.gpt_pp_repaint.isChecked()),
             structure=bool(getattr(self, "gpt_pp_structure", None) and self.gpt_pp_structure.isChecked()),
@@ -3168,11 +3291,12 @@ class SingleAnalyzerWidget(QWidget):
             tone=bool(getattr(self, "gpt_pp_tone", None) and self.gpt_pp_tone.isChecked()),
             tone_target=tone_target,
             ink=bool(getattr(self, "gpt_pp_ink", None) and self.gpt_pp_ink.isChecked()),
-            repaint_scope=str(scope_combo.currentData() or "lines_only") if scope_combo is not None else "lines_only",
+            repaint_ref_mode="style",
+            repaint_scope=str(scope_combo.currentData() or "full") if scope_combo is not None else "full",
         )
 
     def _pipeline_timeout_budget(self, timeout_seconds, steps) -> int:
-        """超时预算 = 每道**联网**工序一份 ×（首图 1 份 + 重绘 1 份 + 每个局部区域 1 份）。
+        """超时预算 = 每道**联网**工序一份；重绘另预留初审和最多两轮定点修订/复审。
 
         用户要求：不要用一个总体 120 秒掐掉整条链（high 画质首图常要 120 秒以上，
         后面还有重绘/局部重绘），而是「一道工序 120 秒」。
@@ -3182,7 +3306,7 @@ class SingleAnalyzerWidget(QWidget):
         steps = steps or {}
         slots = 1                                                   # 首图
         if (steps.get("repaint") or {}).get("enabled"):
-            slots += 1
+            slots += 6  # Gemini 重绘 + 初审 + 最多两次 Gemini 定点修订及各自复审
         if (steps.get("local") or {}).get("enabled"):
             regions = (steps["local"].get("regions") or [steps["local"].get("region") or "hair"])
             slots += max(1, len([r for r in regions if str(r).strip()]))
@@ -3191,7 +3315,7 @@ class SingleAnalyzerWidget(QWidget):
     def _start_gpt_image_thread(self, prompt_type, prompt_context, task_hash, selected_style_name,
                                styles_data, is_auto=False, analysis_thread_no=None, auto_group_id=None,
                                timeout_seconds=120):
-        """gpt-image-2 通道：画风 prompt_gpt + 分析描述（与 Gemini 通道同源）→ 新建图片 → 工序加工。"""
+        """gpt-image-2 通道：画风 prompt_gpt + 身份完整锚 → 新建图片 → 工序加工。"""
         from utils.analysis_gen import build_first_pass_request
 
         analysis_json_path = prompt_context.get("analysis_json_path") or getattr(self, "_last_saved_json_path", "")
@@ -3204,15 +3328,15 @@ class SingleAnalyzerWidget(QWidget):
         except Exception as exc:  # noqa: BLE001
             self.log_msg(f"[gpt 通道] 读取分析产物失败（改用描述文本）: {exc}")
 
-        # 内容锚：**与 Gemini 通道同源**（分析产物里描述素材特征/构图/服装/道具的那段文本），
-        # 不再用 gpt 专用短锚字段，也没有「重新构图」开关。
-        content_text = str(prompt_context.get("original_prompt", "") if prompt_type == "original"
-                           else prompt_context.get("refined_prompt", "") or "").strip()
+        # 挂画风参考图时优先使用约 1400 字符的身份完整锚：实测 4400+ 字符分析全文会压弱
+        # 画风图，而 500 字符短锚容易漏掉发色/瞳色。完整锚同时保留角色颜色、服装和构图。
+        content_text = str(analysis_result.get("gpt_image_prompt") or "").strip()
+        if not content_text:
+            content_text = str(prompt_context.get("original_prompt", "") if prompt_type == "original"
+                               else prompt_context.get("refined_prompt", "") or "").strip()
         if not content_text:
             content_text = str(analysis_result.get("english_description")
                                or analysis_result.get("original_english_description") or "").strip()
-        if not content_text:
-            content_text = str(analysis_result.get("gpt_image_prompt") or "").strip()
 
         # 首图请求统一从 build_first_pass_request 组装（画风说明 + 内容锚 + 排除句 + 渲染语言条款）。
         # 这里以前自己拼、漏传 extra_clauses，导致 GUI 首图永远没有 RENDERING LANGUAGE 段
@@ -3266,9 +3390,10 @@ class SingleAnalyzerWidget(QWidget):
         thread = GptImageGenWorkerThread(
             request_payload=request_payload, steps=steps, firmware=firmware,
             quality=quality, file_prefix=task_hash or "analysis-gpt",
-            mode="generate",       # 首图走「新建图片」而不是 edits
-            style_ref_path=ref,    # 重绘的第二张参考 = 画风参考图（不是线锚图）
+            mode=str(self.gpt_first_pass_mode.currentData() or "generate"),
+            style_ref_path=ref,
             style_clauses=style_clauses,
+            analysis_result=analysis_result,
             **({"size": size} if size else {}),
         )
         self.log_msg(f"[gpt 通道] 画质 {quality}（high 的细节 token 约为 medium 的 5 倍）")
@@ -3401,23 +3526,33 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"🎉 成功生成了 {len(saved_files)} 张 {prompt_type} 图片！", prefix=thread_prefix)
             for file_path in saved_files:
                 self.log_msg(f"📂 保存路径: {file_path}", prefix=thread_prefix)
-            self._sync_analysis_mtimes(thread, saved_files)
-            self._start_jpg_postprocess(saved_files, prompt_type)
             task_hash_of_thread = str(getattr(thread, "meta_task_hash", "") or "").strip()
             self._last_gen_task_hash = task_hash_of_thread
+            self._sync_analysis_mtimes(thread, saved_files)
+            self._start_jpg_postprocess(saved_files, prompt_type, task_hash=task_hash_of_thread)
             if task_hash_of_thread:
                 # 生图产物先记下（后处理结束后它就是"最终产物"的兜底）
                 for _tid in self._history_task_ids_for_hash(task_hash_of_thread):
                     rec = self._analysis_history.get(_tid) or {}
                     rec["final_products"] = list(saved_files)
+                    rec["pipeline_error"] = ""
                 if not self._finalize_task_pipeline(task_hash_of_thread, final_products=saved_files):
-                    self.log_msg("⏳ 生图完成，但后处理还在跑：队列保持「进行中」，全部跑完才标记完成。")
+                    self.log_msg("⏳ 生图完成，但管线还没收尾（后处理/线程退出中）：队列保持「进行中」，全部跑完才标记完成。")
         else:
             status = getattr(thread, "last_status", "unknown")
             if status == "cancelled":
                 self.log_msg(f"🛑 {prompt_type} 生图已取消。", prefix=thread_prefix)
             else:
                 self.log_msg(f"⚠️ 未能生成 {prompt_type} 图片，请检查上方日志，或查看日志文件夹（log）的记录。", prefix=thread_prefix)
+            # 没有产物的生图线程一旦退出，队列就不能再等产物了：
+            # `_on_image_thread_stopped` 收到这条标记后会把记录标红失败，而不是永远「等待最终产物」
+            task_hash_of_thread = str(getattr(thread, "meta_task_hash", "") or "").strip()
+            if task_hash_of_thread:
+                reason = "生图已取消" if status == "cancelled" else "生图失败（无产物）"
+                for _tid in self._history_task_ids_for_hash(task_hash_of_thread):
+                    rec = self._analysis_history.get(_tid)
+                    if rec is not None:
+                        rec["pipeline_error"] = reason
         auto_group_id = getattr(thread, "meta_auto_group_id", None)
         if is_auto and auto_group_id:
             group = self._auto_gen_groups.get(auto_group_id)
@@ -3480,7 +3615,7 @@ class SingleAnalyzerWidget(QWidget):
         except Exception as e:
             self.log_msg("⚠️ 同步分析文件 mtime 失败: %s" % e)
 
-    def _start_jpg_postprocess(self, saved_files, prompt_type):
+    def _start_jpg_postprocess(self, saved_files, prompt_type, task_hash=""):
         if not self.enable_jpg_upscale_cb.isChecked():
             return
         jpg_files = [str(path) for path in (saved_files or []) if str(path).lower().endswith((".jpg", ".jpeg"))]
@@ -3496,7 +3631,7 @@ class SingleAnalyzerWidget(QWidget):
             task_name=f"单图{prompt_type}后处理",
         )
         thread.meta_thread_no = self._next_thread_no("_post_thread_seq")
-        thread.meta_task_hash = str(getattr(self, "_last_gen_task_hash", "") or "")
+        thread.meta_task_hash = str(task_hash or getattr(self, "_last_gen_task_hash", "") or "")
         self._active_post_threads.append(thread)
         self._mark_pipeline_busy()
         thread.log_signal.connect(

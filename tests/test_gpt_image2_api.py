@@ -175,6 +175,19 @@ def test_output_extension_by_format_and_magic_bytes():
 
 
 # ---------------- aigc2d 端点路由（不发真实请求） ----------------
+def test_moderation_rejection_is_not_retried_or_rerouted(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)
+    calls = []
+    def reject(url, **kwargs):
+        calls.append(url)
+        return _FakeResponse({"error": {"code": "moderation_blocked",
+            "message": "Image rejected by safety system"}})
+    monkeypatch.setattr(api_backend.requests, "post", reject)
+    assert api_backend.generate_image_aigc2d_gpt(prompt="test", mode="generate") == []
+    assert calls == ["https://example.invalid/v1/images/generations"]
+
+
 def test_generation_without_reference_uses_json_generations(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)
@@ -1270,6 +1283,51 @@ def test_aigc2d_channel_appends_prompt_suffix_and_can_skip_face_boost(monkeypatc
     assert "detailed face" not in text
 
 
+def test_aigc2d_channel_downloads_file_data_image(monkeypatch, tmp_path):
+    """Gemini 3 偶尔以 fileData.fileUri 返回图片，不能把有效响应误判为无产物。"""
+    image_bytes = b"\xff\xd8" + (b"x" * 2048)
+
+    class _PostResp:
+        status_code = 200
+        encoding = "utf-8"
+
+        def json(self):
+            return {"candidates": [{"content": {"parts": [{"fileData": {
+                "fileUri": "https://assets.example/generated-image",
+                "mimeType": "image/jpeg",
+            }}]}}]}
+
+        @property
+        def text(self):
+            return "{}"
+
+        def raise_for_status(self):
+            return None
+
+    class _GetResp:
+        content = image_bytes
+
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr(api_backend.requests, "post", lambda *args, **kwargs: _PostResp())
+    monkeypatch.setattr(api_backend.requests, "get", lambda *args, **kwargs: _GetResp())
+    monkeypatch.setattr(api_backend, "get_api_config", lambda api_type=None, config_path=None: {
+        "base_url": "https://new.aigc2d.com/v1beta/models/", "api_key": "k",
+        "timeout": 30, "max_retries": 0,
+    })
+    monkeypatch.chdir(tmp_path)
+
+    saved = api_backend.generate_image_aigc2d(
+        prompt="P", model="gemini-3-pro-image-preview", api_type="aigc2d",
+        save_sub_dir="tmp_repaint", face_quality_boost=False,
+    )
+
+    assert len(saved) == 1
+    assert saved[0].endswith(".jpg")
+    assert Path(saved[0]).read_bytes() == image_bytes
+
+
 # ---------------- 宽高比：auto = 跟随输入图（不能写死比例） ----------------
 def _capture_image_config(monkeypatch, **kwargs):
     captured = {}
@@ -1518,3 +1576,31 @@ def test_post_process_defaults_persist(tab, tmp_path):
     assert node["local_enabled"] is True
     assert node["local_region"] == "skirt"
     assert node["local_feather"] == tab.local_feather_spin.value()
+
+
+def test_dead_dual_reference_switch_is_removed(tab, tmp_path):
+    """「重绘用双参考（源图+线锚图）」是死开关，2026-09-24 已删。
+
+    它以前只读写配置、从不进 `post_pipeline_steps()`（该 Tab 的 repaint 步骤恒 disabled），
+    所以勾不勾都没作用；线锚图只留给无头 CLI 的 `--repaint-ref line_anchor|both`
+    （§三十一 实测线锚图会把画面塌成白底线稿 / 铺满「碎玻璃」纹理）。
+    """
+    assert not hasattr(tab, "post_dual_check")
+    steps = tab.post_pipeline_steps()
+    # 该 Tab 的 repaint 工序恒不参与流水线（重绘是独立「重绘模式」），那个死键在这里毫无作用
+    assert steps["repaint"]["enabled"] is False
+    tab.save_defaults()
+    node = json.load(open(gpt_image2_tab.CONFIG_IMAGE_FILE, encoding="utf-8"))[gpt_image2_tab.CONFIG_NODE]
+    assert "post_dual" not in node
+
+
+def test_old_config_with_dead_dual_key_still_loads(qapp, tmp_path, monkeypatch):
+    """老配置里残留的 `post_dual` 键要能被安静忽略（升级后不能因为死键报错）。"""
+    payload = json.loads(json.dumps(TAB_CONFIG, ensure_ascii=False))
+    payload[gpt_image2_tab.CONFIG_NODE]["post_dual"] = True
+    config_path = _write_tab_config(tmp_path, payload)
+    monkeypatch.setattr(gpt_image2_tab, "CONFIG_IMAGE_FILE", str(config_path))
+    monkeypatch.setattr(gpt_image2_tab, "GptImage2Worker", _FakeWorker)
+    widget = GptImage2Widget()
+    assert not hasattr(widget, "post_dual_check")
+    assert widget.current_site() == SITE_AIGC2D

@@ -1,0 +1,220 @@
+{
+  "title": "Gemini 2K 重绘参数横向实测（tinkle / 2026-09-25）",
+  "summary": [
+    "控制变量：同一张 gpt-image-2 源图；Gemini gemini-3-pro-image-preview；2K；2:3；full scope；v5 身份锁；每组 3 次。除明确标注外，不做结构线叠加、局部重绘、色调或加墨。",
+    "固定源图确为 gpt-image-2 直接产物，随后才交给 Gemini；但它来自 2026-09-23 的历史 /v1/images/edits 流程（参考图 1 张、high、1024x1536）。当前 GUI 已改为 /v1/images/generations，所以本页是重绘参数隔离实验，不是当前首图链路的端到端验收。",
+    "源图线条段长 80.8、端点密度 33.51。v5 仅源图均值 103.1 / 26.84；v4 仅源图 101.9 / 26.96；v5 仅画风条款 107.5 / 27.33；v5 仅原始画风图 103.9 / 27.88；原始画风图+条款 99.8 / 28.36；无人物风格板+条款 101.0 / 28.73。",
+    "画风图与 19 条画风文字单独使用时变化都较温和；两者同时使用出现协同放大，饱和度从约 77 升至 107–112，并明显转向蓝青配色。原始人物参考还出现绿色/青绿色眼睛泄漏。",
+    "本轮修线默认推荐 v5 + 仅源图。若只追求最长连续线，可试 v5 + 画风条款但不挂第二张图；它的段长最高，不过端点密度略逊于仅源图。v4 没有稳定优势。",
+    "历史优秀重绘为单样本：107.4 / 26.52；历史最终图（再加结构线和局部贴回）为 108.5 / 25.92。本轮不能证明任一随机复跑必然复现该单次峰值。"
+  ],
+  "groups": [
+    {
+      "title": "输入、参考与历史基线",
+      "note": "点击图片可打开内嵌大图。无人物风格板由原参考图的背景、头发、蕾丝与面料局部拼成，不含完整脸部或角色构图。",
+      "layout": "horizontal",
+      "images": [
+        {
+          "label": "固定 GPT 源图（历史 edits）",
+          "path": "data/20260923/analysis-gpt-image/20260921-234549-2026-07-_output_024958_0_afd8ee.png",
+          "note": "gpt-image-2 直接输出；/v1/images/edits，参考图 1 张，high，1024x1536。段长 80.8；端点密度 33.51；饱和度 76.4；源图灰度相关 1.0000；画风 HSV 相关 0.0356"
+        },
+        {
+          "label": "原始 tinkle 人物参考",
+          "path": "data/style-ref/tinkle-test.png",
+          "note": "包含绿色眼睛、深蓝长发和蓝白服装，存在角色特征泄漏源。"
+        },
+        {
+          "label": "无人物风格板",
+          "path": "data/test-result/20260925/repaint-param-matrix/tinkle-style-board.png",
+          "note": "只保留材质/线条/色彩局部。"
+        },
+        {
+          "label": "历史优秀：完整重绘",
+          "path": "data/20260923/pipeline-steps/024958-0ab2a1/repaint_025050-e1d5d2.jpg",
+          "note": "段长 107.4；端点密度 26.52；饱和度 79.3；源图灰度相关 0.9714；画风 HSV 相关 -0.0279"
+        },
+        {
+          "label": "历史优秀：最终图",
+          "path": "data/20260923/20260921-234549-2026-07-_output_024958_0_afd8ee-024958-0ab2a1-final-rp+sline50+local-subject_no_face.png",
+          "note": "段长 108.5；端点密度 25.92；饱和度 79.9；源图灰度相关 0.9701；画风 HSV 相关 -0.0324"
+        }
+      ]
+    },
+    {
+      "title": "面部与眼睛放大对照",
+      "note": "列顺序与完整图一致。重点观察原始人物参考是否把绿色/青绿色虹膜、眼睛高光和脸部画法带入结果。",
+      "images": [
+        {
+          "label": "重复实验 1：面部横向条",
+          "path": "data/test-result/20260925/repaint-param-matrix/face-comparison-run-1.jpg",
+          "note": "点击打开大图；从左到右：源图、六组参数、历史优秀重绘。"
+        },
+        {
+          "label": "重复实验 2：面部横向条",
+          "path": "data/test-result/20260925/repaint-param-matrix/face-comparison-run-2.jpg",
+          "note": "点击打开大图；从左到右：源图、六组参数、历史优秀重绘。"
+        },
+        {
+          "label": "重复实验 3：面部横向条",
+          "path": "data/test-result/20260925/repaint-param-matrix/face-comparison-run-3.jpg",
+          "note": "点击打开大图；从左到右：源图、六组参数、历史优秀重绘。"
+        }
+      ]
+    },
+    {
+      "title": "重复实验 1",
+      "note": "从左到右保持同一列定义，横向滚动查看；历史图仅作视觉基准，不属于本轮随机样本。",
+      "layout": "horizontal",
+      "images": [
+        {
+          "label": "固定 GPT 源图（历史 edits）",
+          "path": "data/20260923/analysis-gpt-image/20260921-234549-2026-07-_output_024958_0_afd8ee.png",
+          "note": "段长 80.8；端点密度 33.51；饱和度 76.4；源图灰度相关 1.0000；画风 HSV 相关 0.0356"
+        },
+        {
+          "label": "v5：仅源图",
+          "path": "data/test-result/20260925/repaint-param-matrix/source-v5/source-v5-recovered-run1.jpg",
+          "note": "段长 102.2；端点密度 27.06；饱和度 77.2；源图灰度相关 0.9734；画风 HSV 相关 -0.0324"
+        },
+        {
+          "label": "v4：仅源图",
+          "path": "data/test-result/20260925/repaint-param-matrix/source-v4/20260921-234549-2026-07-_output_024958_0_afd8ee-105248-129701-final-rp_105307-ec9462.jpg",
+          "note": "段长 102.6；端点密度 26.99；饱和度 76.6；源图灰度相关 0.9743；画风 HSV 相关 -0.0282"
+        },
+        {
+          "label": "v5：仅画风条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/clauses-only-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-110120-301836-final-rp_110141-048272.jpg",
+          "note": "段长 105.0；端点密度 28.07；饱和度 76.7；源图灰度相关 0.9735；画风 HSV 相关 -0.0199"
+        },
+        {
+          "label": "v5：仅原始画风图",
+          "path": "data/test-result/20260925/repaint-param-matrix/ref-only-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-110242-ebcf52-final-rp_110318-43052c.jpg",
+          "note": "段长 100.5；端点密度 28.47；饱和度 87.7；源图灰度相关 0.9718；画风 HSV 相关 -0.0140"
+        },
+        {
+          "label": "v5：原始画风图 + 条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/original-ref-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-105415-e0a36d-final-rp_105443-c2ab21.jpg",
+          "note": "段长 98.6；端点密度 28.92；饱和度 108.9；源图灰度相关 0.9676；画风 HSV 相关 0.1516"
+        },
+        {
+          "label": "v5：无人物风格板 + 条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/board-ref-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-105550-ae2028-final-rp_105617-084ea1.jpg",
+          "note": "段长 100.3；端点密度 28.67；饱和度 116.6；源图灰度相关 0.9629；画风 HSV 相关 0.3526"
+        },
+        {
+          "label": "历史优秀重绘（固定基准）",
+          "path": "data/20260923/pipeline-steps/024958-0ab2a1/repaint_025050-e1d5d2.jpg",
+          "note": "段长 107.4；端点密度 26.52；饱和度 79.3；源图灰度相关 0.9714；画风 HSV 相关 -0.0279"
+        }
+      ]
+    },
+    {
+      "title": "重复实验 2",
+      "note": "从左到右保持同一列定义，横向滚动查看；历史图仅作视觉基准，不属于本轮随机样本。",
+      "layout": "horizontal",
+      "images": [
+        {
+          "label": "固定 GPT 源图（历史 edits）",
+          "path": "data/20260923/analysis-gpt-image/20260921-234549-2026-07-_output_024958_0_afd8ee.png",
+          "note": "段长 80.8；端点密度 33.51；饱和度 76.4；源图灰度相关 1.0000；画风 HSV 相关 0.0356"
+        },
+        {
+          "label": "v5：仅源图",
+          "path": "data/test-result/20260925/repaint-param-matrix/source-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-104753-aec697-final-rp_104818-a925cb.jpg",
+          "note": "段长 100.3；端点密度 27.18；饱和度 77.8；源图灰度相关 0.9735；画风 HSV 相关 -0.0331"
+        },
+        {
+          "label": "v4：仅源图",
+          "path": "data/test-result/20260925/repaint-param-matrix/source-v4/20260921-234549-2026-07-_output_024958_0_afd8ee-105307-5149c2-final-rp_105337-c9ff1c.jpg",
+          "note": "段长 101.5；端点密度 26.91；饱和度 77.8；源图灰度相关 0.9734；画风 HSV 相关 -0.0323"
+        },
+        {
+          "label": "v5：仅画风条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/clauses-only-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-110141-6220b7-final-rp_110208-de01af.jpg",
+          "note": "段长 107.5；端点密度 27.13；饱和度 80.2；源图灰度相关 0.9706；画风 HSV 相关 -0.0262"
+        },
+        {
+          "label": "v5：仅原始画风图",
+          "path": "data/test-result/20260925/repaint-param-matrix/ref-only-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-110318-6411a0-final-rp_110337-38f159.jpg",
+          "note": "段长 106.9；端点密度 27.37；饱和度 75.4；源图灰度相关 0.9727；画风 HSV 相关 -0.0234"
+        },
+        {
+          "label": "v5：原始画风图 + 条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/original-ref-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-105443-39c2c6-final-rp_105510-a297a8.jpg",
+          "note": "段长 100.4；端点密度 27.74；饱和度 105.8；源图灰度相关 0.9660；画风 HSV 相关 0.1114"
+        },
+        {
+          "label": "v5：无人物风格板 + 条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/board-ref-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-105617-e2f7e7-final-rp_105636-d1c093.jpg",
+          "note": "段长 102.3；端点密度 28.07；饱和度 86.5；源图灰度相关 0.9666；画风 HSV 相关 -0.0231"
+        },
+        {
+          "label": "历史优秀重绘（固定基准）",
+          "path": "data/20260923/pipeline-steps/024958-0ab2a1/repaint_025050-e1d5d2.jpg",
+          "note": "段长 107.4；端点密度 26.52；饱和度 79.3；源图灰度相关 0.9714；画风 HSV 相关 -0.0279"
+        }
+      ]
+    },
+    {
+      "title": "重复实验 3",
+      "note": "从左到右保持同一列定义，横向滚动查看；历史图仅作视觉基准，不属于本轮随机样本。",
+      "layout": "horizontal",
+      "images": [
+        {
+          "label": "固定 GPT 源图（历史 edits）",
+          "path": "data/20260923/analysis-gpt-image/20260921-234549-2026-07-_output_024958_0_afd8ee.png",
+          "note": "段长 80.8；端点密度 33.51；饱和度 76.4；源图灰度相关 1.0000；画风 HSV 相关 0.0356"
+        },
+        {
+          "label": "v5：仅源图",
+          "path": "data/test-result/20260925/repaint-param-matrix/source-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-105210-01d6e9-final-rp_105232-dd66bf.jpg",
+          "note": "段长 106.7；端点密度 26.29；饱和度 75.1；源图灰度相关 0.9734；画风 HSV 相关 -0.0235"
+        },
+        {
+          "label": "v4：仅源图",
+          "path": "data/test-result/20260925/repaint-param-matrix/source-v4/20260921-234549-2026-07-_output_024958_0_afd8ee-105338-376e14-final-rp_105405-0c3838.jpg",
+          "note": "段长 101.7；端点密度 26.97；饱和度 78.2；源图灰度相关 0.9739；画风 HSV 相关 -0.0384"
+        },
+        {
+          "label": "v5：仅画风条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/clauses-only-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-110208-d14fe7-final-rp_110229-b33488.jpg",
+          "note": "段长 109.9；端点密度 26.79；饱和度 77.9；源图灰度相关 0.9703；画风 HSV 相关 -0.0177"
+        },
+        {
+          "label": "v5：仅原始画风图",
+          "path": "data/test-result/20260925/repaint-param-matrix/ref-only-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-110337-ca3955-final-rp_110355-5fe197.jpg",
+          "note": "段长 104.3；端点密度 27.80；饱和度 76.9；源图灰度相关 0.9683；画风 HSV 相关 -0.0055"
+        },
+        {
+          "label": "v5：原始画风图 + 条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/original-ref-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-105510-15e60b-final-rp_105538-f867ad.jpg",
+          "note": "段长 100.3；端点密度 28.41；饱和度 121.4；源图灰度相关 0.9694；画风 HSV 相关 0.2952"
+        },
+        {
+          "label": "v5：无人物风格板 + 条款",
+          "path": "data/test-result/20260925/repaint-param-matrix/board-ref-v5/20260921-234549-2026-07-_output_024958_0_afd8ee-105636-43c498-final-rp_105709-3e9595.jpg",
+          "note": "段长 100.4；端点密度 29.44；饱和度 117.2；源图灰度相关 0.9672；画风 HSV 相关 0.2648"
+        },
+        {
+          "label": "历史优秀重绘（固定基准）",
+          "path": "data/20260923/pipeline-steps/024958-0ab2a1/repaint_025050-e1d5d2.jpg",
+          "note": "段长 107.4；端点密度 26.52；饱和度 79.3；源图灰度相关 0.9714；画风 HSV 相关 -0.0279"
+        }
+      ]
+    },
+    {
+      "title": "请求快照与复现参数",
+      "note": "展开查看每组固件、参考模式、scope、分辨率和实际产物路径。快照不含 API key。",
+      "images": [],
+      "requests": [
+        "data/test-result/20260925/repaint-param-matrix/source-v5/request.json",
+        "data/test-result/20260925/repaint-param-matrix/source-v4/request.json",
+        "data/test-result/20260925/repaint-param-matrix/clauses-only-v5/request.json",
+        "data/test-result/20260925/repaint-param-matrix/ref-only-v5/request.json",
+        "data/test-result/20260925/repaint-param-matrix/original-ref-v5/request.json",
+        "data/test-result/20260925/repaint-param-matrix/board-ref-v5/request.json"
+      ]
+    }
+  ]
+}
