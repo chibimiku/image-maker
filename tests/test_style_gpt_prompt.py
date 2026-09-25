@@ -34,7 +34,9 @@ from utils.styles import (  # noqa: E402
     MODE_OFF,
     build_ref_gen_params,
     build_style_entry,
+    enabled_style_names,
     normalize_style_entry,
+    style_enabled,
     style_prompt_compressed,
 )
 
@@ -72,9 +74,21 @@ def test_normalize_style_entry_reads_prompt_gpt():
 
 def test_build_style_entry_roundtrip():
     entry = build_style_entry("full", ref_image="r.png", prompt_compressed="c", prompt_gpt="g")
-    assert entry == {"prompt": "full", "ref_image": "r.png", "prompt_compressed": "c", "prompt_gpt": "g"}
-    # 空字段省略，保持旧文件形态
-    assert build_style_entry("full") == {"prompt": "full"}
+    assert entry == {"prompt": "full", "enabled": True, "ref_image": "r.png",
+                     "prompt_compressed": "c", "prompt_gpt": "g"}
+    assert build_style_entry("full") == {"prompt": "full", "enabled": True}
+
+
+def test_enabled_styles_default_on_and_filter_disabled_entries():
+    styles = {
+        "legacy": "old prompt",
+        "on": {"prompt": "x", "enabled": True},
+        "off": {"prompt": "y", "enabled": False},
+    }
+    assert style_enabled(styles, "legacy") is True
+    assert style_enabled(styles, "off") is False
+    assert enabled_style_names(styles) == ["legacy", "on"]
+    assert normalize_style_entry(styles["off"])["enabled"] is False
 
 
 def test_style_prompt_gpt_and_resolve_priority():

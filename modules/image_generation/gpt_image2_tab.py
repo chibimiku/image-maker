@@ -1508,7 +1508,8 @@ class GptImage2Widget(QWidget):
         self.style_combo.blockSignals(True)
         self.style_combo.clear()
         self.style_combo.addItem(STYLE_NONE)
-        for name in self._styles_data:
+        from utils.styles import enabled_style_names
+        for name in enabled_style_names(self._styles_data):
             self.style_combo.addItem(str(name))
         idx = self.style_combo.findText(current)
         self.style_combo.setCurrentIndex(idx if idx >= 0 else 0)

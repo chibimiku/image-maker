@@ -173,6 +173,48 @@ def test_build_first_pass_request_uses_written_clauses(tmp_path):
     assert written[0] in req["prompt"]
 
 
+def test_build_first_pass_request_carries_style_quality_refine_override(tmp_path):
+    ref = _ref(tmp_path)
+    styles = {"iris": {"prompt_gpt": "Palette: slate blue", "ref_image": str(ref),
+                       "skip_quality_refine": True}}
+    req = ag.build_first_pass_request(styles, "iris", {"gpt_image_prompt": "content"})
+    assert req["skip_quality_refine"] is True
+    assert ag.build_first_pass_request({}, "", {"gpt_image_prompt": "content"})[
+        "skip_quality_refine"] is False
+
+
+def test_build_first_pass_request_carries_face_hair_refine_override(tmp_path):
+    ref = _ref(tmp_path)
+    styles = {"puracotte": {"prompt_gpt": "Palette: lavender", "ref_image": str(ref),
+                            "face_hair_refine": True}}
+    req = ag.build_first_pass_request(styles, "puracotte", {"gpt_image_prompt": "content"})
+    assert req["face_hair_refine"] is True
+
+
+def test_face_hair_refine_uses_style_reference_and_source_ratio(tmp_path, monkeypatch):
+    from PIL import Image
+    from modules.others import api_backend
+    source, reference, output = [tmp_path / name for name in ("source.png", "style.png", "output.png")]
+    Image.new("RGB", (800, 1200), "white").save(source)
+    Image.new("RGB", (500, 500), "pink").save(reference)
+    Image.new("RGB", (800, 1200), "white").save(output)
+    seen = {}
+
+    def repaint(*args, **kwargs):
+        seen.update(kwargs)
+        return [str(output)]
+
+    monkeypatch.setattr(api_backend, "generate_image_repaint", repaint)
+    result = ag.run_face_hair_style_refine(
+        str(source), str(reference), style_clauses=["Use oversized jewel-like irises."],
+        output_dir=str(tmp_path))
+    assert result == [str(output)]
+    assert seen["extra_reference_paths"] == [str(reference)]
+    assert seen["aspect_ratio"] == "2:3"
+    assert "FACE AND HAIR STYLE-GRAMMAR REVISION" in seen["prompt"]
+    assert "Use oversized jewel-like irises." in seen["prompt"]
+
+
 def test_build_first_pass_request_without_style_has_no_clause_block():
     req = ag.build_first_pass_request({}, "", {"gpt_image_prompt_short": "content"})
     assert "RENDERING LANGUAGE" not in req["prompt"]

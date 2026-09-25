@@ -28,9 +28,10 @@ for name, entry in local.items():
         sub[name] = entry
         changed.append(name + "(新增)")
         continue
-    for field in ("prompt_gpt", "prompt_compressed", "ref_image", "prompt", "repaint_clauses"):
+    for field in ("prompt_gpt", "prompt_compressed", "ref_image", "prompt", "repaint_clauses",
+                  "enabled", "skip_quality_refine", "face_hair_refine"):
         value = entry.get(field)
-        if value and target.get(field) != value:
+        if value is not None and target.get(field) != value:
             target[field] = value
             changed.append(f"{name}.{field}")
 

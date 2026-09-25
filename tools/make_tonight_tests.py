@@ -64,6 +64,8 @@ have_sub, miss_sub = cover(sub_styles)
 
 style_rows = []
 for name, entry in styles.items():
+    if entry.get("enabled", True) is False:
+        continue
     if not isinstance(entry, dict):
         continue
     gpt = str(entry.get("prompt_gpt") or "")

@@ -140,7 +140,8 @@ def main():
                                             pick_gpt_image2_size_for_images)
     from utils import post_process as pp
     from utils.analysis_gen import (build_first_pass_request, first_pass_sub_dir,
-                                    publish_final_output, resolve_content_text)
+                                    publish_final_output, resolve_content_text,
+                                    run_face_hair_style_refine)
 
     result = json.load(open(args.json, encoding="utf-8"))
     source = args.source_image or str(result.get("source_image_path") or "")
@@ -310,7 +311,24 @@ def main():
                            resume=False,
                            log_callback=lambda m: print("      ", m)))
     manifest["outputs"] = outs
-    if args.quality_refine and outs and repaint_style_ref and os.path.isfile(repaint_style_ref):
+    if ((steps.get("repaint") or {}).get("enabled") and payload.get("face_hair_refine")
+            and outs and repaint_style_ref
+            and os.path.isfile(repaint_style_ref)):
+        try:
+            face_hair = run_face_hair_style_refine(
+                outs[-1], repaint_style_ref, style_clauses=style_clauses,
+                output_dir=output_dir or os.path.dirname(outs[-1]),
+                file_prefix="face-hair-style")
+            if face_hair:
+                outs.extend(face_hair)
+                manifest["outputs"] = outs
+                print("      五官画风修订: 已用完整画风图只修订面部与头发绘画语法")
+        except Exception as exc:
+            print(f"      五官画风修订失败，保留首次重绘图: {type(exc).__name__}: {exc}")
+    effective_quality_refine = args.quality_refine and not bool(payload.get("skip_quality_refine"))
+    if args.quality_refine and not effective_quality_refine:
+        print("      质量门禁: 当前画风配置保留首次完整画风图重绘，跳过二次质量修订")
+    if effective_quality_refine and outs and repaint_style_ref and os.path.isfile(repaint_style_ref):
         from modules.others.api_backend import generate_image_repaint
         from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
                                           should_refine_quality)

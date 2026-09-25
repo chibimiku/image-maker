@@ -48,14 +48,16 @@ STYLE_REF_MODES = [
 
 def normalize_style_entry(entry):
     """把任意样式条目归一化为
-    {"prompt": str, "ref_image": str, "prompt_compressed": str, "prompt_gpt": str}，兼容新旧格式。
+    {"prompt": str, "ref_image": str, "prompt_compressed": str, "prompt_gpt": str,
+     "enabled": bool}，兼容新旧格式。旧条目缺少 `enabled` 时视为启用。
 
     `prompt_gpt` 是给 gpt-image 通道用的「短版字段式画风说明」（见 utils/style_gpt.py 与
     docs/gpt-image-tid-style/）：gpt-image 会把画风说明与主体拼成一条 prompt，长说明书会
     抢走参考图的话语权，所以该通道优先用这一份。
     """
     if isinstance(entry, str):
-        return {"prompt": entry, "ref_image": "", "prompt_compressed": "", "prompt_gpt": ""}
+        return {"prompt": entry, "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
+                "enabled": True}
     if isinstance(entry, dict):
         prompt = entry.get("prompt") or entry.get("text") or entry.get("instructions") or ""
         ref = entry.get("ref_image") or entry.get("ref_image_path") or entry.get("image") or ""
@@ -66,8 +68,20 @@ def normalize_style_entry(entry):
             "ref_image": str(ref or ""),
             "prompt_compressed": str(compressed or ""),
             "prompt_gpt": str(gpt_prompt or ""),
+            "enabled": entry.get("enabled", True) is not False,
         }
-    return {"prompt": "", "ref_image": "", "prompt_compressed": "", "prompt_gpt": ""}
+    return {"prompt": "", "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
+            "enabled": True}
+
+
+def style_enabled(styles, name) -> bool:
+    """画风是否对生成/测试列表可见；缺字段兼容为启用。"""
+    return bool(normalize_style_entry((styles or {}).get(name))["enabled"])
+
+
+def enabled_style_names(styles) -> list[str]:
+    """按配置原顺序返回启用的画风名。管理界面仍应展示全部条目。"""
+    return [str(name) for name in (styles or {}) if style_enabled(styles, name)]
 
 
 def style_prompt(styles, name):
@@ -90,9 +104,9 @@ def style_ref_image(styles, name):
     return normalize_style_entry((styles or {}).get(name))["ref_image"]
 
 
-def build_style_entry(prompt, ref_image="", prompt_compressed="", prompt_gpt=""):
+def build_style_entry(prompt, ref_image="", prompt_compressed="", prompt_gpt="", enabled=True):
     """构造新格式样式条目（空字段省略）。"""
-    entry = {"prompt": str(prompt or "")}
+    entry = {"prompt": str(prompt or ""), "enabled": bool(enabled)}
     if ref_image:
         entry["ref_image"] = str(ref_image)
     if prompt_compressed:

@@ -1167,6 +1167,21 @@ STYLE_REF_ROLE_NEUTRAL_IN_REPAINT = (
     "do not transfer it."
 )
 
+# 完整画风图模式下，允许迁移“怎么画五官/头发”的抽象语法，同时把人物身份和具体设计留在源图。
+# v5 固件默认会像素级锁眼睛；没有这段具体例外时，重绘只能迁移配色与材质，脸和头发仍像 GPT 首图。
+STYLE_REF_FACE_HAIR_GRAMMAR = (
+    "\n\nSPECIFIC STYLE-SPACE EXCEPTION FOR FACE AND HAIR: transfer HOW the reference artist abstracts and "
+    "renders a face and hair without transferring WHO the reference character is. You may translate the source "
+    "eyes into the reference's visual grammar (upper-lid angle and weight, lash grouping, iris-to-pupil ratio, "
+    "highlight design and degree of simplification), the source face into the reference's abstraction grammar "
+    "(cheek/jaw softness, nose and mouth economy), and the source hair into the reference's lock grouping, strand "
+    "density, contour rhythm and highlight-shape grammar. This specific exception overrides earlier instructions "
+    "to preserve the source eye drawing pixel-for-pixel. It does NOT permit copying the reference person's face, "
+    "feature placement, expression, eye or hair colour, hairstyle, bangs, hair length, accessories, age or identity. "
+    "Keep the source character's recognisable identity, expression, gaze, intrinsic colours and concrete hair design; "
+    "render those same facts with the reference artist's facial and hair drawing language."
+)
+
 # 「身份/内容锁」：**每一档编辑范围都会追加**（放在最后，权重最高）。
 # 为什么必须有（§三十一 补记）：`person_noface` 那档原本允许"可以改身体/衣服/头发"，
 # 结果 tid 那组把**画风参考图的角色**（粉色头发 + 水手服 + 金鱼/水波）整套搬了进来，只留下源图的姿势与场景。
@@ -1326,6 +1341,8 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         repaint_prompt = (repaint_prompt or "") + (
                             STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
                             else STYLE_REF_ROLE_IN_REPAINT)
+                        if ref_mode in ("style", "both"):
+                            repaint_prompt += STYLE_REF_FACE_HAIR_GRAMMAR
                         clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
                         if clauses:
                             repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)

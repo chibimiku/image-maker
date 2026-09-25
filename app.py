@@ -42,7 +42,8 @@ from modules.video_generation.video_gen_tab import VideoGenWidget
 # 【新增】资料大 Tab: tag 速查（本地固化 booru 标签数据）
 from modules.reference.tag_quick_ref_tab import TagQuickRefWidget
 from utils.image_upscale_runtime import normalize_upscale_options
-from utils.styles import normalize_style_entry, build_style_entry, ref_image_valid
+from utils.styles import (normalize_style_entry, build_style_entry, enabled_style_names,
+                          ref_image_valid)
 # 文本 / NSFW 两把密钥的统一解析（环境变量 > .env > conf/config.json）
 from modules.others.api_backend import (
     resolve_api_key,
@@ -622,6 +623,12 @@ class AppWindow(QWidget):
         style_top_layout.addWidget(self.add_style_btn)
         style_top_layout.addWidget(self.del_style_btn)
         style_layout.addLayout(style_top_layout)
+
+        self.style_enabled_checkbox = QCheckBox("在生图与测试画风列表中显示")
+        self.style_enabled_checkbox.setChecked(True)
+        self.style_enabled_checkbox.setToolTip(
+            "关闭后预设仍保留在管理界面和配置文件中，但不会出现在各生图画风下拉列表里。")
+        style_layout.addWidget(self.style_enabled_checkbox)
         
         self.style_content_edit = QPlainTextEdit()
         style_layout.addWidget(self.style_content_edit)
@@ -1160,10 +1167,11 @@ class AppWindow(QWidget):
         
         self.style_manage_combo.blockSignals(True)
         self.style_manage_combo.clear()
-        keys = list(self.styles_data.keys())
-        self.style_manage_combo.addItems(keys)
+        all_keys = list(self.styles_data.keys())
+        keys = enabled_style_names(self.styles_data)
+        self.style_manage_combo.addItems(all_keys)
         
-        if curr_manage in keys: self.style_manage_combo.setCurrentText(curr_manage)
+        if curr_manage in all_keys: self.style_manage_combo.setCurrentText(curr_manage)
         self.style_manage_combo.blockSignals(False)
         self.on_manage_style_changed(self.style_manage_combo.currentText())
         
@@ -1206,6 +1214,7 @@ class AppWindow(QWidget):
             self.style_content_edit.setPlainText(entry["prompt"])
             self.style_compressed_edit.setPlainText(entry["prompt_compressed"])
             self.style_ref_image_edit.setText(entry["ref_image"])
+            self.style_enabled_checkbox.setChecked(entry["enabled"])
 
     def browse_style_ref_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -1248,11 +1257,20 @@ class AppWindow(QWidget):
         if ref_image and not ref_image_valid(ref_image):
             QMessageBox.warning(self, "提示", f"参考图文件不存在，无法保存：\n{ref_image}")
             return
-        self.styles_data[style_name] = build_style_entry(
-            self.style_content_edit.toPlainText().strip(),
-            ref_image,
-            self.style_compressed_edit.toPlainText().strip()
-        )
+        old = self.styles_data.get(style_name)
+        merged = dict(old) if isinstance(old, dict) else {}
+        merged["prompt"] = self.style_content_edit.toPlainText().strip()
+        merged["enabled"] = self.style_enabled_checkbox.isChecked()
+        compressed = self.style_compressed_edit.toPlainText().strip()
+        if ref_image:
+            merged["ref_image"] = ref_image
+        else:
+            merged.pop("ref_image", None)
+        if compressed:
+            merged["prompt_compressed"] = compressed
+        else:
+            merged.pop("prompt_compressed", None)
+        self.styles_data[style_name] = merged
         self.save_styles_to_disk()
         QMessageBox.information(self, "成功", f"画风预设 '{style_name}' 已保存！")
 
@@ -1271,7 +1289,7 @@ class AppWindow(QWidget):
             if name in self.styles_data:
                 QMessageBox.warning(self, "提示", "预设名称已存在！")
                 return
-            self.styles_data[name] = build_style_entry("")
+            self.styles_data[name] = build_style_entry("", enabled=True)
             self.update_style_combos()
             self.style_manage_combo.setCurrentText(name)
 

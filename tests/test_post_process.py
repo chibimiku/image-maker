@@ -509,6 +509,8 @@ def test_repaint_reference_mode_style_uses_style_image_not_line_anchor(tmp_path,
                     style_ref_path=str(style), log_callback=lambda m: None, resume=False)
     refs = seen.get("extra_reference_paths") or []
     assert refs and os.path.basename(refs[0]) == "style.png"
+    assert "SPECIFIC STYLE-SPACE EXCEPTION FOR FACE AND HAIR" in seen.get("prompt", "")
+    assert "preserve the source eye drawing pixel-for-pixel" in seen.get("prompt", "")
     assert not [p for p in os.listdir(str(work)) if "lineanchor" in p], "style 模式不该生成线锚图"
 
 

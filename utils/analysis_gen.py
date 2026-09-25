@@ -96,6 +96,30 @@ def publish_final_output(source_path: str, *, style_name: str = "", process_dir:
     return target
 
 
+def run_face_hair_style_refine(image_path: str, style_ref_path: str, *, style_clauses=None,
+                               output_dir: str = "", file_prefix: str = "face-hair-style") -> list[str]:
+    """用完整画风图只修订五官/头发的抽象画法；具体身份、颜色与设计仍以当前图为准。"""
+    if not image_path or not os.path.isfile(image_path):
+        return []
+    if not style_ref_path or not os.path.isfile(style_ref_path):
+        return []
+    from modules.others.api_backend import generate_image_repaint
+    from utils.post_process import snapped_aspect_ratio
+    from utils.prompt_loader import read_prompt_file
+
+    prompt = read_prompt_file("gpt-image-optimize/refine-face-hair-style.md").strip()
+    clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
+    if clauses:
+        prompt += "\n\nSTYLE-SPECIFIC FACE AND HAIR TARGETS:\n- " + "\n- ".join(clauses)
+    return generate_image_repaint(
+        [image_path], resolution="2K", aspect_ratio=snapped_aspect_ratio(image_path),
+        prompt=prompt, use_detail_suffix=False,
+        extra_reference_paths=[style_ref_path],
+        save_sub_dir=output_dir or os.path.dirname(os.path.abspath(image_path)),
+        file_prefix=file_prefix,
+    ) or []
+
+
 def resolve_content_text(analysis_result: dict, tier: str = "short") -> str:
     """老路径兜底：按档位取 gpt 专用字段（prompt_gpt 时代留下的兼容路径）。
 
@@ -195,8 +219,12 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     payload = build_gpt_image_request(analysis_result, style_text=style_text, style_ref_path=ref,
                                       user_hint=user_hint, tier=tier, extra_clauses=clauses or None,
                                       content_image_path=content_image_path, content_text=content_text)
+    skip_quality_refine = bool(entry.get("skip_quality_refine", False)) if isinstance(entry, dict) else False
+    face_hair_refine = bool(entry.get("face_hair_refine", False)) if isinstance(entry, dict) else False
     payload.update({"style_name": name, "style_ref_path": ref, "clauses": clauses,
-                    "clauses_source": clauses_source, "api_type": str(api_type or "")})
+                    "clauses_source": clauses_source, "skip_quality_refine": skip_quality_refine,
+                    "face_hair_refine": face_hair_refine,
+                    "api_type": str(api_type or "")})
     if prompt_recipe == "reference" and ref and not content_image_path:
         from utils.prompt_loader import render_prompt_file
         content = str(content_text or "").strip() or resolve_content_text(analysis_result, tier)

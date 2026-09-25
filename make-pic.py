@@ -20,7 +20,8 @@ from PIL import Image
 # 导入我们独立出去的 API 请求模块
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d, get_api_config, load_config
 from utils.gui_entry import configure_qt_application_attributes
-from utils.styles import style_prompt, build_style_entry, style_ref_image, style_prompt_compressed
+from utils.styles import (style_prompt, build_style_entry, enabled_style_names, normalize_style_entry,
+                          style_ref_image, style_prompt_compressed)
 
 # ================== 初始化目录与日志 ==================
 os.makedirs("log", exist_ok=True)
@@ -557,7 +558,7 @@ class CyberNikiTab(QWidget):
             try:
                 with open(self.styles_file, 'r', encoding='utf-8') as f:
                     self.styles_data = json.load(f)
-                    self.style_combo.addItems(self.styles_data.keys())
+                    self.style_combo.addItems(enabled_style_names(self.styles_data))
             except Exception as e:
                 logging.error(f"读取 {self.styles_file} 失败: {e}")
         else:
@@ -577,11 +578,16 @@ class CyberNikiTab(QWidget):
         name, ok = QInputDialog.getText(self, '保存画风预设', '请输入新预设名称:')
         if ok and name:
             name = name.strip()
-            self.styles_data[name] = build_style_entry(
+            old = self.styles_data.get(name)
+            normalized = normalize_style_entry(old)
+            merged = dict(old) if isinstance(old, dict) else {}
+            merged.update(build_style_entry(
                 current_text,
                 style_ref_image(self.styles_data, name),
                 style_prompt_compressed(self.styles_data, name),
-            )
+                prompt_gpt=normalized["prompt_gpt"], enabled=normalized["enabled"],
+            ))
+            self.styles_data[name] = merged
             
             # 如果是新名字，添加到下拉列表
             if self.style_combo.findText(name) == -1:

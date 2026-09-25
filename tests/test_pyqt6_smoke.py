@@ -601,6 +601,26 @@ def test_sd_workflow_style_combo_shares_main_style_state(qapp):
     window.close()
 
 
+def test_style_enabled_checkbox_hides_generation_choices_but_keeps_manager_entry(qapp):
+    app_module = load_module("app_module_style_enabled", "app.py", block_onnxruntime=True)
+    window = app_module.AppWindow()
+    window.styles_data = {
+        "显示画风": {"prompt": "visible", "enabled": True},
+        "隐藏画风": {"prompt": "hidden", "enabled": False},
+    }
+    window.update_style_combos()
+
+    managed = [window.style_manage_combo.itemText(i) for i in range(window.style_manage_combo.count())]
+    generated = [window.single_analyzer_tab.main_style_combo.itemText(i)
+                 for i in range(window.single_analyzer_tab.main_style_combo.count())]
+    assert managed == ["显示画风", "隐藏画风"]
+    assert generated == ["显示画风"]
+
+    window.style_manage_combo.setCurrentText("隐藏画风")
+    assert window.style_enabled_checkbox.isChecked() is False
+    window.close()
+
+
 def test_app_window_tab_switching_preserves_single_analyzer_interactions(qapp, monkeypatch, tmp_path):
     monkeypatch.setattr(single_analyzer_module, "list_esrgan_models", lambda: ["realesrgan-x4plus"])
     monkeypatch.setattr(single_analyzer_module.ImageGrab, "grabclipboard", lambda: Image.new("RGB", (18, 18), "blue"))

@@ -6,7 +6,7 @@ import os
 import random
 
 from .theme_profiles import ThemeProfile
-from utils.styles import style_prompt
+from utils.styles import enabled_style_names, style_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def load_styles_config(styles_path: str) -> dict[str, str]:
         payload = json.load(f)
     if not isinstance(payload, dict):
         return {}
-    return {str(k): style_prompt(payload, k) for k in payload}
+    return {str(k): style_prompt(payload, k) for k in enabled_style_names(payload)}
 
 
 def split_style_tokens(style_value: str) -> list[str]:

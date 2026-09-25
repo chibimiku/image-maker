@@ -1302,7 +1302,8 @@ class GptImageGenWorkerThread(QThread):
     def run(self):
         from modules.others.api_backend import generate_image_aigc2d_gpt
         from utils.analysis_gen import (first_pass_sub_dir, publish_final_output,
-                                        run_gpt_image_pipeline, save_generation_manifest)
+                                        run_face_hair_style_refine, run_gpt_image_pipeline,
+                                        save_generation_manifest)
         self.last_status = "running"
         if self.isInterruptionRequested():
             self.last_status = "cancelled"
@@ -1363,10 +1364,28 @@ class GptImageGenWorkerThread(QThread):
                                                style_clauses=self.style_clauses) or saved
             except Exception as exc:  # noqa: BLE001 - 工序失败仍保留生图产物
                 self.log_signal.emit(f"⚠️ 工序加工失败，已保留生图产物: {type(exc).__name__}: {exc}")
+        if (((self.steps.get("repaint") or {}).get("enabled")) and saved
+                and bool(self.request_payload.get("face_hair_refine")) and self.style_ref_path
+                and os.path.isfile(self.style_ref_path) and not self.isInterruptionRequested()):
+            try:
+                refined = run_face_hair_style_refine(
+                    saved[-1], self.style_ref_path, style_clauses=self.style_clauses,
+                    output_dir=process_dir or os.path.dirname(os.path.abspath(saved[-1])),
+                    file_prefix=(self.file_prefix or "analysis-gpt") + "-face-hair-style")
+                if refined:
+                    saved = [refined[-1]]
+                    self.log_signal.emit("[五官画风修订] 已用完整画风图只修订面部与头发绘画语法。")
+            except Exception as exc:
+                self.log_signal.emit(
+                    f"[五官画风修订] 失败，保留首次重绘图: {type(exc).__name__}: {exc}")
         # 完整画风图只用于第一次重绘。第二次质量修订改用「当前图 + GPT 首图」：
         # 审计从画风图提取具体差异写进文字，但不再次发送画风图，避免参考角色/场景二次侵入。
+        if ((self.steps.get("repaint") or {}).get("enabled") and saved
+                and bool(self.request_payload.get("skip_quality_refine"))):
+            self.log_signal.emit("[质量门禁] 当前画风配置保留首次完整画风图重绘，跳过二次质量修订。")
         if ((self.steps.get("repaint") or {}).get("enabled") and saved and self.style_ref_path
-                and os.path.isfile(self.style_ref_path) and not self.isInterruptionRequested()):
+                and os.path.isfile(self.style_ref_path) and not self.isInterruptionRequested()
+                and not bool(self.request_payload.get("skip_quality_refine"))):
             try:
                 import json as _json
                 from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
@@ -2042,7 +2061,8 @@ class SingleAnalyzerWidget(QWidget):
                 config_path = os.path.join(BASE_DIR, 'conf', 'config-styles.json')
                 with open(config_path, 'r', encoding='utf-8') as f:
                     styles_data = json.load(f)
-                style_keys = list(styles_data.keys())
+                from utils.styles import enabled_style_names
+                style_keys = enabled_style_names(styles_data)
                 self.update_styles(style_keys)
             self.log_msg(f"✅ 已重新加载配置文件")
         except Exception as e:

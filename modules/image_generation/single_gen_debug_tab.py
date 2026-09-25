@@ -577,7 +577,15 @@ class SingleGenDebugWidget(QWidget):
             QMessageBox.warning(self, "提示", f"参考图文件不存在：\n{ref}")
             return
         styles = dict(self.get_styles() or {})
-        styles[name] = build_style_entry(prompt, ref, compressed)
+        old = styles.get(name)
+        merged = dict(old) if isinstance(old, dict) else {}
+        merged.update(build_style_entry(
+            prompt, ref, compressed, prompt_gpt=entry["prompt_gpt"], enabled=entry["enabled"]))
+        if not ref:
+            merged.pop("ref_image", None)
+        if not compressed:
+            merged.pop("prompt_compressed", None)
+        styles[name] = merged
         try:
             save_styles_file(CONFIG_STYLES_FILE, styles)
         except Exception as e:

@@ -75,6 +75,7 @@ from utils.style_gpt import (  # noqa: E402
     style_prompt_gpt,
     style_ref_image_for_api,
 )
+from utils.styles import enabled_style_names  # noqa: E402
 
 DEFAULT_CONFIG = os.path.join(BASE_DIR, "conf", "config.json")
 STYLES_FILE = os.path.join(BASE_DIR, "conf", "config-styles.json")
@@ -279,8 +280,9 @@ def cmd_list_styles(args) -> int:
     if not styles:
         _emit(f"[错误] 没有可用画风: {args.styles_file}")
         return EXIT_USAGE
-    _emit(f"画风预设 {len(styles)} 个（{args.styles_file}）")
-    for name in styles:
+    enabled = enabled_style_names(styles)
+    _emit(f"已启用画风 {len(enabled)} / 总计 {len(styles)} 个（{args.styles_file}）")
+    for name in enabled:
         gpt = style_prompt_gpt(styles, name)
         ref = style_ref_image_for_api(styles, name, "aigc-2d-gpt")
         _emit(f"  - {name:26s} prompt_gpt={'有(' + str(len(gpt)) + '字)' if gpt else '缺':>12}  "
