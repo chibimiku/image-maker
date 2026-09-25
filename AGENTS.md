@@ -1,6 +1,6 @@
 # Image Maker Agent Guide
 
-> **2026-09-25 当前覆盖说明**：单图分析 GPT GUI 的配方版本为 6：Gemini 第一次重绘默认接收 GPT 首图和完整画风图（`reference_mode=style`、`scope=full`、v5 固件）；随后用 GPT 首图、当前图、画风图和当前图九宫格做质量审计。若有高置信结构/断线/背景/风格问题，只发送“当前图 + GPT 首图”做一次文字驱动修订，**不再次发送画风图**，然后做身份审计与最多两轮定点修订，始终不回退；额外本地工序默认关闭，高级选项默认折叠。实测见 `docs/gpt-image-tid-style/REFINE-QUALITY-20260925.md`；不能宣称已彻底解决断线或所有身份偏离。
+> **2026-09-26 当前覆盖说明**：单图分析 GPT GUI 的配方版本为 7，默认使用 gpt-image 通道：Gemini 第一次重绘接收 GPT 首图和完整画风图（`reference_mode=style`、`scope=full`、v5 固件）；随后做质量审计与最多两轮身份定点修订，修订阶段不再发送画风图，且显式锁定当前图宽高比。日期根目录只发布最终选中图和分析投稿文件；首图、重绘、审计与修订过程放在 `analysis-gpt-image/<单次任务>/`。额外本地工序默认关闭，高级选项默认折叠。实测见 `docs/gpt-image-tid-style/REFINE-QUALITY-20260925.md` 与 `STYLE-SWEEP-20260925.md`；不能宣称已彻底解决断线或所有身份偏离。
 > **2026-09-25 下午补充**：GPT 首图的内容默认改为 `gpt_image_prompt`（约 1400 字符身份完整锚）；全文会压弱画风图，500 字符短锚可能漏发色/瞳色。画风图再次送 Gemini 即使配“忽略配色”文字仍会泄露角色颜色，因此只用于受控实验。身份审计/修订/重大漂移回退已接入无头实验 CLI，结论见 `docs/gpt-image-tid-style/E2E-GENERALIZATION-20260925.md`。
 
 本文件用于给 Trae/DSH/AI 助手提供项目快速索引。

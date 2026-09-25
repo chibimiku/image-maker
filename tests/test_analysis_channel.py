@@ -71,10 +71,10 @@ def analyzer(qapp, monkeypatch, tmp_path):
     return widget
 
 
-def test_channel_radios_exist_and_default_to_gemini(analyzer):
-    assert analyzer.gen_channel_gemini.isChecked() is True
-    assert analyzer.gen_channel_gpt.isChecked() is False
-    # 默认（Gemini 通道）不显示 gpt 工序行（窗口未显示，用 isHidden 判断显隐意图）
+def test_channel_radios_exist_and_default_to_gpt_recipe(analyzer):
+    assert analyzer.gen_channel_gpt.isChecked() is True
+    assert analyzer.gen_channel_gemini.isChecked() is False
+    # gpt 是新装/配方升级后的默认通道；高级参数仍默认折叠。
     assert analyzer.gpt_pp_row.isHidden() is True
     assert analyzer.gen_channel_row.isHidden() is False
 
@@ -342,6 +342,31 @@ def test_gpt_first_pass_dir_follows_steps():
                                "local": {"enabled": False}}) == ""
     assert first_pass_sub_dir({"structure": {"enabled": True}}) == "analysis-gpt-image"
     assert first_pass_sub_dir({"local": {"enabled": True}}) == "analysis-gpt-image"
+    per_run = first_pass_sub_dir({"repaint": {"enabled": True}}, "hash-tid")
+    assert os.path.dirname(per_run) == "analysis-gpt-image"
+    assert os.path.basename(per_run).startswith("hash-tid-")
+
+
+def test_publish_final_keeps_process_files_out_of_date_root(tmp_path):
+    from utils.analysis_gen import publish_final_output
+    process_dir = tmp_path / "analysis-gpt-image" / "run-1"
+    process_dir.mkdir(parents=True)
+    selected = process_dir / "quality-refine.jpg"
+    selected.write_bytes(b"final-image")
+    (process_dir / "first-pass.png").write_bytes(b"first")
+    (process_dir / "identity-audit-0.json").write_text("{}", encoding="utf-8")
+    final_dir = tmp_path / "20260925"
+
+    published = publish_final_output(
+        str(selected), style_name="tid:v2", process_dir=str(process_dir), final_dir=str(final_dir))
+
+    assert os.path.dirname(published) == str(final_dir)
+    assert os.path.basename(published).startswith("tid-v2-")
+    assert open(published, "rb").read() == b"final-image"
+    assert sorted(p.name for p in final_dir.iterdir()) == [os.path.basename(published)]
+    assert (process_dir / "first-pass.png").exists()
+    assert (process_dir / "identity-audit-0.json").exists()
+    assert (process_dir / "published-final.json").exists()
 
 
 def test_pipeline_final_dir_is_date_root_by_default():

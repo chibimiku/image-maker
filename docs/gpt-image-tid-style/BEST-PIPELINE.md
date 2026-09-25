@@ -217,9 +217,9 @@ CLI 行为一致：`tools/overlay_structure_lines.py`、`tools/local_repaint_com
 
 | 产物 | 位置 | 命名 |
 |---|---|---|
-| **最终成图** | **`data/<YYYYMMDD>/`（日期根目录）** | `<来源名>-<run-id>-final-<工序串>.png`，例如 `xxx-005910-c139b2-final-sline40.png`、`xxx-xxxx-final-rp+sline50+local-hair.png`；**`-final-` 是最终产物标记**（一眼区分中间的 sline 图），工序串说明经过了哪些处理，run-id 保证多线程/重复跑不重名 |
-| 中间产物 | `data/<YYYYMMDD>/pipeline-steps/<run-id>/` | 结构线中间图、局部重绘裁切图 `*-crop.png`、局部重绘原图、`pipeline-manifest.json` |
-| 首图（有后续工序时） | `data/<YYYYMMDD>/analysis-gpt-image/` | 中间产物，最终产物由流水线写回日期根目录 |
+| **最终成图** | **`data/<YYYYMMDD>/`（日期根目录）** | 每次任务只复制一份身份门禁后的最终选中图；同目录还可有投稿所需的分析 JSON/TXT |
+| 中间产物 | `data/<YYYYMMDD>/analysis-gpt-image/<单次任务>/` | GPT 首图、首次重绘、质量修订、身份修订、审计 JSON、请求快照，以及其下的 `pipeline-steps/` |
+| 首图（有后续工序时） | `data/<YYYYMMDD>/analysis-gpt-image/<单次任务>/` | 每次任务独立目录，避免并发任务混在一起；只有最终选中图发布回日期根目录 |
 | 首图（**没有**勾任何工序时） | `data/<YYYYMMDD>/` | 此时首图就是最终产物 |
 | 分析结果 JSON / prompts TXT | **原图同目录**（如 `data/<日期>/sucai/`） | 投稿 Server 按"图片同目录找同名 JSON"配对，挪走会让服务器找不到原图；不勾「保存到原图同目录」时落 `data/<日期>/` |
 
@@ -230,6 +230,10 @@ CLI 行为一致：`tools/overlay_structure_lines.py`、`tools/local_repaint_com
 
 **裁切图不再进发布目录**：`local_repaint_composite(..., scratch_dir=...)` 把 `*-crop.png` 与局部重绘原图
 都写在运行目录里，日期根目录只留最终成图（以前会出现"`...-crop.png` 和最终图并排，分不清哪个是产物"）。
+
+配方版本 7 还要求质量修订和身份修订显式使用当前图的近似标准宽高比（例如竖图 `2:3`），不能传
+`auto`。实测 `auto` 在“当前图 + GPT 首图”修订时偶发输出横向双联图，破坏构图和身份；锁定比例后
+修订仍保持输入的竖向画布。
 
 ### 手部畸形的来源与规避（重要）
 01:14 那次 GUI 产物（`repaint_001404-…-local-subject_no_face.png`）手指畸形、头发发糊，原因已定位：

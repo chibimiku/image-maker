@@ -10,7 +10,7 @@
   2. 画风 `prompt_gpt` + 画风参考图（`utils.styles`）→ 组请求（`analysis_gen.build_gpt_image_request`）
   3. gpt-image-2 出首图（`api_backend.generate_image_aigc2d_gpt`），尺寸「auto」按输入图比例选
   4. 后处理：重绘（可选双参考）→ 结构线叠加 → 局部重绘+羽化贴回（`utils.post_process.run_pipeline`）
-     最终产物落 `data/<日期>/`，中间产物落 `data/<日期>/pipeline-steps/<run-id>/`
+     `--output-dir` 保存完整过程；加 `--publish-final` 时只把最终选中图复制到 `data/<日期>/`
 """
 import argparse
 import json
@@ -120,6 +120,8 @@ def main():
     ap.add_argument("--prompt-file", default="", help="完整首图提示词快照（复现实验用）")
     ap.add_argument("--base-image", default="", help="跳过首图，对已有 GPT 产物跑工序")
     ap.add_argument("--output-dir", default="", help="隔离实验产物和请求清单的目录")
+    ap.add_argument("--publish-final", action="store_true",
+                    help="只把身份门禁后的最终选中图复制到 data/<当天>/；其余产物留在 --output-dir")
     ap.add_argument("--dry-run", action="store_true", help="保存请求清单，不调用图片接口")
     ap.add_argument("--prompt-recipe", choices=["legacy", "reference"], default="legacy")
     ap.add_argument("--repeat", type=int, default=1, help="同一首图独立复跑后处理次数")
@@ -137,7 +139,8 @@ def main():
     from modules.others.api_backend import (generate_image_aigc2d_gpt,
                                             pick_gpt_image2_size_for_images)
     from utils import post_process as pp
-    from utils.analysis_gen import build_first_pass_request, first_pass_sub_dir, resolve_content_text
+    from utils.analysis_gen import (build_first_pass_request, first_pass_sub_dir,
+                                    publish_final_output, resolve_content_text)
 
     result = json.load(open(args.json, encoding="utf-8"))
     source = args.source_image or str(result.get("source_image_path") or "")
@@ -233,7 +236,8 @@ def main():
                 "size": size, "quality": args.quality, "mode": args.first_pass_mode,
                 "steps": steps, "firmware": args.firmware, "base": args.base_image,
                 "repaint_style_ref": repaint_style_ref,
-                "outputs": [], "quality_refine": {}, "identity": {}, "status": "planned"}
+                "outputs": [], "quality_refine": {}, "identity": {},
+                "published_final": "", "status": "planned"}
     def save_manifest():
         if output_dir:
             with open(os.path.join(output_dir, "request.json"), "w", encoding="utf-8") as f:
@@ -321,7 +325,8 @@ def main():
             if should_refine_quality(quality_audit):
                 quality_prompt = build_quality_correction_prompt(quality_audit)
                 refined = generate_image_repaint(
-                    [outs[-1]], resolution="2K", aspect_ratio="auto", prompt=quality_prompt,
+                    [outs[-1]], resolution="2K", aspect_ratio=pp.snapped_aspect_ratio(outs[-1]),
+                    prompt=quality_prompt,
                     use_detail_suffix=False, save_sub_dir=output_dir or os.path.dirname(outs[-1]),
                     file_prefix="quality-refine", extra_reference_paths=[base_path]) or []
                 if refined:
@@ -373,7 +378,8 @@ def main():
                 prompt = build_identity_correction_prompt(
                     current_audit, iteration=correction_round, max_iterations=2)
                 corrected = generate_image_repaint(
-                    [current], resolution="2K", aspect_ratio="auto", prompt=prompt,
+                    [current], resolution="2K", aspect_ratio=pp.snapped_aspect_ratio(current),
+                    prompt=prompt,
                     use_detail_suffix=False, save_sub_dir=output_dir or os.path.dirname(current),
                     file_prefix=f"identity-correct-{correction_round}") or []
                 if not corrected:
@@ -403,6 +409,12 @@ def main():
         if correction_rounds and identity_gate_action(current_audit) != "accept":
             print("      身份门禁: 两轮后仍有差异，按不回退策略保留最后一轮修订图")
     manifest["status"] = "complete" if outs else "pipeline_failed"
+    selected = str(manifest.get("selected_output") or (outs[-1] if outs else ""))
+    if args.publish_final and selected and os.path.isfile(selected):
+        published = publish_final_output(
+            selected, style_name=args.style, process_dir=output_dir or os.path.dirname(selected))
+        manifest["published_final"] = published
+        print(f"      发布最终图: {os.path.relpath(published, BASE)}")
     save_manifest()
     print("\n最终产物:")
     for path in outs:

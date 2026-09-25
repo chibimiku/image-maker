@@ -46,13 +46,13 @@ CLIPBOARD_SNAPSHOT_DIR = os.path.join("cache", "temp", "single-analyzer-clipboar
 ANALYSIS_GPT_UI_NODE = "analysis_gpt_pipeline"
 # 默认链：GPT 首图 → Gemini（源图 + 完整画风图）→ 一次 source-only 质量修订 → 身份定点修订。
 # recipe_version 只迁移配方键一次；用户之后的自定义选择继续保留。
-GPT_RECIPE_VERSION = 6
+GPT_RECIPE_VERSION = 7
 STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
 # 注意：`dual_reference` 键**已废弃**（旧配置里可能还留着，读到会忽略）。
 # 重绘的第二张参考由 `analysis_gen.pipeline_steps_from_flags(repaint_ref_mode=...)` 决定，
 # 分析 Tab 默认为 "style"（源图 + 完整画风图）；其它参考组合留给无头 CLI 对照实验。
 # —— §三十一 实测线锚图会把画面塌成白底线稿 / 铺满「碎玻璃」纹理。
-ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gemini", "repaint": True, "structure": False,
+ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure": False,
                             "local": False, "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
                             "quality": "high",
@@ -60,8 +60,8 @@ ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gemini", "repaint": True, "structure": F
                             "tone": False, "tone_target": "style", "ink": False,
                             "repaint_scope": "full", "first_pass_mode": "generate",
                             "recipe_version": GPT_RECIPE_VERSION}
-GPT_RECIPE_KEYS = ("repaint", "structure", "local", "region", "regions", "tone", "tone_target", "ink",
-                   "repaint_scope")
+GPT_RECIPE_KEYS = ("channel", "repaint", "structure", "local", "region", "regions", "quality",
+                   "size_follow_input", "tone", "tone_target", "ink", "repaint_scope", "first_pass_mode")
 
 
 def analysis_gpt_ui_path() -> str:
@@ -73,7 +73,8 @@ def load_analysis_gpt_ui(path: str = None) -> dict:
     """读取上次的「生图通道 / gpt 工序」选择（缺字段用默认值）。
 
     配方升级：老配置里没有 `recipe_version`（或版本落后）时，**配方相关的键一次性回到新默认**
-    （= 完整画风图重绘 + 两轮身份闭环，额外本地工序关闭），之后保留用户的自定义开关。
+            （= gpt-image 通道 + 完整画风图重绘 + 质量/身份闭环，额外本地工序关闭），
+            之后保留用户的自定义开关。
     """
     state = dict(ANALYSIS_GPT_UI_DEFAULTS)
     try:
@@ -1300,7 +1301,8 @@ class GptImageGenWorkerThread(QThread):
 
     def run(self):
         from modules.others.api_backend import generate_image_aigc2d_gpt
-        from utils.analysis_gen import first_pass_sub_dir, run_gpt_image_pipeline, save_generation_manifest
+        from utils.analysis_gen import (first_pass_sub_dir, publish_final_output,
+                                        run_gpt_image_pipeline, save_generation_manifest)
         self.last_status = "running"
         if self.isInterruptionRequested():
             self.last_status = "cancelled"
@@ -1309,6 +1311,10 @@ class GptImageGenWorkerThread(QThread):
         prompt = self.request_payload.get("prompt", "")
         images = list(self.request_payload.get("image_paths") or [])
         active_steps = [k for k, v in self.steps.items() if isinstance(v, dict) and v.get("enabled")]
+        process_sub_dir = first_pass_sub_dir(
+            self.steps,
+            run_key=f"{self.file_prefix or 'analysis-gpt'}-{self.request_payload.get('style_name') or 'no-style'}",
+        )
         self.log_signal.emit("\n🚀 gpt-image-2 生图（%s，提示词 %d 字符，参考图 %d 张：%s）"
                              % (self.model_name, len(prompt), len(images),
                                 "画风参考图" if images else "无"))
@@ -1319,7 +1325,7 @@ class GptImageGenWorkerThread(QThread):
                 api_type=self.api_type, file_prefix=self.file_prefix or "analysis-gpt",
                 # 没有后续工序时首图就是最终产物 → 直接落 data/<日期>/（方便发布）；
                 # 有工序时它是中间产物，进 analysis-gpt-image/ 子目录。
-                save_sub_dir=first_pass_sub_dir(self.steps),
+                save_sub_dir=process_sub_dir,
                 return_metadata=False,
                 mode=self.mode,
             )
@@ -1334,6 +1340,7 @@ class GptImageGenWorkerThread(QThread):
             self.finish_signal.emit([])
             return
         first_image = saved[0]
+        process_dir = os.path.dirname(os.path.abspath(first_image)) if active_steps else ""
         def record_request(outputs=None):
             try:
                 if os.path.isfile(first_image):
@@ -1350,6 +1357,8 @@ class GptImageGenWorkerThread(QThread):
             try:
                 saved = run_gpt_image_pipeline(saved, self.steps, firmware=self.firmware,
                                                log_callback=self.log_signal.emit,
+                                               final_dir=process_dir,
+                                               work_dir=os.path.join(process_dir, "pipeline-steps"),
                                                style_ref_path=self.style_ref_path,
                                                style_clauses=self.style_clauses) or saved
             except Exception as exc:  # noqa: BLE001 - 工序失败仍保留生图产物
@@ -1362,8 +1371,9 @@ class GptImageGenWorkerThread(QThread):
                 import json as _json
                 from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
                                                   should_refine_quality)
+                from utils.post_process import snapped_aspect_ratio
                 from modules.others.api_backend import generate_image_repaint
-                quality_dir = os.path.dirname(os.path.abspath(saved[-1]))
+                quality_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
                 actual_prompt = str(self.request_payload.get("prompt") or "")
                 quality = audit_refine_quality(first_image, saved[-1], self.style_ref_path,
                                                first_pass_prompt=actual_prompt)
@@ -1373,7 +1383,8 @@ class GptImageGenWorkerThread(QThread):
                 if should_refine_quality(quality):
                     quality_prompt = build_quality_correction_prompt(quality)
                     refined = generate_image_repaint(
-                        [saved[-1]], resolution="2K", aspect_ratio="auto", prompt=quality_prompt,
+                        [saved[-1]], resolution="2K", aspect_ratio=snapped_aspect_ratio(saved[-1]),
+                        prompt=quality_prompt,
                         use_detail_suffix=False, save_sub_dir=quality_dir,
                         file_prefix=(self.file_prefix or "analysis-gpt") + "-quality-refine",
                         extra_reference_paths=[first_image]) or []
@@ -1401,8 +1412,9 @@ class GptImageGenWorkerThread(QThread):
                 import json as _json
                 from utils.identity_audit import (audit_image_identity, build_identity_correction_prompt,
                                                   identity_gate_action)
+                from utils.post_process import snapped_aspect_ratio
                 from modules.others.api_backend import generate_image_repaint
-                audit_dir = os.path.dirname(os.path.abspath(saved[-1]))
+                audit_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
                 current = saved[-1]
                 actual_prompt = str(self.request_payload.get("prompt") or "")
                 audit = audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt)
@@ -1417,7 +1429,8 @@ class GptImageGenWorkerThread(QThread):
                     correction_prompt = build_identity_correction_prompt(
                         audit, iteration=correction_round, max_iterations=2)
                     corrected = generate_image_repaint(
-                        [current], resolution="2K", aspect_ratio="auto", prompt=correction_prompt,
+                        [current], resolution="2K", aspect_ratio=snapped_aspect_ratio(current),
+                        prompt=correction_prompt,
                         use_detail_suffix=False, save_sub_dir=audit_dir,
                         file_prefix=(self.file_prefix or "analysis-gpt") + f"-identity-correct-{correction_round}") or []
                     if not corrected:
@@ -1438,6 +1451,21 @@ class GptImageGenWorkerThread(QThread):
             self.last_status = "cancelled"
             self.finish_signal.emit([])
             return
+        if active_steps and saved:
+            try:
+                published = publish_final_output(
+                    saved[-1], style_name=str(self.request_payload.get("style_name") or ""),
+                    process_dir=process_dir)
+                saved = [published]
+                self.log_signal.emit(
+                    f"[gpt 通道] 只发布最终图到日期目录：{published}\n"
+                    f"[gpt 通道] 首图/重绘/审计/修订过程保留在：{process_dir}")
+            except Exception as exc:
+                self.log_signal.emit(
+                    f"❌ 最终图发布失败，过程产物已保留: {type(exc).__name__}: {exc}")
+                self.last_status = "error"
+                self.finish_signal.emit([])
+                return
         self.last_status = "success"
         record_request(saved)
         self.finish_signal.emit([p for p in saved if p])

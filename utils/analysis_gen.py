@@ -35,14 +35,65 @@ def save_generation_manifest(first_image, request, *, model, size, quality, mode
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
     return target
 
-def first_pass_sub_dir(steps: dict) -> str:
+def first_pass_sub_dir(steps: dict, run_key: str = "") -> str:
     """gpt-image 首图的落盘子目录。
 
     没有后续工序 → 首图就是最终产物 → 返回 ""（直接落 `data/<日期>/`，方便发布）；
-    有工序 → 首图是中间产物 → 落 `analysis-gpt-image/`，最终产物由流水线写回 `data/<日期>/`。
+    有工序 → 首图是中间产物 → 落 `analysis-gpt-image/<单次任务>/`。
+    `run_key` 留空时保留旧返回值，供旧调用方与测试兼容。
     """
     enabled = [k for k, v in (steps or {}).items() if isinstance(v, dict) and v.get("enabled")]
-    return "analysis-gpt-image" if enabled else ""
+    if not enabled:
+        return ""
+    if not str(run_key or "").strip():
+        return "analysis-gpt-image"
+    import re
+    import time
+    import uuid
+    safe = re.sub(r'[^0-9A-Za-z._-]+', '-', str(run_key)).strip('-_.') or "run"
+    return os.path.join("analysis-gpt-image", f"{safe[:80]}-{time.strftime('%H%M%S')}-{uuid.uuid4().hex[:6]}")
+
+
+def publish_final_output(source_path: str, *, style_name: str = "", process_dir: str = "",
+                         final_dir: str = "") -> str:
+    """把工作目录里选中的最终图只发布一份到 `data/<YYYYMMDD>/`。
+
+    首图、首次重绘、质量/身份修订和审计 JSON 均保留在 `process_dir`；
+    发布目录不再暴露中间版本。
+    """
+    import json
+    import re
+    import shutil
+    from utils import output_isolation
+    from utils.post_process import date_output_dir
+
+    source = os.path.abspath(str(source_path or ""))
+    if not os.path.isfile(source):
+        raise FileNotFoundError(source)
+    raw_final_dir = final_dir or date_output_dir()
+    style = re.sub(r'[\\/*?:"<>|]+', "-", str(style_name or "")).strip(" .-")
+    source_name = os.path.basename(source)
+    stem, ext = os.path.splitext(source_name)
+    if "final" not in stem.lower():
+        stem += "-final"
+    if style and not stem.lower().startswith(style.lower() + "-"):
+        stem = f"{style}-{stem}"
+    target_dir, filename = output_isolation.resolve_output_target(raw_final_dir, stem + ext)
+    os.makedirs(target_dir, exist_ok=True)
+    target = os.path.abspath(os.path.join(target_dir, filename))
+    if os.path.normcase(target) != os.path.normcase(source):
+        base, suffix = os.path.splitext(target)
+        idx = 1
+        while os.path.exists(target):
+            target = f"{base}_{idx}{suffix}"
+            idx += 1
+        shutil.copy2(source, target)
+    trace_dir = os.path.abspath(process_dir or os.path.dirname(source))
+    os.makedirs(trace_dir, exist_ok=True)
+    with open(os.path.join(trace_dir, "published-final.json"), "w", encoding="utf-8") as f:
+        json.dump({"selected_process_output": source, "published_final": target,
+                   "style_name": str(style_name or "")}, f, ensure_ascii=False, indent=2)
+    return target
 
 
 def resolve_content_text(analysis_result: dict, tier: str = "short") -> str:
