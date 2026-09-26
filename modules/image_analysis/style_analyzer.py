@@ -8,7 +8,8 @@ from openai import OpenAI
 from utils.task_runtime import append_log_line, set_task_status
 from utils.prompt_loader import read_prompt_file, find_missing_prompt_files
 from utils.image_encoding import compress_and_encode_image
-from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
+from modules.others.api_backend import (generate_image_aigc2d, generate_image_aigc2d_gpt,
+                                        get_api_config)
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QTextEdit, QListWidget, QListWidgetItem, QFileDialog,
@@ -25,6 +26,22 @@ STYLE_ITER_FINAL_REVIEW_PROMPT_FILE = "style-iter-final-review.md"
 STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE = "style-iter-local-extract.md"
 STYLE_ITER_LOCAL_MERGE_PROMPT_FILE = "style-iter-local-merge.md"
 STYLE_ITER_VARIANTS_PROMPT_FILE = "style-iter-variants.md"
+
+
+def _reference_aspect_ratio(path):
+    """把测试画风图比例吸附到 Gemini/GPT-image 共同支持的档位。"""
+    ratios = {
+        "1:1": 1.0, "2:3": 2.0 / 3.0, "3:2": 3.0 / 2.0,
+        "3:4": 3.0 / 4.0, "4:3": 4.0 / 3.0,
+        "4:5": 4.0 / 5.0, "5:4": 5.0 / 4.0,
+        "9:16": 9.0 / 16.0, "16:9": 16.0 / 9.0,
+    }
+    try:
+        with Image.open(path) as image:
+            actual = image.width / image.height
+        return min(ratios, key=lambda key: abs(ratios[key] - actual))
+    except Exception:
+        return "1:1"
 
 
 def get_style_analyzer_missing_prompt_files():
@@ -51,7 +68,8 @@ def format_style_prompt_package(master_prompt, variants):
         value = str(data.get(key) or "").strip()
         if value:
             sections.append((title, value))
-    for title, key in (("GEMINI REPAINT / 重绘条款", "gemini_repaint_clauses"),
+    for title, key in (("OPTIONAL MOTIFS / 可选装饰母题", "optional_motifs"),
+                       ("GEMINI REPAINT / 重绘条款", "gemini_repaint_clauses"),
                        ("FACE + HAIR / 五官头发条款", "face_hair_clauses"),
                        ("NEGATIVE RULES / 负面规则", "negative_rules")):
         raw_values = data.get(key) or []
@@ -96,6 +114,7 @@ def normalize_style_prompt_package(package, master_prompt):
     data["gemini_full_prompt"] = gemini_full
     repaint_clauses = string_list("gemini_repaint_clauses", maximum=12)
     face_hair_clauses = string_list("face_hair_clauses", maximum=8)
+    optional_motifs = string_list("optional_motifs", maximum=4)
     string_list("negative_rules", maximum=20)
     if not isinstance(data.get("usage_profiles"), dict):
         data["usage_profiles"] = {}
@@ -118,6 +137,9 @@ def normalize_style_prompt_package(package, master_prompt):
         "face_hair_clauses": face_hair_clauses,
         "enabled": True,
     }
+    if optional_motifs:
+        style_entry["motif_clauses"] = optional_motifs
+        style_entry["motif_enabled"] = True
     data["style_entry"] = style_entry
     return data
 
@@ -189,8 +211,8 @@ class StyleIterativeWorkerThread(QThread):
                  total_rounds=3, images_per_round=2,
                  existing_state=None, output_dir="", timeout_seconds=120,
                  enable_test_gen=False, test_prompt="",
-                 img_api_type="", img_instructions="", img_aspect_ratio="1:1",
-                 img_model_name="", file_prefix="", seed_prompts=""):
+                 img_api_type="", img_instructions="", img_aspect_ratio="auto",
+                 img_model_name="", file_prefix="", seed_prompts="", test_style_ref_path=""):
         super().__init__()
         self.image_paths = list(image_paths)
         self.api_key = api_key
@@ -211,6 +233,7 @@ class StyleIterativeWorkerThread(QThread):
         self.img_aspect_ratio = str(img_aspect_ratio or "1:1").strip() or "1:1"
         self.file_prefix = str(file_prefix).strip()
         self.seed_prompts = str(seed_prompts or "").strip()
+        self.test_style_ref_path = str(test_style_ref_path or "").strip()
         # 图片编码缓存：同一张图在一次任务中通常会被多个阶段重复编码，
         # 缓存避免重复的 CPU 压缩与 base64 开销。
         self._image_cache = {}
@@ -330,57 +353,90 @@ class StyleIterativeWorkerThread(QThread):
                 return it.get("art_style_prompts", "")
         return ""
 
-    def _generate_test_image(self, current_prompts, round_num, output_path):
-        """每轮结束后生成一张测试图片：艺术风格 prompts + 用户测试 prompt。"""
+    def _generate_test_image(self, current_prompts, round_num, output_path, prompt_variants=None):
+        """每轮固定输出 Gemini 直出、GPT 首图和 GPT→Gemini 完整画风重绘。"""
         self._check_cancel()
-        gen_prompt = f"{current_prompts}\n\n{self.test_prompt}"
-        self.log_signal.emit(f"[Round {round_num}] 测试生图: 正在调用 {self.img_api_type} 生成测试图片...")
-        self.progress_signal.emit(f"Round {round_num}/{self.total_rounds} — 生成测试图片中…")
+        variants = normalize_style_prompt_package(prompt_variants or {}, current_prompts)
+        style_ref = self.test_style_ref_path if os.path.isfile(self.test_style_ref_path) else ""
+        if not style_ref:
+            style_ref = next((p for p in self.image_paths if os.path.isfile(p)), "")
+        aspect_ratio = str(self.img_aspect_ratio or "").strip()
+        if not aspect_ratio or aspect_ratio.lower() == "auto":
+            aspect_ratio = _reference_aspect_ratio(style_ref)
+        round_dir = os.path.join(self.output_dir, "test-generations", f"round-{round_num:02d}")
+        os.makedirs(round_dir, exist_ok=True)
+        self.log_signal.emit(
+            f"[Round {round_num}] 双通道测试：Gemini 直出 + GPT-image-2 首图 + Gemini 完整画风重绘")
+        self.log_signal.emit(f"  测试画风参考图: {style_ref or '(无有效参考图)'}")
+        self.progress_signal.emit(f"Round {round_num}/{self.total_rounds} — 双通道测试生图中…")
+        cancel_check = lambda: self._cancel_requested or self.isInterruptionRequested()
+        outputs = {"gemini_direct": [], "gpt_first_pass": [], "gpt_repainted": []}
 
         try:
-            if self.img_api_type == "aigc2d":
-                result = generate_image_aigc2d(
-                    prompt=gen_prompt,
-                    model=self.img_model_name,
-                    aspect_ratio=self.img_aspect_ratio,
-                    instructions=self.img_instructions,
-                    api_type=self.img_api_type,
-                    file_prefix=f"style_test_r{round_num}",
-                    cancel_check=lambda: self._cancel_requested or self.isInterruptionRequested(),
-                )
-            else:
-                result = generate_image_whatai(
-                    prompt=gen_prompt,
-                    model=self.img_model_name,
-                    aspect_ratio=self.img_aspect_ratio,
-                    instructions=self.img_instructions,
-                    api_type=self.img_api_type,
-                    file_prefix=f"style_test_r{round_num}",
-                    cancel_check=lambda: self._cancel_requested or self.isInterruptionRequested(),
-                )
+            from utils.styles import compose_style_prompt, motif_prompt_from_clauses
+            gemini_cfg = get_api_config(api_type="aigc2d")
+            gemini_model = str(gemini_cfg.get("model") or "").strip()
+            if not gemini_model:
+                raise RuntimeError("aigc2d 节点未配置 Gemini 图片模型")
+            motif_prompt = motif_prompt_from_clauses(variants.get("optional_motifs") or [])
+            gemini_style = "\n\n".join(v for v in (
+                variants.get("gemini_full_prompt") or current_prompts, motif_prompt) if v)
+            gemini_prompt = compose_style_prompt(
+                gemini_style,
+                self.test_prompt, style_ref_attached=bool(style_ref), content_image_count=0)
+            outputs["gemini_direct"] = generate_image_aigc2d(
+                prompt=gemini_prompt, image_paths=[style_ref] if style_ref else None,
+                model=gemini_model, aspect_ratio=aspect_ratio, resolution="2K",
+                api_type="aigc2d", save_sub_dir=round_dir,
+                file_prefix=f"round-{round_num:02d}-gemini-direct", face_quality_boost=False,
+                cancel_check=cancel_check, log_callback=self.log_signal.emit) or []
+        except Exception as exc:
+            self.log_signal.emit(f"  Gemini 直出失败，继续 GPT 对照: {type(exc).__name__}: {exc}")
 
-            self._check_cancel()
+        self._check_cancel()
+        try:
+            from utils.analysis_gen import build_gpt_image_request, run_gpt_image_pipeline
+            from utils.post_process import default_pipeline
+            from utils.style_gpt import resolve_style_clauses
+            gpt_prompt = str(variants.get("gpt_image_prompt") or "").strip()
+            repaint_clauses = [str(v).strip() for v in
+                               (variants.get("gemini_repaint_clauses") or []) if str(v).strip()]
+            if not repaint_clauses:
+                repaint_clauses, _ = resolve_style_clauses({"prompt_gpt": gpt_prompt})
+            generation_clauses = repaint_clauses + ([motif_prompt] if motif_prompt else [])
+            request_payload = build_gpt_image_request(
+                {},
+                style_text=gpt_prompt or current_prompts,
+                style_ref_path=style_ref,
+                content_text=self.test_prompt,
+                extra_clauses=generation_clauses)
+            gpt_cfg = get_api_config(api_type="aigc-2d-gpt")
+            gpt_model = str(gpt_cfg.get("model") or "").strip()
+            if not gpt_model:
+                raise RuntimeError("aigc-2d-gpt 节点未配置 GPT 图片模型")
+            first = generate_image_aigc2d_gpt(
+                prompt=request_payload["prompt"], image_paths=request_payload["image_paths"],
+                model=gpt_model, aspect_ratio=aspect_ratio,
+                api_type="aigc-2d-gpt", save_sub_dir=round_dir,
+                file_prefix=f"round-{round_num:02d}-gpt-first", mode="generate",
+                cancel_check=cancel_check, log_callback=self.log_signal.emit) or []
+            outputs["gpt_first_pass"] = list(first)
+            if first:
+                steps = default_pipeline()
+                steps["repaint"].update({"enabled": True, "reference_mode": "style", "scope": "full"})
+                outputs["gpt_repainted"] = run_gpt_image_pipeline(
+                    first, steps, final_dir=round_dir,
+                    work_dir=os.path.join(round_dir, "gpt-repaint-steps"),
+                    style_ref_path=style_ref, style_clauses=repaint_clauses,
+                    log_callback=self.log_signal.emit) or []
+        except Exception as exc:
+            self.log_signal.emit(f"  GPT 首图/重绘失败，已保留其他通道结果: {type(exc).__name__}: {exc}")
 
-            if isinstance(result, dict):
-                saved_files = result.get("saved_files", []) or []
-            elif isinstance(result, list):
-                saved_files = result
-            else:
-                saved_files = []
-
-            if saved_files:
-                self.log_signal.emit(f"  测试图片已生成: {len(saved_files)} 张")
-                for f in saved_files:
-                    self.log_signal.emit(f"    {f}")
-                return saved_files
-            else:
-                self.log_signal.emit(f"  警告：测试生图未返回图片文件。")
-                return []
-        except StyleIterCancelledError:
-            raise
-        except Exception as e:
-            self.log_signal.emit(f"  测试生图失败: {e}")
-            return []
+        for channel, files in outputs.items():
+            self.log_signal.emit(f"  {channel}: {len(files)} 张")
+            for path in files:
+                self.log_signal.emit(f"    {path}")
+        return outputs
 
     def _step_commonality_extraction(self, client, iterations, current_round, current_prompts):
         self._check_cancel()
@@ -959,14 +1015,21 @@ class StyleIterativeWorkerThread(QThread):
                 # Phase 3 (optional): Test image generation
                 if self.enable_test_gen and self.test_prompt:
                     self._check_cancel()
-                    test_files = self._generate_test_image(current_prompts, round_num, output_path)
+                    # 每轮都把当时的母版派生成同一套 Gemini/GPT 专用提示词，再做双通道对照。
+                    # 这样比较的是轮次进展，而不是让 GPT 被 400–800 词母版长度压制。
+                    round_variants = self._step_prompt_variants(client, current_prompts)
+                    test_outputs = self._generate_test_image(
+                        current_prompts, round_num, output_path, prompt_variants=round_variants)
                     if "test_images" not in state:
                         state["test_images"] = {}
                     state["test_images"][f"round_{round_num}"] = {
                         "round": round_num,
                         "prompts_used": current_prompts,
+                        "prompt_variants": round_variants,
                         "test_prompt": self.test_prompt,
-                        "generated_files": test_files,
+                        "style_reference": self.test_style_ref_path or (
+                            self.image_paths[0] if self.image_paths else ""),
+                        "generated_files": test_outputs,
                         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     }
                     self._save_state(state, output_path)
@@ -1172,10 +1235,10 @@ class StyleAnalyzerWidget(QWidget):
         test_gen_group = QGroupBox("测试生图")
         test_gen_layout = QFormLayout()
 
-        self.enable_test_gen_cb = QCheckBox("每轮结束后生成测试图片")
+        self.enable_test_gen_cb = QCheckBox("每轮同时生成 Gemini 直出、GPT 首图和 GPT→Gemini 完整重绘")
         self.enable_test_gen_cb.setToolTip(
-            "勾选后，每轮迭代完成后将基于当前艺术风格 prompts 拼接下方输入的测试提示词，"
-            "调用生图 API 生成一张测试图片，用于直观评估风格 prompts 的准确性。"
+            "勾选后，每轮使用相同主体和同一画风参考图生成三份可比产物：Gemini 直接生成、"
+            "GPT-image-2 首图，以及该首图经 Gemini 完整画风图重绘后的结果。"
         )
         self.enable_test_gen_cb.setChecked(
             bool(self.get_test_gen_default()) if self.get_test_gen_default else True
@@ -1196,6 +1259,16 @@ class StyleAnalyzerWidget(QWidget):
             if saved:
                 self.test_prompt_input.setText(saved)
         test_gen_layout.addRow("测试提示词:", self.test_prompt_input)
+
+        ref_row = QHBoxLayout()
+        self.test_ref_input = QLineEdit()
+        self.test_ref_input.setPlaceholderText("可选；留空时使用图片列表第一张作为测试画风参考图")
+        self.test_ref_input.setClearButtonEnabled(True)
+        self.test_ref_btn = QPushButton("选择…")
+        self.test_ref_btn.clicked.connect(self._browse_test_reference)
+        ref_row.addWidget(self.test_ref_input)
+        ref_row.addWidget(self.test_ref_btn)
+        test_gen_layout.addRow("测试画风参考图:", ref_row)
 
         test_gen_group.setLayout(test_gen_layout)
         layout.addWidget(test_gen_group)
@@ -1298,6 +1371,12 @@ class StyleAnalyzerWidget(QWidget):
     def clear_images(self):
         self.image_list.clear()
         self._loaded_image_paths = []
+
+    def _browse_test_reference(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择每轮对照使用的画风参考图", "", "Images (*.png *.jpg *.jpeg *.webp *.bmp)")
+        if path:
+            self.test_ref_input.setText(path)
 
     def _on_test_gen_toggled(self, checked):
         if self.on_test_gen_changed:
@@ -1452,6 +1531,8 @@ class StyleAnalyzerWidget(QWidget):
         self.images_per_round_spin.setEnabled(not running)
         self.enable_test_gen_cb.setEnabled(not running)
         self.test_prompt_input.setEnabled(not running)
+        self.test_ref_input.setEnabled(not running)
+        self.test_ref_btn.setEnabled(not running)
         self.file_prefix_input.setEnabled(not running)
 
         if not running:
@@ -1515,24 +1596,18 @@ class StyleAnalyzerWidget(QWidget):
         if enable_test_gen and not test_prompt:
             QMessageBox.warning(self, "缺少测试提示词", "已勾选「每轮结束后生成测试图片」，但未输入测试提示词。\n请在下方输入框填写测试提示词，或取消勾选测试生图。")
             return
+        test_style_ref_path = self.test_ref_input.text().strip()
+        if enable_test_gen and test_style_ref_path and not os.path.isfile(test_style_ref_path):
+            QMessageBox.warning(self, "参考图无效", "测试画风参考图不存在，请重新选择或清空以使用列表第一张。")
+            return
 
         # Image generation config for test images
         img_api_type = ""
         img_model_name = ""
         img_instructions = ""
-        img_aspect_ratio = "1:1"
-        if enable_test_gen:
-            if self.get_img_config:
-                img_cfg = self.get_img_config()
-                if isinstance(img_cfg, (tuple, list)) and len(img_cfg) >= 4:
-                    # (base_url, api_key, model_name, api_type)
-                    img_api_type = str(img_cfg[3] or "").strip()
-                    img_model_name = str(img_cfg[2] or "").strip()
-            # 测试图只验证本轮提取出的 current_prompts。不得混入配置列表中第一个旧画风，
-            # 否则测试结果是在评估两个画风的叠加，无法反映新提取结果是否准确。
-            img_instructions = ""
-            if not img_model_name:
-                self.log_msg("⚠️ 未从图片配置中读取到模型名，测试生图将回落到 API 默认模型。")
+        # 两条图片通道分别读取 aigc2d / aigc-2d-gpt 节点；测试比例跟随画风参考图。
+        # 旧的 get_img_config 只表示一个当前全局节点，不能同时代表两条通道。
+        img_aspect_ratio = "auto"
 
         timeout_seconds = int(self.get_timeout()) if self.get_timeout else 120
 
@@ -1562,6 +1637,7 @@ class StyleAnalyzerWidget(QWidget):
             img_aspect_ratio=img_aspect_ratio,
             file_prefix=file_prefix,
             seed_prompts=self._imported_prompts if not self._existing_state else "",
+            test_style_ref_path=test_style_ref_path,
         )
         self.thread.log_signal.connect(self.log_msg)
         self.thread.progress_signal.connect(self.progress_label.setText)

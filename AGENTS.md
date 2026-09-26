@@ -51,7 +51,7 @@
     用户 2026-09-24 反馈「最大化之后界面不正常」）。回归用例：`test_window_growth_goes_to_queue_and_log_not_option_rows`。
 - `analysis_pipeline.py`: **无头全链路分析**（Step 1~5 编排 + 投稿格式落地 `save_result_to_source`，CLI 见 `tools/analyze_fashion.py`；`analyze_image_step1` 供批量出图后单步分析）
 - `batch_analyzer.py`: 批量分析
-- `style_analyzer.py`: 多图画风提取（至少 2 张同画风图；全图共性/对账 → 单图差异 → 可选无旧画风污染的测试生图 → 局部裁剪细化 → 全量终审 → 多用途 Prompt 包）。JSON 的 `prompt_variants.style_entry` 给出可写回画风配置的字段映射，并保留所有轮次 `test_images`；流程、字段与局限见 `docs/style-analyzer-workflow.md`
+- `style_analyzer.py`: 多图画风提取（至少 2 张同画风图；全图共性/对账 → 单图差异 → 可选三路测试生图 → 局部裁剪细化 → 全量终审 → 多用途 Prompt 包）。三路测试使用同一主体/画风参考图，分别保存 Gemini 直出、GPT-image-2 首图、GPT 首图经 Gemini 完整画风图重绘，比例跟随参考图；可选装饰母题 `motif_clauses` 只进入首次生成，不进入重绘。JSON 的 `prompt_variants.style_entry` 给出可写回画风配置的字段映射，并保留所有轮次 `test_images`；流程、字段与局限见 `docs/style-analyzer-workflow.md`
 - `json_dataset_tab.py`: JSON 数据集导出
 - `pic_cate_tab.py`: 图片分类切分
 

@@ -7,6 +7,7 @@ Return one JSON object with exactly these fields:
   "gemini_full_prompt": "A detailed 500-900 word English style instruction for multimodal Gemini generation. It may explain face, eyes, hair, anatomy, line hierarchy, palette logic, lighting, materials, background, composition and negative rules, but it must remain content-independent.",
   "gemini_repaint_clauses": ["4-8 concise imperative English clauses for repainting an existing source image with a style reference. Explicitly describe facial/eye/hair grammar, edge hierarchy, material treatment and colour/value behaviour while preserving source identity and intrinsic colours."],
   "face_hair_clauses": ["2-5 precise English clauses describing only face shape, eye geometry, lashes, iris construction, mouth/nose economy, hair grouping, strand density and highlight shapes."],
+  "optional_motifs": ["0-4 concise English clauses for small recurring decorative motifs that are supported across references, such as butterflies, petals, stamps or geometric glyphs. Each clause must say that the motif is optional, sparse, subordinate, and may appear only in background/edge decoration when compatible with the requested scene. Return an empty array if evidence is weak or the apparent motif belongs to a character, outfit, prop or specific setting."],
   "gpt_image_prompt": "Exactly eight newline-separated fields in this order: Palette, Lighting, Brushwork, Edges, Texture, Composition density, Detail level, Avoid. Maximum 680 characters total. No character, clothing, pose, prop or scene nouns.",
   "usage_profiles": {
     "identity_preserving": "A short instruction for applying rendering language while preserving the source character, design, pose and composition.",
@@ -31,4 +32,5 @@ Requirements:
 - Distinguish global palette logic from reference-character colours. Avoid prescribing one specific hair, eye or costume colour.
 - The GPT prompt must remain compact enough that an attached style reference still has influence.
 - Repaint clauses must state HOW to redraw while protecting WHO/WHAT appears in the source.
+- Optional motifs are generation accents, never repaint requirements. Do not list a character species, body feature, hairstyle, garment, held object, furniture item, landmark or whole environment as a motif.
 - Use plain JSON strings and arrays; no Markdown fences and no commentary outside JSON.

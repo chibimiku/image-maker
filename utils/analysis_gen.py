@@ -255,7 +255,7 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     条款来源：画风条目手写的 `repaint_clauses` 优先，缺失时按 `prompt_gpt` 字段确定性派生。
     """
     from utils.style_gpt import resolve_style_clauses, style_prompt_gpt
-    from utils.styles import style_ref_image, ref_image_valid
+    from utils.styles import style_ref_image, ref_image_valid, style_motif_prompt
 
     name = str(style_name or "")
     entry = (styles_data or {}).get(name) if name else None
@@ -269,9 +269,11 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     clauses, clauses_source = resolve_style_clauses(entry)
     generation_clauses = ([str(c).strip() for c in (entry.get("generation_clauses") or [])
                            if str(c).strip()] if isinstance(entry, dict) else [])
+    motif_prompt = style_motif_prompt(styles_data or {}, name)
+    motif_clauses = [motif_prompt] if motif_prompt else []
     payload = build_gpt_image_request(analysis_result, style_text=style_text, style_ref_path=ref,
                                       user_hint=user_hint, tier=tier,
-                                      extra_clauses=(clauses + generation_clauses) or None,
+                                      extra_clauses=(clauses + generation_clauses + motif_clauses) or None,
                                       content_image_path=content_image_path, content_text=content_text)
     skip_quality_refine = bool(entry.get("skip_quality_refine", False)) if isinstance(entry, dict) else False
     skip_identity_refine = bool(entry.get("skip_identity_refine", False)) if isinstance(entry, dict) else False
@@ -281,6 +283,7 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                                     if str(c).strip()] if isinstance(entry, dict) else [])
     post_adjustment = dict(entry.get("post_adjustment") or {}) if isinstance(entry, dict) else {}
     payload.update({"style_name": name, "style_ref_path": ref, "clauses": clauses,
+                    "motif_prompt": motif_prompt,
                     "clauses_source": clauses_source, "skip_quality_refine": skip_quality_refine,
                     "skip_identity_refine": skip_identity_refine,
                     "face_hair_refine": face_hair_refine,

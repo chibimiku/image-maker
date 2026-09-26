@@ -216,6 +216,18 @@ def test_build_first_pass_request_separates_generation_and_repaint_clauses(tmp_p
     assert req["post_adjustment"] == {"brightness_scale": 0.9}
 
 
+def test_build_first_pass_request_adds_optional_motif_only_to_generation(tmp_path):
+    ref = _ref(tmp_path)
+    styles = {"tid": {"prompt_gpt": "Palette: pale", "ref_image": str(ref),
+                       "repaint_clauses": ["KEEP SOURCE"],
+                       "motif_enabled": True,
+                       "motif_clauses": ["a few small butterflies"]}}
+    req = ag.build_first_pass_request(styles, "tid", {"gpt_image_prompt": "content"})
+    assert "OPTIONAL STYLE MOTIFS" in req["prompt"]
+    assert "a few small butterflies" in req["motif_prompt"]
+    assert req["clauses"] == ["KEEP SOURCE"]
+
+
 def test_style_post_adjustment_applies_channel_and_line_settings(tmp_path):
     import cv2
     import numpy as np

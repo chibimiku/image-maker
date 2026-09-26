@@ -36,7 +36,9 @@ from utils.styles import (  # noqa: E402
     build_style_entry,
     enabled_style_names,
     normalize_style_entry,
+    style_motif_prompt,
     style_enabled,
+    style_prompt,
     style_prompt_compressed,
 )
 
@@ -77,6 +79,9 @@ def test_build_style_entry_roundtrip():
     assert entry == {"prompt": "full", "enabled": True, "ref_image": "r.png",
                      "prompt_compressed": "c", "prompt_gpt": "g"}
     assert build_style_entry("full") == {"prompt": "full", "enabled": True}
+    with_motif = build_style_entry("full", motif_clauses=["small butterflies"], motif_enabled=True)
+    assert with_motif["motif_clauses"] == ["small butterflies"]
+    assert with_motif["motif_enabled"] is True
 
 
 def test_enabled_styles_default_on_and_filter_disabled_entries():
@@ -89,6 +94,18 @@ def test_enabled_styles_default_on_and_filter_disabled_entries():
     assert style_enabled(styles, "off") is False
     assert enabled_style_names(styles) == ["legacy", "on"]
     assert normalize_style_entry(styles["off"])["enabled"] is False
+
+
+def test_optional_motifs_are_low_weight_generation_only_text():
+    styles = {"tid": {"prompt": "FULL", "motif_enabled": True,
+                       "motif_clauses": ["a few butterflies", "small water droplets"]}}
+    motif = style_motif_prompt(styles, "tid")
+    assert "OPTIONAL STYLE MOTIFS" in motif
+    assert "a few butterflies" in motif
+    assert "never alter identity" in motif
+    assert motif in style_prompt(styles, "tid")
+    styles["tid"]["motif_enabled"] = False
+    assert style_motif_prompt(styles, "tid") == ""
 
 
 def test_style_prompt_gpt_and_resolve_priority():

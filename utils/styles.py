@@ -49,7 +49,8 @@ STYLE_REF_MODES = [
 def normalize_style_entry(entry):
     """把任意样式条目归一化为
     {"prompt": str, "ref_image": str, "prompt_compressed": str, "prompt_gpt": str,
-     "enabled": bool}，兼容新旧格式。旧条目缺少 `enabled` 时视为启用。
+     "enabled": bool, "motif_clauses": list[str], "motif_enabled": bool}，兼容新旧格式。
+    旧条目缺少 `enabled` 时视为启用；装饰母题缺省为关闭。
 
     `prompt_gpt` 是给 gpt-image 通道用的「短版字段式画风说明」（见 utils/style_gpt.py 与
     docs/gpt-image-tid-style/）：gpt-image 会把画风说明与主体拼成一条 prompt，长说明书会
@@ -57,7 +58,7 @@ def normalize_style_entry(entry):
     """
     if isinstance(entry, str):
         return {"prompt": entry, "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
-                "enabled": True}
+                "enabled": True, "motif_clauses": [], "motif_enabled": False}
     if isinstance(entry, dict):
         prompt = entry.get("prompt") or entry.get("text") or entry.get("instructions") or ""
         ref = entry.get("ref_image") or entry.get("ref_image_path") or entry.get("image") or ""
@@ -69,9 +70,34 @@ def normalize_style_entry(entry):
             "prompt_compressed": str(compressed or ""),
             "prompt_gpt": str(gpt_prompt or ""),
             "enabled": entry.get("enabled", True) is not False,
+            "motif_clauses": [str(v).strip() for v in (entry.get("motif_clauses") or [])
+                              if str(v).strip()][:4],
+            "motif_enabled": entry.get("motif_enabled", False) is True,
         }
     return {"prompt": "", "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
-            "enabled": True}
+            "enabled": True, "motif_clauses": [], "motif_enabled": False}
+
+
+def style_motif_prompt(styles, name) -> str:
+    """返回只用于首次生成的低权重装饰母题；重绘链路不应使用。"""
+    entry = normalize_style_entry((styles or {}).get(name))
+    if not entry["motif_enabled"] or not entry["motif_clauses"]:
+        return ""
+    return motif_prompt_from_clauses(entry["motif_clauses"])
+
+
+def motif_prompt_from_clauses(clauses) -> str:
+    """把母题词汇包装成低权重、可省略且不得改写内容的生成条款。"""
+    clean = [str(v).strip() for v in (clauses or []) if str(v).strip()][:4]
+    if not clean:
+        return ""
+    motifs = "; ".join(clean)
+    return (
+        "OPTIONAL STYLE MOTIFS: When compatible with the requested scene, add only a few small, "
+        "subordinate background or edge accents from this vocabulary: " + motifs + ". "
+        "Omit them when they compete with the subject; never alter identity, outfit, pose, props, "
+        "setting or composition to accommodate them."
+    )
 
 
 def style_enabled(styles, name) -> bool:
@@ -86,12 +112,16 @@ def enabled_style_names(styles) -> list[str]:
 
 def style_prompt(styles, name):
     """取样式指令文本（兼容新旧格式）。"""
-    return normalize_style_entry((styles or {}).get(name))["prompt"]
+    base = normalize_style_entry((styles or {}).get(name))["prompt"]
+    motif = style_motif_prompt(styles, name)
+    return "\n\n".join(v for v in (base, motif) if v)
 
 
 def style_prompt_compressed(styles, name):
     """取样式压缩版指令（参考优先模式用；可能为空）。"""
-    return normalize_style_entry((styles or {}).get(name))["prompt_compressed"]
+    base = normalize_style_entry((styles or {}).get(name))["prompt_compressed"]
+    motif = style_motif_prompt(styles, name)
+    return "\n\n".join(v for v in (base, motif) if v)
 
 
 def style_prompt_gpt(styles, name):
@@ -104,7 +134,8 @@ def style_ref_image(styles, name):
     return normalize_style_entry((styles or {}).get(name))["ref_image"]
 
 
-def build_style_entry(prompt, ref_image="", prompt_compressed="", prompt_gpt="", enabled=True):
+def build_style_entry(prompt, ref_image="", prompt_compressed="", prompt_gpt="", enabled=True,
+                      motif_clauses=None, motif_enabled=False):
     """构造新格式样式条目（空字段省略）。"""
     entry = {"prompt": str(prompt or ""), "enabled": bool(enabled)}
     if ref_image:
@@ -113,6 +144,10 @@ def build_style_entry(prompt, ref_image="", prompt_compressed="", prompt_gpt="",
         entry["prompt_compressed"] = str(prompt_compressed)
     if prompt_gpt:
         entry["prompt_gpt"] = str(prompt_gpt)
+    motifs = [str(v).strip() for v in (motif_clauses or []) if str(v).strip()][:4]
+    if motifs:
+        entry["motif_clauses"] = motifs
+        entry["motif_enabled"] = bool(motif_enabled)
     return entry
 
 
