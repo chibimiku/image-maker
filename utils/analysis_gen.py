@@ -269,11 +269,16 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     clauses, clauses_source = resolve_style_clauses(entry)
     generation_clauses = ([str(c).strip() for c in (entry.get("generation_clauses") or [])
                            if str(c).strip()] if isinstance(entry, dict) else [])
+    # 体型/头身比既影响 GPT 首图，也必须在 Gemini 画风重绘和质量门禁中继续有效。
+    # 单独字段避免把“正常比例”全局套到 iris-mix 等 Q 版画风上。
+    proportion_clauses = ([str(c).strip() for c in (entry.get("proportion_clauses") or [])
+                           if str(c).strip()] if isinstance(entry, dict) else [])
     motif_prompt = style_motif_prompt(styles_data or {}, name)
     motif_clauses = [motif_prompt] if motif_prompt else []
     payload = build_gpt_image_request(analysis_result, style_text=style_text, style_ref_path=ref,
                                       user_hint=user_hint, tier=tier,
-                                      extra_clauses=(clauses + generation_clauses + motif_clauses) or None,
+                                      extra_clauses=(clauses + generation_clauses + proportion_clauses
+                                                     + motif_clauses) or None,
                                       content_image_path=content_image_path, content_text=content_text)
     skip_quality_refine = bool(entry.get("skip_quality_refine", False)) if isinstance(entry, dict) else False
     skip_identity_refine = bool(entry.get("skip_identity_refine", False)) if isinstance(entry, dict) else False
@@ -295,6 +300,7 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                     "face_hair_refine": face_hair_refine,
                     "repaint_reference_mode": repaint_reference_mode,
                     "generation_clauses": generation_clauses,
+                    "proportion_clauses": proportion_clauses,
                     "identity_correction_clauses": identity_correction_clauses,
                     "post_adjustment": post_adjustment,
                     "api_type": str(api_type or "")})

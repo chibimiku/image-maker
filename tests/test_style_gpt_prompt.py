@@ -226,6 +226,31 @@ def test_build_ref_gen_params_uses_prompt_gpt_for_gpt_channel(tmp_path):
     assert refs_prio == [str(ref)]
 
 
+def test_reference_priority_brackets_image_with_concise_instructions(tmp_path):
+    from utils.styles import (REF_PRIORITY_POSTAMBLE, build_ref_gen_params,
+                              build_style_ref_instruction)
+    ref = tmp_path / "style.png"
+    ref.write_bytes(b"fake")
+    styles = {"style": {"prompt": "FULL " * 1000, "prompt_compressed": "COMPACT TARGET",
+                         "ref_image": str(ref)}}
+    head, post, refs = build_ref_gen_params(styles, "style", "priority", api_type="aigc2d")
+    assert "COMPACT TARGET" in head
+    assert build_style_ref_instruction() not in head
+    assert post == REF_PRIORITY_POSTAMBLE
+    assert refs == [str(ref)]
+
+
+def test_gemini_reference_priority_prefers_same_structured_style_as_gpt(tmp_path):
+    ref = tmp_path / "style.png"
+    ref.write_bytes(b"fake")
+    styles = {"style": {"prompt": "FULL", "prompt_compressed": "LEGACY COMPRESSED",
+                         "prompt_gpt": GOOD_TEXT, "ref_image": str(ref)}}
+    head, post, _refs = build_ref_gen_params(styles, "style", "priority", api_type="aigc2d")
+    assert GOOD_TEXT in head
+    assert "LEGACY COMPRESSED" not in head
+    assert "multi-panel design" in post
+
+
 def test_conversion_prompts_mention_8_fields():
     system, user = build_conversion_prompts("tid", "long spec text", has_image=True)
     for key in FIELD_KEYS:

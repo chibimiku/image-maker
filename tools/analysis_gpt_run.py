@@ -168,12 +168,14 @@ def main():
                          if args.repaint_style_ref else ref)
     if args.repaint_style_ref and not os.path.isfile(repaint_style_ref):
         raise FileNotFoundError(repaint_style_ref)
-    style_clauses = list(payload.get("clauses") or [])
+    proportion_clauses = list(payload.get("proportion_clauses") or [])
+    style_clauses = list(payload.get("clauses") or []) + proportion_clauses
     if args.repaint_no_style_clauses:
         style_clauses = []
     if args.repaint_ref == "style-neutral":
         from utils.style_gpt import resolve_neutral_repaint_clauses
         style_clauses, _ = resolve_neutral_repaint_clauses((styles or {}).get(args.style))
+        style_clauses += proportion_clauses
     print(f"[2/4] 画风 {args.style or '(无)'}：说明 {payload['style_chars']} 字符 / "
           f"内容锚 {payload['content_chars']} 字符 / 参考图 {'画风图' if ref else '无'} / "
           f"渲染条款 {len(style_clauses)} 条（{payload.get('clauses_source')}）")
@@ -334,7 +336,8 @@ def main():
                                           should_refine_quality)
         try:
             quality_audit = audit_refine_quality(
-                base_path, outs[-1], repaint_style_ref, first_pass_prompt=payload["prompt"])
+                base_path, outs[-1], repaint_style_ref, first_pass_prompt=payload["prompt"],
+                proportion_clauses=proportion_clauses)
             manifest["quality_refine"]["before"] = quality_audit
             if output_dir:
                 with open(os.path.join(output_dir, "refine-quality-audit-0.json"),
@@ -350,7 +353,8 @@ def main():
                 if refined:
                     outs.extend(refined)
                     quality_after = audit_refine_quality(
-                        base_path, outs[-1], repaint_style_ref, first_pass_prompt=payload["prompt"])
+                        base_path, outs[-1], repaint_style_ref, first_pass_prompt=payload["prompt"],
+                        proportion_clauses=proportion_clauses)
                     manifest["quality_refine"]["after"] = quality_after
                     if output_dir:
                         with open(os.path.join(output_dir, "refine-quality-audit-1.json"),

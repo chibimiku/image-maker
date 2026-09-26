@@ -12,8 +12,13 @@ Inspect the candidate at local-detail level. Identity correctness alone is insuf
 - fragmented main contours, repeated ghost edges, noisy micro-strokes and unclear silhouette separation;
 - background objects, layout, lighting geometry or large value regions changed from Image 1;
 - failure to match Image 3's line character, edge hierarchy, brushwork, material treatment and degree of simplification.
+- when EXPLICIT BODY-PROPORTION TARGETS are present in the user message, head-to-body ratio, torso-to-leg
+  balance, hip/knee/ankle placement and foreshortening that violate those targets. In that case Image 1 is not
+  authoritative for the faulty limb lengths; report the visible proportional error as a structural issue.
 
 Do not report ordinary stylistic differences as defects. Do not ask to copy Image 3's character, palette-specific identity, outfit, pose, objects or background. A structural issue must name a visible region and give a concrete geometric repair. A background issue must say what Image 1 contains and what Image 2 changed. A style issue must describe rendering language rather than subject matter.
+Do not invent a body-proportion target from a cropped style reference. Only enforce body proportions when the
+user message supplies EXPLICIT BODY-PROPORTION TARGETS.
 
 Return JSON only:
 {

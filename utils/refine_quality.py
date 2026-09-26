@@ -96,7 +96,7 @@ def _detail_sheet(path: str) -> str:
 
 def audit_refine_quality(original_path: str, candidate_path: str, style_path: str,
                          first_pass_prompt: str = "", text_cfg: dict | None = None,
-                         timeout: int = 240) -> dict:
+                         timeout: int = 240, proportion_clauses=None) -> dict:
     paths = [original_path, candidate_path, style_path]
     if not all(os.path.isfile(path) for path in paths):
         raise FileNotFoundError("质量审计的三张输入图必须都存在")
@@ -108,6 +108,10 @@ def audit_refine_quality(original_path: str, candidate_path: str, style_path: st
         user = ("Images are attached in the exact order defined by the system prompt.\n"
                 "ACTUAL GPT FIRST-PASS PROMPT (use only to understand intended content):\n" +
                 str(first_pass_prompt or "")[:6500])
+        proportion_target = [str(v).strip() for v in (proportion_clauses or []) if str(v).strip()]
+        if proportion_target:
+            user += ("\n\nEXPLICIT BODY-PROPORTION TARGETS (these override Image 1 when its anatomy "
+                     "violates them):\n- " + "\n- ".join(proportion_target))
         raw = call_text_model(cfg["base_url"], cfg["api_key"], cfg["model"],
                               _prompt("refine-quality-audit-system.md"), user,
                               timeout=timeout, max_tokens=3000, image_paths=proxies)

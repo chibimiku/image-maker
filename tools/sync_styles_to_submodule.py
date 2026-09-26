@@ -31,7 +31,8 @@ for name, entry in local.items():
     for field in ("prompt_gpt", "prompt_compressed", "ref_image", "prompt", "repaint_clauses",
                   "enabled", "skip_quality_refine", "skip_identity_refine", "face_hair_refine", "generation_clauses",
                   "identity_correction_clauses", "post_adjustment", "motif_clauses", "motif_enabled",
-                  "repaint_reference_mode", "skip_repaint", "gemini_content_field"):
+                  "repaint_reference_mode", "skip_repaint", "gemini_content_field",
+                  "proportion_clauses"):
         value = entry.get(field)
         if value is not None and target.get(field) != value:
             target[field] = value

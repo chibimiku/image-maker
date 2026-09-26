@@ -2,6 +2,14 @@ from utils.refine_quality import (build_quality_correction_prompt, normalize_qua
                                   should_refine_quality)
 
 
+def test_quality_correction_allows_explicit_proportion_repair():
+    prompt = build_quality_correction_prompt({
+        "structural_issues": [{"region": "legs", "repair": "Shorten both legs to restore 7-head balance."}],
+        "line_issues": [], "background_drift": [], "style_gaps": [], "protected_features": []})
+    assert "Shorten both legs" in prompt
+    assert "proportions or limb lengths" in prompt
+
+
 def test_quality_audit_keeps_only_confident_complete_findings():
     value = normalize_quality_audit({
         "needs_refine": True,

@@ -33,6 +33,18 @@ REF_PRIORITY_PREAMBLE = (
     "Where the spec and the reference image disagree, ALWAYS follow the reference image."
 )
 
+# 参考优先不能只在图片之前声明“图片优先”。Gemini 的多模态 parts 是有顺序的；把一段
+# 简短、可执行的提醒放在画风图之后，才能让最后看到的约束仍指回刚才那张图。这里刻意
+# 不复读完整 style-ref-image.md，避免通用说明 + 压缩画风 + 正文三段长文本再次淹没图片。
+REF_PRIORITY_POSTAMBLE = (
+    "The image immediately above is the authoritative STYLE reference. Now render the requested text content "
+    "with that image's actual line character, face-and-hair abstraction, colour application, shading, edge "
+    "hierarchy, texture and finish. Do not fall back to generic anime rendering. Transfer style only; keep all "
+    "subject identity, clothing, pose, props, setting and composition from the text. Output exactly the number "
+    "of subjects and exactly one coherent scene requested by the text. Never copy a reference's character-sheet "
+    "layout, multi-panel design, inset portrait, duplicated full-body view, split screen, border or watermark."
+)
+
 MODE_OFF = "off"
 MODE_HEAD = "head"
 MODE_PRIORITY = "priority"
@@ -58,7 +70,8 @@ def normalize_style_entry(entry):
     """
     if isinstance(entry, str):
         return {"prompt": entry, "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
-                "enabled": True, "motif_clauses": [], "motif_enabled": False}
+                "enabled": True, "motif_clauses": [], "motif_enabled": False,
+                "proportion_clauses": []}
     if isinstance(entry, dict):
         prompt = entry.get("prompt") or entry.get("text") or entry.get("instructions") or ""
         ref = entry.get("ref_image") or entry.get("ref_image_path") or entry.get("image") or ""
@@ -73,9 +86,20 @@ def normalize_style_entry(entry):
             "motif_clauses": [str(v).strip() for v in (entry.get("motif_clauses") or [])
                               if str(v).strip()][:4],
             "motif_enabled": entry.get("motif_enabled", False) is True,
+            "proportion_clauses": [str(v).strip() for v in (entry.get("proportion_clauses") or [])
+                                   if str(v).strip()][:4],
         }
     return {"prompt": "", "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
-            "enabled": True, "motif_clauses": [], "motif_enabled": False}
+            "enabled": True, "motif_clauses": [], "motif_enabled": False,
+            "proportion_clauses": []}
+
+
+def proportion_prompt_from_clauses(clauses) -> str:
+    """把画风专属体型约束加入直接 Gemini 文本；没有配置时不产生任何全局偏好。"""
+    clean = [str(v).strip() for v in (clauses or []) if str(v).strip()][:4]
+    if not clean:
+        return ""
+    return "BODY PROPORTIONS (style-specific; follow exactly):\n- " + "\n- ".join(clean)
 
 
 def style_motif_prompt(styles, name) -> str:
@@ -114,14 +138,18 @@ def style_prompt(styles, name):
     """取样式指令文本（兼容新旧格式）。"""
     base = normalize_style_entry((styles or {}).get(name))["prompt"]
     motif = style_motif_prompt(styles, name)
-    return "\n\n".join(v for v in (base, motif) if v)
+    proportion = proportion_prompt_from_clauses(
+        normalize_style_entry((styles or {}).get(name))["proportion_clauses"])
+    return "\n\n".join(v for v in (base, motif, proportion) if v)
 
 
 def style_prompt_compressed(styles, name):
     """取样式压缩版指令（参考优先模式用；可能为空）。"""
     base = normalize_style_entry((styles or {}).get(name))["prompt_compressed"]
     motif = style_motif_prompt(styles, name)
-    return "\n\n".join(v for v in (base, motif) if v)
+    proportion = proportion_prompt_from_clauses(
+        normalize_style_entry((styles or {}).get(name))["proportion_clauses"])
+    return "\n\n".join(v for v in (base, motif, proportion) if v)
 
 
 def style_prompt_gpt(styles, name):
@@ -283,8 +311,10 @@ def assemble_style_instructions(mode, style_text, has_ref_image, prompt_compress
         return head, ""
     if mode == MODE_PRIORITY:
         compressed = gpt_text or str(prompt_compressed or "").strip() or compress_style_text(style_text)
-        head = f"{REF_PRIORITY_PREAMBLE}\n\n{ref_block}\n\n{compressed}"
-        return head, ""
+        # priority 使用专用短声明，不再叠加约 1.7k 字符的通用参考图说明；并在图片后
+        # 追加强化句，使请求成为「主次声明 + 精简规格 → 图片 → 就图执行」。
+        head = f"{REF_PRIORITY_PREAMBLE}\n\n{compressed}" if compressed else REF_PRIORITY_PREAMBLE
+        return head, REF_PRIORITY_POSTAMBLE
     if mode == MODE_INTERLEAVE:
         return (gpt_text or style_text), ref_block
     return (gpt_text or style_text), ""
@@ -301,12 +331,20 @@ def build_ref_gen_params(styles, style_name, mode, api_type=""):
     `api_type` 是 gpt-image 通道时优先使用入口里的 `prompt_gpt` 短版（见 utils/style_gpt.py）。
     """
     entry = normalize_style_entry((styles or {}).get(style_name))
-    prompt_gpt = entry["prompt_gpt"] if _is_gpt_image_api(api_type) else ""
+    motif = style_motif_prompt(styles or {}, style_name)
+    proportion = proportion_prompt_from_clauses(entry["proportion_clauses"])
+    # 参考优先在 Gemini 也使用结构化短版 prompt_gpt：其八字段比 1k~3k 的旧压缩说明
+    # 更不容易压过图片，并让同一画风在 Gemini 直出与 GPT 首图之间使用一致的目标。
+    use_structured = _is_gpt_image_api(api_type) or mode == MODE_PRIORITY
+    prompt_gpt = ("\n\n".join(v for v in (entry["prompt_gpt"], proportion) if v)
+                  if use_structured else "")
+    style_text = "\n\n".join(v for v in (entry["prompt"], motif, proportion) if v)
+    compressed = "\n\n".join(v for v in (entry["prompt_compressed"], motif, proportion) if v)
     has_ref = ref_image_valid(entry["ref_image"])
     if not has_ref:
         mode = MODE_OFF
     head, post = assemble_style_instructions(
-        mode, entry["prompt"], has_ref, entry["prompt_compressed"], prompt_gpt
+        mode, style_text, has_ref, compressed, prompt_gpt
     )
     ref_paths = [entry["ref_image"]] if (has_ref and mode != MODE_OFF) else []
     return head, post, ref_paths

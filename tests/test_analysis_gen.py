@@ -245,6 +245,23 @@ def test_build_first_pass_request_separates_generation_and_repaint_clauses(tmp_p
     assert req["post_adjustment"] == {"brightness_scale": 0.9}
 
 
+def test_build_first_pass_request_scopes_proportion_policy_per_style(tmp_path):
+    ref = _ref(tmp_path)
+    target = "Keep a natural stylized ratio near 6.5 to 7 heads tall; never elongate the legs."
+    styles = {
+        "normal": {"prompt_gpt": "Palette: pale", "ref_image": str(ref),
+                   "proportion_clauses": [target]},
+        "chibi": {"prompt_gpt": "Palette: pink", "ref_image": str(ref),
+                  "generation_clauses": ["Use a 1:3 chibi ratio."]},
+    }
+    normal = ag.build_first_pass_request(styles, "normal", {"gpt_image_prompt": "content"})
+    chibi = ag.build_first_pass_request(styles, "chibi", {"gpt_image_prompt": "content"})
+    assert normal["proportion_clauses"] == [target]
+    assert target in normal["prompt"]
+    assert chibi["proportion_clauses"] == []
+    assert target not in chibi["prompt"]
+
+
 def test_build_first_pass_request_adds_optional_motif_only_to_generation(tmp_path):
     ref = _ref(tmp_path)
     styles = {"tid": {"prompt_gpt": "Palette: pale", "ref_image": str(ref),

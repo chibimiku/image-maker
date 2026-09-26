@@ -2,7 +2,7 @@ Perform one TARGETED QUALITY REPAIR pass on Image 1.
 
 IMAGE ROLES
 - Image 1 = CURRENT REPAINT and the image to edit.
-- Image 2 = ORIGINAL GPT FIRST-PASS IMAGE. It is the exact truth for pose, anatomy layout, garment geometry, props, background layout, crop and lighting geometry.
+- Image 2 = ORIGINAL GPT FIRST-PASS IMAGE. It is the truth for pose semantics, garment design, props, background layout, crop and lighting geometry. When a listed REPAIR explicitly identifies faulty body proportions or limb lengths, that repair overrides Image 2's faulty anatomy: keep the same action and gesture while correcting the stated head-to-body ratio, joint placement and foreshortening.
 - Image 3, when present, = STYLE REFERENCE. It supplies only line character, edge hierarchy, brushwork and material treatment. Never copy its character, face, hair, clothing, pose, objects, scene or composition.
 - When Image 3 is absent, the STYLE repair items below are the complete style target. Do not imagine an unseen reference image.
 

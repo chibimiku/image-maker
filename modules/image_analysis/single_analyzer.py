@@ -1394,8 +1394,10 @@ class GptImageGenWorkerThread(QThread):
                 from modules.others.api_backend import generate_image_repaint
                 quality_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
                 actual_prompt = str(self.request_payload.get("prompt") or "")
+                proportion_clauses = list(self.request_payload.get("proportion_clauses") or [])
                 quality = audit_refine_quality(first_image, saved[-1], self.style_ref_path,
-                                               first_pass_prompt=actual_prompt)
+                                               first_pass_prompt=actual_prompt,
+                                               proportion_clauses=proportion_clauses)
                 with open(os.path.join(quality_dir, "refine-quality-audit-0.json"),
                           "w", encoding="utf-8") as f:
                     _json.dump(quality, f, ensure_ascii=False, indent=2)
@@ -1411,7 +1413,8 @@ class GptImageGenWorkerThread(QThread):
                         saved = [refined[-1]]
                         quality_after = audit_refine_quality(
                             first_image, saved[-1], self.style_ref_path,
-                            first_pass_prompt=actual_prompt)
+                            first_pass_prompt=actual_prompt,
+                            proportion_clauses=proportion_clauses)
                         with open(os.path.join(quality_dir, "refine-quality-audit-1.json"),
                                   "w", encoding="utf-8") as f:
                             _json.dump(quality_after, f, ensure_ascii=False, indent=2)
@@ -3455,7 +3458,8 @@ class SingleAnalyzerWidget(QWidget):
             styles_data, selected_style_name, analysis_result,
             content_text=content_text, tier="short")
         ref = str(request_payload.get("style_ref_path") or "")
-        style_clauses = list(request_payload.get("clauses") or [])
+        style_clauses = (list(request_payload.get("clauses") or [])
+                         + list(request_payload.get("proportion_clauses") or []))
         _clause_note = {"entry": "画风自带", "derived": "按 prompt_gpt 派生", "none": "无"}.get(
             str(request_payload.get("clauses_source") or "none"), "无")
         self.log_msg(f"[gpt 通道] 画风 {selected_style_name or '默认'}：说明 {request_payload['style_chars']} 字符、"
