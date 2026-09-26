@@ -389,7 +389,10 @@ def main():
         current = outs[-1]
         current_audit = final_audit
         correction_rounds = []
-        if args.identity_correct:
+        effective_identity_correct = args.identity_correct and not bool(payload.get("skip_identity_refine"))
+        if args.identity_correct and not effective_identity_correct:
+            print("      身份门禁: 当前画风明确允许角色设计变体；仅记录审计，不执行身份回改")
+        if effective_identity_correct:
             for correction_round in range(1, 3):
                 if identity_gate_action(current_audit) != "correct":
                     break

@@ -274,6 +274,7 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                                       extra_clauses=(clauses + generation_clauses) or None,
                                       content_image_path=content_image_path, content_text=content_text)
     skip_quality_refine = bool(entry.get("skip_quality_refine", False)) if isinstance(entry, dict) else False
+    skip_identity_refine = bool(entry.get("skip_identity_refine", False)) if isinstance(entry, dict) else False
     face_hair_refine = bool(entry.get("face_hair_refine", False)) if isinstance(entry, dict) else False
     identity_correction_clauses = ([str(c).strip() for c in
                                     (entry.get("identity_correction_clauses") or [])
@@ -281,6 +282,7 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     post_adjustment = dict(entry.get("post_adjustment") or {}) if isinstance(entry, dict) else {}
     payload.update({"style_name": name, "style_ref_path": ref, "clauses": clauses,
                     "clauses_source": clauses_source, "skip_quality_refine": skip_quality_refine,
+                    "skip_identity_refine": skip_identity_refine,
                     "face_hair_refine": face_hair_refine,
                     "generation_clauses": generation_clauses,
                     "identity_correction_clauses": identity_correction_clauses,

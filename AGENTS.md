@@ -1,6 +1,6 @@
 # Image Maker Agent Guide
 
-> **2026-09-26 当前覆盖说明**：单图分析 GPT GUI 的配方版本为 7，默认使用 gpt-image 通道：Gemini 第一次重绘接收 GPT 首图和完整画风图（`reference_mode=style`、`scope=full`、v5 固件）；重绘提示允许迁移参考图的五官/头发抽象画法，同时锁定身份和固有配色。个别画风可用 `face_hair_refine=true` 再做一次仅五官与头发的画法修订，之后仍走身份审计与最多两轮定点修订；`skip_quality_refine=true` 可保留第一次完整画风重绘。画风条目还可用 `generation_clauses`（只进 GPT 首图）、`identity_correction_clauses`（只进身份修订）和 `post_adjustment`（模型闭环后的确定性色偏/曝光/粗结构线收尾）。修订阶段不再发送画风图，且显式锁定当前图宽高比。日期根目录只发布最终选中图和分析投稿文件；首图、重绘、审计与修订过程放在 `analysis-gpt-image/<单次任务>/`。最终文件名把 8 位 task hash 保留在第一个下划线字段，供 `publish_server.py` 关联投稿 JSON；发布器启动时也会修复旧式文件名的空关联。额外本地工序默认关闭，高级选项默认折叠。画风条目的 `enabled=false` 会保留在管理界面，但从生图与测试列表隐藏。实测见 `docs/gpt-image-tid-style/REFINE-QUALITY-20260925.md`、`STYLE-SWEEP-20260925.md`、`STYLE-FACE-REFINE-20260926.md` 与 `STYLE-SECOND-REFINE-20260926.md`；不能宣称已彻底解决断线或所有身份偏离。
+> **2026-09-26 当前覆盖说明**：单图分析 GPT GUI 的配方版本为 7，默认使用 gpt-image 通道：Gemini 第一次重绘接收 GPT 首图和完整画风图（`reference_mode=style`、`scope=full`、v5 固件）；重绘提示允许迁移参考图的五官/头发抽象画法，同时锁定身份和固有配色。个别画风可用 `face_hair_refine=true` 再做一次仅五官与头发的画法修订，之后仍走身份审计与最多两轮定点修订；`skip_quality_refine=true` 可保留第一次完整画风重绘。明确允许改服装设计或主题配色的画风可设 `skip_identity_refine=true`：仍落盘身份审计，但不让通用身份回改把已授权的设计变化撤销。画风条目还可用 `generation_clauses`（只进 GPT 首图）、`identity_correction_clauses`（只进身份修订）和 `post_adjustment`（模型闭环后的确定性色偏/曝光/粗结构线收尾）。修订阶段不再发送画风图，且显式锁定当前图宽高比。日期根目录只发布最终选中图和分析投稿文件；首图、重绘、审计与修订过程放在 `analysis-gpt-image/<单次任务>/`。最终文件名把 8 位 task hash 保留在第一个下划线字段，供 `publish_server.py` 关联投稿 JSON；发布器启动时也会修复旧式文件名的空关联。额外本地工序默认关闭，高级选项默认折叠。画风条目的 `enabled=false` 会保留在管理界面，但从生图与测试列表隐藏。实测见 `docs/gpt-image-tid-style/REFINE-QUALITY-20260925.md`、`STYLE-SWEEP-20260925.md`、`STYLE-FACE-REFINE-20260926.md`、`STYLE-SECOND-REFINE-20260926.md` 与 `STYLE-THIRD-REFINE-20260926.md`；不能宣称已彻底解决断线或所有身份偏离。
 > **2026-09-25 下午补充**：GPT 首图的内容默认改为 `gpt_image_prompt`（约 1400 字符身份完整锚）；全文会压弱画风图，500 字符短锚可能漏发色/瞳色。画风图再次送 Gemini 即使配“忽略配色”文字仍会泄露角色颜色，因此只用于受控实验。身份审计/修订/重大漂移回退已接入无头实验 CLI，结论见 `docs/gpt-image-tid-style/E2E-GENERALIZATION-20260925.md`。
 
 本文件用于给 Trae/DSH/AI 助手提供项目快速索引。
@@ -51,7 +51,7 @@
     用户 2026-09-24 反馈「最大化之后界面不正常」）。回归用例：`test_window_growth_goes_to_queue_and_log_not_option_rows`。
 - `analysis_pipeline.py`: **无头全链路分析**（Step 1~5 编排 + 投稿格式落地 `save_result_to_source`，CLI 见 `tools/analyze_fashion.py`；`analyze_image_step1` 供批量出图后单步分析）
 - `batch_analyzer.py`: 批量分析
-- `style_analyzer.py`: 多图画风提取；最终审查后额外生成多用途 prompt 包（Gemini 完整/重绘、五官头发、GPT-image 680 字符八字段、不同身份保持与构图场景、负面规则、证据摘要），输出 JSON 的 `prompt_variants`
+- `style_analyzer.py`: 多图画风提取（至少 2 张同画风图；全图共性/对账 → 单图差异 → 可选无旧画风污染的测试生图 → 局部裁剪细化 → 全量终审 → 多用途 Prompt 包）。JSON 的 `prompt_variants.style_entry` 给出可写回画风配置的字段映射，并保留所有轮次 `test_images`；流程、字段与局限见 `docs/style-analyzer-workflow.md`
 - `json_dataset_tab.py`: JSON 数据集导出
 - `pic_cate_tab.py`: 图片分类切分
 

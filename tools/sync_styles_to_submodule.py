@@ -29,7 +29,7 @@ for name, entry in local.items():
         changed.append(name + "(新增)")
         continue
     for field in ("prompt_gpt", "prompt_compressed", "ref_image", "prompt", "repaint_clauses",
-                  "enabled", "skip_quality_refine", "face_hair_refine", "generation_clauses",
+                  "enabled", "skip_quality_refine", "skip_identity_refine", "face_hair_refine", "generation_clauses",
                   "identity_correction_clauses", "post_adjustment"):
         value = entry.get(field)
         if value is not None and target.get(field) != value:

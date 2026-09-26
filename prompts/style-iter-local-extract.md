@@ -13,6 +13,12 @@ Describe HOW things are rendered, NOT what specific content appears. For example
 - CORRECT: "fingers are rendered with long, tapered shapes and simplified knuckle joints"
 - WRONG: "the character is holding a sword"
 
+CRITICAL RULE — Cross-reference evidence:
+- Crops in a batch represent the same region type from different reference images.
+- Report a rule only when it recurs across the batch or clearly agrees with the Current Main Art Style Prompts.
+- A feature seen in only one crop is content or an outlier. Do not promote it into a style rule, even when it is visually prominent.
+- Describe palette relationships and rendering mechanics; never extract a particular character's hair colour, eye colour, garment colour or anatomy as the style.
+
 ANALYSIS APPROACH:
 For each crop type present in this batch, describe the localized rendering style:
 

@@ -2,11 +2,11 @@ import os
 import json
 import random
 import datetime
+import hashlib
 from PIL import Image
 from openai import OpenAI
 from utils.task_runtime import append_log_line, set_task_status
 from utils.prompt_loader import read_prompt_file, find_missing_prompt_files
-from utils.styles import normalize_style_entry
 from utils.image_encoding import compress_and_encode_image
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d
 
@@ -54,7 +54,10 @@ def format_style_prompt_package(master_prompt, variants):
     for title, key in (("GEMINI REPAINT / 重绘条款", "gemini_repaint_clauses"),
                        ("FACE + HAIR / 五官头发条款", "face_hair_clauses"),
                        ("NEGATIVE RULES / 负面规则", "negative_rules")):
-        values = [str(v).strip() for v in (data.get(key) or []) if str(v).strip()]
+        raw_values = data.get(key) or []
+        if isinstance(raw_values, str):
+            raw_values = [raw_values]
+        values = [str(v).strip() for v in raw_values if str(v).strip()]
         if values:
             sections.append((title, "- " + "\n- ".join(values)))
     profiles = data.get("usage_profiles") or {}
@@ -71,6 +74,52 @@ def format_style_prompt_package(master_prompt, variants):
         if lines:
             sections.append(("EVIDENCE / 证据与可变项", "\n".join(lines)))
     return "\n\n".join(f"=== {title} ===\n{text}" for title, text in sections if text)
+
+
+def normalize_style_prompt_package(package, master_prompt):
+    """校验模型返回并附加可直接写入画风配置的字段映射。"""
+    data = dict(package) if isinstance(package, dict) else {}
+
+    def string_list(key, minimum=0, maximum=None):
+        value = data.get(key) or []
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, (list, tuple)):
+            value = []
+        cleaned = [str(item).strip() for item in value if str(item).strip()]
+        if maximum is not None:
+            cleaned = cleaned[:maximum]
+        data[key] = cleaned
+        return cleaned if len(cleaned) >= minimum else []
+
+    gemini_full = str(data.get("gemini_full_prompt") or "").strip() or str(master_prompt or "").strip()
+    data["gemini_full_prompt"] = gemini_full
+    repaint_clauses = string_list("gemini_repaint_clauses", maximum=12)
+    face_hair_clauses = string_list("face_hair_clauses", maximum=8)
+    string_list("negative_rules", maximum=20)
+    if not isinstance(data.get("usage_profiles"), dict):
+        data["usage_profiles"] = {}
+    if not isinstance(data.get("evidence_summary"), dict):
+        data["evidence_summary"] = {}
+
+    from utils.style_gpt import repair_prompt_gpt_lenient, validate_prompt_gpt
+    gpt_prompt = repair_prompt_gpt_lenient(str(data.get("gpt_image_prompt") or ""))
+    ok, errors = validate_prompt_gpt(gpt_prompt)
+    data["gpt_image_prompt"] = gpt_prompt
+    data["gpt_image_prompt_valid"] = bool(ok)
+    data["gpt_image_prompt_errors"] = list(errors)
+    data["master_prompt"] = str(master_prompt or "").strip()
+
+    # 这是提取结果到 app 画风配置的明确映射。无效的 GPT 短版不写入，避免后续链路误用。
+    style_entry = {
+        "prompt": gemini_full,
+        "prompt_gpt": gpt_prompt if ok else "",
+        "repaint_clauses": repaint_clauses,
+        "face_hair_clauses": face_hair_clauses,
+        "enabled": True,
+    }
+    data["style_entry"] = style_entry
+    return data
 
 
 class StyleIterCancelledError(Exception):
@@ -103,6 +152,8 @@ def _crop_image_regions(image_path, output_dir, crop_count=4):
         base_name = os.path.splitext(os.path.basename(image_path))[0]
         # Sanitize base name for file system
         safe_base = "".join(c for c in base_name if c.isalnum() or c in "._- ").strip() or "crop"
+        # 不同目录允许存在同名参考图；路径哈希防止它们在同一次局部分析里互相覆盖。
+        source_hash = hashlib.sha1(os.path.abspath(image_path).encode("utf-8")).hexdigest()[:8]
 
         for region_name, l, t, r, b in used_regions:
             left = int(w * l)
@@ -117,7 +168,7 @@ def _crop_image_regions(image_path, output_dir, crop_count=4):
             crop_img = img.crop((left, top, right, bottom))
 
             # Save to output directory
-            crop_filename = f"{safe_base}_{region_name}.jpg"
+            crop_filename = f"{safe_base}_{source_hash}_{region_name}.jpg"
             crop_path = os.path.join(output_dir, crop_filename)
             crop_img.save(crop_path, "JPEG", quality=95)
             crops.append(crop_path)
@@ -198,10 +249,11 @@ class StyleIterativeWorkerThread(QThread):
             return text
         return text[:limit].rstrip() + f"\n...(truncated, {len(text)} chars total)"
 
-    def _build_state(self, step_count, iterations):
-        return {
+    def _build_state(self, step_count, iterations, previous=None):
+        previous = previous if isinstance(previous, dict) else {}
+        state = {
             "version": "2.0",
-            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "created_at": previous.get("created_at") or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "dataset": {
                 "image_count": len(self.image_paths),
@@ -215,6 +267,11 @@ class StyleIterativeWorkerThread(QThread):
             "final_art_style_prompts": "",
             "file_prefix": self.file_prefix,
         }
+        # 状态会在每一步重建；必须保留非迭代产物，否则下一轮会抹掉测试图和提示词包。
+        for key in ("test_images", "prompt_variants"):
+            if key in previous:
+                state[key] = previous[key]
+        return state
 
     def _save_state(self, state, output_path=None):
         state["updated_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -499,30 +556,40 @@ class StyleIterativeWorkerThread(QThread):
         os.makedirs(crop_dir, exist_ok=True)
 
         # 2) Crop all images
-        all_crops = []
+        crop_groups = {name: [] for name in (
+            "head_hair", "face_closeup", "upper_body", "lower_body", "detail_center")}
         self.log_signal.emit(f"  [Local Refine] 正在裁剪 {len(self.image_paths)} 张参考图...")
         for index, path in enumerate(self.image_paths, start=1):
             self._check_cancel()
             crops = _crop_image_regions(path, crop_dir, crop_count=5)
-            all_crops.extend(crops)
+            for crop_path in crops:
+                for region_name in crop_groups:
+                    if os.path.splitext(crop_path)[0].endswith("_" + region_name):
+                        crop_groups[region_name].append(crop_path)
+                        break
             self.log_signal.emit(f"  [Local Refine] [{index}/{len(self.image_paths)}] {os.path.basename(path)} → {len(crops)} 个局部区域")
 
+        all_crops = [crop for crops in crop_groups.values() for crop in crops]
         if not all_crops:
             self.log_signal.emit("  [Local Refine] 警告：未能生成任何裁剪区域，跳过局部细化。")
             return iterations, current_prompts
 
         self.log_signal.emit(f"  [Local Refine] 共生成 {len(all_crops)} 个局部裁剪区域。")
 
-        # 3) Batch process crops (4-6 per batch)
+        # 3) 按同一区域跨参考图分批。旧逻辑每批恰好是同一张图的五个区域，
+        # 会诱导模型把该角色/服装当画风；现在每批直接比较不同图片的同类区域。
         BATCH_SIZE = 5
+        crop_batches = []
+        for region_name, region_crops in crop_groups.items():
+            for offset in range(0, len(region_crops), BATCH_SIZE):
+                crop_batches.append((region_name, region_crops[offset:offset + BATCH_SIZE]))
         localized_findings = []
-        for batch_idx in range(0, len(all_crops), BATCH_SIZE):
+        for batch_num, (region_name, batch_crops) in enumerate(crop_batches, start=1):
             self._check_cancel()
-            batch_crops = all_crops[batch_idx:batch_idx + BATCH_SIZE]
-            batch_num = batch_idx // BATCH_SIZE + 1
-            total_batches = (len(all_crops) + BATCH_SIZE - 1) // BATCH_SIZE
+            total_batches = len(crop_batches)
 
-            self.log_signal.emit(f"  [Local Refine] 批次 {batch_num}/{total_batches}：正在分析 {len(batch_crops)} 个局部区域...")
+            self.log_signal.emit(
+                f"  [Local Refine] 批次 {batch_num}/{total_batches}：跨图分析 {len(batch_crops)} 个 {region_name} 区域...")
             self.progress_signal.emit(f"局部细化 — 批次 {batch_num}/{total_batches}")
 
             content_list = [{
@@ -531,7 +598,10 @@ class StyleIterativeWorkerThread(QThread):
                     read_prompt_file(STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE).strip() +
                     "\n\nNOTE: These are CROPPED LOCAL REGIONS from reference images. "
                     "Your findings will later be merged into a main art style description. "
-                    "Focus on localized rendering details that may not be visible in full-image views." +
+                    f"All images in this batch are the same region type ({region_name}) from DIFFERENT references. "
+                    "Report a trait only when it recurs across the references; never infer a style rule from one "
+                    "character, colour, garment, object or pose. Focus on localized rendering mechanics that may "
+                    "not be visible in full-image views." +
                     "\n\n=== CURRENT MAIN ART STYLE PROMPTS (REFERENCE ONLY, DO NOT RETYPE) ===\n" +
                     (current_prompts if current_prompts.strip() else "(no main prompts yet — extract from scratch)") +
                     "\n\nReport ONLY localized findings that are NOT already captured in the main prompts above. "
@@ -572,7 +642,7 @@ class StyleIterativeWorkerThread(QThread):
                 continue
 
             findings = str(result_json.get("localized_style_findings", "")).strip()
-            crop_types = str(result_json.get("crop_types_analyzed", "")).strip()
+            crop_types = str(result_json.get("crop_types_analyzed", "")).strip() or region_name
             confidence = result_json.get("confidence", 0.5)
 
             if findings:
@@ -591,6 +661,7 @@ class StyleIterativeWorkerThread(QThread):
                     "round": f"round-{total_rounds}-local-extract-batch-{batch_num}",
                     "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "batch_index": batch_num,
+                    "region_name": region_name,
                     "crop_count": len(batch_crops),
                     "crop_types_analyzed": crop_types,
                     "localized_style_findings": findings,
@@ -777,14 +848,10 @@ class StyleIterativeWorkerThread(QThread):
             return {}
         if not isinstance(package, dict):
             return {}
-        from utils.style_gpt import repair_prompt_gpt_lenient, validate_prompt_gpt
-        gpt_prompt = repair_prompt_gpt_lenient(str(package.get("gpt_image_prompt") or ""))
-        ok, errors = validate_prompt_gpt(gpt_prompt)
-        if gpt_prompt:
-            package["gpt_image_prompt"] = gpt_prompt
-        package["gpt_image_prompt_valid"] = bool(ok)
-        package["gpt_image_prompt_errors"] = list(errors)
-        package["master_prompt"] = current_prompts
+        package = normalize_style_prompt_package(package, current_prompts)
+        gpt_prompt = package["gpt_image_prompt"]
+        ok = package["gpt_image_prompt_valid"]
+        errors = package["gpt_image_prompt_errors"]
         self.log_signal.emit(
             f"[Prompt Pack] 完成：GPT 短版 {len(gpt_prompt)} 字符，"
             f"{'校验通过' if ok else '需人工复核: ' + '; '.join(errors)}。")
@@ -850,7 +917,7 @@ class StyleIterativeWorkerThread(QThread):
             iterations.insert(0, seed_record)
             current_prompts = self.seed_prompts
 
-        state = self._build_state(len(iterations), iterations)
+        state = self._build_state(len(iterations), iterations, self.existing_state)
         prefix = self.file_prefix if self.file_prefix else "style"
         output_path = os.path.join(self.output_dir, f"{prefix}_style_iter_result.json")
 
@@ -867,7 +934,7 @@ class StyleIterativeWorkerThread(QThread):
                 iterations, current_prompts = self._step_commonality_extraction(
                     client, iterations, round_num, current_prompts
                 )
-                state = self._build_state(len(iterations), iterations)
+                state = self._build_state(len(iterations), iterations, state)
                 state["final_art_style_prompts"] = current_prompts
                 self._save_state(state, output_path)
                 self.log_signal.emit(f"  💾 已保存 (step {len(iterations)})")
@@ -884,7 +951,7 @@ class StyleIterativeWorkerThread(QThread):
                     iterations, current_prompts = self._step_refinement_check(
                         client, iterations, round_num, check_idx, image_path, current_prompts
                     )
-                    state = self._build_state(len(iterations), iterations)
+                    state = self._build_state(len(iterations), iterations, state)
                     state["final_art_style_prompts"] = current_prompts
                     self._save_state(state, output_path)
                     self.log_signal.emit(f"  💾 已保存 (step {len(iterations)})")
@@ -910,7 +977,7 @@ class StyleIterativeWorkerThread(QThread):
             iterations, current_prompts = self._step_local_refinement(
                 client, iterations, current_prompts, self.total_rounds
             )
-            state = self._build_state(len(iterations), iterations)
+            state = self._build_state(len(iterations), iterations, state)
             state["final_art_style_prompts"] = current_prompts
             self._save_state(state, output_path)
             self.log_signal.emit(f"  💾 局部细化结果已保存 (step {len(iterations)})")
@@ -919,7 +986,7 @@ class StyleIterativeWorkerThread(QThread):
             iterations, current_prompts = self._step_final_review(
                 client, iterations, current_prompts, self.total_rounds
             )
-            state = self._build_state(len(iterations), iterations)
+            state = self._build_state(len(iterations), iterations, state)
             state["final_art_style_prompts"] = current_prompts
             self._save_state(state, output_path)
             self.log_signal.emit(f"  💾 最终审查结果已保存 (step {len(iterations)})")
@@ -939,7 +1006,7 @@ class StyleIterativeWorkerThread(QThread):
         except StyleIterCancelledError:
             self.log_signal.emit("🛑 已取消多轮迭代画风提取任务。")
             if iterations:
-                state = self._build_state(len(iterations), iterations)
+                state = self._build_state(len(iterations), iterations, state)
                 state["final_art_style_prompts"] = self._get_current_prompts(iterations)
                 try:
                     self._save_state(state, output_path)
@@ -950,7 +1017,7 @@ class StyleIterativeWorkerThread(QThread):
         except Exception as e:
             self.log_signal.emit(f"❌ 多轮迭代发生错误: {e}")
             if iterations:
-                state = self._build_state(len(iterations), iterations)
+                state = self._build_state(len(iterations), iterations, state)
                 state["final_art_style_prompts"] = self._get_current_prompts(iterations)
                 try:
                     self._save_state(state, output_path)
@@ -1401,11 +1468,16 @@ class StyleAnalyzerWidget(QWidget):
             return
 
         if not image_paths and not self._loaded_image_paths:
-            QMessageBox.information(self, "提示", "请至少添加一张图片。")
+            QMessageBox.information(self, "提示", "请至少添加两张同画风图片。")
             return
 
         # Use loaded paths if image list is empty but we have loaded state
         effective_paths = image_paths if image_paths else self._loaded_image_paths
+        if len(effective_paths) < 2:
+            QMessageBox.warning(
+                self, "参考图不足",
+                "多图共性提取至少需要两张同画风参考图；单张图片无法区分画风共性与角色、服装或场景内容。")
+            return
 
         total_rounds = self.total_rounds_spin.value()
         images_per_round = self.images_per_round_spin.value()
@@ -1456,12 +1528,9 @@ class StyleAnalyzerWidget(QWidget):
                     # (base_url, api_key, model_name, api_type)
                     img_api_type = str(img_cfg[3] or "").strip()
                     img_model_name = str(img_cfg[2] or "").strip()
-            if self.get_styles:
-                styles_data = self.get_styles()
-                # Use the first style's instructions or empty string
-                if styles_data:
-                    first_entry = next(iter(styles_data.values()), "")
-                    img_instructions = str(normalize_style_entry(first_entry)["prompt"] or "").strip()
+            # 测试图只验证本轮提取出的 current_prompts。不得混入配置列表中第一个旧画风，
+            # 否则测试结果是在评估两个画风的叠加，无法反映新提取结果是否准确。
+            img_instructions = ""
             if not img_model_name:
                 self.log_msg("⚠️ 未从图片配置中读取到模型名，测试生图将回落到 API 默认模型。")
 

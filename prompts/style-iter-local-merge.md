@@ -17,7 +17,8 @@ MERGE GUIDELINES:
 6. The result should feel like a seamless, enriched version of the original — not a patchwork
 
 CRITICAL:
-- These localized findings come from CLOSE-UP crops and may contain finer detail than what was visible in the full images. Prioritize this finer detail where applicable.
+- These localized findings come from same-region, cross-reference CLOSE-UP comparisons and may contain finer detail than what was visible in the full images. Use the finer geometry where it has cross-reference support, but never let a single batch override a high-confidence full-dataset invariant.
+- Reject any localized statement that encodes a specific hair/eye/garment colour, identity, pose, prop or scene, even if an extraction batch accidentally reported it.
 - Maintain the "artistic style only" rule — describe HOW things are rendered, not WHAT is depicted.
 
 Return your response as a JSON object:

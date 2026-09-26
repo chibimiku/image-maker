@@ -1439,7 +1439,11 @@ class GptImageGenWorkerThread(QThread):
                 audit = audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt)
                 with open(os.path.join(audit_dir, "identity-audit-0.json"), "w", encoding="utf-8") as f:
                     _json.dump(audit, f, ensure_ascii=False, indent=2)
-                for correction_round in range(1, 3):
+                skip_identity_refine = bool(self.request_payload.get("skip_identity_refine"))
+                if skip_identity_refine:
+                    self.log_signal.emit(
+                        "[身份门禁] 当前画风明确允许角色设计变体；仅记录审计，不执行身份回改。")
+                for correction_round in (() if skip_identity_refine else range(1, 3)):
                     action = identity_gate_action(audit)
                     if action != "correct":
                         if action == "review":

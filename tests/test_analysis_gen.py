@@ -183,6 +183,16 @@ def test_build_first_pass_request_carries_style_quality_refine_override(tmp_path
         "skip_quality_refine"] is False
 
 
+def test_build_first_pass_request_carries_identity_refine_override(tmp_path):
+    ref = _ref(tmp_path)
+    styles = {"transform": {"prompt_gpt": "Palette: dark blue", "ref_image": str(ref),
+                            "skip_identity_refine": True}}
+    req = ag.build_first_pass_request(styles, "transform", {"gpt_image_prompt": "content"})
+    assert req["skip_identity_refine"] is True
+    assert ag.build_first_pass_request({}, "", {"gpt_image_prompt": "content"})[
+        "skip_identity_refine"] is False
+
+
 def test_build_first_pass_request_carries_face_hair_refine_override(tmp_path):
     ref = _ref(tmp_path)
     styles = {"puracotte": {"prompt_gpt": "Palette: lavender", "ref_image": str(ref),
