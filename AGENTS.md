@@ -162,6 +162,7 @@
 - `fashion-pipeline-strategy.md` / `fashion-theme-spec-template.md` / `publish_server_api.md` / `pyqt6-migration-checklist.md`: 既有文档
 - `gpt-image-optimize/`: **gpt-image 产物优化的理论与全部实验数据**（`README.md` 总纲 + `metrics.md` 指标定义与已知偏差 + 四个批次实验 `experiments-A/B/C/D-*.md` + `FINAL-PROMPT.md` 固件快照 + `data/` 指标原始表与各版 prompt 全文 + `tools/` 分析脚本快照）。**要改重绘 prompt 或调指标口径，先读这里。**
 - `gpt-image-tid-style/`: **gpt-image 系列上的「画风生图」可行性实验（tid 画风；22 + 12 + 8 次无头 CLI 实测 + 44 张产物 + CLIP/HSV 指标 + 官方文档快照 + 一次 `gpt-5.6-luna` 审阅并逐条复验）**。
+  - **2026-09-26 多图提取补充**：`kishida-mel-5round-20260926.html`、`sakurapion-5round-20260926.html` 是两组 12 图 × 5 轮 × 三通道实测；`repaint-content-anchor-research-20260926.html` 记录完整画风图重绘发生角色/服装/场景泄露后的补救。当前证据支持：坏重绘图只提供画法，另用同轮 Gemini 直接图提供内容真值，再做一次双图修订；只有线条指标不能判定身份正确。该补救增加一次图片调用并可能减弱画风，适合作为泄露后的条件工序。
   - **要用法先看 `BEST-PROMPT.md`：当前最优 = 结构化风格字段（Palette / Lighting / Brushwork / Edges / Texture / Composition density / Detail level / Avoid，约 250 字）+ tid 参考图 + `medium`**。实测 HSV 0.644、亮度 238.8、饱和 13.3、白底 0.686、边缘密度 0.0364（参考图 221.5 / 25.0 / 0.667 / 0.0663），且不复制参考图角色特征。备选是「角色分工版」（弱一些但不搬主体）。
   - 结论：`prompt` 上限是官方文档的 **32000 字符**，实测 11k~40k 全都能出图（**「前置词太长导致无法生图」不成立**）；长提示词真正的代价是**参考图失效**（真实提示词验证均值：短说明 0.390 / 全量+图 0.247 / 全量纯文本 0.119 的配色贴合度）；主体崩不崩取决于主体描述自身够不够硬——「少女站在浅水」这种稀疏主体在 11k 全量指令下被画成水下精灵，而自带大量细节的洛可可肖像不崩。
   - **`quality` 别默认 `high`**：同 prompt 下 `high` 把白底占比从 0.439 压到 0.222、边缘密度 0.0722→0.0934，细节变多留白变少，水彩感反而变差；默认 `medium`、`output_format=png`、`background` 保持不透明。

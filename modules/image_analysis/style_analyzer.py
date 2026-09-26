@@ -130,11 +130,13 @@ def normalize_style_prompt_package(package, master_prompt):
     data["master_prompt"] = str(master_prompt or "").strip()
 
     # 这是提取结果到 app 画风配置的明确映射。无效的 GPT 短版不写入，避免后续链路误用。
+    # face_hair_clauses stays in the analysis package for manual review. Runtime
+    # config exposes only the separately reviewed boolean face_hair_refine switch;
+    # do not make a freshly extracted package opt into an extra paid pass.
     style_entry = {
         "prompt": gemini_full,
         "prompt_gpt": gpt_prompt if ok else "",
         "repaint_clauses": repaint_clauses,
-        "face_hair_clauses": face_hair_clauses,
         "enabled": True,
     }
     if optional_motifs:

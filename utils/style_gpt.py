@@ -58,15 +58,18 @@ MAX_FIELD_CHARS = 160
 SUBJECT_BAN_WORDS = (
     "girl", "boy", "woman", "man", "character", "hairstyle", "eyelash", "eyelashes",
     "pose", "outfit", "costume", "dress", "skirt", "braid", "ponytail",
-    "smile", "blush", "portrait", " she ", " her ", " he ", " his ",
+    "smile", "portrait", " she ", " her ", " he ", " his ",
     "少女", "女孩", "角色", "人物", "发色", "瞳色", "表情", "姿势", "服装", "连衣裙",
 )
 SUBJECT_BAN_PATTERNS = (
-    r"\bhair\b",
-    r"\beyes?\b",
-    r"\biris(es)?\b",
     r"\beye\s+colou?r\b",
     r"\bhair\s+colou?r\b",
+    # hair / eyes / iris / blush are legitimate rendering vocabulary (edge hierarchy,
+    # highlight design, local colour handling). Reject them only when they describe a
+    # concrete sampled subject rather than how the image is drawn.
+    r"\b(?:black|blue|brown|blonde|blond|green|grey|gray|orange|pink|purple|red|silver|violet|white)\s+hair\b",
+    r"\b(?:black|blue|brown|cyan|green|grey|gray|orange|pink|purple|red|silver|violet)\s+eyes?\b",
+    r"\b(?:long|short|waist-length|shoulder-length|twin-tailed|straight|curly|wavy)\s+hair\b",
 )
 FIELD_LINE_RE = re.compile(rf"^\s*({'|'.join(re.escape(k) for k in FIELD_KEYS)})\s*[:：]\s*(.+?)\s*$")
 ANY_FIELD_RE = re.compile(r"^\s*([A-Za-z][A-Za-z /-]{2,24})\s*[:：]\s*(.+?)\s*$")

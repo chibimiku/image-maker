@@ -50,7 +50,6 @@ def test_normalize_prompt_package_builds_app_ready_style_entry():
         "prompt": "FULL GEMINI",
         "prompt_gpt": package["gpt_image_prompt"],
         "repaint_clauses": ["Keep primary contours continuous."],
-        "face_hair_clauses": ["Use grouped locks."],
         "motif_clauses": ["Sparse butterflies at the frame edge."],
         "motif_enabled": True,
         "enabled": True,
@@ -62,6 +61,36 @@ def test_normalize_prompt_package_does_not_export_invalid_gpt_prompt():
     assert package["gpt_image_prompt_valid"] is False
     assert package["style_entry"]["prompt_gpt"] == ""
     assert package["style_entry"]["prompt"] == "MASTER"
+
+
+def test_normalize_prompt_package_allows_style_rendering_terms_for_face_and_hair():
+    package = normalize_style_prompt_package({
+        "gpt_image_prompt": (
+            "Palette: luminous warm-cool harmony with translucent blush\n"
+            "Lighting: soft directional light with coloured bounce\n"
+            "Brushwork: grouped hair masses and clean iris gradients\n"
+            "Edges: tapered coloured contours around eyes and focal forms\n"
+            "Texture: controlled pigment pooling and smooth skin planes\n"
+            "Composition density: balanced negative space\n"
+            "Detail level: organized catchlights and selective strands\n"
+            "Avoid: copied identity and noisy micro-detail"
+        )
+    }, "MASTER")
+    assert package["gpt_image_prompt_valid"] is True
+    assert package["style_entry"]["prompt_gpt"]
+
+
+def test_normalize_prompt_package_rejects_specific_sampled_hair_and_eye_colours():
+    package = normalize_style_prompt_package({
+        "gpt_image_prompt": (
+            "Palette: blue hair and violet eyes\nLighting: soft side light\n"
+            "Brushwork: layered opaque strokes\nEdges: tapered coloured contours\n"
+            "Texture: fine paper grain\nComposition density: balanced negative space\n"
+            "Detail level: selective focal detail\nAvoid: global haze"
+        )
+    }, "MASTER")
+    assert package["gpt_image_prompt_valid"] is False
+    assert package["style_entry"]["prompt_gpt"] == ""
 
 
 def test_state_rebuild_preserves_test_images_prompt_pack_and_created_at(tmp_path):
