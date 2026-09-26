@@ -70,6 +70,7 @@ def normalize_style_entry(entry):
     """
     if isinstance(entry, str):
         return {"prompt": entry, "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
+                "prompt_gemini": "",
                 "enabled": True, "motif_clauses": [], "motif_enabled": False,
                 "proportion_clauses": []}
     if isinstance(entry, dict):
@@ -77,11 +78,13 @@ def normalize_style_entry(entry):
         ref = entry.get("ref_image") or entry.get("ref_image_path") or entry.get("image") or ""
         compressed = entry.get("prompt_compressed") or entry.get("compressed") or ""
         gpt_prompt = entry.get("prompt_gpt") or entry.get("prompt_short") or entry.get("gpt_prompt") or ""
+        gemini_prompt = entry.get("prompt_gemini") or ""
         return {
             "prompt": str(prompt),
             "ref_image": str(ref or ""),
             "prompt_compressed": str(compressed or ""),
             "prompt_gpt": str(gpt_prompt or ""),
+            "prompt_gemini": str(gemini_prompt or ""),
             "enabled": entry.get("enabled", True) is not False,
             "motif_clauses": [str(v).strip() for v in (entry.get("motif_clauses") or [])
                               if str(v).strip()][:4],
@@ -90,6 +93,7 @@ def normalize_style_entry(entry):
                                    if str(v).strip()][:4],
         }
     return {"prompt": "", "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
+            "prompt_gemini": "",
             "enabled": True, "motif_clauses": [], "motif_enabled": False,
             "proportion_clauses": []}
 
@@ -333,10 +337,13 @@ def build_ref_gen_params(styles, style_name, mode, api_type=""):
     entry = normalize_style_entry((styles or {}).get(style_name))
     motif = style_motif_prompt(styles or {}, style_name)
     proportion = proportion_prompt_from_clauses(entry["proportion_clauses"])
-    # 参考优先在 Gemini 也使用结构化短版 prompt_gpt：其八字段比 1k~3k 的旧压缩说明
-    # 更不容易压过图片，并让同一画风在 Gemini 直出与 GPT 首图之间使用一致的目标。
+    # `prompt_gpt` 是默认的短字段规格。个别画风若验证出它会丢失作者辨识度，可配置
+    # `prompt_gemini` 补回脸、眼睛、头发与线条语法；未配置的画风保持既有行为，避免
+    # 一次实验把全部 style 切回历史长说明。
     use_structured = _is_gpt_image_api(api_type) or mode == MODE_PRIORITY
-    prompt_gpt = ("\n\n".join(v for v in (entry["prompt_gpt"], proportion) if v)
+    structured_base = (entry["prompt_gpt"] if _is_gpt_image_api(api_type)
+                       else (entry["prompt_gemini"] or entry["prompt_gpt"]))
+    prompt_gpt = ("\n\n".join(v for v in (structured_base, proportion) if v)
                   if use_structured else "")
     style_text = "\n\n".join(v for v in (entry["prompt"], motif, proportion) if v)
     compressed = "\n\n".join(v for v in (entry["prompt_compressed"], motif, proportion) if v)

@@ -28,7 +28,7 @@ for name, entry in local.items():
         sub[name] = entry
         changed.append(name + "(新增)")
         continue
-    for field in ("prompt_gpt", "prompt_compressed", "ref_image", "prompt", "repaint_clauses",
+    for field in ("prompt_gpt", "prompt_gemini", "prompt_compressed", "ref_image", "prompt", "repaint_clauses",
                   "enabled", "skip_quality_refine", "skip_identity_refine", "face_hair_refine", "generation_clauses",
                   "identity_correction_clauses", "post_adjustment", "motif_clauses", "motif_enabled",
                   "repaint_reference_mode", "skip_repaint", "gemini_content_field",

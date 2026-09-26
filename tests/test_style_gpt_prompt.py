@@ -65,9 +65,10 @@ def test_api_type_detection():
 
 
 def test_normalize_style_entry_reads_prompt_gpt():
-    entry = normalize_style_entry({"prompt": "full", "prompt_gpt": "short"})
+    entry = normalize_style_entry({"prompt": "full", "prompt_gpt": "short", "prompt_gemini": "gemini"})
     assert entry["prompt"] == "full"
     assert entry["prompt_gpt"] == "short"
+    assert entry["prompt_gemini"] == "gemini"
     # 别名与旧格式
     assert normalize_style_entry({"prompt": "x", "prompt_short": "y"})["prompt_gpt"] == "y"
     assert normalize_style_entry("just a string")["prompt_gpt"] == ""
@@ -240,7 +241,7 @@ def test_reference_priority_brackets_image_with_concise_instructions(tmp_path):
     assert refs == [str(ref)]
 
 
-def test_gemini_reference_priority_prefers_same_structured_style_as_gpt(tmp_path):
+def test_gemini_reference_priority_keeps_character_style_identity_anchor(tmp_path):
     ref = tmp_path / "style.png"
     ref.write_bytes(b"fake")
     styles = {"style": {"prompt": "FULL", "prompt_compressed": "LEGACY COMPRESSED",
@@ -249,6 +250,18 @@ def test_gemini_reference_priority_prefers_same_structured_style_as_gpt(tmp_path
     assert GOOD_TEXT in head
     assert "LEGACY COMPRESSED" not in head
     assert "multi-panel design" in post
+
+
+def test_gemini_reference_priority_prefers_dedicated_gemini_anchor(tmp_path):
+    ref = tmp_path / "style.png"
+    ref.write_bytes(b"fake")
+    styles = {"style": {"prompt": "FULL", "prompt_compressed": "LEGACY COMPRESSED",
+                         "prompt_gpt": GOOD_TEXT, "prompt_gemini": "FACE EYES HAIR ANCHOR",
+                         "ref_image": str(ref)}}
+    head, _post, _refs = build_ref_gen_params(styles, "style", "priority", api_type="aigc2d")
+    assert "FACE EYES HAIR ANCHOR" in head
+    assert "LEGACY COMPRESSED" not in head
+    assert GOOD_TEXT not in head
 
 
 def test_conversion_prompts_mention_8_fields():
