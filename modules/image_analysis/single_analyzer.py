@@ -3464,6 +3464,16 @@ class SingleAnalyzerWidget(QWidget):
                      f"渲染条款 {len(style_clauses)} 条（{_clause_note}）")
 
         steps = self._build_gpt_image_steps()
+        if bool(request_payload.get("skip_repaint")) and (steps.get("repaint") or {}).get("enabled"):
+            steps["repaint"]["enabled"] = False
+            self.log_msg("[gpt 通道] 此画风以 GPT 首图作为最终图，已跳过容易触发参考泄露或上游拦截的 Gemini 重绘")
+        # 画风可单独指定 Gemini 重绘是否再次读取画风图。衣装/主题变换类预设的参考图
+        # 含有强角色与道具信息；首图需要它来学习衣装，但重绘再次发送会复制参考角色。
+        repaint_reference_mode = str(request_payload.get("repaint_reference_mode") or "style")
+        if (steps.get("repaint") or {}).get("enabled"):
+            steps["repaint"]["reference_mode"] = repaint_reference_mode
+            if repaint_reference_mode == "none" and ref:
+                self.log_msg("[gpt 通道] 此画风重绘采用 source-only，画风图仅用于 GPT 首图，避免参考角色泄露")
         enabled_steps = [k for k, v in steps.items() if (v or {}).get("enabled")]
         # 超时按「一道工序一份」算：首图 + 每道工序各给一份（用户要求：不要总体 120s 掐掉整条链）
         step_timeout = int(timeout_seconds or 120)

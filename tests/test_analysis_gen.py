@@ -201,6 +201,23 @@ def test_build_first_pass_request_carries_face_hair_refine_override(tmp_path):
     assert req["face_hair_refine"] is True
 
 
+def test_build_first_pass_request_carries_repaint_reference_mode(tmp_path):
+    ref = _ref(tmp_path)
+    styles = {"wardrobe": {"prompt_gpt": "Palette: ivory", "ref_image": str(ref),
+                            "repaint_reference_mode": "none"}}
+    req = ag.build_first_pass_request(styles, "wardrobe", {"gpt_image_prompt": "adult subject"})
+    assert req["repaint_reference_mode"] == "none"
+    assert ag.build_first_pass_request({}, "", {"gpt_image_prompt": "content"})[
+        "repaint_reference_mode"] == "style"
+
+
+def test_build_first_pass_request_carries_skip_repaint(tmp_path):
+    styles = {"wardrobe": {"prompt_gpt": "Palette: ivory", "skip_repaint": True}}
+    req = ag.build_first_pass_request(styles, "wardrobe", {"gpt_image_prompt": "adult subject"})
+    assert req["skip_repaint"] is True
+    assert ag.build_first_pass_request({}, "", {"gpt_image_prompt": "content"})["skip_repaint"] is False
+
+
 def test_build_first_pass_request_separates_generation_and_repaint_clauses(tmp_path):
     ref = _ref(tmp_path)
     styles = {"chibi": {"prompt_gpt": "Palette: slate blue", "ref_image": str(ref),

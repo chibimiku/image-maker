@@ -277,7 +277,12 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                                       content_image_path=content_image_path, content_text=content_text)
     skip_quality_refine = bool(entry.get("skip_quality_refine", False)) if isinstance(entry, dict) else False
     skip_identity_refine = bool(entry.get("skip_identity_refine", False)) if isinstance(entry, dict) else False
+    skip_repaint = bool(entry.get("skip_repaint", False)) if isinstance(entry, dict) else False
     face_hair_refine = bool(entry.get("face_hair_refine", False)) if isinstance(entry, dict) else False
+    repaint_reference_mode = (str(entry.get("repaint_reference_mode") or "style").strip().lower()
+                              if isinstance(entry, dict) else "style")
+    if repaint_reference_mode not in {"style", "none"}:
+        repaint_reference_mode = "style"
     identity_correction_clauses = ([str(c).strip() for c in
                                     (entry.get("identity_correction_clauses") or [])
                                     if str(c).strip()] if isinstance(entry, dict) else [])
@@ -286,7 +291,9 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                     "motif_prompt": motif_prompt,
                     "clauses_source": clauses_source, "skip_quality_refine": skip_quality_refine,
                     "skip_identity_refine": skip_identity_refine,
+                    "skip_repaint": skip_repaint,
                     "face_hair_refine": face_hair_refine,
+                    "repaint_reference_mode": repaint_reference_mode,
                     "generation_clauses": generation_clauses,
                     "identity_correction_clauses": identity_correction_clauses,
                     "post_adjustment": post_adjustment,

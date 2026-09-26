@@ -193,6 +193,28 @@ def test_gpt_channel_falls_back_to_analysis_json_description(analyzer, tmp_path)
     assert "sentence." in payload["prompt"]
 
 
+def test_gpt_channel_honors_style_source_only_repaint(analyzer, tmp_path):
+    styles = {"wardrobe": {
+        "prompt_gpt": "Palette: ivory",
+        "ref_image": os.path.join(BASE, "data", "style-ref", "tid.png"),
+        "repaint_reference_mode": "none",
+    }}
+    payload, kwargs = _first_pass_payload(analyzer, tmp_path, styles, "wardrobe")
+    assert payload["repaint_reference_mode"] == "none"
+    assert kwargs["steps"]["repaint"]["reference_mode"] == "none"
+
+
+def test_gpt_channel_style_can_skip_repaint(analyzer, tmp_path):
+    styles = {"wardrobe": {
+        "prompt_gpt": "Palette: ivory",
+        "ref_image": os.path.join(BASE, "data", "style-ref", "tid.png"),
+        "skip_repaint": True,
+    }}
+    payload, kwargs = _first_pass_payload(analyzer, tmp_path, styles, "wardrobe")
+    assert payload["skip_repaint"] is True
+    assert kwargs["steps"]["repaint"]["enabled"] is False
+
+
 def test_gpt_channel_local_step_is_2k_without_detail_boost(analyzer):
     """局部重绘统一 2K（不把细节区升 4K），并把每道工序的超时预算算给运行时。"""
     analyzer.gen_channel_gpt.setChecked(True)
