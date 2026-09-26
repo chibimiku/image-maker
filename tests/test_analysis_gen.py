@@ -218,6 +218,18 @@ def test_build_first_pass_request_carries_skip_repaint(tmp_path):
     assert ag.build_first_pass_request({}, "", {"gpt_image_prompt": "content"})["skip_repaint"] is False
 
 
+def test_gemini_reference_content_can_use_pure_content_anchor(tmp_path):
+    import json
+    result = tmp_path / "analysis.json"
+    result.write_text(json.dumps({"gpt_image_prompt": "PURE CONTENT ANCHOR"}), encoding="utf-8")
+    entry = {"gemini_content_field": "gpt_image_prompt"}
+    content, field = ag.resolve_gemini_reference_content(
+        entry, {"analysis_json_path": str(result)}, "LONG STYLE-LIKE DESCRIPTION", "priority")
+    assert content == "PURE CONTENT ANCHOR" and field == "gpt_image_prompt"
+    assert ag.resolve_gemini_reference_content(entry, {"analysis_json_path": str(result)},
+                                                "fallback", "head") == ("fallback", "")
+
+
 def test_build_first_pass_request_separates_generation_and_repaint_clauses(tmp_path):
     ref = _ref(tmp_path)
     styles = {"chibi": {"prompt_gpt": "Palette: slate blue", "ref_image": str(ref),

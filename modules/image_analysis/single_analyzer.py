@@ -3578,6 +3578,14 @@ class SingleAnalyzerWidget(QWidget):
         active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
             styles_data, selected_style_name, active_mode
         )
+        from utils.analysis_gen import resolve_gemini_reference_content
+        style_entry = (styles_data or {}).get(selected_style_name)
+        if not self._gpt_image_channel_active():
+            anchored_prompt, anchor_field = resolve_gemini_reference_content(
+                style_entry, prompt_context, prompt_to_use, active_mode)
+            if anchor_field:
+                prompt_to_use = f"{anchored_prompt}, {_face_quality_suffix}"
+                self.log_msg(f"[Gemini 画风] 内容改用 {anchor_field} 纯内容锚，避免长描述里的渲染词压过画风参考图")
         
         self.gen_orig_btn.setEnabled(False)
         self.gen_ref_btn.setEnabled(False)

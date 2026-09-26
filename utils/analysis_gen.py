@@ -311,6 +311,32 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     return payload
 
 
+def resolve_gemini_reference_content(style_entry, prompt_context, fallback: str,
+                                     active_mode: str = "") -> tuple[str, str]:
+    """参考优先 Gemini 可改用分析产物里的纯内容锚，避免长描述中的渲染词压过画风图。
+
+    这是画风条目显式开启的能力；普通画风与非参考优先模式继续使用用户所选的原始/优化描述。
+    返回 ``(content, field)``，未替换时 field 为空。
+    """
+    if str(active_mode or "") != "priority" or not isinstance(style_entry, dict):
+        return str(fallback or ""), ""
+    field = str(style_entry.get("gemini_content_field") or "").strip()
+    allowed = {"gpt_image_prompt", "gpt_image_prompt_short", "short_description", "english_description"}
+    if field not in allowed:
+        return str(fallback or ""), ""
+    json_path = str((prompt_context or {}).get("analysis_json_path") or "").strip()
+    if not json_path or not os.path.isfile(json_path):
+        return str(fallback or ""), ""
+    try:
+        import json
+        with open(json_path, encoding="utf-8") as f:
+            result = json.load(f) or {}
+        content = str(result.get(field) or "").strip()
+    except Exception:  # noqa: BLE001 - GUI 生成路径需安全回退到原提示词
+        content = ""
+    return (content, field) if content else (str(fallback or ""), "")
+
+
 def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, local: bool = False,
                               structure_strength: float = 0.5, local_region: str = "hair",
                               local_feather: int = 48, resolution: str = "2K",
