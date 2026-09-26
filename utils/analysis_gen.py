@@ -76,7 +76,15 @@ def publish_final_output(source_path: str, *, style_name: str = "", process_dir:
     stem, ext = os.path.splitext(source_name)
     if "final" not in stem.lower():
         stem += "-final"
-    if style and not stem.lower().startswith(style.lower() + "-"):
+    # publish_server 以分析任务的 8 位 hash 关联同目录 JSON。过程图通常以该 hash
+    # 开头；发布时必须继续把它保留在第一个下划线字段，不能让画风名挡在前面。
+    task_hash = ""
+    hash_match = re.match(r"^([0-9a-fA-F]{8})(?=[^0-9a-fA-F]|$)", stem)
+    if hash_match:
+        task_hash = hash_match.group(1).lower()
+        remainder = stem[len(hash_match.group(1)):].lstrip("-_")
+        stem = task_hash + "_" + (f"{style}-" if style else "") + remainder
+    elif style and not stem.lower().startswith(style.lower() + "-"):
         stem = f"{style}-{stem}"
     target_dir, filename = output_isolation.resolve_output_target(raw_final_dir, stem + ext)
     os.makedirs(target_dir, exist_ok=True)
@@ -118,6 +126,49 @@ def run_face_hair_style_refine(image_path: str, style_ref_path: str, *, style_cl
         save_sub_dir=output_dir or os.path.dirname(os.path.abspath(image_path)),
         file_prefix=file_prefix,
     ) or []
+
+
+def apply_style_post_adjustment(image_path: str, settings: dict, *, output_dir: str = "",
+                                file_prefix: str = "style-adjusted") -> str:
+    """画风专用的确定性收尾：色偏/曝光校正、长结构线加粗与加墨，不再调用模型。"""
+    if not image_path or not os.path.isfile(image_path) or not isinstance(settings, dict):
+        return ""
+    import numpy as np
+    from utils import post_process as pp
+
+    image = pp.imread(image_path)
+    if image is None:
+        return ""
+    gains = settings.get("channel_gains") or {}
+    if isinstance(gains, dict) and gains:
+        factors = np.array([float(gains.get("blue", 1.0)), float(gains.get("green", 1.0)),
+                            float(gains.get("red", 1.0))], np.float32)
+        image = np.clip(image.astype(np.float32) * factors.reshape(1, 1, 3), 0, 255).astype(np.uint8)
+    contrast = float(settings.get("contrast", 1.0) or 1.0)
+    brightness = float(settings.get("brightness_scale", 1.0) or 1.0)
+    if abs(contrast - 1.0) > 1e-3 or abs(brightness - 1.0) > 1e-3:
+        image = np.clip(((image.astype(np.float32) - 127.5) * contrast + 127.5) * brightness,
+                        0, 255).astype(np.uint8)
+    structure = settings.get("structure") or {}
+    if isinstance(structure, dict) and structure.get("enabled"):
+        image, _ = pp.overlay_structure_lines(
+            image, image, strength=float(structure.get("strength", 0.8)),
+            min_len=int(structure.get("min_len", 90)), darken=float(structure.get("darken", 0.55)),
+            thin=bool(structure.get("thin", False)),
+            detail_dampen=float(structure.get("detail_dampen", 0.3)),
+            dilate=int(structure.get("dilate", 0)))
+    ink = settings.get("ink") or {}
+    if isinstance(ink, dict) and ink.get("enabled"):
+        image = pp.ink_lines(
+            image, target_sep=float(ink.get("target_sep", 18.0)),
+            amount=float(ink.get("amount", 1.1)), min_len=int(ink.get("min_len", 80)),
+            close_iter=int(ink.get("close_iter", 3)), max_darken=float(ink.get("max_darken", 50.0)))
+    out_dir = output_dir or os.path.dirname(os.path.abspath(image_path))
+    os.makedirs(out_dir, exist_ok=True)
+    ext = os.path.splitext(image_path)[1].lower() or ".png"
+    out_path = os.path.join(out_dir, f"{file_prefix}{ext}")
+    pp.imwrite(out_path, image)
+    return out_path
 
 
 def resolve_content_text(analysis_result: dict, tier: str = "short") -> str:
@@ -216,14 +267,24 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     ref = style_ref_image(styles_data or {}, name) if name else ""
     ref = str(ref or "") if ref_image_valid(ref) else ""
     clauses, clauses_source = resolve_style_clauses(entry)
+    generation_clauses = ([str(c).strip() for c in (entry.get("generation_clauses") or [])
+                           if str(c).strip()] if isinstance(entry, dict) else [])
     payload = build_gpt_image_request(analysis_result, style_text=style_text, style_ref_path=ref,
-                                      user_hint=user_hint, tier=tier, extra_clauses=clauses or None,
+                                      user_hint=user_hint, tier=tier,
+                                      extra_clauses=(clauses + generation_clauses) or None,
                                       content_image_path=content_image_path, content_text=content_text)
     skip_quality_refine = bool(entry.get("skip_quality_refine", False)) if isinstance(entry, dict) else False
     face_hair_refine = bool(entry.get("face_hair_refine", False)) if isinstance(entry, dict) else False
+    identity_correction_clauses = ([str(c).strip() for c in
+                                    (entry.get("identity_correction_clauses") or [])
+                                    if str(c).strip()] if isinstance(entry, dict) else [])
+    post_adjustment = dict(entry.get("post_adjustment") or {}) if isinstance(entry, dict) else {}
     payload.update({"style_name": name, "style_ref_path": ref, "clauses": clauses,
                     "clauses_source": clauses_source, "skip_quality_refine": skip_quality_refine,
                     "face_hair_refine": face_hair_refine,
+                    "generation_clauses": generation_clauses,
+                    "identity_correction_clauses": identity_correction_clauses,
+                    "post_adjustment": post_adjustment,
                     "api_type": str(api_type or "")})
     if prompt_recipe == "reference" and ref and not content_image_path:
         from utils.prompt_loader import render_prompt_file
@@ -231,8 +292,9 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
         payload["prompt"] = render_prompt_file("analysis-style-reference.md", {
             "style_text": style_text, "content_text": content, "user_hint": user_hint or "None."})
         # Only genuinely authored additions are retained; derived clauses duplicate the eight fields.
-        if clauses_source == "entry" and clauses:
-            payload["prompt"] += "\n\nRENDERING LANGUAGE:\n- " + "\n- ".join(clauses)
+        reference_clauses = clauses + generation_clauses
+        if reference_clauses:
+            payload["prompt"] += "\n\nRENDERING LANGUAGE:\n- " + "\n- ".join(reference_clauses)
     payload["prompt_recipe"] = prompt_recipe
     return payload
 

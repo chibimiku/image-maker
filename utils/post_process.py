@@ -271,7 +271,7 @@ def build_line_anchor(image_path, out_path, min_len=DEFAULT_MIN_LEN, darken=0.75
 
 def overlay_structure_lines(base, edge_source=None, strength=DEFAULT_STRUCTURE_STRENGTH,
                            min_len=DEFAULT_MIN_LEN, darken=DEFAULT_DARKEN, low=60, high=140,
-                           thin=True, detail_dampen=0.7, line_rgb=None):
+                           thin=True, detail_dampen=0.7, line_rgb=None, dilate=0):
     """把结构线按局部色调整色后叠回 base；返回 (结果图, 掩膜)。
 
     - 细线：掩膜默认骨架化到 1px（`thin=True`）；
@@ -283,6 +283,8 @@ def overlay_structure_lines(base, edge_source=None, strength=DEFAULT_STRUCTURE_S
     if src.shape[:2] != base.shape[:2]:
         src = cv2.resize(src, (base.shape[1], base.shape[0]), interpolation=cv2.INTER_AREA)
     mask = extract_structure_lines(src, min_len=min_len, low=low, high=high, thin=thin)
+    if int(dilate or 0) > 0 and mask.max() > 0:
+        mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=int(dilate))
     if mask.max() == 0 or strength <= 0:
         return base.copy(), mask
     tone = cv2.GaussianBlur(base, (0, 0), 2.0).astype(np.float32)

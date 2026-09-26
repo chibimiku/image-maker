@@ -233,3 +233,9 @@ pending ──→ uploading ──→ uploaded
   └────────────┘              │
   (可回退重传)                └── 两平台都 uploaded 后可在 GUI 中清除
 ```
+# 元数据 JSON 关联
+
+单图分析工作流发布的最终图会把 8 位任务 hash 放在文件名第一个下划线字段，例如
+`960cddea_ajicoma-quality-refine_...-final.jpg`。发布器用该 hash 匹配同目录
+`YYYYMMDD-HHMMSS-960cddea-标题.json`。旧版 `ajicoma-960cddea-...-final.jpg` 也受支持；
+服务启动时会自动补齐队列中已有但 `json_path` 为空的记录。

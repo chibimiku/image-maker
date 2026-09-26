@@ -12,6 +12,7 @@ import sqlite3
 import base64
 import logging
 import mimetypes
+import re
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -90,6 +91,7 @@ def init_db():
         conn.execute("ALTER TABLE publish_queue RENAME COLUMN status TO pixiv_status")
         conn.execute("ALTER TABLE publish_queue ADD COLUMN chichipui_status TEXT DEFAULT 'pending'")
     conn.commit()
+    _repair_missing_metadata_links(conn)
     conn.close()
 
 
@@ -126,9 +128,18 @@ def find_metadata_json(image_path: str) -> str | None:
     """
     img_file = os.path.basename(image_path)
     img_dir = os.path.dirname(image_path)
-    # 取 _ 分割的第一段作为 key
-    key = img_file.split("_")[0]
-    if not key:
+    stem = os.path.splitext(img_file)[0]
+    # 新产物把任务 hash 固定在第一个下划线字段；兼容旧产物把画风名放在前面
+    # （如 ajicoma-960cddea-...-final.jpg），从全名再提取独立的 8 位 hex hash。
+    keys = []
+    first = img_file.split("_")[0]
+    if first:
+        keys.append(first)
+    for match in re.finditer(r"(?<![0-9a-fA-F])([0-9a-fA-F]{8})(?![0-9a-fA-F])", stem):
+        key = match.group(1).lower()
+        if key not in keys:
+            keys.append(key)
+    if not keys:
         return None
 
     try:
@@ -138,12 +149,18 @@ def find_metadata_json(image_path: str) -> str | None:
 
     abs_image_path = os.path.abspath(image_path)
     candidates = []
+    # 显式同名 sidecar 优先，便于其它生成链路直接携带投稿 JSON。
+    for suffix in (".json", "_analysis.json"):
+        sidecar = os.path.join(img_dir, stem + suffix)
+        if os.path.isfile(sidecar):
+            return sidecar
     for entry in entries:
         if not entry.lower().endswith(".json"):
             continue
         # JSON 文件名拆分，key 应在第3段（索引2）
         parts = os.path.splitext(entry)[0].split("-")
-        if len(parts) >= 3 and parts[2] == key:
+        json_key = parts[2].lower() if len(parts) >= 3 else ""
+        if json_key in keys:
             candidate = os.path.join(img_dir, entry)
             candidates.append(candidate)
             # 优先：JSON 内 source_image_path 与原图路径完全一致（无歧义）
@@ -152,6 +169,36 @@ def find_metadata_json(image_path: str) -> str | None:
                 return candidate
 
     return candidates[0] if candidates else None
+
+
+def _repair_missing_metadata_links(conn: sqlite3.Connection) -> int:
+    """给已经入队但未匹配 JSON 的现有记录补齐路径和元数据。"""
+    rows = conn.execute(
+        "SELECT uuid, image_path, json_path FROM publish_queue "
+        "WHERE json_path IS NULL OR json_path = ''"
+    ).fetchall()
+    repaired = 0
+    for row in rows:
+        image_path = row[1]
+        if not image_path or not os.path.isfile(image_path):
+            continue
+        json_path = find_metadata_json(image_path)
+        if not json_path:
+            continue
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                metadata = f.read()
+        except OSError:
+            continue
+        conn.execute(
+            "UPDATE publish_queue SET json_path = ?, metadata = ?, "
+            "updated_at = datetime('now','localtime') WHERE uuid = ?",
+            [json_path, metadata, row[0]],
+        )
+        repaired += 1
+    if repaired:
+        conn.commit()
+    return repaired
 
 
 def find_image_for_json(json_path: str) -> str | None:

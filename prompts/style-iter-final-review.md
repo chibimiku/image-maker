@@ -32,6 +32,10 @@ YOUR TASK:
    - Clothing folds & drapery: fold style, fold density, fold line treatment, fabric weight/thickness conveyed
    - Line art color conventions: outline color, outer silhouette weight vs. inner lines, colored inner lines
    - Background rendering: detail level, background line style, character-background separation technique
+   - Stroke continuity: outer silhouette thickness and continuity versus interior texture marks; hair, eye, garment, hand and footwear line construction
+   - Rendering dimensionality: graphic, cel, painterly, 2.5D or PBR-3D cues; contact shadows, depth of field and volumetric treatment
+   - Composition policy: head-to-body ratio, chibi or loli abstraction, camera and crop habits, negative-space geometry and whether strong recomposition is characteristic
+   - Trait confidence: separate high-confidence invariants from variable or content-specific observations before producing the final prompt
 4. Fix any contradictions or redundancies in the prompt text
 5. Ensure the prompt is well-organized and usable as a generation prompt
 6. Produce a POLISHED FINAL VERSION that accurately captures the shared artistic style

@@ -1447,6 +1447,12 @@ class GptImageGenWorkerThread(QThread):
                         break
                     correction_prompt = build_identity_correction_prompt(
                         audit, iteration=correction_round, max_iterations=2)
+                    identity_clauses = [str(c).strip() for c in
+                                        (self.request_payload.get("identity_correction_clauses") or [])
+                                        if str(c).strip()]
+                    if identity_clauses:
+                        correction_prompt += ("\n\nSTYLE-SPECIFIC CORRECTION GUARDS:\n- "
+                                              + "\n- ".join(identity_clauses))
                     corrected = generate_image_repaint(
                         [current], resolution="2K", aspect_ratio=snapped_aspect_ratio(current),
                         prompt=correction_prompt,
@@ -1466,6 +1472,19 @@ class GptImageGenWorkerThread(QThread):
                 self.log_signal.emit("[身份门禁] 按不回退策略保留最后一轮图。")
             except Exception as exc:  # 审计故障不能让已经成功的重绘任务失败
                 self.log_signal.emit(f"[身份门禁] 审计/定点修订失败，保留当前重绘图: {type(exc).__name__}: {exc}")
+        post_adjustment = self.request_payload.get("post_adjustment") or {}
+        if saved and post_adjustment and not self.isInterruptionRequested():
+            try:
+                from utils.analysis_gen import apply_style_post_adjustment
+                adjusted = apply_style_post_adjustment(
+                    saved[-1], post_adjustment,
+                    output_dir=process_dir or os.path.dirname(os.path.abspath(saved[-1])),
+                    file_prefix=(self.file_prefix or "analysis-gpt") + "-style-adjusted")
+                if adjusted:
+                    saved = [adjusted]
+                    self.log_signal.emit("[画风确定性收尾] 已应用色彩、曝光或结构线专用校正。")
+            except Exception as exc:
+                self.log_signal.emit(f"[画风确定性收尾] 失败，保留模型输出: {type(exc).__name__}: {exc}")
         if self.isRequestInterruption_requested_safe():
             self.last_status = "cancelled"
             self.finish_signal.emit([])

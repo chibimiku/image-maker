@@ -369,6 +369,20 @@ def test_publish_final_keeps_process_files_out_of_date_root(tmp_path):
     assert (process_dir / "published-final.json").exists()
 
 
+def test_publish_final_preserves_task_hash_for_metadata_link(tmp_path):
+    from utils.analysis_gen import publish_final_output
+    process_dir = tmp_path / "analysis-gpt-image" / "run-1"
+    process_dir.mkdir(parents=True)
+    selected = process_dir / "960cddea-quality-refine_105842-1e7c96.jpg"
+    selected.write_bytes(b"final-image")
+
+    published = publish_final_output(
+        str(selected), style_name="ajicoma", process_dir=str(process_dir),
+        final_dir=str(tmp_path / "20260926"))
+
+    assert os.path.basename(published).startswith("960cddea_ajicoma-")
+
+
 def test_pipeline_final_dir_is_date_root_by_default():
     from utils.post_process import date_output_dir
     assert os.path.basename(date_output_dir()) == __import__("datetime").datetime.now().strftime("%Y%m%d")

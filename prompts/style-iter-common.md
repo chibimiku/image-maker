@@ -151,6 +151,26 @@ Analyze the following style dimensions using professional art terminology:
    - Recurring textural treatments (grain, noise, airbrushing, etc.)
    - Surface finish conventions
 
+12. Stroke Geometry & Structural Continuity:
+   - Primary stroke length, taper, pressure variation, curvature and joining behavior
+   - Whether outer silhouettes form continuous paths or intentionally dissolve
+   - Difference between primary structural contours and secondary texture marks
+   - Hair locks, eye corners, jaw/neck, hands, garment hems, straps and footwear line construction
+
+13. Rendering Dimensionality & Camera Language:
+   - Flat graphic, cel, painterly 2.5D, physically based 3D, or hybrid construction
+   - Perspective strength, lens feel, depth of field, ambient occlusion, contact shadows and volumetric depth
+   - Material cues that distinguish painted simulation from actual PBR/3D rendering
+
+14. Composition and Proportion Policy:
+   - Head-to-body ratio and whether anatomy is realistic, idealized, loli, chibi or super-deformed
+   - Whether the style uses conventional composition or poster-like reframing and major simplification
+   - Negative-space geometry, focal scale, cropping habits and density changes between portrait, full-body and environment scenes
+
+15. Invariants vs. Variables:
+   - Separate traits shared by at least 80% of images from traits that vary with subject, lighting or scene
+   - Never turn recurring character colours, costumes, props or background motifs into mandatory style rules
+
 OUTPUT QUALITY — Be selective, precise, and non-redundant:
 - Prioritize the most DISTINCTIVE, defining stylistic traits of this set of images; do not enumerate every imaginable asset or restate obvious/generic observations.
 - Aim for a comprehensive but focused system prompt (roughly 400–800 words) — enough to pin down the style precisely, not an exhaustive report.

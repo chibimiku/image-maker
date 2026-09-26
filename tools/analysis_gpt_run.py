@@ -395,6 +395,11 @@ def main():
                     break
                 prompt = build_identity_correction_prompt(
                     current_audit, iteration=correction_round, max_iterations=2)
+                identity_clauses = [str(c).strip() for c in
+                                    (payload.get("identity_correction_clauses") or [])
+                                    if str(c).strip()]
+                if identity_clauses:
+                    prompt += "\n\nSTYLE-SPECIFIC CORRECTION GUARDS:\n- " + "\n- ".join(identity_clauses)
                 corrected = generate_image_repaint(
                     [current], resolution="2K", aspect_ratio=pp.snapped_aspect_ratio(current),
                     prompt=prompt,
@@ -426,6 +431,19 @@ def main():
         manifest["selected_output"] = current
         if correction_rounds and identity_gate_action(current_audit) != "accept":
             print("      身份门禁: 两轮后仍有差异，按不回退策略保留最后一轮修订图")
+    post_adjustment = payload.get("post_adjustment") or {}
+    if outs and post_adjustment:
+        from utils.analysis_gen import apply_style_post_adjustment
+        source_for_adjustment = str(manifest.get("selected_output") or outs[-1])
+        adjusted = apply_style_post_adjustment(
+            source_for_adjustment, post_adjustment,
+            output_dir=output_dir or os.path.dirname(source_for_adjustment),
+            file_prefix="style-adjusted")
+        if adjusted:
+            outs.append(adjusted)
+            manifest["outputs"] = outs
+            manifest["selected_output"] = adjusted
+            print("      画风确定性收尾: 已应用色彩、曝光或结构线专用校正")
     manifest["status"] = "complete" if outs else "pipeline_failed"
     selected = str(manifest.get("selected_output") or (outs[-1] if outs else ""))
     if args.publish_final and selected and os.path.isfile(selected):

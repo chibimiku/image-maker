@@ -29,7 +29,8 @@ for name, entry in local.items():
         changed.append(name + "(新增)")
         continue
     for field in ("prompt_gpt", "prompt_compressed", "ref_image", "prompt", "repaint_clauses",
-                  "enabled", "skip_quality_refine", "face_hair_refine"):
+                  "enabled", "skip_quality_refine", "face_hair_refine", "generation_clauses",
+                  "identity_correction_clauses", "post_adjustment"):
         value = entry.get(field)
         if value is not None and target.get(field) != value:
             target[field] = value
@@ -37,6 +38,7 @@ for name, entry in local.items():
 
 with open(SUB, "w", encoding="utf-8") as f:
     json.dump(sub, f, ensure_ascii=False, indent=4)
+    f.write("\n")
 
 have = [n for n, e in sub.items() if isinstance(e, dict) and str(e.get("prompt_gpt") or "").strip()]
 missing = [n for n, e in sub.items() if isinstance(e, dict) and not str(e.get("prompt_gpt") or "").strip()]

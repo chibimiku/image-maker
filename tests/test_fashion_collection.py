@@ -223,10 +223,10 @@ def test_resolve_style_bundle_uses_theme_default_styles():
     profile = get_theme_profile("甜美洛丽塔")
     names, text = resolve_style_bundle(
         "",
-        {"shiratamaco-style": "soft pastel style", "puracotte-style": "lace detail style"},
+        {"shiratamaco-v2-style": "soft pastel style", "puracotte-style-v2": "lace detail style"},
         theme_profile=profile,
     )
-    assert names == ["shiratamaco-style", "puracotte-style"]
+    assert names == ["shiratamaco-v2-style", "puracotte-style-v2"]
     assert "soft pastel style" in text
     assert "lace detail style" in text
 

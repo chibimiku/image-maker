@@ -191,6 +191,42 @@ def test_build_first_pass_request_carries_face_hair_refine_override(tmp_path):
     assert req["face_hair_refine"] is True
 
 
+def test_build_first_pass_request_separates_generation_and_repaint_clauses(tmp_path):
+    ref = _ref(tmp_path)
+    styles = {"chibi": {"prompt_gpt": "Palette: slate blue", "ref_image": str(ref),
+                         "repaint_clauses": ["REPAINT ONLY"],
+                         "generation_clauses": ["RECOMPOSE AS CHIBI"],
+                         "identity_correction_clauses": ["DO NOT BRIGHTEN"],
+                         "post_adjustment": {"brightness_scale": 0.9}}}
+    req = ag.build_first_pass_request(styles, "chibi", {"gpt_image_prompt": "content"})
+    assert "REPAINT ONLY" in req["prompt"] and "RECOMPOSE AS CHIBI" in req["prompt"]
+    assert req["clauses"] == ["REPAINT ONLY"]
+    assert req["generation_clauses"] == ["RECOMPOSE AS CHIBI"]
+    assert req["identity_correction_clauses"] == ["DO NOT BRIGHTEN"]
+    assert req["post_adjustment"] == {"brightness_scale": 0.9}
+
+
+def test_style_post_adjustment_applies_channel_and_line_settings(tmp_path):
+    import cv2
+    import numpy as np
+
+    source = tmp_path / "source.png"
+    canvas = np.full((180, 120, 3), 220, np.uint8)
+    cv2.rectangle(canvas, (25, 20), (95, 160), (130, 150, 180), 3)
+    cv2.imwrite(str(source), canvas)
+    out = ag.apply_style_post_adjustment(str(source), {
+        "channel_gains": {"red": 1.1, "green": 1.0, "blue": 0.8},
+        "brightness_scale": 0.9,
+        "structure": {"enabled": True, "strength": 0.8, "min_len": 30,
+                      "darken": 0.5, "thin": False, "dilate": 1},
+    }, output_dir=str(tmp_path / "out"))
+
+    adjusted = cv2.imread(out)
+    assert adjusted is not None
+    assert adjusted[..., 2].mean() > adjusted[..., 0].mean()
+    assert adjusted.mean() < canvas.mean()
+
+
 def test_face_hair_refine_uses_style_reference_and_source_ratio(tmp_path, monkeypatch):
     from PIL import Image
     from modules.others import api_backend

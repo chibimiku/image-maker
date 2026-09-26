@@ -24,6 +24,7 @@ STYLE_ITER_REFINE_PROMPT_FILE = "style-iter-refine.md"
 STYLE_ITER_FINAL_REVIEW_PROMPT_FILE = "style-iter-final-review.md"
 STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE = "style-iter-local-extract.md"
 STYLE_ITER_LOCAL_MERGE_PROMPT_FILE = "style-iter-local-merge.md"
+STYLE_ITER_VARIANTS_PROMPT_FILE = "style-iter-variants.md"
 
 
 def get_style_analyzer_missing_prompt_files():
@@ -34,7 +35,42 @@ def get_style_analyzer_missing_prompt_files():
         STYLE_ITER_FINAL_REVIEW_PROMPT_FILE,
         STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE,
         STYLE_ITER_LOCAL_MERGE_PROMPT_FILE,
+        STYLE_ITER_VARIANTS_PROMPT_FILE,
     ])
+
+
+def format_style_prompt_package(master_prompt, variants):
+    """把最终多用途 prompt 包格式化给 GUI；JSON 中仍保留结构化字段。"""
+    data = variants if isinstance(variants, dict) else {}
+    sections = [("MASTER / 完整画风分析", str(master_prompt or "").strip())]
+    labels = (
+        ("GEMINI FULL / Gemini 生图", "gemini_full_prompt"),
+        ("GPT-IMAGE SHORT / GPT 短版", "gpt_image_prompt"),
+    )
+    for title, key in labels:
+        value = str(data.get(key) or "").strip()
+        if value:
+            sections.append((title, value))
+    for title, key in (("GEMINI REPAINT / 重绘条款", "gemini_repaint_clauses"),
+                       ("FACE + HAIR / 五官头发条款", "face_hair_clauses"),
+                       ("NEGATIVE RULES / 负面规则", "negative_rules")):
+        values = [str(v).strip() for v in (data.get(key) or []) if str(v).strip()]
+        if values:
+            sections.append((title, "- " + "\n- ".join(values)))
+    profiles = data.get("usage_profiles") or {}
+    if isinstance(profiles, dict) and profiles:
+        sections.append(("USAGE PROFILES / 使用场合",
+                         "\n".join(f"{k}: {v}" for k, v in profiles.items() if str(v).strip())))
+    evidence = data.get("evidence_summary") or {}
+    if isinstance(evidence, dict) and evidence:
+        lines = []
+        for key, values in evidence.items():
+            clean = [str(v).strip() for v in (values or []) if str(v).strip()]
+            if clean:
+                lines.append(f"{key}:\n- " + "\n- ".join(clean))
+        if lines:
+            sections.append(("EVIDENCE / 证据与可变项", "\n".join(lines)))
+    return "\n\n".join(f"=== {title} ===\n{text}" for title, text in sections if text)
 
 
 class StyleIterCancelledError(Exception):
@@ -164,7 +200,7 @@ class StyleIterativeWorkerThread(QThread):
 
     def _build_state(self, step_count, iterations):
         return {
-            "version": "1.0",
+            "version": "2.0",
             "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "dataset": {
@@ -467,7 +503,7 @@ class StyleIterativeWorkerThread(QThread):
         self.log_signal.emit(f"  [Local Refine] 正在裁剪 {len(self.image_paths)} 张参考图...")
         for index, path in enumerate(self.image_paths, start=1):
             self._check_cancel()
-            crops = _crop_image_regions(path, crop_dir, crop_count=4)
+            crops = _crop_image_regions(path, crop_dir, crop_count=5)
             all_crops.extend(crops)
             self.log_signal.emit(f"  [Local Refine] [{index}/{len(self.image_paths)}] {os.path.basename(path)} → {len(crops)} 个局部区域")
 
@@ -508,6 +544,8 @@ class StyleIterativeWorkerThread(QThread):
             for crop_path in batch_crops:
                 mime_type, base64_image = self._encode_image(crop_path)
                 if base64_image:
+                    crop_stem = os.path.splitext(os.path.basename(crop_path))[0]
+                    content_list.append({"type": "text", "text": "CROP REGION: " + crop_stem})
                     content_list.append({
                         "type": "image_url",
                         "image_url": {
@@ -708,6 +746,50 @@ class StyleIterativeWorkerThread(QThread):
         iterations.append(iteration_record)
         return iterations, final_prompts
 
+    def _step_prompt_variants(self, client, current_prompts):
+        """把最终主描述转换成 Gemini/GPT/重绘等不同用途的结构化 prompt 包。"""
+        self._check_cancel()
+        self.log_signal.emit("[Prompt Pack] 正在生成 Gemini、GPT-image、重绘与场景化提示词…")
+        self.progress_signal.emit("生成多用途画风提示词包…")
+        prompt_text = (read_prompt_file(STYLE_ITER_VARIANTS_PROMPT_FILE).strip()
+                       + "\n\n=== VERIFIED MASTER STYLE PROMPT ===\n" + current_prompts)
+        content_list = [{"type": "text", "text": prompt_text}]
+        image_detail = self._pick_image_detail(len(self.image_paths))
+        for path in self.image_paths:
+            self._check_cancel()
+            mime_type, base64_image = self._encode_image(path)
+            if base64_image:
+                content_list.append({"type": "image_url", "image_url": {
+                    "url": f"data:{mime_type};base64,{base64_image}", "detail": image_detail}})
+        response = client.chat.completions.create(
+            model=self.model_name,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": content_list}],
+            temperature=0.35,
+            max_completion_tokens=8192,
+            timeout=self.timeout_seconds,
+        )
+        self._check_cancel()
+        try:
+            package = json.loads(response.choices[0].message.content.strip())
+        except json.JSONDecodeError as exc:
+            self.log_signal.emit(f"[Prompt Pack] JSON 解析失败 ({exc})，仅保留主提示词。")
+            return {}
+        if not isinstance(package, dict):
+            return {}
+        from utils.style_gpt import repair_prompt_gpt_lenient, validate_prompt_gpt
+        gpt_prompt = repair_prompt_gpt_lenient(str(package.get("gpt_image_prompt") or ""))
+        ok, errors = validate_prompt_gpt(gpt_prompt)
+        if gpt_prompt:
+            package["gpt_image_prompt"] = gpt_prompt
+        package["gpt_image_prompt_valid"] = bool(ok)
+        package["gpt_image_prompt_errors"] = list(errors)
+        package["master_prompt"] = current_prompts
+        self.log_signal.emit(
+            f"[Prompt Pack] 完成：GPT 短版 {len(gpt_prompt)} 字符，"
+            f"{'校验通过' if ok else '需人工复核: ' + '; '.join(errors)}。")
+        return package
+
     def run(self):
         try:
             self._check_cancel()
@@ -842,11 +924,17 @@ class StyleIterativeWorkerThread(QThread):
             self._save_state(state, output_path)
             self.log_signal.emit(f"  💾 最终审查结果已保存 (step {len(iterations)})")
 
+            # Derive channel-specific prompt variants only after the master prompt is stable.
+            prompt_variants = self._step_prompt_variants(client, current_prompts)
+            state["prompt_variants"] = prompt_variants
+            self._save_state(state, output_path)
+            display_text = format_style_prompt_package(current_prompts, prompt_variants)
+
             self.log_signal.emit("=" * 60)
             self.log_signal.emit(f"🎉 全部 {self.total_rounds} 轮迭代完成！")
             self.log_signal.emit(f"📄 最终结果已保存至: {output_path}")
             self.log_signal.emit(f"📊 共执行 {len(iterations)} 个步骤。")
-            self.finish_signal.emit("success", current_prompts, output_path)
+            self.finish_signal.emit("success", display_text, output_path)
 
         except StyleIterCancelledError:
             self.log_signal.emit("🛑 已取消多轮迭代画风提取任务。")
@@ -1100,7 +1188,11 @@ class StyleAnalyzerWidget(QWidget):
 
         # Result area
         result_header = QHBoxLayout()
-        result_header.addWidget(QLabel("当前艺术风格 Prompts:"))
+        result_title = QLabel("最终多用途画风 Prompt 包:")
+        result_title.setToolTip(
+            "包含完整母版、Gemini 完整重绘、五官/头发、GPT-image 短版、"
+            "不同构图与身份约束强度的使用场景，以及负面规则和证据摘要。")
+        result_header.addWidget(result_title)
         result_header.addStretch()
         self.open_output_dir_btn = QPushButton("打开输出目录")
         self.open_output_dir_btn.setEnabled(False)
@@ -1109,7 +1201,8 @@ class StyleAnalyzerWidget(QWidget):
         layout.addLayout(result_header)
 
         self.result_edit = QTextEdit()
-        self.result_edit.setPlaceholderText("迭代完成后，艺术风格 prompts 将显示在这里…")
+        self.result_edit.setPlaceholderText(
+            "迭代完成后，这里会显示完整母版及 Gemini / GPT-image / 专项修订等多用途版本…")
         layout.addWidget(self.result_edit)
 
         # Output info
@@ -1237,7 +1330,8 @@ class StyleAnalyzerWidget(QWidget):
 
         final_prompts = existing_state.get("final_art_style_prompts", "")
         if final_prompts:
-            self.result_edit.setPlainText(final_prompts)
+            self.result_edit.setPlainText(format_style_prompt_package(
+                final_prompts, existing_state.get("prompt_variants") or {}))
 
         if dataset_images:
             missing_images = [p for p in dataset_images if not os.path.isfile(p)]
