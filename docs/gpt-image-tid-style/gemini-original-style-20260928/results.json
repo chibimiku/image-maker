@@ -1,0 +1,295 @@
+[
+  {
+    "style": "cute-lingerie-wardrobe",
+    "source": "D:\\code\\image-maker\\data\\test-result\\20260928\\test-8f669590_cute-lingerie-wardrobe-safe-alternative_output_002558_0_fca941-final_1.png",
+    "style_reference": "D:\\code\\image-maker\\data\\style-ref\\cute-lingerie-wardrobe.png",
+    "outputs": [
+      "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\8f669590\\8f669590-original-style_005624-65a991.jpg"
+    ],
+    "prompt_file": "prompts/gpt-image-optimize/covered-outfit-style-transfer.md",
+    "prompt": "Create a new fully clothed fashion illustration by transferring only the drawing and rendering technique from IMAGE 2 onto IMAGE 1.\n\nIMAGE 1 is the only source for subject identity, visible pose, anatomy, garment design, coverage, accessories, scene, composition and intrinsic colours. Preserve the complete dress, high covered neckline, sleeves, skirt silhouette, embroidery, bows, lace and visible hands. Do not expose, shorten, remove, make transparent or redesign any garment. Keep the same hair colour, eye colour and recognizable identity. Keep hidden legs hidden and do not invent limbs.\n\nIMAGE 2 supplies ordinary art technique only: illustrated line hierarchy, contour shapes, controlled flat versus gradient shading, hair strand drawing, eye drawing conventions, fabric rendering, edge treatment, contrast and brush texture. Make this drawing-language transfer clearly visible; do not merely sharpen IMAGE 1 while retaining its prior photographic or painterly rendering. You may redraw the abstraction of eyes and hair in the reference's illustrated technique while preserving the source's identity, expression, hair design and intrinsic colours.\n\nDo not copy IMAGE 2's character, age cues, body shape, outfit, exposed areas, pose, expression, props, hair colour, eye colour or composition. Do not turn the source into the theme or costume of the reference. The result remains an ordinary fully clothed costume-fashion illustration, centred on the complete source garment. Keep shading appropriate to the source fabric and avoid importing bodily or wet-skin effects. If preserving content conflicts with transferring technique, preserve the complete source outfit and identity.\n\nOutput one image matching IMAGE 1's aspect ratio and framing, with readable fabric layers and naturally connected visible hands. No text, watermark or border.\n",
+    "status": "generated",
+    "audits": {
+      "anatomy-audit": {
+        "structural_issues": [],
+        "line_issues": [],
+        "background_drift": [],
+        "style_gaps": [],
+        "needs_refine": false,
+        "severity": "none",
+        "confidence": 0.0,
+        "protected_features": [],
+        "summary": "One visible human character was traced. Both arms follow coherent shoulder-to-sleeve-to-forearm-to-hand paths, and both visible hands have anatomically plausible partial finger groupings for their gripping pose. No leg segments are exposed; both legs are genuinely occluded by the layered skirt. Decorative rabbits and plush figures are props rather than additional humanoid characters.",
+        "candidate": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\8f669590\\8f669590-original-style_005624-65a991.jpg",
+        "character_limb_inventory": [
+          {
+            "owner": "single central woman in cream-and-pink bunny-themed dress",
+            "arms": {
+              "screen_left_arm": "Shoulder is covered by the upper sleeve and bodice; the arm continues through the voluminous sleeve to a visible skin forearm and wrist near the upper-left torso. The hand at approximately x=320-365, y=425-485 grips the nearby green bow/ribbon. The palm-to-wrist connection and visible finger grouping are coherent; no clear fused, duplicated, or disconnected digits.",
+              "screen_right_arm": "Shoulder is covered by the upper sleeve and bodice; the arm continues through the voluminous sleeve to a visible skin forearm and wrist near the upper-right torso. The hand at approximately x=670-720, y=425-485 grips the nearby green bow/ribbon. The palm-to-wrist connection and visible finger grouping are coherent; no clear fused, duplicated, or disconnected digits."
+            },
+            "legs": {
+              "visible_segments_enumeration": "No visible thighs, stockings, calves, ankles, or shoes. The broad layered skirt fully occludes the lower body from the waist downward.",
+              "screen_left_leg": "Occluded by the skirt; no exposed continuation is required.",
+              "screen_right_leg": "Occluded by the skirt; no exposed continuation is required."
+            }
+          }
+        ],
+        "ownership_uncertain": [],
+        "needs_review": false
+      },
+      "identity-audit": {
+        "mismatch": false,
+        "severity": "none",
+        "confidence": 0.96,
+        "stable_anchors": [
+          "暖中棕色卷曲双束发并带齐刘海",
+          "深棕色眼睛",
+          "温和的闭口微笑",
+          "淡奶油黄色高腰洛可可甜点主题礼服",
+          "合身上身与宽大的多层分段钟形裙",
+          "白色不透明荷叶袖和白色蕾丝包边",
+          "裙身有蛋糕、茶杯、甜点、缎带、花朵和兔子柔和密集印花",
+          "肩部配薄荷绿色蝴蝶结",
+          "胸前有粉彩缎带、珠串状装饰、小徽章和椭圆形甜点主题胸针",
+          "裙面有粉色中心蝴蝶结、腰间兔子玩偶及右侧双色粉彩绒球配大粉色蝴蝶结",
+          "头戴高大的淡黄色兔耳主题礼帽或头饰，并带蕾丝、兔子玩偶、蝴蝶结、花朵和绒球",
+          "正面站立，双手触碰两侧肩部装饰"
+        ],
+        "differences": [],
+        "summary": "图像中的人物发色、卷曲双束发与齐刘海、深棕色眼睛、表情、礼服身份、主要配色、甜点与兔子主题装饰及姿态均与文字规格一致，未发现明确的身份性冲突。",
+        "image": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\8f669590\\8f669590-original-style_005624-65a991.jpg",
+        "model": "gpt-5.6-luna"
+      },
+      "style-quality-audit": {
+        "structural_issues": [],
+        "line_issues": [],
+        "background_drift": [],
+        "style_gaps": [
+          {
+            "aspect": "Line hierarchy and edge definition",
+            "candidate": "The candidate has generally consistent dark outlines, but many garment layers, lace edges, hair curls, and printed motifs use similarly soft and similarly weighted contours.",
+            "target": "Image 3 uses clearer separation between primary silhouette contours, secondary garment seams, and fine decorative marks, with sharper selective edges.",
+            "repair": "Strengthen the main silhouette and important construction seams while reducing or softening low-priority interior outlines; keep lace and print lines finer and more selective.",
+            "confidence": 0.86
+          },
+          {
+            "aspect": "Face and eye abstraction",
+            "candidate": "The brown eyes and facial features are soft and lightly separated, with comparatively weak upper-lid emphasis and limited internal iris structure.",
+            "target": "Image 3 shows a more graphic anime eye treatment with stronger upper contours, clearer iris segmentation, and concentrated highlight placement.",
+            "repair": "Redraw the eyes with a firmer upper-lid line, cleaner iris/value grouping, and small controlled highlights while preserving the candidate's brown eye colour and identity.",
+            "confidence": 0.82
+          },
+          {
+            "aspect": "Hair grouping and highlights",
+            "candidate": "The twin curls read as broad soft masses with diffuse highlights and relatively little strand-level grouping.",
+            "target": "Image 3 organizes hair into larger directional locks with crisp highlight bands and selective strand accents.",
+            "repair": "Clarify the major curl groups, add directional strand accents, and use narrower, brighter highlight bands rather than evenly diffused shine.",
+            "confidence": 0.81
+          },
+          {
+            "aspect": "Material contrast and chromatic shading",
+            "candidate": "The dress, lace, ribbons, and accessories are rendered in a very pale pastel range; layered shading is present but midtone and shadow separation is subdued.",
+            "target": "Image 3 uses more decisive layered gradients, localized colour shifts, and concentrated highlights to distinguish fabric and accessory materials.",
+            "repair": "Add restrained warm/cool shading transitions to the cream dress, stronger folds beneath ruffles and bows, and selective highlights on satin, beads, and glossy accessories without darkening the whole image.",
+            "confidence": 0.84
+          }
+        ],
+        "needs_refine": true,
+        "severity": "minor",
+        "confidence": 0.0,
+        "protected_features": [
+          "single centered front-facing standing character",
+          "upright head and relaxed balanced arm pose",
+          "both visible hands naturally attached while holding the shoulder decorations",
+          "fully covered pale yellow Rococo dessert-themed dress",
+          "high neckline, opaque sleeves, layered bell-shaped skirt, lace and embroidery",
+          "warm medium-brown curled twin-tail hair and dark brown eyes",
+          "large pale yellow rabbit-ear hat with rabbit and floral decorations",
+          "pink, mint, and pastel accessory palette",
+          "rabbit plush and dessert-themed skirt motifs",
+          "cream wall background with low dado/baseboard line",
+          "cropped skirt hem with legs and most footwear remaining hidden"
+        ],
+        "summary": "The candidate preserves the intended single-character standing composition, covered Rococo dress, identity, hand-held shoulder decorations, hidden legs, and cream-wall setting without a provable limb or ownership error. Refinement is mainly needed to bring the rendering closer to Image 3's sharper line hierarchy, stronger material separation, and more selective chromatic highlights.",
+        "needs_review": false,
+        "ownership_uncertain": [],
+        "original": "D:\\code\\image-maker\\data\\test-result\\20260928\\test-8f669590_cute-lingerie-wardrobe-safe-alternative_output_002558_0_fca941-final_1.png",
+        "candidate": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\8f669590\\8f669590-original-style_005624-65a991.jpg",
+        "style_reference": "D:\\code\\image-maker\\data\\style-ref\\cute-lingerie-wardrobe.png"
+      }
+    }
+  },
+  {
+    "style": "satou_kuuki-style-v2",
+    "source": "D:\\code\\image-maker\\data\\test-result\\20260928\\test-d14e88d7_satou_kuuki-style-v2-safe-alternative_output_002509_0_907f56-003900-b63a8e-final-rp_003918-b5f599.jpg",
+    "style_reference": "D:\\code\\image-maker\\data\\style-ref\\satou_kuuki.jpg",
+    "outputs": [
+      "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\d14e88d7\\d14e88d7-original-style_005605-7ae5f0.jpg"
+    ],
+    "prompt_file": "prompts/gpt-image-optimize/covered-outfit-style-transfer.md",
+    "prompt": "Create a new fully clothed fashion illustration by transferring only the drawing and rendering technique from IMAGE 2 onto IMAGE 1.\n\nIMAGE 1 is the only source for subject identity, visible pose, anatomy, garment design, coverage, accessories, scene, composition and intrinsic colours. Preserve the complete dress, high covered neckline, sleeves, skirt silhouette, embroidery, bows, lace and visible hands. Do not expose, shorten, remove, make transparent or redesign any garment. Keep the same hair colour, eye colour and recognizable identity. Keep hidden legs hidden and do not invent limbs.\n\nIMAGE 2 supplies ordinary art technique only: illustrated line hierarchy, contour shapes, controlled flat versus gradient shading, hair strand drawing, eye drawing conventions, fabric rendering, edge treatment, contrast and brush texture. Make this drawing-language transfer clearly visible; do not merely sharpen IMAGE 1 while retaining its prior photographic or painterly rendering. You may redraw the abstraction of eyes and hair in the reference's illustrated technique while preserving the source's identity, expression, hair design and intrinsic colours.\n\nDo not copy IMAGE 2's character, age cues, body shape, outfit, exposed areas, pose, expression, props, hair colour, eye colour or composition. Do not turn the source into the theme or costume of the reference. The result remains an ordinary fully clothed costume-fashion illustration, centred on the complete source garment. Keep shading appropriate to the source fabric and avoid importing bodily or wet-skin effects. If preserving content conflicts with transferring technique, preserve the complete source outfit and identity.\n\nOutput one image matching IMAGE 1's aspect ratio and framing, with readable fabric layers and naturally connected visible hands. No text, watermark or border.\n",
+    "status": "generated",
+    "corrected_outputs": [
+      "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\d14e88d7\\d14e88d7-eye-correct_005855-4fc1df.jpg"
+    ],
+    "audits": {
+      "anatomy-audit": {
+        "structural_issues": [],
+        "line_issues": [],
+        "background_drift": [],
+        "style_gaps": [],
+        "needs_refine": false,
+        "severity": "none",
+        "confidence": 0.0,
+        "protected_features": [],
+        "summary": "One visible character is present. The visible hand and both arm paths are anatomically coherent at the depicted resolution. No lower-body segments are exposed; both legs are genuinely occluded by the skirt, with no visible feet requiring tracing.",
+        "candidate": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\d14e88d7\\d14e88d7-original-style_005605-7ae5f0.jpg",
+        "character_limb_inventory": [
+          {
+            "owner": "single central teal-haired woman in cream-and-burgundy dress",
+            "arms": {
+              "screen-left arm": "Shoulder is beneath the left puff sleeve; upper arm and forearm continue inward to the visible hand at the upper chest. The wrist-to-palm connection is coherent, and the visible fingers are proportionally connected without clear fusion or duplication.",
+              "screen-right arm": "Shoulder and upper arm are contained in the large screen-right puff sleeve. The forearm angles inward behind the bodice and ruffles; the hand is fully occluded by the dress front and is not required to be visible."
+            },
+            "legs": {
+              "visible_lower_body_segments": "No thigh, stocking, calf, ankle, or shoe segments are visible. The entire lower body is covered by the layered skirt.",
+              "screen-left leg": "Occluded by the full skirt from the pelvis downward.",
+              "screen-right leg": "Occluded by the full skirt from the pelvis downward."
+            }
+          }
+        ],
+        "ownership_uncertain": [],
+        "needs_review": false
+      },
+      "anatomy-reaudit": {
+        "structural_issues": [],
+        "line_issues": [],
+        "background_drift": [],
+        "style_gaps": [],
+        "needs_refine": false,
+        "severity": "none",
+        "confidence": 0.0,
+        "protected_features": [],
+        "summary": "The image shows one character. Her visible hand and limb paths appear coherent; the skirt fully obscures the legs.",
+        "candidate": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\d14e88d7\\d14e88d7-eye-correct_005855-4fc1df.jpg",
+        "character_limb_inventory": [
+          {
+            "owner": "Single central character: teal-haired woman in a cream-and-burgundy dress",
+            "arms": "One arm is traceable from the shoulder through the screen-left sleeve and exposed forearm to the hand resting at her upper chest. The visible fingers appear attached to the palm and wrist; some are overlapped by the pose and clothing. The other arm runs from the screen-right shoulder into the bent, voluminous sleeve; its hand is hidden behind the bodice or sleeve. No disconnected or extra arm is apparent.",
+            "legs": "No thigh, stocking, calf, ankle, or shoe segments are visible. Both legs are concealed beneath the long layered skirt down to the floor; no exposed region requires a visible continuation."
+          }
+        ],
+        "ownership_uncertain": [],
+        "needs_review": false
+      },
+      "identity-audit": {
+        "mismatch": true,
+        "severity": "major",
+        "confidence": 0.98,
+        "stable_anchors": [
+          "warm skin tone",
+          "long straight teal blue-green hair",
+          "brown eyes",
+          "small gold hair ornament",
+          "dangling earrings",
+          "gentle closed-mouth smile",
+          "hands clasped near chest",
+          "Rococo confectionery dress with high standing collar and covered neckline",
+          "long puffed sleeves",
+          "broad bell-shaped full skirt",
+          "cream and ivory fabric with burgundy and brown bands",
+          "harlequin panels, bows, ribbons, ruffles, confectionery motifs and lace hem"
+        ],
+        "differences": [
+          {
+            "feature": "eye_color",
+            "expected": "brown",
+            "observed": "teal blue-green",
+            "correction": "Change the irises to brown",
+            "confidence": 0.98
+          }
+        ],
+        "summary": "The character identity and costume are closely preserved, but the eyes are visibly teal blue-green instead of the explicitly specified brown, constituting a major intrinsic mismatch.",
+        "image": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\d14e88d7\\d14e88d7-original-style_005605-7ae5f0.jpg",
+        "model": "gpt-5.6-luna"
+      },
+      "identity-reaudit": {
+        "mismatch": false,
+        "severity": "none",
+        "confidence": 0.98,
+        "stable_anchors": [
+          "Warm skin tone",
+          "Long, straight teal blue-green hair",
+          "Brown eyes",
+          "Small gold hair ornament",
+          "Dangling earrings",
+          "Rococo confectionery dress with a high standing collar, covered neckline, long puffed sleeves, and broad full skirt",
+          "Cream and ivory fabric with burgundy and brown scalloped bands, harlequin panels, bows, ribbon details, confectionery motifs, layered ruffles, and embroidered lace hem"
+        ],
+        "differences": [],
+        "summary": "The visible character matches the explicitly specified identity and outfit details; no clear conflicts are visible.",
+        "image": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\d14e88d7\\d14e88d7-eye-correct_005855-4fc1df.jpg",
+        "model": "gpt-6-luna"
+      },
+      "style-quality-audit": {
+        "structural_issues": [
+          {
+            "region": "face and irises",
+            "observed": "The candidate's irises read blue-green/teal, while Image 1 specifies and shows warm brown eyes.",
+            "repair": "Recolor both irises to a warm brown while retaining the candidate's illustrated eye construction and highlights.",
+            "confidence": 0.84
+          }
+        ],
+        "line_issues": [],
+        "background_drift": [],
+        "style_gaps": [
+          {
+            "aspect": "chromatic shading and selective highlights",
+            "candidate": "The candidate uses mostly muted warm cream, brown and burgundy shading with relatively restrained highlights; many fabric regions read as broad, near-uniform fills.",
+            "target": "Image 3 uses visibly layered chromatic shading, stronger value transitions and selective luminous accents across hair, eyes, skin and materials.",
+            "repair": "Add controlled multi-step colour shading and selective edge/specular accents to the hair, eyes, ruffles and fabric folds without importing glossy latex, exposed skin or the reference outfit.",
+            "confidence": 0.79
+          },
+          {
+            "aspect": "face and hair rendering",
+            "candidate": "The candidate has grouped teal hair and illustrated eyes, but the hair highlight ribbons and eye catchlights are comparatively subtle and naturalistic.",
+            "target": "Image 3 shows clearer grouped hair masses, stronger directional highlight bands and more pronounced high-contrast eye abstraction.",
+            "repair": "Strengthen grouped hair shapes, directional teal highlight bands and restrained eye catchlights while preserving the source identity, brown irises and facial expression.",
+            "confidence": 0.75
+          }
+        ],
+        "needs_refine": true,
+        "severity": "minor",
+        "confidence": 0.0,
+        "protected_features": [
+          "single woman only",
+          "near-eye-level three-quarter composition",
+          "woman slightly right of center",
+          "long straight teal blue-green hair",
+          "small gold hair ornament",
+          "dangling earrings",
+          "gentle closed-mouth smile",
+          "both hands clasped near the chest",
+          "high standing collar and fully covered neckline",
+          "long puffed sleeves",
+          "complete broad bell-shaped Rococo skirt",
+          "cream and ivory garment palette",
+          "burgundy and brown scalloped bands",
+          "harlequin panels, bows, ribbons, confectionery motifs, ruffles and lace",
+          "bright window and curtains on the left",
+          "darker dressing-room interior on the right",
+          "bulb-framed mirror, vanity and supported furnishings",
+          "hidden legs and feet remain occluded",
+          "no sexualized styling, exposed clothing or wet-material effects"
+        ],
+        "summary": "The candidate preserves the single-character composition, covered Rococo dress, clasped-hand pose, window, vanity, mirror and room layout. No extra, fused or misassigned limbs are evident, and the skirt legitimately occludes the legs and feet. Refinement is needed mainly for eye colour fidelity and closer transfer of the reference rendering treatment.",
+        "needs_review": false,
+        "ownership_uncertain": [],
+        "original": "D:\\code\\image-maker\\data\\test-result\\20260928\\test-d14e88d7_satou_kuuki-style-v2-safe-alternative_output_002509_0_907f56-003900-b63a8e-final-rp_003918-b5f599.jpg",
+        "candidate": "D:\\code\\image-maker\\data\\test-result\\20260928\\gemini-original-style\\d14e88d7\\d14e88d7-original-style_005605-7ae5f0.jpg",
+        "style_reference": "D:\\code\\image-maker\\data\\style-ref\\satou_kuuki.jpg"
+      }
+    }
+  }
+]

@@ -1,0 +1,9 @@
+Create a new fully clothed fashion illustration by transferring only the drawing and rendering technique from IMAGE 2 onto IMAGE 1.
+
+IMAGE 1 is the only source for subject identity, visible pose, anatomy, garment design, coverage, accessories, scene, composition and intrinsic colours. Preserve the complete dress, high covered neckline, sleeves, skirt silhouette, embroidery, bows, lace and visible hands. Do not expose, shorten, remove, make transparent or redesign any garment. Keep the same hair colour, eye colour and recognizable identity. Keep hidden legs hidden and do not invent limbs.
+
+IMAGE 2 supplies ordinary art technique only: illustrated line hierarchy, contour shapes, controlled flat versus gradient shading, hair strand drawing, eye drawing conventions, fabric rendering, edge treatment, contrast and brush texture. Make this drawing-language transfer clearly visible; do not merely sharpen IMAGE 1 while retaining its prior photographic or painterly rendering. You may redraw the abstraction of eyes and hair in the reference's illustrated technique while preserving the source's identity, expression, hair design and intrinsic colours.
+
+Do not copy IMAGE 2's character, age cues, body shape, outfit, exposed areas, pose, expression, props, hair colour, eye colour or composition. Do not turn the source into the theme or costume of the reference. The result remains an ordinary fully clothed costume-fashion illustration, centred on the complete source garment. Keep shading appropriate to the source fabric and avoid importing bodily or wet-skin effects. If preserving content conflicts with transferring technique, preserve the complete source outfit and identity.
+
+Output one image matching IMAGE 1's aspect ratio and framing, with readable fabric layers and naturally connected visible hands. No text, watermark or border.
