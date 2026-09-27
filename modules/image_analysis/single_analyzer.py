@@ -476,6 +476,38 @@ def calculate_closest_aspect_ratio(image_source):
         print(f"计算长宽比失败: {e}")
         return "1:1" # 发生异常时默认返回 1:1
 
+
+def resolve_gpt_first_pass_size(prompt_context=None, analysis_result=None, current_source_path=""):
+    """Resolve the GPT first-pass size from the analyzed content, never the style image.
+
+    ``request_payload.image_paths`` contains the style reference, so using that list to
+    choose a size silently makes a portrait style sheet force portrait output. The
+    original analysis input is authoritative. Clipboard inputs have no filesystem
+    path, in which case the analyzed ``aspect_ratio`` is the reliable fallback.
+    """
+    from modules.others.api_backend import (
+        normalize_gpt_image2_size,
+        pick_gpt_image2_size_for_images,
+    )
+
+    prompt_context = prompt_context or {}
+    analysis_result = analysis_result or {}
+    source_candidates = [
+        str(prompt_context.get("source_image_path") or "").strip(),
+        str(analysis_result.get("source_image_path") or "").strip(),
+        str(current_source_path or "").strip(),
+    ]
+    for source_path in source_candidates:
+        if source_path and os.path.isfile(source_path):
+            return pick_gpt_image2_size_for_images([source_path])
+
+    aspect_ratio = str(
+        prompt_context.get("aspect_ratio")
+        or analysis_result.get("aspect_ratio")
+        or "1:1"
+    ).strip() or "1:1"
+    return normalize_gpt_image2_size(aspect_ratio=aspect_ratio)
+
 def _looks_like_base64_text(value: str) -> bool:
     if not isinstance(value, str):
         return False
@@ -3153,6 +3185,13 @@ class SingleAnalyzerWidget(QWidget):
             prompt_bundle = {
                 "task_hash": local_task_hash,
                 "aspect_ratio": local_aspect_ratio,
+                # 文件输入时给 GPT 首图直接读取实际像素；剪贴板输入没有路径，
+                # 下游会回退到上面的分析比例。不要让画风参考图决定输出方向。
+                "source_image_path": (
+                    os.path.abspath(source_snapshot)
+                    if isinstance(source_snapshot, str) and os.path.isfile(source_snapshot)
+                    else ""
+                ),
                 "original_prompt": local_orig_desc,
                 "refined_prompt": local_refine_desc,
                 "analysis_json_path": saved_json_path,
@@ -3499,17 +3538,12 @@ class SingleAnalyzerWidget(QWidget):
                       if getattr(self, "gpt_quality_combo", None) else "high") or "high"
         size = None
         if getattr(self, "gpt_size_follow_cb", None) is None or self.gpt_size_follow_cb.isChecked():
-            from modules.others.api_backend import pick_gpt_image2_size_for_images
-            images_for_size = list(request_payload.get("image_paths") or [])
-            source_for_size = str((prompt_context or {}).get("source_image_path") or "").strip()
-            if source_for_size and os.path.isfile(source_for_size):
-                images_for_size.insert(0, source_for_size)
-            if not images_for_size:
-                source_for_size = str(self._current_source_path() or "")
-                if source_for_size and os.path.isfile(source_for_size):
-                    images_for_size.append(source_for_size)
-            size = pick_gpt_image2_size_for_images(images_for_size)
-            self.log_msg(f"[gpt 通道] 尺寸 {size}（按输入图比例自动选）")
+            size = resolve_gpt_first_pass_size(
+                prompt_context,
+                analysis_result,
+                self.image_source if isinstance(self.image_source, str) else "",
+            )
+            self.log_msg(f"[gpt 通道] 尺寸 {size}（按原始分析图比例自动选；画风图不参与）")
 
         thread = GptImageGenWorkerThread(
             request_payload=request_payload, steps=steps, firmware=firmware,

@@ -752,6 +752,33 @@ def test_analysis_size_follows_input_orientation(analyzer, tmp_path, monkeypatch
     assert _FakeGptWorker.last.get("size") == "1536x1024"
 
 
+def test_analysis_size_uses_analyzed_ratio_when_clipboard_has_no_source_path(
+        analyzer, tmp_path, monkeypatch):
+    """剪贴板输入没有路径时也必须用分析比例，不能误用纵向画风参考图。"""
+    monkeypatch.setattr(sa, "GptImageGenWorkerThread", _FakeGptWorker)
+    _FakeGptWorker.last = {}
+    analyzer.gen_channel_gpt.setChecked(True)
+    analyzer.gpt_size_follow_cb.setChecked(True)
+    import json
+    js = tmp_path / "clipboard-result.json"
+    js.write_text(json.dumps({
+        "gpt_image_prompt_short": "a woman",
+        "aspect_ratio": "4:3",
+        "source_image_path": "",
+    }), encoding="utf-8")
+
+    analyzer.trigger_image_generation("refined", prompt_bundle={
+        "task_hash": "clipboard-wide",
+        "aspect_ratio": "4:3",
+        "original_prompt": "o",
+        "refined_prompt": "r",
+        "analysis_json_path": str(js),
+        "source_image_path": "",
+    })
+
+    assert _FakeGptWorker.last.get("size") == "1536x1024"
+
+
 def test_analysis_size_checkbox_default_on(analyzer):
     assert analyzer.gpt_size_follow_cb.isChecked() is True
 

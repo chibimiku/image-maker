@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>画风参考图替换与横图比例诊断 · 2026-09-27</title>
+<style>
+body{margin:0;background:#11151c;color:#e8edf5;font:15px/1.65 system-ui,"Microsoft YaHei",sans-serif}main{max-width:1220px;margin:auto;padding:30px}h1,h2{line-height:1.25}h2{margin-top:34px;border-bottom:1px solid #394252;padding-bottom:8px}.lead{color:#b9c5d8}.ok{color:#79dfae}.warn{color:#ffd27a}.bad{color:#ff8e9a}code{background:#202734;padding:2px 6px;border-radius:5px}table{border-collapse:collapse;width:100%;background:#171d27}th,td{border:1px solid #354052;padding:9px;text-align:left;vertical-align:top}th{background:#222b39}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:15px}.card{background:#171d27;border:1px solid #354052;border-radius:9px;padding:10px}.card img{display:block;width:100%;height:360px;object-fit:contain;background:#0c0f14}.card b{display:block;margin:7px 0}.wide{width:100%;background:#0c0f14;border:1px solid #354052}a{color:#8fc5ff}.small{font-size:13px;color:#9eabc0}
+</style>
+</head>
+<body><main>
+<h1>画风参考图替换与横图比例诊断</h1>
+<p class="lead">日期：2026-09-27。统一测试为 Gemini 直出、参考优先、同一主体提示词。分数是本地内容抗性画风指标；copy-risk 必须结合目视判断，不能单独当成版权或泄露结论。</p>
+
+<h2>结论</h2>
+<table><thead><tr><th>Style</th><th>新参考</th><th>style / copy-risk</th><th>决定</th></tr></thead><tbody>
+<tr><td>kishida-mel-style</td><td>森林全身单人</td><td>0.7075 / 0.0060</td><td class="ok">替换。淡彩线稿、脸眼抽象和完整比例均改善，无明显内容照搬。</td></tr>
+<tr><td>noir-aiart</td><td>教堂跪姿、完整人物</td><td>0.7375 / 0.0060</td><td class="ok">替换。冷蓝光、发丝与晶莹眼部更稳定；没有复制教堂构图。</td></tr>
+<tr><td>inf-nikki-v1</td><td>暖暖森林全身截图，裁掉 UID/UI</td><td>0.7160 / 0.0120</td><td class="ok">替换。PBR 材质与游戏式脸部建模更明确。</td></tr>
+<tr><td>dall-e-v2</td><td>拱廊花园全身场景</td><td>0.9388 / 0.8951</td><td class="bad">不替换。高分来自近乎整套复制拱廊、花墙、茶桌和服装结构。</td></tr>
+<tr><td>fuzichoco-v2</td><td>白无垢与花鸟屏风</td><td>0.7899 / 0.9601</td><td class="bad">不替换。狐耳、白无垢与屏风均被继承，是严重内容泄露。</td></tr>
+<tr><td>satou_kuuki-style-v2</td><td>远程安全索引仅找到半身游戏立绘</td><td>现参考 fresh：0.7181 / 0.0060</td><td class="warn">暂不替换。当前图能触发霓虹湿亮材质，但缺少适合约束全身比例的非 R18 完整场景。</td></tr>
+<tr><td>shiratamaco-v2-style</td><td>远程候选带“禁止无授权使用/转载”字样</td><td>现参考 fresh：0.7810 / 0.2700</td><td class="warn">暂不替换。下载候选只作筛选，不进入正式参考。</td></tr>
+</tbody></table>
+
+<h2>替换候选直出</h2>
+<img class="wide" src="../../data/test-result/20260927/reference-replacements/replacement-results-contact.jpg" alt="五个替换候选的统一提示词直出">
+<p class="small">从左至右：dall-e-v2、fuzichoco-v2、inf-nikki-v1、kishida-mel-style、noir-aiart。前两张的高相似度伴随明显内容复制，因此被否决。</p>
+
+<h2>观察组 fresh run</h2>
+<img class="wide" src="../../data/test-result/20260927/fresh-observation/fresh-observation-contact.jpg" alt="七个观察 style 的重新生成结果">
+<table><thead><tr><th>Style</th><th>style</th><th>copy-risk</th><th>观察</th></tr></thead><tbody>
+<tr><td>puracotte-style-v2</td><td>0.8453</td><td>0.0060</td><td class="ok">当前单人参考有效，脸眼和珠光层次清楚，保持。</td></tr>
+<tr><td>iris-mix-style</td><td>0.8313</td><td>0.4203</td><td class="ok">Q 版比例约束生效；中等 copy-risk 主要来自强构图/大头比例，本轮没有成人九头身问题。</td></tr>
+<tr><td>sheya-style</td><td>0.7152</td><td>0.0140</td><td class="warn">安全但辨识度偏弱，后续优先找更能体现眼睛和材质的全身场景。</td></tr>
+<tr><td>goto-p</td><td>0.8300</td><td>0.3160</td><td class="ok">水彩、淡线与留白生效，暂时保持。</td></tr>
+<tr><td>sakurapion-style</td><td>0.7741</td><td>0.3160</td><td class="ok">清亮眼部与高键淡彩生效；本轮为半身主体，不能单独证明全身比例，但比例条款没有制造异常。</td></tr>
+<tr><td>satou_kuuki-style-v2</td><td>0.7181</td><td>0.0060</td><td class="warn">材质/夜店光命中，作者特征与全身比例证据仍不足。</td></tr>
+<tr><td>shiratamaco-v2-style</td><td>0.7810</td><td>0.2700</td><td class="warn">可用但接近通用柔光萌系，仍值得寻找授权条件清晰的完整场景。</td></tr>
+</tbody></table>
+
+<h2>横图被生成成纵图：根因与修复</h2>
+<p>任务 <code>691f9293</code> 的分析 JSON 明确记录 <code>aspect_ratio=4:3</code>，但 GPT 首图请求记录为 <code>size=1024x1536</code>，首图实际也是 1024×1536；Gemini 重绘随后保持为 1696×2528。根因不是重绘，而是 GPT 首图尺寸选择误用了纵向 TID 画风参考图。自动任务包没有携带原图路径，剪贴板输入又天然没有文件路径，于是风格图成为唯一候选。</p>
+<p class="ok">修复后顺序：原始分析图实际像素 → 分析 JSON 的 source_image_path → 分析得到的 aspect_ratio。画风参考图不再参与画幅选择。4:3 会映射到 1536×1024。</p>
+
+<h2>本地参考文件</h2>
+<div class="gallery">
+<div class="card"><img src="../../data/style-ref/kishida-mel-fullbody-forest.jpg"><b>kishida-mel-style</b><span class="small">来源：本地 tagged 数据集；已缩至 1442×2048。</span></div>
+<div class="card"><img src="../../data/style-ref/noir-aiart-fullbody-background.jpg"><b>noir-aiart</b><span class="small">来源：X @atelier_noir00 公开时间线候选。</span></div>
+<div class="card"><img src="../../data/style-ref/inf-nikki-fullbody-background.jpg"><b>inf-nikki-v1</b><span class="small">来源：本地暖暖截图；底部 UID/UI 已裁除。</span></div>
+</div>
+
+<h2>下一步</h2>
+<ol>
+<li>对已替换的三项各补一张“全身主体”统一提示词，专门验证新参考是否改善腿长与头身比；本报告这一轮统一提示是半身像，只验证了画风与泄露。</li>
+<li>dall-e-v2 与 fuzichoco-v2 不应继续用复杂单幅作品做强参考；优先做多图风格板或无主体局部裁剪，降低场景/服装照搬。</li>
+<li>satou_kuuki 与 shiratamaco 继续保留旧图，直到找到非 R18、完整人物、背景适中且授权标注可接受的候选。</li>
+</ol>
+</main></body></html>
