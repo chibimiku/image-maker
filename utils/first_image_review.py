@@ -47,6 +47,8 @@ def apply_safe_plan(payload, steps, plan):
         return
     payload["prompt"] = plan["prompt"]
     payload["safe_alternative"] = True
+    # A former clothing override no longer authorizes identity differences.
+    payload["skip_identity_refine"] = False
     # The new full prompt supersedes old clothing overrides and render targets.
     for key in ("generation_clauses", "identity_correction_clauses", "post_adjustment",
                 "style_prompt", "prompt_gpt", "style_text"):

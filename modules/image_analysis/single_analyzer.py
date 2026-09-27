@@ -1424,7 +1424,8 @@ class GptImageGenWorkerThread(QThread):
             self.checkpoint.save()
         saved = []
         first_needed = self._stage_needed("first", saved)
-        self.log_signal.emit("\n🚀 gpt-image-2 生图（%s，提示词 %d 字符，参考图 %d 张：%s）"
+        if first_needed:
+            self.log_signal.emit("\n🚀 gpt-image-2 生图（%s，提示词 %d 字符，参考图 %d 张：%s）"
                              % (self.model_name, len(prompt), len(images),
                                 "画风参考图" if images else "无"))
         try:
@@ -1569,7 +1570,7 @@ class GptImageGenWorkerThread(QThread):
         self._stage_done("quality", saved)
         # 重绘后的身份处理最多两轮定点修订。每轮都拿当前图与实际首图 prompt 重新审计，
         # 只修上一轮仍不符合的稳定身份特征；最终不回退 GPT 首图，以保留线条修复。
-        if ((self.steps.get("repaint") or {}).get("enabled") and saved and self.analysis_result
+        if (((self.steps.get("repaint") or {}).get("enabled") or self.request_payload.get("safe_alternative")) and saved and self.analysis_result
                 and not self.isInterruptionRequested() and self._stage_needed("identity", saved)):
             try:
                 import json as _json
@@ -1712,7 +1713,8 @@ class GptImageGenWorkerThread(QThread):
                 _json.dump(final_audit, f, ensure_ascii=False, indent=2)
             if should_refine_quality(final_audit) or final_audit.get("needs_review"):
                 raise RuntimeError("最终复核发现人体结构、画风或过曝问题，保留候选图与审计，禁止发布")
-            self.log_signal.emit("[最终复核] 人体结构、画风与局部明暗可读性通过。")
+            self.log_signal.emit("[最终复核] 人体结构、画风与局部明暗可读性通过。" if self.style_ref_path else
+                                 "[最终复核] 人体结构检查通过；无画风参考图，不评价原画风贴近度。")
         self._stage_done("final_review", saved)
         if self.isRequestInterruption_requested_safe():
             self.checkpoint.fail("用户取消", cancelled=True)

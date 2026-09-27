@@ -8,6 +8,33 @@ from utils.generation_checkpoint import GenerationCheckpoint
 BLOCK = {"saved_files": [], "server_response_raw": {"error": {"code": "moderation_blocked"}}}
 
 class FirstReviewTests(unittest.TestCase):
+    def test_gpt_only_safe_alternative_still_runs_identity_gate(self):
+        from PIL import Image
+        from modules.image_analysis.single_analyzer import GptImageGenWorkerThread
+        with tempfile.TemporaryDirectory() as directory:
+            first = str(Path(directory) / 'first.png')
+            Image.new('RGB', (32, 48), 'white').save(first)
+            checkpoint_path = str(Path(directory) / 'checkpoint.json')
+            cp = GenerationCheckpoint(checkpoint_path)
+            cp.begin('first', []); cp.complete('first', [first])
+            cp.data['first_safe_review'] = {'outputs': [first], 'plan': {
+                'retry_allowed': True, 'prompt': 'covered dress illustration',
+                'reference_policy': 'none', 'safe_rendering_clauses': []}}
+            cp.save()
+            worker = GptImageGenWorkerThread({'prompt': 'old', 'skip_identity_refine': True},
+                steps={'repaint': {'enabled': False}}, analysis_result={'task_hash': '12345678'},
+                checkpoint_path=checkpoint_path)
+            with patch('utils.identity_audit.audit_image_identity', return_value={
+                    'mismatch': False, 'differences': [], 'severity': 'none'}) as audit, \
+                 patch('utils.refine_quality.audit_hand_quality', return_value={
+                    'needs_refine': False, 'structural_issues': [], 'needs_review': False}), \
+                 patch('utils.analysis_gen.publish_final_output', return_value=first), \
+                 patch('modules.others.api_backend.generate_image_aigc2d_gpt', side_effect=AssertionError('must reuse first')):
+                worker.run()
+            audit.assert_called_once()
+            self.assertEqual(audit.call_args.kwargs['expected_prompt'], 'covered dress illustration')
+            self.assertEqual(worker.last_status, 'success')
+
     def test_explicit_blocks_only(self):
         self.assertTrue(is_moderation_block(BLOCK))
         self.assertFalse(is_moderation_block({"server_response_raw": {"error": {"code": "503"}}}))
@@ -66,6 +93,7 @@ class FirstReviewTests(unittest.TestCase):
             self.assertEqual(payload['style_ref_path'], '')
             self.assertNotIn('generation_clauses', payload)
             self.assertNotIn('style_text', payload)
+            self.assertFalse(payload['skip_identity_refine'])
             self.assertEqual(steps['repaint']['reference_mode'], 'none')
             self.assertFalse(steps['tone']['enabled'])
 
