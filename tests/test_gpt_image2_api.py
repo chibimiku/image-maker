@@ -1434,7 +1434,8 @@ def test_style_with_content_image_adds_role_block_and_orders_style_ref_last(tab,
     assert "a girl standing in shallow water" in prompt
     assert len(params["image_paths"]) == 2
     assert params["image_paths"][0] == str(user_img)
-    assert params["image_paths"][-1].endswith("tid.png")
+    from utils.styles import style_ref_image
+    assert params["image_paths"][-1] == style_ref_image(tab._styles_data, "tid")
 
 
 def test_style_only_no_content_image_skips_role_block(tab):
@@ -1443,7 +1444,8 @@ def test_style_only_no_content_image_skips_role_block(tab):
     _backend, params = tab.build_request()
     assert "IMAGE ROLES" not in params["prompt"]
     assert "Palette:" in params["prompt"]
-    assert params["image_paths"] and params["image_paths"][-1].endswith("tid.png")
+    from utils.styles import style_ref_image
+    assert params["image_paths"] and params["image_paths"][-1] == style_ref_image(tab._styles_data, "tid")
 
 
 def test_style_none_keeps_prompt_and_images_as_is(tab, tmp_path):

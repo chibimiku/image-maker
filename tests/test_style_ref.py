@@ -91,6 +91,13 @@ def main():
     if not os.path.exists(ref_image):
         print(f"[error] 测试图不存在: {ref_image}")
         return 1
+    # Keep the CLI override authoritative for all reference-bearing cases.
+    # Previously --ref-image was only existence-checked while B/C/D were still
+    # assembled from the configured path, making reference A/B tests invalid.
+    if args.ref_image:
+        styles = dict(styles)
+        styles[args.style] = dict(styles[args.style])
+        styles[args.style]["ref_image"] = os.path.abspath(args.ref_image)
 
     config = load_config()
     current_api = config.get("current_api", "aigc2d")
