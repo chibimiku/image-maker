@@ -386,9 +386,10 @@ def main():
             size = pick_gpt_image2_size_for_images(refs_for_size)
         print(f"[3/4] gpt-image-2 出首图（quality={args.quality}, size={size}, "
               f"端点={'/images/generations（新建图片）' if args.first_pass_mode == 'generate' else '/images/edits'}）…")
-        from utils.first_image_review import generate_first_image
+        from utils.first_image_review import generate_first_image, apply_safe_plan
         saved, payload["prompt"] = generate_first_image(generate_image_aigc2d_gpt,
             analysis_result=result,
+            plan_callback=lambda plan: apply_safe_plan(payload, steps, plan),
             prompt=payload["prompt"], image_paths=list(payload.get("image_paths") or []),
             model="gpt-image-2", size=size, quality=args.quality, output_format="png", n=1,
             api_type="aigc-2d-gpt", file_prefix=os.path.splitext(os.path.basename(args.json))[0][:24],
@@ -400,6 +401,9 @@ def main():
             save_manifest()
             print("❌ 首图生成失败（看 log/<日期>.log）")
             return 1
+        if payload.get("safe_alternative"):
+            repaint_style_ref = str(payload.get("style_ref_path") or "")
+            style_clauses = list(payload.get("clauses") or []) + proportion_clauses
         base_path = saved[0]
         print(f"      首图: {os.path.relpath(base_path, BASE)}  {_metrics(base_path)}")
 

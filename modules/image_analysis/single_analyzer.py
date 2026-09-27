@@ -1451,6 +1451,13 @@ class GptImageGenWorkerThread(QThread):
         saved = [p for p in (saved or []) if p]
         if not saved:
             raise RuntimeError("GPT 首图接口未返回图片")
+        safe_plan = self.checkpoint.data.get("first_safe_review", {}).get("plan")
+        if safe_plan and self.checkpoint.data.get("first_safe_review", {}).get("outputs"):
+            from utils.first_image_review import apply_safe_plan
+            apply_safe_plan(self.request_payload, self.steps, safe_plan)
+            self.style_ref_path = str(self.request_payload.get("style_ref_path") or "")
+            self.style_clauses = list(self.request_payload.get("clauses") or []) + list(self.request_payload.get("proportion_clauses") or [])
+            self.log_signal.emit("[安全替代] 后续工序沿用新提示词与参考图策略，原画风的改款要求已移除。")
         self._stage_done("first", saved)
         first_image = saved[0]
         process_dir = os.path.dirname(os.path.abspath(first_image)) if active_steps or self.analysis_result else ""

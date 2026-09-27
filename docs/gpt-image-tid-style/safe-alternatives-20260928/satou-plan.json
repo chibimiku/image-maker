@@ -1,0 +1,22 @@
+{
+  "retry_allowed": true,
+  "reason": "已将目标实质修改为非性化的日常洛可可服装插画：保留源照片中人物的身份特征、青绿色长发、棕色眼睛、奶油色高领长袖连衣裙、酒红色菱格与甜点图案、双手交叠姿态、窗边三分之四构图和化妆间环境；删除了内衣改款、乳胶/皮革紧身强调、湿润液体、身体曲线挑逗、开放领口、过度高跟鞋和情色化渲染。由于不再使用不适合的风格参考图，画风贴近度可能下降。",
+  "changes": [
+    "删除第二张性化风格参考图，并停止使用所有参考图。",
+    "删除镜面湿皮革、乳胶、液滴、液流、湿润腿部和身体材质强调；这些内容没有源照片依据且会造成性化表达。",
+    "保留源照片中完整覆盖身体的奶油色洛可可连衣裙、高领、长袖、蓬松袖、宽大裙摆、酒红色装饰、菱格纹、蝴蝶结、甜点图案和蕾丝边。",
+    "删除过膝袜、内衣式改款、开放领口、缩短裙长、强化腰臀曲线及过高高跟鞋等与源照片不符或带有挑逗性的要求。",
+    "将姿态限定为源照片可见的站立、身体略转向观者、双手在胸前交叠，不采用夸张分腿、抬膝或不稳定的性感化动作。",
+    "保留左侧明亮窗户、右侧深色化妆间、灯泡镜、梳妆台和源照片中可见的环境关系。",
+    "仅保留普通的深紫、午夜蓝、黑梅色、酒红和深红环境色调，以及非性化的线条、边缘和布料纹理说明。"
+  ],
+  "reference_policy": "none",
+  "safe_rendering_clauses": [
+    "使用深紫、午夜蓝、黑梅色与酒红色作为环境和装饰的普通调色，并以奶油白服装形成清晰色彩层次。",
+    "采用平滑但非湿润的数字绘画笔触，表现布料褶皱、蕾丝、刺绣和印花的柔和质感。",
+    "使用细致的深色彩色轮廓与清晰的材质边界，保持裙摆、袖口和装饰带的结构可读性。",
+    "以左侧窗光和右侧室内暖光塑造自然明暗，避免夸张高光、身体湿润效果或材质挑逗强调。"
+  ],
+  "prompt": "Vertical 3:4 fashion illustration based only on the supplied source photo, with no reference images. Depict the same single woman without making any age claim, preserving her visible identity, warm skin tone, long straight teal blue-green hair, brown eyes, small gold hair ornament, dangling earrings, facial expression and natural proportions as supported by the source photo. Keep the source photo’s near-eye-level three-quarter composition beside the tall bright window on the left, with the woman slightly right of center, facing the viewer with a gentle closed-mouth smile and both hands clasped near her chest. Preserve the complete visible Rococo confectionery dress exactly in its daily costume form: high standing collar, fully covered neckline, long puffed sleeves, fitted but non-emphasized bodice, broad bell-shaped full skirt, cream and ivory fabric, burgundy and brown scalloped bands, harlequin panels, bows, ribbon details, confectionery motifs, layered ruffles and embroidered lace hem. Keep the skirt as the dominant silhouette and preserve all visible garment coverage; do not redesign it as lingerie, latex, leather, transparent clothing or a shorter outfit. Preserve the source room context: bright window and curtains on the left, darker dressing-room interior on the right, bulb-framed mirror, vanity and only other furnishings visibly supported by the source photo. Render it as a wholesome theatrical costume-fashion illustration with deep violet, midnight blue, black-plum and restrained oxblood accents in the surrounding room and decorative shadows, while keeping the garment’s cream, burgundy and brown colors faithful to the source. Use ordinary polished digital brushwork, controlled soft shading, fine dark colored contours, clear separation between fabric layers, readable lace and embroidered texture, and natural window-and-bulb lighting. No sexualized styling, no exposed or altered underwear, no open neckline, no wet skin or liquid effects, no latex or mirror-wet materials, no body-part emphasis, no provocative pose, no erotic mood, and no invented clothing or accessories. Because the style reference images are intentionally omitted, prioritize source-photo fidelity over matching the unavailable reference style.",
+  "version": 2
+}

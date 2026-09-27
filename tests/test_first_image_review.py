@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from utils.first_image_review import generate_first_image, is_moderation_block
+from utils.first_image_review import generate_first_image, is_moderation_block, apply_safe_plan
 from utils.generation_checkpoint import GenerationCheckpoint
 
 BLOCK = {"saved_files": [], "server_response_raw": {"error": {"code": "moderation_blocked"}}}
@@ -22,7 +22,7 @@ class FirstReviewTests(unittest.TestCase):
         gen = Mock(return_value=BLOCK)
         with tempfile.TemporaryDirectory() as directory:
             cp = GenerationCheckpoint(str(Path(directory) / 'checkpoint.json'))
-            with patch('utils.first_image_review.review_request', return_value={"retry_allowed": False}):
+            with patch('utils.first_image_review.review_request', return_value={"retry_allowed": False, "version": 2}):
                 generate_first_image(gen, prompt='original', checkpoint=cp)
         self.assertEqual(gen.call_count, 1)
 
@@ -44,7 +44,40 @@ class FirstReviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             cp = GenerationCheckpoint(str(Path(directory) / 'checkpoint.json'))
             gen = Mock(return_value=BLOCK)
-            with patch('utils.first_image_review.review_request', return_value={"retry_allowed": True, "changes": ['remove invention'], "prompt": 'safe revised'}):
+            with patch('utils.first_image_review.review_request', return_value={"retry_allowed": True, "version": 2, "changes": ['remove invention'], "prompt": 'safe revised'}):
                 generate_first_image(gen, prompt='original', checkpoint=cp)
                 generate_first_image(gen, prompt='original', checkpoint=cp)
             self.assertEqual(gen.call_count, 2)
+
+    def test_unsafe_references_removed_from_retry_and_subsequent_stages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cp = GenerationCheckpoint(str(Path(directory) / 'checkpoint.json'))
+            plan = {"retry_allowed": True, "version": 2, "changes": ['keep original covered dress'],
+                    "prompt": 'covered source outfit illustration', "reference_policy": 'none',
+                    "safe_rendering_clauses": ['watercolor texture']}
+            payload = {"image_paths": ['unsafe.jpg'], "style_ref_path": 'unsafe.jpg',
+                       "style_text": 'old instructions', "generation_clauses": ['old override']}
+            steps = {"repaint": {"reference_mode": 'style'}, "tone": {"enabled": True}}
+            gen = Mock(side_effect=[BLOCK, []])
+            with patch('utils.first_image_review.review_request', return_value=plan):
+                generate_first_image(gen, prompt='old', image_paths=['unsafe.jpg'], checkpoint=cp,
+                    plan_callback=lambda p: apply_safe_plan(payload, steps, p))
+            self.assertEqual(gen.call_args.kwargs['image_paths'], [])
+            self.assertEqual(payload['style_ref_path'], '')
+            self.assertNotIn('generation_clauses', payload)
+            self.assertNotIn('style_text', payload)
+            self.assertEqual(steps['repaint']['reference_mode'], 'none')
+            self.assertFalse(steps['tone']['enabled'])
+
+    def test_old_declined_plan_researched_again_without_resending_original(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cp = GenerationCheckpoint(str(Path(directory) / 'checkpoint.json'))
+            cp.data['first_safe_review'] = {'blocked': True, 'plan': {'retry_allowed': False}}
+            plan = {'version': 2, 'retry_allowed': True, 'changes': ['original covered outfit'],
+                    'reference_policy': 'none', 'prompt': 'ordinary fashion illustration'}
+            gen = Mock(return_value=[])
+            with patch('utils.first_image_review.review_request', return_value=plan) as review:
+                generate_first_image(gen, prompt='original', checkpoint=cp)
+            review.assert_called_once()
+            gen.assert_called_once()
+            self.assertEqual(gen.call_args.kwargs['prompt'], plan['prompt'])
