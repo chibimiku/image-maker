@@ -5,6 +5,9 @@ IMAGE ROLES
 - Image 2 = ORIGINAL GPT FIRST-PASS IMAGE. It is the truth for pose semantics, garment design, props, background layout, crop and lighting geometry. When a listed REPAIR explicitly identifies faulty body proportions or limb lengths, that repair overrides Image 2's faulty anatomy: keep the same action and gesture while correcting the stated head-to-body ratio, joint placement and foreshortening.
 - Image 3, when present, = STYLE REFERENCE. It supplies only line character, edge hierarchy, brushwork and material treatment. Never copy its character, face, hair, clothing, pose, objects, scene or composition.
 - When Image 3 is absent, the STYLE repair items below are the complete style target. Do not imagine an unseen reference image.
+- Image 2 may itself have malformed or misassigned limbs. A listed anatomy repair overrides
+  those faulty pixels even without a numerical body-proportion target. Trace each repaired
+  limb to its own character; never redistribute legs between people to satisfy a total count.
 
 Repair only the listed defects. For a listed defective region, its current pixels are not locked: redraw that local structure into one coherent, anatomically or mechanically readable form. Delete obsolete fragments, duplicate contours, floating strokes and crossed bands. Reconstruct the small exposed area from Images 1 and 2 so no seam or ghost remains.
 
@@ -13,6 +16,11 @@ Outside listed repair regions, keep Image 1 unchanged. Use Image 2 to restore an
 
 STYLE TARGET
 Apply the listed style repairs only where requested: line weight, taper, edge hierarchy, brushwork, shading transition, texture and simplification level. When Image 3 is present it may clarify those terms; when absent use the text alone. Do not import palette-specific subject colours or content. Main character contours must remain clearly readable at normal viewing size; thin style does not mean faint, broken or missing.
+Do not turn a local edge cleanup into a global redraw or flatten layered reference shading
+into uniform vector-like fills. Keep the current face/eye abstraction, hair grouping and
+selective material highlights unless a listed repair explicitly changes their drawing method.
+Bright and luminous does not mean raising every midtone toward white; preserve intrinsic
+dark garment panels and separation between adjacent pale surfaces.
 
 PROTECTED FEATURES
 {protected_features}

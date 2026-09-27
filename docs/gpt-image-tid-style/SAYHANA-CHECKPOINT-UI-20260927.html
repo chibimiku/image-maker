@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8">
+<title>SayHANa 参考图评估与断点续跑 — 2026-09-27</title>
+<style>body{max-width:1200px;margin:32px auto;padding:0 20px;background:#10151d;color:#dce5f0;font:16px/1.7 system-ui}a{color:#8ec9ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}article{padding:16px;background:#1d2735;border-radius:12px}img{width:100%;max-height:540px;object-fit:contain}h1,h2{line-height:1.3}code{background:#273549;padding:2px 5px}</style>
+<h1>SayHANa 参考图评估、GPT 断点与紧凑 UI</h1>
+<p>后续更新：已按用户指定统一 SayHANa v4 圆杏眼提示词，并完善 tinkle 透光材质与有限 Lolita 点缀。详见 <a href="SAYHANA-TINKLE-PROMPTS-20260927.md">本轮提示词更新记录</a>。以下为更新前的评估记录。</p>
+<p>2026-09-27。本页是作品目视评估与软件回归记录，不是新参考图生图相似度实测；本轮没有调用收费生图接口，也没有更换 SayHANa 的正式参考图。</p>
+<h2>1. 作者与作品</h2>
+<p><a href="https://www.pixiv.net/users/1443093">SayHANa 林花 · Pixiv 1443093</a>。身份由 <a href="https://www.pixivision.net/zh-tw/a/10878">pixiv 官方大使介绍</a>交叉确认。候选图通过公开 Pixiv 作品接口取得；以下四图均为公开全年龄作品。</p>
+<div class="grid">
+<article><img src="../../data/style-ref/sayhana-test.png"><h3>当前参考图</h3><p>橙绿重彩、颗粒肌理、平面花木装饰、中式衣装，强主题与强配色。适合“装饰重彩”分支，但不能代表作者所有近作。仅有半身，不能作为全身比例证据。</p></article>
+<article><img src="../../data/style-ref/candidates/sayhana-20260927/147635699_p0_master1200.jpg"><h3><a href="https://www.pixiv.net/artworks/147635699">KSP · 147635699</a></h3><p>冷暖边光、透明伞与湿润光泽、头发成组厚涂。可以研究近作光色分支，但文字、雨伞、雨景和右下重复头像很强，不宜整张直接垫图。</p></article>
+<article><img src="../../data/style-ref/candidates/sayhana-20260927/145613681_p0_master1200.jpg"><h3><a href="https://www.pixiv.net/artworks/145613681">Aoi Hinamori · 145613681</a></h3><p>强红黑对比、明亮彩色边光、厚涂与装饰笔触并存。候选中的首选近作分支：脸、发、服装材质都清楚；应排除画框、大字与署名。仍非完整脚部全身参考。</p></article>
+<article><img src="../../data/style-ref/candidates/sayhana-20260927/138796681_p0_master1200.jpg"><h3><a href="https://www.pixiv.net/artworks/138796681">merry christmas · 138796681</a></h3><p>全身清楚、纸张/印刷颗粒、扁平不透明笔触与彩色反射，适合装饰分支的比例辅助候选。但小体型角色、圣诞花环、礼物主题很强，不能当所有成人角色的唯一比例目标。</p></article>
+<article><img src="../../data/style-ref/candidates/sayhana-20260927/133852551_p0_master1200.jpg"><h3><a href="https://www.pixiv.net/artworks/133852551">133852551</a></h3><p>脸、服装结构与柔和厚涂清楚，背景相对简单，但仍含大字、网点、可爱道具，且腿脚不完整。适合五官/材质评估，不适合全身比例约束。</p></article>
+</div>
+<h2>2. 优化判断</h2>
+<p>仅 <code>say-hana-v4</code> 当前启用，其余四个版本停用；五个版本却共享同一张旧参考图。当前 v4 的 <code>prompt_gpt</code> 强调“long narrow almond geometry”，重绘条款又要求“rounded almonds … rather than a slit”，眼形目标相互冲突。此外现用 v4 主张均匀装饰光、少光泽，而近作中的边光、体积、头发反射较明显。</p>
+<p>建议：先统一 v4 的圆杏眼语法，保留其橙绿装饰重彩定位；近作厚涂/彩色边光另设受控实验分支。首轮对照用当前图、145613681 清洁角色区域、138796681 全身区域三组，保持内容锚、提示词长度和模式一致；同时检查相似度与主题/发色/服装泄露。不能仅凭目视判定替换后会提高生成分数，因此本轮不直接替换正式配置。</p>
+<h2>3. 失败原因与恢复</h2>
+<p>日志有代理断连、图片提取失败及分析 JSON 解析失败，不能将重试日志条数直接当失败率。代码层更明确的问题是：后处理返回 partial 或审计异常后，原来仍可能标成功。现改为失败工序标红，保留成功图片和请求快照。</p>
+<ol><li>在历史队列右键 → “工序断点 / Gemini 重绘” → “从断点续跑”。复用已完成 GPT 首图和工序产物，后处理内部也从失败步骤继续。</li><li>“从 GPT 首图重新 Gemini 重绘”：新建重绘尝试，保留原尝试，不再次调用 GPT。</li><li>“重绘当前图”：输入人体、腿长、姿势等具体修正要求；源图单参考，锁定源图宽高比，不再强行叠加会抵触姿势修正的通用渲染锁。保留未指定部分，且不对 Q 版施加统一头身比。</li><li>重启后可在队列空白处右键“导入工序断点 / 旧首图请求”，选择 <code>generation-checkpoint*.json</code>；旧首图的 <code>.request.json</code> 也可导入。旧快照缺失的画风门禁开关/条款按当前配置恢复，日志明确提醒；旧任务若没有首图不能恢复不存在的首图。</li></ol>
+<p>每个新任务在过程目录保存断点；质量与身份门禁内部缓存每次成功联网操作，若修订图已出而复审失败，续跑只补复审。文件被移动/删除时，失效工序及其下游不再复用。取消/失败不删除已有图片。工序中断与图片视觉错误分开：能成功出图仍不等于人体一定正确。</p>
+<h2>4. UI 与验证</h2>
+<p>分析 / 停止 / 批量改一行三按钮；分析后两个生图勾选项与仅保存项改为一行；原始生图 / 优化生图 / 停止生图与倒计时合并一行。默认 1100×750 下队列、日志各保留约 141px，窗口增高仍优先给队列/日志，GPT 参数仍是两行。</p>
+<p>新增回归覆盖：重绘失败续跑不重复 GPT、质量修订成功但复审失败不重复出图、文件失效重算、partial 不假成功、旧请求导入、人工重绘失败后复用相同输入与工序目录。修改 Python 后必须重启 app 才能使用新功能；请先等待正在运行的任务退出。</p>
+<h2>5. 后续：tinkle</h2>
+<p>验证结果：全套 481 项测试通过，1 条既有服饰采集后台线程在窗口销毁后回调的警告；本轮新增功能均以模拟接口验证，未声称已做收费接口实测。两项 SD UI 测试改用临时配置，避免写真实用户配置。</p>
+<p>按用户要求排在本轮之后：分开研究“材质半透明/透光层次”和“轻度 Lolita 设计授权”。半透明优先作用于欧根纱、薄纱、蕾丝、丝带边缘、发丝与透光叠层，不把人物皮肤或整件服装泛化成透明；蕾丝与蝴蝶结为少量可选点缀，保持身份、主色、主体衣装结构。必须同步检查首图、重绘与身份门禁，避免新增点缀被身份回改撤销。本轮未修改 tinkle 配置。</p>
+</html>

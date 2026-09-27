@@ -367,7 +367,10 @@ def test_webui_extra_payload_editor_dialog_parses_nested_values(qapp):
     dialog.close()
 
 
-def test_sd_workflow_existing_story_enables_story_actions(qapp, tmp_path):
+def test_sd_workflow_existing_story_enables_story_actions(qapp, tmp_path, monkeypatch):
+    config_path = tmp_path / "config-sd.json"
+    config_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(sd_workflow_module.sd_workflow_core, "CONFIG_FILE", str(config_path))
     story_path = tmp_path / "existing-story.json"
     story_payload = {
         "theme": "已有故事",
@@ -398,7 +401,10 @@ def test_sd_workflow_existing_story_enables_story_actions(qapp, tmp_path):
     widget.close()
 
 
-def test_sd_workflow_story_prompt_settings_persist_in_state(qapp):
+def test_sd_workflow_story_prompt_settings_persist_in_state(qapp, tmp_path, monkeypatch):
+    config_path = tmp_path / "config-sd.json"
+    config_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(sd_workflow_module.sd_workflow_core, "CONFIG_FILE", str(config_path))
     widget = sd_workflow_module.SdWorkflowWidget()
     widget.story_prompt_min_words_input.setValue(320)
     widget.story_prompt_keyword_count_input.setValue(24)

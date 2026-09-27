@@ -55,7 +55,7 @@ def first_pass_sub_dir(steps: dict, run_key: str = "") -> str:
 
 
 def publish_final_output(source_path: str, *, style_name: str = "", process_dir: str = "",
-                         final_dir: str = "") -> str:
+                         final_dir: str = "", task_hash: str = "") -> str:
     """把工作目录里选中的最终图只发布一份到 `data/<YYYYMMDD>/`。
 
     首图、首次重绘、质量/身份修订和审计 JSON 均保留在 `process_dir`；
@@ -78,11 +78,12 @@ def publish_final_output(source_path: str, *, style_name: str = "", process_dir:
         stem += "-final"
     # publish_server 以分析任务的 8 位 hash 关联同目录 JSON。过程图通常以该 hash
     # 开头；发布时必须继续把它保留在第一个下划线字段，不能让画风名挡在前面。
-    task_hash = ""
+    supplied_hash = str(task_hash or "").strip()
+    task_hash = supplied_hash.lower() if re.fullmatch(r"[0-9a-fA-F]{8}", supplied_hash) else ""
     hash_match = re.match(r"^([0-9a-fA-F]{8})(?=[^0-9a-fA-F]|$)", stem)
-    if hash_match:
-        task_hash = hash_match.group(1).lower()
-        remainder = stem[len(hash_match.group(1)):].lstrip("-_")
+    if hash_match or task_hash:
+        task_hash = task_hash or hash_match.group(1).lower()
+        remainder = stem[len(hash_match.group(1)):].lstrip("-_") if hash_match else stem
         stem = task_hash + "_" + (f"{style}-" if style else "") + remainder
     elif style and not stem.lower().startswith(style.lower() + "-"):
         stem = f"{style}-{stem}"
@@ -292,7 +293,7 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                                     (entry.get("identity_correction_clauses") or [])
                                     if str(c).strip()] if isinstance(entry, dict) else [])
     post_adjustment = dict(entry.get("post_adjustment") or {}) if isinstance(entry, dict) else {}
-    payload.update({"style_name": name, "style_ref_path": ref, "clauses": clauses,
+    payload.update({"style_name": name, "style_ref_path": ref, "style_text": style_text, "clauses": clauses,
                     "motif_prompt": motif_prompt,
                     "clauses_source": clauses_source, "skip_quality_refine": skip_quality_refine,
                     "skip_identity_refine": skip_identity_refine,
@@ -343,6 +344,15 @@ def resolve_gemini_reference_content(style_entry, prompt_context, fallback: str,
     return (content, field) if content else (str(fallback or ""), "")
 
 
+def build_gemini_content_postamble(content: str, post_instructions: str = "") -> str:
+    """在画风图之后重申本次内容，避免末尾图片变成待编辑原图。"""
+    from utils.prompt_loader import render_prompt_file
+    if not str(content or "").strip():
+        return str(post_instructions or "")
+    lock = render_prompt_file("gemini-analysis-content-lock.md", {"content": str(content).strip()})
+    return "\n\n".join(v for v in (str(post_instructions or "").strip(), lock.strip()) if v)
+
+
 def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, local: bool = False,
                               structure_strength: float = 0.5, local_region: str = "hair",
                               local_feather: int = 48, resolution: str = "2K",
@@ -384,7 +394,7 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
 
 def run_gpt_image_pipeline(paths, steps, firmware: str = "", log_callback=None,
                            final_dir: str = None, work_dir: str = None,
-                           style_ref_path: str = "", style_clauses=None) -> list:
+                           style_ref_path: str = "", style_clauses=None, strict=False) -> list:
     """按勾选对 gpt-image 产物跑「重绘 → 结构线叠加 → 局部重绘 → 色调校准 → 加墨」。
 
     统一委托给 `utils.post_process.run_pipeline`：最后一道工序的产物落 `data/<日期>/`（发布目录），
@@ -404,7 +414,7 @@ def run_gpt_image_pipeline(paths, steps, firmware: str = "", log_callback=None,
     if tone_cfg.get("enabled") and str(tone_cfg.get("tone_target") or "style") == "style" \
             and style_ref_path and os.path.isfile(str(style_ref_path)):
         tone_cfg["reference_path"] = str(style_ref_path)      # 目标 = 画风参考图
-    return pp.run_pipeline(paths, {"structure": steps.get("structure") or {"enabled": False},
+    outputs = pp.run_pipeline(paths, {"structure": steps.get("structure") or {"enabled": False},
                                    "local": steps.get("local") or {"enabled": False},
                                    "tone": tone_cfg,
                                    "ink": steps.get("ink") or {"enabled": False},
@@ -412,3 +422,8 @@ def run_gpt_image_pipeline(paths, steps, firmware: str = "", log_callback=None,
                            firmware=firmware, log_callback=log,
                            final_dir=final_dir, work_dir=work_dir,
                            style_ref_path=style_ref_path, style_clauses=style_clauses)
+    if strict and work_dir:
+        failures = pp.pipeline_failures(work_dir)
+        if failures:
+            raise RuntimeError("; ".join(f"{f['step']}: {f['error']}" for f in failures))
+    return outputs

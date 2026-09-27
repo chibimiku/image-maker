@@ -10,7 +10,7 @@ from PIL import Image, ImageGrab
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
                              QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox, QCompleter,
-                             QListWidget, QListWidgetItem, QDialog, QMenu, QApplication, QScrollArea, QFrame)
+                             QListWidget, QListWidgetItem, QDialog, QMenu, QApplication, QScrollArea, QFrame, QInputDialog, QFileDialog)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel
 from PyQt6.QtGui import QPixmap, QColor, QDesktopServices
 from PyQt6.QtCore import QUrl
@@ -1309,7 +1309,8 @@ class GptImageGenWorkerThread(QThread):
 
     def __init__(self, request_payload, steps=None, firmware="", size="1024x1536", quality="high",
                  output_format="png", file_prefix=None, model_name="gpt-image-2", api_type="aigc-2d-gpt",
-                 mode="generate", style_ref_path="", style_clauses=None, analysis_result=None):
+                 mode="generate", style_ref_path="", style_clauses=None, analysis_result=None,
+                 checkpoint_path="", restart_stage=""):
         super().__init__()
         self.request_payload = dict(request_payload or {})
         self.steps = dict(steps or {})
@@ -1327,11 +1328,49 @@ class GptImageGenWorkerThread(QThread):
         self.style_clauses = [str(c) for c in (style_clauses or []) if str(c).strip()]
         self.analysis_result = dict(analysis_result or {})
         self.last_status = "idle"
+        self.checkpoint_path = checkpoint_path
+        self.restart_stage = restart_stage
+        self.failed_stage = ""
+        self.checkpoint = None
 
     def request_cancel(self):
         self.requestInterruption()
 
+    def _stage_needed(self, stage, saved):
+        from utils.generation_checkpoint import STAGE_LABELS, ANATOMY_GATE_VERSION
+        if stage == "hands" and self.checkpoint.data.get("anatomy_gate_version") != ANATOMY_GATE_VERSION:
+            # Upgrade hand-only checkpoints without regenerating upstream images.
+            self.checkpoint.reset_from(stage)
+            self.checkpoint.data["anatomy_gate_version"] = ANATOMY_GATE_VERSION
+            self.checkpoint.save()
+        if stage == "final_review" and stage not in self.checkpoint.data["stages"]:
+            self.checkpoint.reset_from(stage)
+        if stage == "pipeline":
+            manual = self.request_payload.get("manual_repaint_input")
+            if manual and os.path.isfile(manual):
+                saved[:] = [manual]
+        needed, outputs = self.checkpoint.begin(stage, saved)
+        saved[:] = outputs
+        self.log_signal.emit(f"[工序断点] {STAGE_LABELS[stage]}：{'执行' if needed else '复用已完成产物'}")
+        return needed
+
+    def _stage_done(self, stage, saved):
+        if self.checkpoint.data["stages"].get(stage, {}).get("status") == "running":
+            self.checkpoint.complete(stage, saved)
+
     def run(self):
+        try:
+            self._run_stages()
+        except Exception as exc:
+            from utils.generation_checkpoint import STAGE_LABELS
+            self.last_status = "error"
+            if self.checkpoint:
+                self.checkpoint.fail(exc)
+                self.failed_stage = self.checkpoint.data.get("current_stage", "")
+            self.log_signal.emit(f"❌ 工序失败 [{STAGE_LABELS.get(self.failed_stage, self.failed_stage)}]: {exc}；已保留断点，可右键续跑。")
+            self.finish_signal.emit([])
+
+    def _run_stages(self):
         from modules.others.api_backend import generate_image_aigc2d_gpt
         from utils.analysis_gen import (first_pass_sub_dir, publish_final_output,
                                         run_face_hair_style_refine, run_gpt_image_pipeline,
@@ -1348,32 +1387,73 @@ class GptImageGenWorkerThread(QThread):
             self.steps,
             run_key=f"{self.file_prefix or 'analysis-gpt'}-{self.request_payload.get('style_name') or 'no-style'}",
         )
+        if not process_sub_dir and self.analysis_result:
+            # GPT-only styles still need anatomy validation before publication.
+            process_sub_dir = first_pass_sub_dir(
+                {"repaint": {"enabled": True}},
+                run_key=f"{self.file_prefix or 'analysis-gpt'}-{self.request_payload.get('style_name') or 'no-style'}")
+        from utils.generation_checkpoint import GenerationCheckpoint
+        if not self.checkpoint_path:
+            checkpoint_sub_dir = process_sub_dir or first_pass_sub_dir(
+                {"repaint": {"enabled": True}}, run_key=self.file_prefix or "analysis-gpt")
+            directory, _ = resolve_output_target(
+                os.path.join("data", datetime.datetime.now().strftime("%Y%m%d"),
+                             checkpoint_sub_dir), "checkpoint")
+            self.checkpoint_path = os.path.abspath(os.path.join(directory, "generation-checkpoint.json"))
+            # Pass the resolved absolute directory to the API as well: otherwise
+            # its data/date prefix bypasses test isolation for paid first images.
+            if active_steps or self.analysis_result:
+                process_sub_dir = os.path.dirname(self.checkpoint_path)
+        elif active_steps or self.analysis_result:
+            process_sub_dir = os.path.dirname(os.path.abspath(self.checkpoint_path))
+        snapshot = dict(request_payload=self.request_payload, steps=self.steps,
+                        firmware=self.firmware, size=self.size, quality=self.quality,
+                        output_format=self.output_format, file_prefix=self.file_prefix,
+                        model_name=self.model_name, api_type=self.api_type, mode=self.mode,
+                        style_ref_path=self.style_ref_path, style_clauses=self.style_clauses,
+                        analysis_result=self.analysis_result)
+        self.checkpoint = GenerationCheckpoint(self.checkpoint_path, snapshot)
+        if self.restart_stage:
+            self.checkpoint.reset_from(self.restart_stage)
+            self.checkpoint.data["snapshot"] = snapshot
+            if self.restart_stage == "pipeline":
+                # Explicit repaint must not reuse the previous repaint manifest.
+                process_sub_dir = os.path.dirname(self.checkpoint_path)
+                self.checkpoint.data["pipeline_work_dir"] = os.path.join(
+                    process_sub_dir, "pipeline-steps-retry-" + datetime.datetime.now().strftime("%H%M%S%f"))
+            self.checkpoint.save()
+        saved = []
+        first_needed = self._stage_needed("first", saved)
         self.log_signal.emit("\n🚀 gpt-image-2 生图（%s，提示词 %d 字符，参考图 %d 张：%s）"
                              % (self.model_name, len(prompt), len(images),
                                 "画风参考图" if images else "无"))
         try:
-            saved = generate_image_aigc2d_gpt(
+            from utils.first_image_review import generate_first_image
+            if first_needed:
+                saved, prompt = generate_first_image(generate_image_aigc2d_gpt,
+                analysis_result=self.analysis_result, checkpoint=self.checkpoint,
+                log_callback=self.log_signal.emit,
                 prompt=prompt, image_paths=images, model=self.model_name, size=self.size,
                 quality=self.quality, output_format=self.output_format, n=1,
                 api_type=self.api_type, file_prefix=self.file_prefix or "analysis-gpt",
                 # 没有后续工序时首图就是最终产物 → 直接落 data/<日期>/（方便发布）；
                 # 有工序时它是中间产物，进 analysis-gpt-image/ 子目录。
                 save_sub_dir=process_sub_dir,
-                return_metadata=False,
                 mode=self.mode,
-            )
+                cancel_check=self.isInterruptionRequested,
+                )
+                self.request_payload["prompt"] = prompt
+            elif self.checkpoint.data.get("first_safe_review", {}).get("outputs"):
+                self.request_payload["prompt"] = self.checkpoint.data["first_safe_review"]["plan"]["prompt"]
         except Exception as exc:  # noqa: BLE001
             self.log_signal.emit(f"❌ gpt-image-2 生图异常: {exc}")
-            self.last_status = "error"
-            self.finish_signal.emit([])
-            return
+            raise
         saved = [p for p in (saved or []) if p]
         if not saved:
-            self.last_status = "error"
-            self.finish_signal.emit([])
-            return
+            raise RuntimeError("GPT 首图接口未返回图片")
+        self._stage_done("first", saved)
         first_image = saved[0]
-        process_dir = os.path.dirname(os.path.abspath(first_image)) if active_steps else ""
+        process_dir = os.path.dirname(os.path.abspath(first_image)) if active_steps or self.analysis_result else ""
         def record_request(outputs=None):
             try:
                 if os.path.isfile(first_image):
@@ -1385,31 +1465,37 @@ class GptImageGenWorkerThread(QThread):
                 self.log_signal.emit(f"[gpt 通道] 请求快照保存失败：{exc}")
         record_request()
         active = [k for k, v in self.steps.items() if isinstance(v, dict) and v.get("enabled")]
-        if active and not self.isInterruptionRequested():
+        if active and not self.isInterruptionRequested() and self._stage_needed("pipeline", saved):
             self.log_signal.emit("🧩 工序加工: " + " → ".join(active))
             try:
                 saved = run_gpt_image_pipeline(saved, self.steps, firmware=self.firmware,
                                                log_callback=self.log_signal.emit,
                                                final_dir=process_dir,
-                                               work_dir=os.path.join(process_dir, "pipeline-steps"),
+                                               work_dir=self.checkpoint.data.get("pipeline_work_dir") or os.path.join(process_dir, "pipeline-steps"),
                                                style_ref_path=self.style_ref_path,
-                                               style_clauses=self.style_clauses) or saved
+                                               style_clauses=self.style_clauses, strict=True) or saved
             except Exception as exc:  # noqa: BLE001 - 工序失败仍保留生图产物
-                self.log_signal.emit(f"⚠️ 工序加工失败，已保留生图产物: {type(exc).__name__}: {exc}")
+                raise
+        self._stage_done("pipeline", saved)
         if (((self.steps.get("repaint") or {}).get("enabled")) and saved
                 and bool(self.request_payload.get("face_hair_refine")) and self.style_ref_path
-                and os.path.isfile(self.style_ref_path) and not self.isInterruptionRequested()):
+                and os.path.isfile(self.style_ref_path) and not self.isInterruptionRequested()
+                and self._stage_needed("face", saved)):
             try:
                 refined = run_face_hair_style_refine(
                     saved[-1], self.style_ref_path, style_clauses=self.style_clauses,
                     output_dir=process_dir or os.path.dirname(os.path.abspath(saved[-1])),
                     file_prefix=(self.file_prefix or "analysis-gpt") + "-face-hair-style")
+                if not refined:
+                    raise RuntimeError("五官修订接口未返回图片")
                 if refined:
                     saved = [refined[-1]]
                     self.log_signal.emit("[五官画风修订] 已用完整画风图只修订面部与头发绘画语法。")
             except Exception as exc:
                 self.log_signal.emit(
                     f"[五官画风修订] 失败，保留首次重绘图: {type(exc).__name__}: {exc}")
+                raise
+        self._stage_done("face", saved)
         # 完整画风图只用于第一次重绘。第二次质量修订改用「当前图 + GPT 首图」：
         # 审计从画风图提取具体差异写进文字，但不再次发送画风图，避免参考角色/场景二次侵入。
         if ((self.steps.get("repaint") or {}).get("enabled") and saved
@@ -1417,39 +1503,53 @@ class GptImageGenWorkerThread(QThread):
             self.log_signal.emit("[质量门禁] 当前画风配置保留首次完整画风图重绘，跳过二次质量修订。")
         if ((self.steps.get("repaint") or {}).get("enabled") and saved and self.style_ref_path
                 and os.path.isfile(self.style_ref_path) and not self.isInterruptionRequested()
-                and not bool(self.request_payload.get("skip_quality_refine"))):
+                and not bool(self.request_payload.get("skip_quality_refine"))
+                and not self.request_payload.get("manual_repaint_input")
+                and self._stage_needed("quality", saved)):
             try:
                 import json as _json
                 from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
-                                                  should_refine_quality)
+                                                  should_refine_quality, repair_style_guard)
                 from utils.post_process import snapped_aspect_ratio
                 from modules.others.api_backend import generate_image_repaint
                 quality_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
                 actual_prompt = str(self.request_payload.get("prompt") or "")
                 proportion_clauses = list(self.request_payload.get("proportion_clauses") or [])
-                quality = audit_refine_quality(first_image, saved[-1], self.style_ref_path,
+                quality = self.checkpoint.operation("quality-audit-before", lambda: audit_refine_quality(first_image, saved[-1], self.style_ref_path,
                                                first_pass_prompt=actual_prompt,
-                                               proportion_clauses=proportion_clauses)
+                                               proportion_clauses=proportion_clauses))
                 with open(os.path.join(quality_dir, "refine-quality-audit-0.json"),
                           "w", encoding="utf-8") as f:
                     _json.dump(quality, f, ensure_ascii=False, indent=2)
                 if should_refine_quality(quality):
                     quality_prompt = build_quality_correction_prompt(quality)
-                    refined = generate_image_repaint(
+                    quality_prompt += "\n\n" + repair_style_guard(self.request_payload)
+                    refined = self.checkpoint.operation("quality-correction", lambda: generate_image_repaint(
                         [saved[-1]], resolution="2K", aspect_ratio=snapped_aspect_ratio(saved[-1]),
                         prompt=quality_prompt,
                         use_detail_suffix=False, save_sub_dir=quality_dir,
                         file_prefix=(self.file_prefix or "analysis-gpt") + "-quality-refine",
-                        extra_reference_paths=[first_image]) or []
+                        extra_reference_paths=[first_image]) or [], image=True)
+                    if not refined:
+                        raise RuntimeError("质量修订接口未返回图片")
                     if refined:
                         saved = [refined[-1]]
-                        quality_after = audit_refine_quality(
+                        self.checkpoint.data["last_outputs"] = saved
+                        self.checkpoint.save()
+                        quality_after = self.checkpoint.operation("quality-audit-after", lambda: audit_refine_quality(
                             first_image, saved[-1], self.style_ref_path,
                             first_pass_prompt=actual_prompt,
-                            proportion_clauses=proportion_clauses)
+                            proportion_clauses=proportion_clauses))
                         with open(os.path.join(quality_dir, "refine-quality-audit-1.json"),
                                   "w", encoding="utf-8") as f:
                             _json.dump(quality_after, f, ensure_ascii=False, indent=2)
+                        if should_refine_quality(quality_after) and (
+                                quality_after.get("severity") == "major" or any(
+                                    float(item.get("confidence") or 0) >= 0.72
+                                    for item in quality_after.get("background_drift", []))):
+                            raise RuntimeError("质量修订复审仍有明确缺陷或画面漂移，禁止将该候选图作为完成产物")
+                        if should_refine_quality(quality_after):
+                            self.log_signal.emit("[质量门禁] 局部缺陷留给后续人体修订，最终复核通过前禁止发布。")
                         self.log_signal.emit(
                             "[质量门禁] 已用当前图 + GPT 首图完成一次文字驱动修订；"
                             "画风图未再次发送。")
@@ -1458,10 +1558,12 @@ class GptImageGenWorkerThread(QThread):
             except Exception as exc:
                 self.log_signal.emit(
                     f"[质量门禁] 审计/修订失败，保留当前重绘图: {type(exc).__name__}: {exc}")
+                raise
+        self._stage_done("quality", saved)
         # 重绘后的身份处理最多两轮定点修订。每轮都拿当前图与实际首图 prompt 重新审计，
         # 只修上一轮仍不符合的稳定身份特征；最终不回退 GPT 首图，以保留线条修复。
         if ((self.steps.get("repaint") or {}).get("enabled") and saved and self.analysis_result
-                and not self.isInterruptionRequested()):
+                and not self.isInterruptionRequested() and self._stage_needed("identity", saved)):
             try:
                 import json as _json
                 from utils.identity_audit import (audit_image_identity, build_identity_correction_prompt,
@@ -1471,7 +1573,7 @@ class GptImageGenWorkerThread(QThread):
                 audit_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
                 current = saved[-1]
                 actual_prompt = str(self.request_payload.get("prompt") or "")
-                audit = audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt)
+                audit = self.checkpoint.operation("identity-audit-0", lambda: audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt))
                 with open(os.path.join(audit_dir, "identity-audit-0.json"), "w", encoding="utf-8") as f:
                     _json.dump(audit, f, ensure_ascii=False, indent=2)
                 skip_identity_refine = bool(self.request_payload.get("skip_identity_refine"))
@@ -1486,21 +1588,26 @@ class GptImageGenWorkerThread(QThread):
                         break
                     correction_prompt = build_identity_correction_prompt(
                         audit, iteration=correction_round, max_iterations=2)
+                    from utils.refine_quality import repair_style_guard
+                    correction_prompt += "\n\n" + repair_style_guard(self.request_payload)
                     identity_clauses = [str(c).strip() for c in
                                         (self.request_payload.get("identity_correction_clauses") or [])
                                         if str(c).strip()]
                     if identity_clauses:
                         correction_prompt += ("\n\nSTYLE-SPECIFIC CORRECTION GUARDS:\n- "
                                               + "\n- ".join(identity_clauses))
-                    corrected = generate_image_repaint(
+                    corrected = self.checkpoint.operation(f"identity-correct-{correction_round}", lambda: generate_image_repaint(
                         [current], resolution="2K", aspect_ratio=snapped_aspect_ratio(current),
                         prompt=correction_prompt,
                         use_detail_suffix=False, save_sub_dir=audit_dir,
-                        file_prefix=(self.file_prefix or "analysis-gpt") + f"-identity-correct-{correction_round}") or []
+                        file_prefix=(self.file_prefix or "analysis-gpt") + f"-identity-correct-{correction_round}") or [], image=True)
                     if not corrected:
-                        break
+                        raise RuntimeError("身份修订接口未返回图片")
                     current = corrected[-1]
-                    audit = audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt)
+                    saved = [current]
+                    self.checkpoint.data["last_outputs"] = saved
+                    self.checkpoint.save()
+                    audit = self.checkpoint.operation(f"identity-audit-{correction_round}", lambda: audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt))
                     with open(os.path.join(audit_dir, f"identity-audit-{correction_round}.json"),
                               "w", encoding="utf-8") as f:
                         _json.dump(audit, f, ensure_ascii=False, indent=2)
@@ -1509,10 +1616,53 @@ class GptImageGenWorkerThread(QThread):
                         f"[身份门禁] 第 {correction_round}/2 轮定点修订完成；"
                         f"复审{'仍有差异' if audit.get('mismatch') else '通过'}。")
                 self.log_signal.emit("[身份门禁] 按不回退策略保留最后一轮图。")
+                if not skip_identity_refine and identity_gate_action(audit) != "accept":
+                    raise RuntimeError("身份复审仍有明确差异或需人工复核，保留候选图，禁止发布")
             except Exception as exc:  # 审计故障不能让已经成功的重绘任务失败
                 self.log_signal.emit(f"[身份门禁] 审计/定点修订失败，保留当前重绘图: {type(exc).__name__}: {exc}")
+                raise
+        self._stage_done("identity", saved)
+        # Identity edits can introduce anatomy defects; this check intentionally ignores
+        # skip_quality_refine and uses only the current image, never a style reference.
+        if (saved and self.analysis_result
+                and not self.isInterruptionRequested() and self._stage_needed("hands", saved)):
+            import json as _json
+            from utils.refine_quality import (audit_hand_quality, build_hand_correction_prompt,
+                                              should_refine_quality, repair_style_guard)
+            from utils.post_process import snapped_aspect_ratio
+            from modules.others.api_backend import generate_image_repaint
+            hand_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
+            for hand_round in range(3):
+                hand_audit = self.checkpoint.operation(
+                    f"hands-audit-{hand_round}", lambda: audit_hand_quality(saved[-1]))
+                with open(os.path.join(hand_dir, f"hands-audit-{hand_round}.json"),
+                          "w", encoding="utf-8") as f:
+                    _json.dump(hand_audit, f, ensure_ascii=False, indent=2)
+                if hand_audit.get("needs_review"):
+                    raise RuntimeError("可见肢体归属不确定，保留断点等待人工复核，不猜测删除或新增肢体")
+                if not should_refine_quality(hand_audit):
+                    self.log_signal.emit("[人体结构门禁] 逐角色检查手、臂、腿和关节归属，未发现高置信畸形。")
+                    break
+                if not (self.steps.get("repaint") or {}).get("enabled"):
+                    raise RuntimeError("人体审计发现明确畸形；本次关闭重绘，保留候选图等待人工复核")
+                if hand_round == 2:
+                    raise RuntimeError("两轮人体结构修订后仍有明确畸形，保留断点等待人工复核")
+                if self.isInterruptionRequested():
+                    break
+                hand_prompt = build_hand_correction_prompt(hand_audit)
+                hand_prompt += "\n\n" + repair_style_guard(self.request_payload)
+                corrected = self.checkpoint.operation(
+                    f"hands-correct-{hand_round + 1}", lambda: generate_image_repaint(
+                        [saved[-1]], resolution="2K", aspect_ratio=snapped_aspect_ratio(saved[-1]),
+                        prompt=hand_prompt, use_detail_suffix=False, save_sub_dir=hand_dir,
+                        file_prefix=(self.file_prefix or "analysis-gpt") + f"-hands-correct-{hand_round + 1}") or [],
+                    image=True)
+                saved = [corrected[-1]]
+                self.log_signal.emit(f"[人体结构门禁] 第 {hand_round + 1}/2 轮定点修订完成，继续复审。")
+        if not self.isInterruptionRequested():
+            self._stage_done("hands", saved)
         post_adjustment = self.request_payload.get("post_adjustment") or {}
-        if saved and post_adjustment and not self.isInterruptionRequested():
+        if saved and post_adjustment and not self.isInterruptionRequested() and self._stage_needed("adjust", saved):
             try:
                 from utils.analysis_gen import apply_style_post_adjustment
                 adjusted = apply_style_post_adjustment(
@@ -1524,15 +1674,49 @@ class GptImageGenWorkerThread(QThread):
                     self.log_signal.emit("[画风确定性收尾] 已应用色彩、曝光或结构线专用校正。")
             except Exception as exc:
                 self.log_signal.emit(f"[画风确定性收尾] 失败，保留模型输出: {type(exc).__name__}: {exc}")
+                raise
+        self._stage_done("adjust", saved)
+        # Review the actual final pixels, including identity edits and local finishing.
+        # A skip flag disables repainting, not validation of the selected result.
+        if (saved and self.analysis_result
+                and not self.isInterruptionRequested() and self._stage_needed("final_review", saved)):
+            import json as _json
+            from utils.refine_quality import audit_refine_quality, should_refine_quality, repair_style_guard
+            from utils.refine_quality import review_final_candidate
+            def final_audit_call(candidate):
+                if not (self.style_ref_path and os.path.isfile(self.style_ref_path)
+                        and self.request_payload.get("repaint_reference_mode", "style") != "none"):
+                    from utils.refine_quality import audit_hand_quality
+                    return audit_hand_quality(candidate)
+                return audit_refine_quality(
+                self.request_payload.get("manual_repaint_input") or first_image, candidate, self.style_ref_path,
+                first_pass_prompt=(self.firmware if self.request_payload.get("manual_repaint_input") else
+                                   str(self.request_payload.get("prompt") or "")),
+                proportion_clauses=self.request_payload.get("proportion_clauses") or [],
+                final_review=True, style_targets=repair_style_guard(self.request_payload),
+                authorized_changes=self.request_payload.get("generation_clauses") or [])
+            final_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
+            selected, final_audit = review_final_candidate(
+                saved[-1], final_audit_call, final_dir,
+                operation=lambda key, call: self.checkpoint.operation(key, call, image="-repair-" in key),
+                cancel_check=self.isInterruptionRequested, log_callback=self.log_signal.emit)
+            saved = [selected]
+            with open(os.path.join(final_dir, "final-quality-audit.json"), "w", encoding="utf-8") as f:
+                _json.dump(final_audit, f, ensure_ascii=False, indent=2)
+            if should_refine_quality(final_audit) or final_audit.get("needs_review"):
+                raise RuntimeError("最终复核发现人体结构、画风或过曝问题，保留候选图与审计，禁止发布")
+            self.log_signal.emit("[最终复核] 人体结构、画风与局部明暗可读性通过。")
+        self._stage_done("final_review", saved)
         if self.isRequestInterruption_requested_safe():
+            self.checkpoint.fail("用户取消", cancelled=True)
             self.last_status = "cancelled"
             self.finish_signal.emit([])
             return
-        if active_steps and saved:
+        if (active_steps or self.analysis_result) and saved and self._stage_needed("publish", saved):
             try:
                 published = publish_final_output(
                     saved[-1], style_name=str(self.request_payload.get("style_name") or ""),
-                    process_dir=process_dir)
+                    process_dir=process_dir, task_hash=self.analysis_result.get("task_hash") or self.file_prefix)
                 saved = [published]
                 self.log_signal.emit(
                     f"[gpt 通道] 只发布最终图到日期目录：{published}\n"
@@ -1540,9 +1724,10 @@ class GptImageGenWorkerThread(QThread):
             except Exception as exc:
                 self.log_signal.emit(
                     f"❌ 最终图发布失败，过程产物已保留: {type(exc).__name__}: {exc}")
-                self.last_status = "error"
-                self.finish_signal.emit([])
-                return
+                raise
+        self._stage_done("publish", saved)
+        self.checkpoint.data["status"] = "success"
+        self.checkpoint.save()
         self.last_status = "success"
         record_request(saved)
         self.finish_signal.emit([p for p in saved if p])
@@ -1717,7 +1902,8 @@ class SingleAnalyzerWidget(QWidget):
         self.send_btn.setFixedHeight(40)
         self.send_btn.clicked.connect(self.process_image)
         self.send_btn.setEnabled(False) 
-        layout.addWidget(self.send_btn)
+        analysis_actions = QHBoxLayout()
+        analysis_actions.addWidget(self.send_btn)
 
         # 终止分析：重试等待期间也能立刻中断
         self.cancel_analysis_btn = QPushButton("🛑 终止当前分析（含等待中的重试）")
@@ -1728,24 +1914,29 @@ class SingleAnalyzerWidget(QWidget):
         )
         self.cancel_analysis_btn.setEnabled(False)
         self.cancel_analysis_btn.clicked.connect(self.cancel_active_analysis_tasks)
-        layout.addWidget(self.cancel_analysis_btn)
+        analysis_actions.addWidget(self.cancel_analysis_btn)
 
         # 目录批量选择按钮
         self.dir_batch_btn = QPushButton("📁 从目录批量选择图片并分析")
         self.dir_batch_btn.setFixedHeight(36)
         self.dir_batch_btn.clicked.connect(self._open_directory_batch_selector)
-        layout.addWidget(self.dir_batch_btn)
+        analysis_actions.addWidget(self.dir_batch_btn)
+        for button in (self.send_btn, self.cancel_analysis_btn, self.dir_batch_btn):
+            button.setFixedHeight(32)
+        self.cancel_analysis_btn.setText("🛑 停止分析")
+        self.dir_batch_btn.setText("📁 批量分析")
+        layout.addLayout(analysis_actions)
 
         # 【新增】两项自动生成图片的勾选框
         auto_gen_layout = QHBoxLayout()
-        self.auto_gen_orig_cb = QCheckBox("分析完成后立即生成图片（基于原始提示词）")
-        self.auto_gen_ref_cb = QCheckBox("分析完成后立即生成图片（基于优化提示词）")
+        auto_gen_layout.addWidget(QLabel("分析完成后："))
+        self.auto_gen_orig_cb = QCheckBox("原始提示词生图")
+        self.auto_gen_ref_cb = QCheckBox("优化提示词生图")
         auto_gen_layout.addWidget(self.auto_gen_orig_cb)
         auto_gen_layout.addWidget(self.auto_gen_ref_cb)
-        layout.addLayout(auto_gen_layout)
 
         # 保存到原图同目录
-        self.save_to_source_dir_cb = QCheckBox("分析结果保存到原图同目录（不生成图片）")
+        self.save_to_source_dir_cb = QCheckBox("仅保存到原图目录")
         self.save_to_source_dir_cb.setToolTip(
             "勾选后，分析结果的 JSON 和 TXT 将保存到原图所在目录，并同步文件修改时间。\n"
             "此时只分析不生成图片，JSON 可用于直接拖入投稿 Server。\n"
@@ -1753,7 +1944,9 @@ class SingleAnalyzerWidget(QWidget):
         )
         self.save_to_source_dir_cb.setEnabled(False)
         self.save_to_source_dir_cb.toggled.connect(self._on_save_to_source_dir_toggled)
-        layout.addWidget(self.save_to_source_dir_cb)
+        auto_gen_layout.addWidget(self.save_to_source_dir_cb)
+        auto_gen_layout.addStretch()
+        layout.addLayout(auto_gen_layout)
 
         nsfw_layout = QHBoxLayout()
         self.use_nsfw_cb = QCheckBox("使用nsfw接口")
@@ -2003,17 +2196,18 @@ class SingleAnalyzerWidget(QWidget):
         
         gen_img_layout.addWidget(self.gen_orig_btn)
         gen_img_layout.addWidget(self.gen_ref_btn)
-        bottom.addLayout(gen_img_layout)
 
         gen_control_layout = QHBoxLayout()
         self.gen_countdown_label = QLabel("生图超时倒计时: --")
         self.cancel_gen_btn = QPushButton("终止当前生图")
         self.cancel_gen_btn.setEnabled(False)
         self.cancel_gen_btn.clicked.connect(self.cancel_image_generation)
-        gen_control_layout.addWidget(self.gen_countdown_label)
-        gen_control_layout.addStretch()
-        gen_control_layout.addWidget(self.cancel_gen_btn)
-        bottom.addLayout(gen_control_layout)
+        gen_img_layout.addWidget(self.cancel_gen_btn)
+        gen_img_layout.addWidget(self.gen_countdown_label)
+        self.gen_orig_btn.setText("② 原始提示词生图")
+        self.gen_ref_btn.setText("② 优化提示词生图")
+        self.cancel_gen_btn.setFixedHeight(35)
+        bottom.addLayout(gen_img_layout)
 
         history_header_layout = QHBoxLayout()
         history_header_layout.addWidget(QLabel("历史分析结果:"))
@@ -2271,6 +2465,9 @@ class SingleAnalyzerWidget(QWidget):
         phase = str(record.get("phase") or "").strip()
         if str(record.get("status") or "").lower() == "running" and phase:
             return f"{base}·{phase}"
+        if record.get("failed_stage") and record.get("pipeline_error"):
+            from utils.generation_checkpoint import STAGE_LABELS
+            return base + "·" + STAGE_LABELS.get(record["failed_stage"], record["failed_stage"])
         return base
 
     def _refresh_history_item(self, task_id):
@@ -2362,6 +2559,11 @@ class SingleAnalyzerWidget(QWidget):
         finalized = False
         for task_id in self._history_task_ids_for_hash(task_hash):
             record = self._analysis_history.get(task_id) or {}
+            if record.get("pipeline_error"):
+                self._update_history_record(
+                    task_id, status="error", phase="",
+                    finish_time_text=datetime.datetime.now().strftime("%H:%M:%S"))
+                continue
             products = list(final_products or record.get("final_products") or [])
             if not products:
                 products = self._guess_final_products(task_hash)     # 以 -final- 产物为准
@@ -2473,6 +2675,36 @@ class SingleAnalyzerWidget(QWidget):
         failed_runnable = [r for r in failed_records if self._history_record_usable_path(r)]
 
         menu = QMenu(self.history_list)
+        import_checkpoint_action = menu.addAction("📂 导入工序断点 / 旧首图请求…")
+        recovery_actions = {}
+        checkpoints = list((record or {}).get("generation_checkpoints") or [])
+        idle = bool(record) and not self._pipeline_pending_for_hash(record.get("task_hash"))
+        recovery = menu.addMenu("🧩 工序断点 / Gemini 重绘")
+        recovery.setEnabled(idle and bool(checkpoints))
+        for path in checkpoints:
+            if not os.path.isfile(path):
+                continue
+            try:
+                with open(path, encoding="utf-8") as stream:
+                    checkpoint = json.load(stream)
+                from utils.generation_checkpoint import STAGE_LABELS
+                stage = checkpoint.get("current_stage", "first")
+                name = checkpoint.get("snapshot", {}).get("request_payload", {}).get("style_name", "默认")
+                group = recovery.addMenu(str(name))
+                action = group.addAction("从断点续跑：" + STAGE_LABELS.get(stage, stage))
+                action.setEnabled(checkpoint.get("status") != "success")
+                recovery_actions[action] = (path, "resume")
+                first = checkpoint.get("stages", {}).get("first", {}).get("outputs") or []
+                action = group.addAction("从 GPT 首图重新 Gemini 重绘")
+                action.setEnabled(bool(first) and os.path.isfile(first[0]))
+                recovery_actions[action] = (path, "first")
+                latest = checkpoint.get("last_outputs") or []
+                action = group.addAction("重绘当前图（输入人体 / 姿势修正要求…）")
+                action.setEnabled(bool(latest) and os.path.isfile(latest[-1]))
+                recovery_actions[action] = (path, "current")
+            except (OSError, ValueError):
+                continue
+        menu.addSeparator()
         if record is not None and not usable_path:
             hint = menu.addAction("⚠️ 分析源图不可用（文件已移动/删除，或剪贴板快照被清空）")
             hint.setEnabled(False)
@@ -2504,7 +2736,12 @@ class SingleAnalyzerWidget(QWidget):
         chosen = menu.exec(self.history_list.viewport().mapToGlobal(pos))
         if chosen is None:
             return
-        if chosen is rerun_action:
+        if chosen is import_checkpoint_action:
+            self._import_generation_checkpoint()
+        elif chosen in recovery_actions:
+            path, mode = recovery_actions[chosen]
+            self._resume_generation_checkpoint(record, path, mode)
+        elif chosen is rerun_action:
             self._rerun_history_record(record)
         elif chosen is gen_original_action:
             self._rerun_history_record(record, gen_targets=["original"])
@@ -2523,6 +2760,102 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"📋 已复制源图路径: {source_path}")
         elif chosen is remove_action:
             self._remove_history_record(record)
+
+    def _import_generation_checkpoint(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择 generation-checkpoint.json 或 GPT 首图的 .request.json", "data", "JSON (*.json)")
+        if not path:
+            return False
+        try:
+            from utils.generation_checkpoint import import_generation_checkpoint
+            selected = self._selected_history_record() or {}
+            path, checkpoint = import_generation_checkpoint(path, self.get_styles(), selected.get("result_json"))
+            snapshot = checkpoint["snapshot"]
+            number = self._next_thread_no("_analysis_thread_seq")
+            record = self._create_history_record(number, "", datetime.datetime.now(),
+                                                 snapshot.get("file_prefix") or "analysis-gpt", source_path="")
+            record.update(generation_checkpoints=[path], result_json=snapshot.get("analysis_result") or {},
+                          title="工序断点：" + snapshot["request_payload"].get("style_name", "默认"),
+                          source_desc=os.path.basename(os.path.dirname(path)),
+                          status="success" if checkpoint.get("status") == "success" else "error")
+            record["status_text"] = self._status_to_text(record["status"])
+            self._insert_history_record(record)
+            if checkpoint.get("imported_legacy"):
+                self.log_msg("[断点导入] 已恢复旧首图及工序配置；旧快照未保存的审计开关/条款取当前画风配置，请核对。")
+            return True
+        except Exception as exc:
+            QMessageBox.warning(self, "导入失败", str(exc))
+            return False
+
+    def _resume_generation_checkpoint(self, record, path, mode="resume"):
+        """Replay original settings without re-analysing or re-generating GPT."""
+        if not record or self._pipeline_pending_for_hash(record.get("task_hash")):
+            return False
+        try:
+            with open(path, encoding="utf-8") as stream:
+                checkpoint = json.load(stream)
+            import copy
+            snapshot = copy.deepcopy(checkpoint["snapshot"])
+            if mode == "first":
+                snapshot["request_payload"].pop("manual_repaint_input", None)
+                # Explicit redraw is a new attempt: use current rendering instructions,
+                # while retaining the original GPT image and its actual content prompt.
+                from utils.style_gpt import resolve_style_clauses, style_prompt_gpt
+                styles = self.get_styles()
+                style_name = snapshot["request_payload"].get("style_name", "")
+                if style_name in styles:
+                    clauses, _ = resolve_style_clauses(styles[style_name])
+                    snapshot["request_payload"]["style_text"] = style_prompt_gpt(styles, style_name)
+                    snapshot["request_payload"]["clauses"] = clauses
+                    snapshot["style_clauses"] = clauses + list(
+                        snapshot["request_payload"].get("proportion_clauses") or [])
+                    self.log_msg("[重绘重跑] 使用当前画风说明与渲染条款；保留原 GPT 首图及实际内容请求。")
+            if mode != "resume":
+                snapshot["steps"].setdefault("repaint", {}).update(enabled=True)
+            if mode == "current":
+                instruction, accepted = QInputDialog.getMultiLineText(
+                    self, "Gemini 定点重绘", "描述需要修正的人体 / 姿势问题（保留未提及部分）：")
+                if not accepted or not instruction.strip():
+                    return False
+                snapshot["request_payload"]["manual_repaint_input"] = (checkpoint.get("last_outputs") or [])[-1]
+                # Manual instructions explicitly permit anatomy/pose edits; the normal
+                # full-scope identity lock would otherwise forbid those very changes.
+                snapshot["steps"]["repaint"].update(reference_mode="none", scope="manual")
+                snapshot["firmware"] = render_prompt_file(
+                    "single-analyzer-manual-repaint.md", {"correction": instruction.strip()})
+            if mode != "resume":
+                # Keep the original task and recipe intact; repairs are separate attempts.
+                from utils.generation_checkpoint import GenerationCheckpoint
+                path = os.path.join(os.path.dirname(path), "generation-checkpoint-retry-" +
+                                    datetime.datetime.now().strftime("%H%M%S%f") + ".json")
+                branch = GenerationCheckpoint(path, snapshot)
+                branch.data = copy.deepcopy(checkpoint)
+                branch.data["snapshot"] = snapshot
+                branch.save()
+            thread = GptImageGenWorkerThread(
+                **snapshot, checkpoint_path=path,
+                restart_stage="pipeline" if mode != "resume" else "")
+            thread.meta_thread_no = self._next_thread_no("_image_gen_thread_seq")
+            thread.meta_analysis_thread_no = record.get("thread_no")
+            thread.meta_task_hash = record.get("task_hash")
+            thread.meta_prompt_type = "断点续跑" if mode == "resume" else "Gemini 重新重绘"
+            thread.meta_analysis_json_path = record.get("saved_json_path")
+            thread.meta_is_auto = False
+            record["pipeline_error"] = ""
+            record["failed_stage"] = ""
+            self._update_history_record(record.get("task_id"), status="running", phase=thread.meta_prompt_type)
+            self._active_img_threads.append(thread)
+            if not self._img_gen_running:
+                timeout = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+                self._start_image_gen_runtime(self._pipeline_timeout_budget(timeout, thread.steps, thread.request_payload))
+            thread.log_signal.connect(self.log_msg)
+            thread.finish_signal.connect(lambda files, t=thread: self.on_image_generation_finished(t, files))
+            thread.finished.connect(lambda t=thread: self._on_image_thread_stopped(t))
+            thread.start()
+            return True
+        except Exception as exc:
+            QMessageBox.warning(self, "无法续跑", str(exc))
+            return False
 
     def _rerun_history_record(self, record, gen_targets=None):
         """按记录里的源图（原图或剪贴板快照）重新提交一次分析（可选：分析成功后自动生图）。"""
@@ -3286,7 +3619,7 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_orig_btn.setEnabled(True)
         self.gen_ref_btn.setEnabled(True)
         self._stop_image_gen_runtime()
-        self.log_msg("✅ 全流程完成（生图 + 后处理）")
+        self.log_msg("生图与后处理线程已结束；任务结果以队列状态和最终门禁为准。")
 
     def _on_image_thread_stopped(self, thread):
         """生图线程真正退出（QThread.finished）：清引用 → 队列收尾。
@@ -3447,7 +3780,7 @@ class SingleAnalyzerWidget(QWidget):
             repaint_scope=str(scope_combo.currentData() or "full") if scope_combo is not None else "full",
         )
 
-    def _pipeline_timeout_budget(self, timeout_seconds, steps) -> int:
+    def _pipeline_timeout_budget(self, timeout_seconds, steps, request_payload=None) -> int:
         """超时预算 = 每道**联网**工序一份；重绘另预留初审和最多两轮定点修订/复审。
 
         用户要求：不要用一个总体 120 秒掐掉整条链（high 画质首图常要 120 秒以上，
@@ -3458,7 +3791,11 @@ class SingleAnalyzerWidget(QWidget):
         steps = steps or {}
         slots = 1                                                   # 首图
         if (steps.get("repaint") or {}).get("enabled"):
-            slots += 9  # 重绘 + 质量审计/一次修订/复审 + 身份初审/最多两次修订及复审
+            slots += 17  # 原 9 份 + 人体 5 份 + 最终审计/兜底修复/复审 3 份
+            if (request_payload or {}).get("face_hair_refine"):
+                slots += 1
+        elif request_payload is not None:
+            slots += 4  # 人体审计 + 最终审计/按需兜底/复审。
         if (steps.get("local") or {}).get("enabled"):
             regions = (steps["local"].get("regions") or [steps["local"].get("region") or "hair"])
             slots += max(1, len([r for r in regions if str(r).strip()]))
@@ -3520,9 +3857,9 @@ class SingleAnalyzerWidget(QWidget):
         enabled_steps = [k for k, v in steps.items() if (v or {}).get("enabled")]
         # 超时按「一道工序一份」算：首图 + 每道工序各给一份（用户要求：不要总体 120s 掐掉整条链）
         step_timeout = int(timeout_seconds or 120)
-        timeout_budget = self._pipeline_timeout_budget(step_timeout, steps)
-        self.log_msg(f"[gpt 通道] 超时预算 {timeout_budget} 秒 = 每道工序 {step_timeout} 秒 × "
-                     f"(首图 1 + 工序 {len(enabled_steps)})")
+        timeout_budget = self._pipeline_timeout_budget(step_timeout, steps, request_payload)
+        self.log_msg(f"[gpt 通道] 超时预算 {timeout_budget} 秒 = 每份联网调用 {step_timeout} 秒 × "
+                     f"{timeout_budget // step_timeout} 份（含审计与最多两轮人体定点修订）")
         firmware = ""
         if steps.get("repaint", {}).get("enabled") or steps.get("local", {}).get("enabled"):
             try:
@@ -3624,6 +3961,9 @@ class SingleAnalyzerWidget(QWidget):
             if anchor_field:
                 prompt_to_use = f"{anchored_prompt}, {_face_quality_suffix}"
                 self.log_msg(f"[Gemini 画风] 内容改用 {anchor_field} 纯内容锚，避免长描述里的渲染词压过画风参考图")
+            if style_ref_paths:
+                from utils.analysis_gen import build_gemini_content_postamble
+                post_instructions = build_gemini_content_postamble(prompt_to_use, post_instructions)
         
         self.gen_orig_btn.setEnabled(False)
         self.gen_ref_btn.setEnabled(False)
@@ -3680,6 +4020,14 @@ class SingleAnalyzerWidget(QWidget):
         return True
 
     def on_image_generation_finished(self, thread, saved_files):
+        checkpoint_path = str(getattr(thread, "checkpoint_path", "") or "")
+        for task_id in self._history_task_ids_for_hash(getattr(thread, "meta_task_hash", "")):
+            rec = self._analysis_history.get(task_id)
+            if rec is not None and checkpoint_path:
+                paths = rec.setdefault("generation_checkpoints", [])
+                if checkpoint_path not in paths:
+                    paths.append(checkpoint_path)
+                rec["failed_stage"] = getattr(thread, "failed_stage", "")
         prompt_type = getattr(thread, "meta_prompt_type", "unknown")
         is_auto = bool(getattr(thread, "meta_is_auto", False))
         thread_prefix = self._build_thread_prefix(
@@ -3714,7 +4062,10 @@ class SingleAnalyzerWidget(QWidget):
             # `_on_image_thread_stopped` 收到这条标记后会把记录标红失败，而不是永远「等待最终产物」
             task_hash_of_thread = str(getattr(thread, "meta_task_hash", "") or "").strip()
             if task_hash_of_thread:
-                reason = "生图已取消" if status == "cancelled" else "生图失败（无产物）"
+                from utils.generation_checkpoint import STAGE_LABELS
+                stage = getattr(thread, "failed_stage", "")
+                reason = "生图已取消" if status == "cancelled" else (
+                    "工序失败：" + STAGE_LABELS.get(stage, stage) if stage else "生图失败（无产物）")
                 for _tid in self._history_task_ids_for_hash(task_hash_of_thread):
                     rec = self._analysis_history.get(_tid)
                     if rec is not None:

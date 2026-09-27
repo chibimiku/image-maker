@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
-import time
+import uuid
 
 from utils.analysis_gpt_prompt import call_text_model, load_text_api_config
 
@@ -57,14 +57,18 @@ def normalize_quality_audit(value: dict) -> dict:
     return result
 
 
-def _proxy(path: str, prefix: str) -> str:
+def _proxy(path: str, prefix: str, crop_box=None) -> str:
     from PIL import Image
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     folder = os.path.join(root, "cache", "temp")
     os.makedirs(folder, exist_ok=True)
-    target = os.path.join(folder, f"{prefix}-{os.getpid()}-{int(time.time() * 1000)}.jpg")
+    target = os.path.join(folder, f"{prefix}-{os.getpid()}-{uuid.uuid4().hex}.jpg")
     with Image.open(path) as im:
         im = im.convert("RGB")
+        if crop_box:
+            width, height = im.size
+            im = im.crop(tuple(round(v * (width if i % 2 == 0 else height))
+                               for i, v in enumerate(crop_box)))
         im.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
         im.save(target, "JPEG", quality=90, optimize=True)
     return target
@@ -75,7 +79,7 @@ def _detail_sheet(path: str) -> str:
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     folder = os.path.join(root, "cache", "temp")
     os.makedirs(folder, exist_ok=True)
-    target = os.path.join(folder, f"quality-sheet-{os.getpid()}-{int(time.time() * 1000)}.jpg")
+    target = os.path.join(folder, f"quality-sheet-{os.getpid()}-{uuid.uuid4().hex}.jpg")
     with Image.open(path) as source:
         im = source.convert("RGB")
         width, height = im.size
@@ -96,7 +100,9 @@ def _detail_sheet(path: str) -> str:
 
 def audit_refine_quality(original_path: str, candidate_path: str, style_path: str,
                          first_pass_prompt: str = "", text_cfg: dict | None = None,
-                         timeout: int = 240, proportion_clauses=None) -> dict:
+                         timeout: int = 240, proportion_clauses=None,
+                         final_review: bool = False, style_targets: str = "",
+                         authorized_changes=None) -> dict:
     paths = [original_path, candidate_path, style_path]
     if not all(os.path.isfile(path) for path in paths):
         raise FileNotFoundError("质量审计的三张输入图必须都存在")
@@ -112,16 +118,27 @@ def audit_refine_quality(original_path: str, candidate_path: str, style_path: st
         if proportion_target:
             user += ("\n\nEXPLICIT BODY-PROPORTION TARGETS (these override Image 1 when its anatomy "
                      "violates them):\n- " + "\n- ".join(proportion_target))
+        if final_review:
+            user += "\n\nSELECTED RENDERING TARGETS:\n" + str(style_targets or "")
+            user += "\n\nAUTHORIZED DESIGN VARIATIONS:\n" + "\n".join(authorized_changes or [])
         raw = call_text_model(cfg["base_url"], cfg["api_key"], cfg["model"],
-                              _prompt("refine-quality-audit-system.md"), user,
-                              timeout=timeout, max_tokens=3000, image_paths=proxies)
+                              _prompt("final-quality-audit-system.md" if final_review else "refine-quality-audit-system.md"), user,
+                              timeout=timeout, max_tokens=5000 if final_review else 3000, image_paths=proxies)
     finally:
         for path in proxies:
             try:
                 os.remove(path)
             except OSError:
                 pass
-    result = normalize_quality_audit(_json_object(raw))
+    value = _json_object(raw)
+    if not all(isinstance(value.get(key), list) for key in
+               ("structural_issues", "line_issues", "background_drift", "style_gaps")):
+        raise ValueError("质量审计未返回完整有效的缺陷列表")
+    result = normalize_quality_audit(value)
+    result["needs_refine"] = any(result[key] for key in
+                                ("structural_issues", "line_issues", "background_drift", "style_gaps"))
+    result["needs_review"] = bool(value.get("ownership_uncertain"))
+    result["ownership_uncertain"] = value.get("ownership_uncertain") or []
     result.update({"original": os.path.abspath(original_path), "candidate": os.path.abspath(candidate_path),
                    "style_reference": os.path.abspath(style_path), "raw": raw})
     return result
@@ -142,6 +159,140 @@ def build_quality_correction_prompt(audit: dict) -> str:
     return (_prompt("refine-quality-correction.md")
             .replace("{protected_features}", "- " + "\n- ".join(protected) if protected else "- Everything not listed under REPAIRS.")
             .replace("{repairs}", "- " + "\n- ".join(repairs)))
+
+
+def match_final_canvas(path, size):
+    """Allow tiny Gemini rounding deficits by extending edge pixels, never stretching."""
+    from PIL import Image
+    with Image.open(path) as source:
+        if source.size == size:
+            return path
+        dx, dy = size[0] - source.width, size[1] - source.height
+        if not (0 <= dx <= 8 and 0 <= dy <= 8
+                and max(dx / size[0], dy / size[1]) <= .002):
+            raise RuntimeError(f"兜底图片尺寸变化 {size} → {source.size}，保留候选图，禁止发布")
+        source = source.convert("RGB")
+        left, top = dx // 2, dy // 2
+        canvas = Image.new("RGB", size)
+        canvas.paste(source, (left, top))
+        if left:
+            canvas.paste(source.crop((0, 0, 1, source.height)).resize((left, source.height)), (0, top))
+        if dx - left:
+            canvas.paste(source.crop((source.width - 1, 0, source.width, source.height)).resize(
+                (dx - left, source.height)), (left + source.width, top))
+        if top:
+            canvas.paste(canvas.crop((0, top, size[0], top + 1)).resize((size[0], top)), (0, 0))
+        if dy - top:
+            canvas.paste(canvas.crop((0, top + source.height - 1, size[0], top + source.height)).resize(
+                (size[0], dy - top)), (0, top + source.height))
+        target = os.path.splitext(path)[0] + "-canvas.png"
+        canvas.save(target)
+        return target
+
+
+def review_final_candidate(candidate, audit_call, output_dir, operation=None,
+                           cancel_check=None, log_callback=None):
+    """Bounded source-only rescue; cache paid operations before any subsequent audit."""
+    from PIL import Image
+    from utils.gpt_image_optimize import load_config
+    from modules.others.api_backend import generate_image_repaint
+    cfg = load_config().get("final_candidate_repair") or {}
+    operation = operation or (lambda key, call: call())
+    os.makedirs(output_dir, exist_ok=True)
+    limit = max(0, min(2, int(cfg.get("max_repairs", 1))))
+    task_match = re.match(r"^([0-9a-fA-F]{8})(?=[^0-9a-fA-F]|$)", os.path.basename(candidate))
+    repair_prefix = (task_match.group(1) + "-" if task_match else "") + "final-rescue"
+    for round_no in range(limit + 1):
+        if cancel_check and cancel_check():
+            raise RuntimeError("最终兜底已取消")
+        current = candidate
+        audit = operation(f"final_review-v2-audit-{round_no}", lambda: audit_call(current))
+        with open(os.path.join(output_dir, f"final-quality-audit-{round_no}.json"), "w", encoding="utf-8") as stream:
+            json.dump(audit, stream, ensure_ascii=False, indent=2)
+        if audit.get("needs_review"):
+            raise RuntimeError("最终肢体归属不明确，保留候选图，需人工确认")
+        if not should_refine_quality(audit):
+            return candidate, audit
+        repairs = []
+        for key in ("structural_issues", "line_issues", "background_drift", "style_gaps"):
+            for item in audit.get(key) or []:
+                if float(item.get("confidence") or 0) >= .72:
+                    repairs.append(f"[{item.get('region') or item.get('aspect')}] "
+                                   f"{item.get('observed') or item.get('candidate')}: {item.get('repair')}")
+        prompt = _prompt("final-candidate-repair.md").replace("{repairs}", "\n".join(repairs))
+        with open(os.path.join(output_dir, f"final-repair-{round_no + 1}.txt"), "w", encoding="utf-8") as stream:
+            stream.write(prompt)
+        if round_no == limit:
+            raise RuntimeError("最终复审仍有缺陷，已达到兜底次数上限，禁止发布")
+        with Image.open(current) as image:
+            size = image.size
+        resolution = "4K" if max(size) > 3072 else "2K" if max(size) > 1536 else "1K"
+        if log_callback:
+            log_callback(f"[最终兜底] {len(repairs)} 项明确缺陷，Gemini 定点修复 {round_no + 1}/{limit}，{resolution}")
+        def repaint():
+            paths = generate_image_repaint([current], model=cfg.get("model"),
+                resolution=resolution, aspect_ratio="auto", repeat=1, prompt=prompt,
+                use_detail_suffix=False, save_sub_dir=output_dir,
+                file_prefix=f"{repair_prefix}-{round_no + 1}", cancel_check=cancel_check,
+                log_callback=log_callback)
+            if not paths:
+                raise RuntimeError("最终兜底 Gemini 未返回图片")
+            return paths
+        candidate = operation(f"final_review-v2-repair-{round_no + 1}", repaint)[-1]
+        candidate = match_final_canvas(candidate, size)
+    raise RuntimeError("最终兜底未完成")
+
+
+def repair_style_guard(request: dict) -> str:
+    """Rendering-only fields; never recycle sampled pose/palette instructions."""
+    from utils.style_gpt import parse_fields
+    text = str(request.get("style_text") or "")
+    if not text:  # Legacy checkpoints begin with the eight style fields.
+        text = str(request.get("prompt") or "").split("\n\n", 1)[0]
+    fields = parse_fields(text)
+    targets = "\n".join(f"{key}: {fields[key]}" for key in
+                        ("Lighting", "Brushwork", "Edges", "Texture", "Detail level", "Avoid")
+                        if fields.get(key))
+    return _prompt("repair-style-guard.md").replace("{style_targets}", targets) if targets else ""
+
+
+def audit_hand_quality(candidate_path: str, text_cfg: dict | None = None,
+                       timeout: int = 240) -> dict:
+    """Source-only per-character anatomy check; retain the legacy API name."""
+    proxies = []
+    try:
+        proxies.append(_proxy(candidate_path, "hands"))
+        proxies.append(_detail_sheet(candidate_path))
+        proxies.append(_proxy(candidate_path, "anatomy-left", (0, .25, .65, 1)))
+        proxies.append(_proxy(candidate_path, "anatomy-right", (.35, .25, 1, 1)))
+        cfg = text_cfg or load_text_api_config()
+        raw = call_text_model(cfg["base_url"], cfg["api_key"], cfg["model"],
+                              _prompt("hand-audit-system.md"), "Trace every character's limbs and inspect all visible hands.",
+                              timeout=timeout, max_tokens=4000, image_paths=proxies)
+        value = _json_object(raw)
+        if not isinstance(value.get("structural_issues"), list):
+            raise ValueError("手部审计未返回有效 structural_issues")
+        result = normalize_quality_audit(value)
+        # A contradictory needs_refine=false must not hide a confident defect.
+        result["needs_refine"] = bool(result["structural_issues"])
+        result.update(candidate=os.path.abspath(candidate_path), raw=raw)
+        result["character_limb_inventory"] = value.get("character_limb_inventory", [])
+        result["ownership_uncertain"] = value.get("ownership_uncertain") or []
+        result["needs_review"] = bool(result["ownership_uncertain"])
+        return result
+    finally:
+        for path in proxies:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+def build_hand_correction_prompt(audit: dict) -> str:
+    repairs = [f"[{item['region']}] {item['repair']}"
+               for item in audit.get("structural_issues", [])
+               if float(item.get("confidence") or 0) >= 0.72]
+    return _prompt("hand-correction.md").replace("{repairs}", "- " + "\n- ".join(repairs)) if repairs else ""
 
 
 def should_refine_quality(audit: dict, min_confidence: float = 0.72) -> bool:

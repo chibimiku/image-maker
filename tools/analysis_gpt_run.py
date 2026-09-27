@@ -48,7 +48,125 @@ def _metrics(path):
         return ""
 
 
+def run_app_batch(cases_path, text_model=""):
+    """Run an explicit test manifest through app.py's actual analysis tab commands."""
+    os.environ["IMAGE_MAKER_TEST_OUTPUT"] = "1"
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    if text_model:
+        from utils import analysis_gpt_prompt
+        original_config = analysis_gpt_prompt.load_text_api_config
+        analysis_gpt_prompt.load_text_api_config = lambda *args, **kwargs: {
+            **original_config(*args, **kwargs), "model": text_model}
+    from utils import llm_retry
+    llm_retry.load_retry_settings = lambda *args, **kwargs: llm_retry.RetrySettings(True, 2, 15)
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import QTimer
+    from app import AppWindow
+    cases_path = os.path.abspath(cases_path)
+    output_dir = os.path.dirname(cases_path)
+    cases = json.load(open(cases_path, encoding="utf-8"))
+    qt = QApplication.instance() or QApplication([])
+    window = AppWindow()
+    if text_model:
+        window.model_combo.blockSignals(True)
+        window.model_combo.setCurrentText(text_model)
+        window.model_combo.blockSignals(False)
+    tab = window.single_analyzer_tab
+    # Test overrides are in-memory and must not change saved user preferences.
+    for widget, value in ((tab.remove_photo_style_cb, True), (tab.save_to_source_dir_cb, False),
+                          (tab.auto_gen_orig_cb, False), (tab.auto_gen_ref_cb, False),
+                          (tab.gen_channel_gpt, True), (tab.gpt_pp_repaint, True),
+                          (tab.gpt_pp_structure, False), (tab.gpt_pp_local, False),
+                          (tab.gpt_pp_tone, False), (tab.gpt_pp_ink, False)):
+        widget.blockSignals(True)
+        widget.setChecked(value)
+        widget.blockSignals(False)
+    tab.get_timeout_seconds = lambda: 300
+    tab._send_system_notification = lambda *args, **kwargs: None
+    log = open(os.path.join(output_dir, "app-batch.log"), "a", encoding="utf-8")
+    original_log = tab.log_msg
+    def log_message(text, *args, **kwargs):
+        log.write(str(text) + "\n")
+        log.flush()
+        print(str(text)[:450], flush=True)
+        return original_log(text, *args, **kwargs)
+    tab.log_msg = log_message
+    results = []
+    state = {"index": 0, "thread": None}
+    def tick():
+        if state["thread"] is not None:
+            if tab._active_analysis_threads or tab._pipeline_busy():
+                return
+            thread = state["thread"]
+            record = dict(tab._analysis_history.get(thread.meta_task_id) or {})
+            results.append(dict(cases[state["index"]], analysis_status=thread.last_status,
+                                task_hash=thread.meta_task_hash, record=record))
+            with open(os.path.join(output_dir, "results.json"), "w", encoding="utf-8") as stream:
+                json.dump(results, stream, ensure_ascii=False, indent=2, default=str)
+            state["thread"] = None
+            state["index"] += 1
+        if state["index"] >= len(cases):
+            timer.stop()
+            log.close()
+            qt.quit()
+            return
+        case = cases[state["index"]]
+        if not os.path.isfile(case["source"]):
+            raise FileNotFoundError(case["source"])
+        if tab.main_style_combo.findText(case["style"]) < 0:
+            raise ValueError("画风不在 enabled 列表: " + case["style"])
+        tab.main_style_combo.blockSignals(True)
+        tab.main_style_combo.setCurrentText(case["style"])
+        tab.main_style_combo.blockSignals(False)
+        tab.image_source = case["source"]
+        state["thread"] = tab._launch_analysis_task(
+            case["source"], gen_targets=["refined"],
+            header_note=f"随机全链路测试 {state['index'] + 1}/{len(cases)}: {case['style']}")
+        if state["thread"] is None:
+            raise RuntimeError("app 分析命令未启动")
+    timer = QTimer()
+    timer.timeout.connect(tick)
+    timer.start(1000)
+    QTimer.singleShot(0, tick)
+    qt.exec()
+    return 0 if all(r["record"].get("final_products") and not r["record"].get("pipeline_error")
+                    for r in results) else 1
+
+
+def resume_app_checkpoint(checkpoint_path, text_model=""):
+    """Resume the GUI worker's cached stages without repeating analysis or paid images."""
+    os.environ["IMAGE_MAKER_TEST_OUTPUT"] = "1"
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    if text_model:
+        from utils import analysis_gpt_prompt
+        original_config = analysis_gpt_prompt.load_text_api_config
+        analysis_gpt_prompt.load_text_api_config = lambda *args, **kwargs: {
+            **original_config(*args, **kwargs), "model": text_model}
+    from PyQt6.QtWidgets import QApplication
+    from modules.image_analysis.single_analyzer import GptImageGenWorkerThread
+    qt = QApplication.instance() or QApplication([])
+    data = json.load(open(checkpoint_path, encoding="utf-8"))
+    worker = GptImageGenWorkerThread(**data["snapshot"], checkpoint_path=checkpoint_path)
+    outputs = []
+    worker.finish_signal.connect(outputs.extend)
+    worker.log_signal.connect(print)
+    worker.run()
+    result = {"status": worker.last_status, "outputs": outputs,
+              "checkpoint": os.path.abspath(checkpoint_path), "failed_stage": worker.failed_stage}
+    with open(os.path.join(os.path.dirname(checkpoint_path), "resume-result.json"), "w", encoding="utf-8") as stream:
+        json.dump(result, stream, ensure_ascii=False, indent=2)
+    return 0 if worker.last_status == "success" else 1
+
+
 def main():
+    if "--app-resume-checkpoint" in sys.argv:
+        index = sys.argv.index("--app-resume-checkpoint")
+        text_model = sys.argv[sys.argv.index("--text-model") + 1] if "--text-model" in sys.argv else ""
+        return resume_app_checkpoint(sys.argv[index + 1], text_model)
+    if "--app-batch-cases" in sys.argv:
+        index = sys.argv.index("--app-batch-cases")
+        text_model = sys.argv[sys.argv.index("--text-model") + 1] if "--text-model" in sys.argv else ""
+        return run_app_batch(sys.argv[index + 1], text_model)
     ap = argparse.ArgumentParser(description="分析产物 → gpt-image-2 → 工序（无头）")
     ap.add_argument("--json", required=True, help="分析产物 JSON（或同目录的 -prompts.txt 不必传）")
     ap.add_argument("--style", default="", help="画风名（config-styles.json 的键）")
@@ -268,13 +386,15 @@ def main():
             size = pick_gpt_image2_size_for_images(refs_for_size)
         print(f"[3/4] gpt-image-2 出首图（quality={args.quality}, size={size}, "
               f"端点={'/images/generations（新建图片）' if args.first_pass_mode == 'generate' else '/images/edits'}）…")
-        saved = generate_image_aigc2d_gpt(
+        from utils.first_image_review import generate_first_image
+        saved, payload["prompt"] = generate_first_image(generate_image_aigc2d_gpt,
+            analysis_result=result,
             prompt=payload["prompt"], image_paths=list(payload.get("image_paths") or []),
             model="gpt-image-2", size=size, quality=args.quality, output_format="png", n=1,
             api_type="aigc-2d-gpt", file_prefix=os.path.splitext(os.path.basename(args.json))[0][:24],
-            save_sub_dir=output_dir or first_pass_sub_dir(steps), return_metadata=False,
+            save_sub_dir=output_dir or first_pass_sub_dir(steps),
             mode=args.first_pass_mode,
-            log_callback=lambda m: None) or []
+            log_callback=print)
         if not saved:
             manifest["status"] = "first_pass_failed"
             save_manifest()
@@ -333,7 +453,7 @@ def main():
     if effective_quality_refine and outs and repaint_style_ref and os.path.isfile(repaint_style_ref):
         from modules.others.api_backend import generate_image_repaint
         from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
-                                          should_refine_quality)
+                                          should_refine_quality, repair_style_guard)
         try:
             quality_audit = audit_refine_quality(
                 base_path, outs[-1], repaint_style_ref, first_pass_prompt=payload["prompt"],
@@ -345,6 +465,7 @@ def main():
                     json.dump(quality_audit, f, ensure_ascii=False, indent=2)
             if should_refine_quality(quality_audit):
                 quality_prompt = build_quality_correction_prompt(quality_audit)
+                quality_prompt += "\n\n" + repair_style_guard(payload)
                 refined = generate_image_repaint(
                     [outs[-1]], resolution="2K", aspect_ratio=pp.snapped_aspect_ratio(outs[-1]),
                     prompt=quality_prompt,
@@ -360,6 +481,11 @@ def main():
                         with open(os.path.join(output_dir, "refine-quality-audit-1.json"),
                                   "w", encoding="utf-8") as f:
                             json.dump(quality_after, f, ensure_ascii=False, indent=2)
+                    if should_refine_quality(quality_after) and (
+                            quality_after.get("severity") == "major" or any(
+                                float(item.get("confidence") or 0) >= .72
+                                for item in quality_after.get("background_drift", []))):
+                        raise RuntimeError("质量修订产生重大漂移，禁止继续修身份或发布")
                     print("      质量门禁: 已用当前图 + GPT 首图做一次文字驱动修订（未再次发送画风图）")
             else:
                 print("      质量门禁: 未发现需定点修复的高置信问题")
@@ -369,6 +495,10 @@ def main():
         manifest["outputs"] = outs
         manifest["selected_output"] = outs[-1]
         save_manifest()
+        if manifest["quality_refine"].get("audit_error"):
+            manifest["status"] = "review_required"
+            save_manifest()
+            return 1
     if (args.identity_audit or args.identity_correct) and outs:
         from utils.identity_audit import (audit_image_identity, build_identity_correction_prompt,
                                           identity_gate_action)
@@ -402,6 +532,8 @@ def main():
                     break
                 prompt = build_identity_correction_prompt(
                     current_audit, iteration=correction_round, max_iterations=2)
+                from utils.refine_quality import repair_style_guard
+                prompt += "\n\n" + repair_style_guard(payload)
                 identity_clauses = [str(c).strip() for c in
                                     (payload.get("identity_correction_clauses") or [])
                                     if str(c).strip()]
@@ -438,6 +570,12 @@ def main():
         manifest["selected_output"] = current
         if correction_rounds and identity_gate_action(current_audit) != "accept":
             print("      身份门禁: 两轮后仍有差异，按不回退策略保留最后一轮修订图")
+        if not bool(payload.get("skip_identity_refine")) and identity_gate_action(current_audit) != "accept":
+            manifest["status"] = "review_required"
+            manifest["outputs"] = outs
+            save_manifest()
+            print("      身份门禁未通过：保留候选图，禁止发布")
+            return 1
     post_adjustment = payload.get("post_adjustment") or {}
     if outs and post_adjustment:
         from utils.analysis_gen import apply_style_post_adjustment
@@ -453,7 +591,47 @@ def main():
             print("      画风确定性收尾: 已应用色彩、曝光或结构线专用校正")
     manifest["status"] = "complete" if outs else "pipeline_failed"
     selected = str(manifest.get("selected_output") or (outs[-1] if outs else ""))
-    if args.publish_final and selected and os.path.isfile(selected):
+    if selected:
+        from utils.refine_quality import audit_hand_quality, should_refine_quality
+        try:
+            anatomy = audit_hand_quality(selected)
+            manifest["anatomy_review"] = anatomy
+            if should_refine_quality(anatomy) or anatomy.get("needs_review"):
+                manifest["status"] = "review_required"
+            if output_dir:
+                with open(os.path.join(output_dir, "anatomy-audit.json"), "w", encoding="utf-8") as f:
+                    json.dump(anatomy, f, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            manifest["anatomy_review"] = {"audit_error": f"{type(exc).__name__}: {exc}"}
+            manifest["status"] = "review_required"
+    if ((steps.get("repaint") or {}).get("enabled") and selected and repaint_style_ref
+            and os.path.isfile(repaint_style_ref) and payload.get("repaint_reference_mode", "style") != "none"):
+        from utils.refine_quality import audit_refine_quality, should_refine_quality, repair_style_guard
+        try:
+            from utils.refine_quality import review_final_candidate
+            selected, final_quality = review_final_candidate(
+                selected, lambda candidate: audit_refine_quality(
+                base_path, candidate, repaint_style_ref, first_pass_prompt=payload["prompt"],
+                proportion_clauses=proportion_clauses, final_review=True,
+                style_targets=repair_style_guard(payload),
+                authorized_changes=payload.get("generation_clauses") or []),
+                output_dir or os.path.dirname(selected), log_callback=print)
+            manifest["final_review"] = final_quality
+            manifest["selected_output"] = selected
+            outs = [selected]
+            if should_refine_quality(final_quality) or final_quality.get("needs_review"):
+                manifest["status"] = "review_required"
+            if output_dir:
+                with open(os.path.join(output_dir, "final-quality-audit.json"), "w", encoding="utf-8") as f:
+                    json.dump(final_quality, f, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            manifest["final_review"] = {"audit_error": f"{type(exc).__name__}: {exc}"}
+            manifest["status"] = "review_required"
+        if manifest["status"] == "review_required":
+            print("      最终复核未通过：保留候选图和审计记录，禁止发布")
+    if manifest["status"] == "review_required":
+        print("      人体/最终门禁未通过或审计失败：候选图保留，不视为全链成功")
+    if args.publish_final and manifest["status"] == "complete" and selected and os.path.isfile(selected):
         published = publish_final_output(
             selected, style_name=args.style, process_dir=output_dir or os.path.dirname(selected))
         manifest["published_final"] = published
@@ -463,7 +641,7 @@ def main():
     for path in outs:
         print(f"  {os.path.relpath(path, BASE)}")
         print(f"    {_metrics(path)}")
-    return 0
+    return 0 if manifest["status"] == "complete" else 1
 
 
 if __name__ == "__main__":

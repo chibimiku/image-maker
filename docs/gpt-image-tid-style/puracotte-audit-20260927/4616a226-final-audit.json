@@ -1,0 +1,19 @@
+{
+  "structural_issues": [],
+  "line_issues": [],
+  "background_drift": [],
+  "style_gaps": [],
+  "needs_refine": false,
+  "severity": "none",
+  "confidence": 0.0,
+  "protected_features": [
+    "Keep both characters' current poses and limb placements.",
+    "Preserve the checkered floor, chocolate tray, rocking horse, and tea setting.",
+    "Retain the layered luminous shading and readable dark dress forms."
+  ],
+  "summary": "The candidate preserves the requested composition and pose, with no confidently identifiable limb-ownership, attachment, or rendering defect requiring correction.",
+  "original": "D:\\code\\image-maker\\data\\20260927\\analysis-gpt-image\\4616a226-puracotte-style-v2-170525-6feb47\\4616a226_output_170606_0_c95253.png",
+  "candidate": "D:\\code\\image-maker\\data\\20260927\\4616a226_puracotte-style-v2-quality-refine_170748-4befc0-final.jpg",
+  "style_reference": "D:\\code\\image-maker\\data\\style-ref\\puracotte-single-146924823-p0.jpg",
+  "raw": "{\n  \"needs_refine\": false,\n  \"severity\": \"none\",\n  \"summary\": \"The candidate preserves the requested composition and pose, with no confidently identifiable limb-ownership, attachment, or rendering defect requiring correction.\",\n  \"structural_issues\": [],\n  \"line_issues\": [],\n  \"background_drift\": [],\n  \"style_gaps\": [],\n  \"protected_features\": [\n    \"Keep both characters' current poses and limb placements.\",\n    \"Preserve the checkered floor, chocolate tray, rocking horse, and tea setting.\",\n    \"Retain the layered luminous shading and readable dark dress forms.\"\n  ]\n}"
+}

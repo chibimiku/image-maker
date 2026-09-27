@@ -13,6 +13,52 @@ from utils import analysis_gen as ag  # noqa: E402
 from utils import post_process as pp  # noqa: E402
 
 
+@pytest.fixture
+def tuned_styles():
+    path = os.path.join(BASE, "submodules", "image-maker-artstyle", "config-styles.json")
+    if not os.path.isfile(path):
+        pytest.skip("versioned style configuration unavailable")
+    with open(path, encoding="utf-8") as stream:
+        return json.load(stream)
+
+
+def test_sayhana_v4_rounded_eyes_are_shared_by_first_pass_and_repaint(tuned_styles):
+    from utils.style_gpt import validate_prompt_gpt
+    entry = tuned_styles["say-hana-v4"]
+    assert validate_prompt_gpt(entry["prompt_gpt"]) == (True, [])
+    assert "medium-large rounded almonds" in entry["prompt_gpt"]
+    assert "long narrow almond geometry" not in entry["prompt_gpt"]
+    assert "Round generic forms" not in entry["prompt_gpt"]
+    request = ag.build_first_pass_request(tuned_styles, "say-hana-v4", {"gpt_image_prompt": "content"})
+    assert request["clauses"] == entry["repaint_clauses"]
+    assert all(clause in request["prompt"] for clause in request["clauses"])
+    for key in ("prompt", "prompt_compressed", "prompt_gemini"):
+        assert "rounded almonds" in entry[key]
+    assert "source iris colour" in " ".join(request["clauses"])
+
+
+def test_tinkle_sheer_material_and_bounded_design_authorization(tuned_styles):
+    from utils.style_gpt import validate_prompt_gpt
+    from utils.styles import build_ref_gen_params
+    entry = tuned_styles["tinkle-style"]
+    assert entry["enabled"] and not tuned_styles["tinkle"]["enabled"]
+    assert validate_prompt_gpt(entry["prompt_gpt"]) == (True, [])
+    assert "Sheer layered fabric" in entry["prompt_gpt"]
+    for mode in ("off", "head", "priority", "interleave"):
+        head, post, _ = build_ref_gen_params(tuned_styles, "tinkle-style", mode, api_type="aigc2d")
+        combined = head + post
+        assert "semi-transparent organza/tulle" in combined
+        assert "one or two small colour-matched ribbon bows" in combined
+        assert "no costume replacement" in combined
+    request = ag.build_first_pass_request(tuned_styles, "tinkle-style", {"gpt_image_prompt": "content"})
+    assert "one or two small colour-matched ribbon bows" in request["prompt"]
+    assert "opaque linings" in request["prompt"]
+    assert "unintended exposure" in request["prompt"]
+    assert not request["skip_identity_refine"]
+    assert "explicitly authorized" in " ".join(request["identity_correction_clauses"])
+    assert "including the authorized subtle Lolita accents" in " ".join(request["clauses"])
+
+
 def test_resolve_content_prefers_short_field():
     data = {"gpt_image_prompt_short": "SHORT", "gpt_image_prompt": "FULL",
             "english_description": "LONG DESC"}
@@ -228,6 +274,16 @@ def test_gemini_reference_content_can_use_pure_content_anchor(tmp_path):
     assert content == "PURE CONTENT ANCHOR" and field == "gpt_image_prompt"
     assert ag.resolve_gemini_reference_content(entry, {"analysis_json_path": str(result)},
                                                 "fallback", "head") == ("fallback", "")
+
+
+def test_gemini_content_postamble_keeps_task_after_style_instruction():
+    content = "long brown hair, closed eyes, navy rococo dress, black bag, wooden doorway"
+    post = ag.build_gemini_content_postamble(content, "STYLE ONLY")
+    assert post.startswith("STYLE ONLY")
+    assert post.index("REQUESTED CONTENT:") > post.index("STYLE ONLY")
+    assert content in post
+    assert "this content wins" in post
+    assert ag.build_gemini_content_postamble("", "STYLE ONLY") == "STYLE ONLY"
 
 
 def test_build_first_pass_request_separates_generation_and_repaint_clauses(tmp_path):

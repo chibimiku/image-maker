@@ -128,10 +128,10 @@ def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
     """预算覆盖首图、重绘、质量/身份门禁和局部区域；本地工序不占份额。"""
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘（局部关闭，结构线/色调/加墨是本地）
-    assert analyzer._pipeline_timeout_budget(120, steps) == 1200
+    assert analyzer._pipeline_timeout_budget(120, steps) == 2160
     analyzer.gpt_pp_local.setChecked(True)             # 打开四区链 → 再多 4 份
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 1680
+    assert analyzer._pipeline_timeout_budget(120, steps) == 2640
     analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 四区
     steps = analyzer._build_gpt_image_steps()
     assert analyzer._pipeline_timeout_budget(120, steps) == 600
@@ -225,7 +225,7 @@ def test_gpt_channel_local_step_is_2k_without_detail_boost(analyzer):
     assert steps["local"]["resolution"] == "2K"
     assert steps["local"]["detail_boost"] is False
     # 重绘链还含初审、最多两轮修订及每轮复审。
-    assert analyzer._pipeline_timeout_budget(120, steps) == 1680
+    assert analyzer._pipeline_timeout_budget(120, steps) == 2640
 
 
 def _first_pass_payload(analyzer, tmp_path, styles, style_name):
@@ -614,7 +614,9 @@ def test_window_growth_goes_to_queue_and_log_not_option_rows(analyzer):
     QApplication.processEvents()
     assert analyzer.send_btn.height() <= 40                      # 固定 40，不能长高
     assert analyzer.auto_gen_orig_cb.height() <= 24              # 勾选框保持一行
-    assert analyzer.controls_scroll.viewport().height() >= 250   # 选项区拿到接近内容的高度
+    assert analyzer.controls_scroll.viewport().height() >= 180   # 单行紧凑控件仍有足够空间
+    assert analyzer.send_btn.y() == analyzer.cancel_analysis_btn.y() == analyzer.dir_batch_btn.y()
+    assert analyzer.auto_gen_orig_cb.y() == analyzer.auto_gen_ref_cb.y() == analyzer.save_to_source_dir_cb.y()
     assert analyzer.log_text.height() > analyzer.log_text.minimumHeight()   # 日志吃掉多余空间
     analyzer.close()
 

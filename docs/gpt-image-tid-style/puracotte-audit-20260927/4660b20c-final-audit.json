@@ -1,0 +1,62 @@
+{
+  "structural_issues": [
+    {
+      "region": "Character pose and action",
+      "observed": "The character stands upright and front-facing rather than airborne and twisting. Neither arm reaches up to a mechanical joint; one hangs down to the cable and the other reaches toward the machinery at her side.",
+      "repair": "Restore the airborne, twisting pose: raise one arm to the joint and angle the other across the body to grip the taut cable.",
+      "confidence": 0.99
+    },
+    {
+      "region": "Face and expression",
+      "observed": "The face has a small closed mouth and subdued expression rather than the requested cheerful open smile.",
+      "repair": "Change the mouth to a small open smile and make the expression visibly cheerful while preserving the red eyes and facial style.",
+      "confidence": 0.94
+    },
+    {
+      "region": "Leg pose and support",
+      "observed": "Both legs hang beneath the skirt in a standing arrangement; the requested separated airborne legs, barely supported foot on a narrow strut, and other leg extended lower right are absent.",
+      "repair": "Repose the legs to match the airborne action and make the strut support point legible. The current bottom-edge boot crops alone are not a provable missing-limb defect.",
+      "confidence": 0.98
+    }
+  ],
+  "line_issues": [],
+  "background_drift": [
+    {
+      "region": "Background and composition",
+      "original": "Image 1 shows two reclining figures in an ornate pale tea setting, while the stated content calls for a burgundy airborne machine scene with large articulated mechanical wings or arms, cables, angular forms, and fragments.",
+      "candidate": "A single standing figure is set against a largely empty pale-pink field, with only a partial machine at the right and cables at the left; the requested sweeping mechanical structures and dense airborne backdrop are missing.",
+      "repair": "Restore the scene’s intended mechanical framework and burgundy/rose airborne background, with the character positioned and framed as an airborne focal figure.",
+      "confidence": 0.99
+    }
+  ],
+  "style_gaps": [
+    {
+      "aspect": "Shading and light",
+      "candidate": "Mostly crisp outlined cel planes with limited soft chromatic layering and restrained glow.",
+      "target": "Image 3 has luminous, softly blended color transitions, layered chromatic shading, and selective bright glints while retaining readable midtones.",
+      "repair": "Add more soft layered color transitions and selective luminous highlights to the character and materials without washing out the dark outfit.",
+      "confidence": 0.85
+    },
+    {
+      "aspect": "Edge hierarchy",
+      "candidate": "Dark, consistently prominent outlines define many forms.",
+      "target": "Image 3 uses fine tinted contours, with firmer focal overlaps and softer subordinate edges.",
+      "repair": "Lighten and vary subordinate contours while preserving crisp definition at focal overlaps.",
+      "confidence": 0.81
+    }
+  ],
+  "needs_refine": true,
+  "severity": "major",
+  "confidence": 0.0,
+  "protected_features": [
+    "Pale blonde short twin tails, bangs, and dark bows",
+    "Red eyes",
+    "Black-and-white rococo outfit with lace, cross-lacing, and layered skirt",
+    "Jeweled gloves and dark lace-up ankle boots"
+  ],
+  "summary": "The candidate changes the requested airborne twisting action into a front-facing standing pose and substantially departs from both the described mechanical setting and Image 1’s scene. No definite extra, fused, or misassigned limb is visible; the boots are cropped at the frame edge.",
+  "original": "D:\\code\\image-maker\\data\\20260927\\analysis-gpt-image\\4660b20c-puracotte-style-v2-170654-ede544\\4660b20c_output_170722_0_c791a3.png",
+  "candidate": "D:\\code\\image-maker\\data\\20260927\\4660b20c_puracotte-style-v2-identity-correct-1_170920-9fe0b3-final.jpg",
+  "style_reference": "D:\\code\\image-maker\\data\\style-ref\\puracotte-single-146924823-p0.jpg",
+  "raw": "{\n  \"needs_refine\": true,\n  \"severity\": \"major\",\n  \"summary\": \"The candidate changes the requested airborne twisting action into a front-facing standing pose and substantially departs from both the described mechanical setting and Image 1’s scene. No definite extra, fused, or misassigned limb is visible; the boots are cropped at the frame edge.\",\n  \"structural_issues\": [\n    {\n      \"region\": \"Character pose and action\",\n      \"observed\": \"The character stands upright and front-facing rather than airborne and twisting. Neither arm reaches up to a mechanical joint; one hangs down to the cable and the other reaches toward the machinery at her side.\",\n      \"repair\": \"Restore the airborne, twisting pose: raise one arm to the joint and angle the other across the body to grip the taut cable.\",\n      \"confidence\": 0.99\n    },\n    {\n      \"region\": \"Face and expression\",\n      \"observed\": \"The face has a small closed mouth and subdued expression rather than the requested cheerful open smile.\",\n      \"repair\": \"Change the mouth to a small open smile and make the expression visibly cheerful while preserving the red eyes and facial style.\",\n      \"confidence\": 0.94\n    },\n    {\n      \"region\": \"Leg pose and support\",\n      \"observed\": \"Both legs hang beneath the skirt in a standing arrangement; the requested separated airborne legs, barely supported foot on a narrow strut, and other leg extended lower right are absent.\",\n      \"repair\": \"Repose the legs to match the airborne action and make the strut support point legible. The current bottom-edge boot crops alone are not a provable missing-limb defect.\",\n      \"confidence\": 0.98\n    }\n  ],\n  \"line_issues\": [],\n  \"background_drift\": [\n    {\n      \"region\": \"Background and composition\",\n      \"original\": \"Image 1 shows two reclining figures in an ornate pale tea setting, while the stated content calls for a burgundy airborne machine scene with large articulated mechanical wings or arms, cables, angular forms, and fragments.\",\n      \"candidate\": \"A single standing figure is set against a largely empty pale-pink field, with only a partial machine at the right and cables at the left; the requested sweeping mechanical structures and dense airborne backdrop are missing.\",\n      \"repair\": \"Restore the scene’s intended mechanical framework and burgundy/rose airborne background, with the character positioned and framed as an airborne focal figure.\",\n      \"confidence\": 0.99\n    }\n  ],\n  \"style_gaps\": [\n    {\n      \"aspect\": \"Shading and light\",\n      \"candidate\": \"Mostly crisp outlined cel planes with limited soft chromatic layering and restrained glow.\",\n      \"target\": \"Image 3 has luminous, softly blended color transitions, layered chromatic shading, and selective bright glints while retaining readable midtones.\",\n      \"repair\": \"Add more soft layered color transitions and selective luminous highlights to the character and materials without washing out the dark outfit.\",\n      \"confidence\": 0.85\n    },\n    {\n      \"aspect\": \"Edge hierarchy\",\n      \"candidate\": \"Dark, consistently prominent outlines define many forms.\",\n      \"target\": \"Image 3 uses fine tinted contours, with firmer focal overlaps and softer subordinate edges.\",\n      \"repair\": \"Lighten and vary subordinate contours while preserving crisp definition at focal overlaps.\",\n      \"confidence\": 0.81\n    }\n  ],\n  \"protected_features\": [\n    \"Pale blonde short twin tails, bangs, and dark bows\",\n    \"Red eyes\",\n    \"Black-and-white rococo outfit with lace, cross-lacing, and layered skirt\",\n    \"Jeweled gloves and dark lace-up ankle boots\"\n  ]\n}"
+}

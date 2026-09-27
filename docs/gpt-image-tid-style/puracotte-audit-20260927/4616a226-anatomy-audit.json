@@ -1,0 +1,25 @@
+{
+  "structural_issues": [],
+  "line_issues": [],
+  "background_drift": [],
+  "style_gaps": [],
+  "needs_refine": false,
+  "severity": "none",
+  "confidence": 0.0,
+  "protected_features": [],
+  "summary": "No clearly malformed, fused, duplicated, or disconnected visible digits or limbs. The remaining limbs are occluded by clothing or pose.",
+  "candidate": "D:\\code\\image-maker\\data\\20260927\\4616a226_puracotte-style-v2-quality-refine_170748-4befc0-final.jpg",
+  "raw": "{\n  \"structural_issues\": [],\n  \"character_limb_inventory\": [\n    {\n      \"owner\": \"Left white-dressed character\",\n      \"arms\": \"Two arms visible. One runs from the upper body down to the hand resting on the fabric at lower left. The other reaches from the upper body toward the tray, ending in the extended hand. Both paths appear connected; no clear hand or joint defect.\",\n      \"legs\": \"One bent leg is visible from the pelvis through the thigh and lower leg to the shoe near the bottom right. The other leg is obscured by the dress and overlapping pose; no exposed region requires it to continue visibly.\"\n    },\n    {\n      \"owner\": \"Right dark-dressed character\",\n      \"arms\": \"Two arms visible. One reaches from the upper body toward the neckline, ending in a hand holding the fabric. The other extends from the lace-covered sleeve to the hand above the rocking horse. No clear disconnection or digit defect.\",\n      \"legs\": \"One raised leg is visible from beneath the skirt, continuing through the lower leg to the high-heeled shoe at the upper right. The other leg is obscured beneath the skirt or outside the visible pose.\"\n    }\n  ],\n  \"summary\": \"No clearly malformed, fused, duplicated, or disconnected visible digits or limbs. The remaining limbs are occluded by clothing or pose.\",\n  \"needs_refine\": false\n}",
+  "character_limb_inventory": [
+    {
+      "owner": "Left white-dressed character",
+      "arms": "Two arms visible. One runs from the upper body down to the hand resting on the fabric at lower left. The other reaches from the upper body toward the tray, ending in the extended hand. Both paths appear connected; no clear hand or joint defect.",
+      "legs": "One bent leg is visible from the pelvis through the thigh and lower leg to the shoe near the bottom right. The other leg is obscured by the dress and overlapping pose; no exposed region requires it to continue visibly."
+    },
+    {
+      "owner": "Right dark-dressed character",
+      "arms": "Two arms visible. One reaches from the upper body toward the neckline, ending in a hand holding the fabric. The other extends from the lace-covered sleeve to the hand above the rocking horse. No clear disconnection or digit defect.",
+      "legs": "One raised leg is visible from beneath the skirt, continuing through the lower leg to the high-heeled shoe at the upper right. The other leg is obscured beneath the skirt or outside the visible pose."
+    }
+  ]
+}

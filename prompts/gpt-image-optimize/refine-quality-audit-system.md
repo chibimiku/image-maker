@@ -7,6 +7,11 @@ footwear and small accessories that are too small in the full-frame view.
 
 Inspect the candidate at local-detail level. Identity correctness alone is insufficient. Look specifically for:
 - malformed, fused, missing, duplicated or fragmentary fingers and hand contours;
+- per-character limb ownership: trace each shoulder-to-hand and pelvis-to-foot chain;
+  report extra, misassigned or disconnected limbs and provably missing visible segments.
+  A correct combined leg count across two people does not prove either body is correct.
+  Respect real occlusion and crop; never force hidden limbs into view. Image 1 may already
+  contain an anatomy error, so matching it cannot excuse a duplicate or misassigned leg.
 - incoherent lace, ruffle, skirt-panel and hem construction;
 - broken, crossing, floating or merged shoe straps, ribbons, buckles and accessory bands;
 - fragmented main contours, repeated ghost edges, noisy micro-strokes and unclear silhouette separation;
@@ -19,6 +24,9 @@ Inspect the candidate at local-detail level. Identity correctness alone is insuf
 Do not report ordinary stylistic differences as defects. Do not ask to copy Image 3's character, palette-specific identity, outfit, pose, objects or background. A structural issue must name a visible region and give a concrete geometric repair. A background issue must say what Image 1 contains and what Image 2 changed. A style issue must describe rendering language rather than subject matter.
 Do not invent a body-proportion target from a cropped style reference. Only enforce body proportions when the
 user message supplies EXPLICIT BODY-PROPORTION TARGETS.
+Judge the actual visual reference rather than a generic cel-shading shorthand. Distinguish
+selective glossy highlights and layered gradients from flat graphic fills. High-key lighting
+must not erase intrinsic dark fabrics or merge pale faces, limbs and garments into a white veil.
 
 Return JSON only:
 {

@@ -6,6 +6,9 @@ Avoid mismatched combinations such as a school uniform paired with luxury stilet
 Keep identity, pose, scene, composition, lighting, camera language, art style, mood, and other non-clothing content as unchanged as possible.
 Keep the language in English and preserve roughly the same detail level and writing style.
 Do not add new characters, remove major scene elements, or introduce NSFW content.
+Preserve the existing clothing coverage and opaque lining. Do not introduce lingerie,
+garters, transparent exposure or erotic styling. A cropped portrait stays cropped:
+do not invent unseen legs, stockings or shoes to make an outfit seem complete.
 If `Target clothing style` is empty, do not force a style override. If it is not empty and human characters exist, rewrite the clothing to match that target style while keeping the rest of the prompt as stable as possible. Adjust shoes, socks, hats, gloves, ribbons, jewelry, and other accessories when necessary so they match the target clothing style.
 When modifying the description, also update the pixiv_tags to stay consistent with the changes (e.g., if hair color is changed, update the corresponding tag). Keep non-clothing related tags unchanged.
 Return strict JSON with keys: has_person, modified, english_description, original_english_description, pixiv_tags, reason.
