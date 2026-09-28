@@ -2,12 +2,80 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from utils.first_image_review import generate_first_image, is_moderation_block, apply_safe_plan
+from utils.first_image_review import generate_first_image, is_moderation_block, apply_safe_plan, safe_repaint_firmware
 from utils.generation_checkpoint import GenerationCheckpoint
 
 BLOCK = {"saved_files": [], "server_response_raw": {"error": {"code": "moderation_blocked"}}}
 
 class FirstReviewTests(unittest.TestCase):
+    def test_timeout_reserves_conditional_restore_and_prompt_revision(self):
+        from modules.image_analysis.single_analyzer import SingleAnalyzerWidget
+        budget = SingleAnalyzerWidget._pipeline_timeout_budget
+        self.assertEqual(budget(None, 120, {'repaint': {'enabled': True}}), 2160)
+        self.assertEqual(budget(None, 120, {'repaint': {'enabled': False}}, {'style_ref_path': 'ref'}), 2400)
+        self.assertEqual(budget(None, 120, {'repaint': {'enabled': False}}, {}), 1440)
+
+    def test_gpt_retry_omits_reference_but_gemini_restores_technique_reference(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ref = str(Path(directory) / 'style.jpg'); Path(ref).touch()
+            first = str(Path(directory) / 'first.png'); Path(first).touch()
+            cp = GenerationCheckpoint(str(Path(directory) / 'checkpoint.json'))
+            payload = {'prompt': 'old', 'style_ref_path': ref, 'image_paths': [ref],
+                       'generation_clauses': ['old outfit override'], 'skip_repaint': True}
+            steps = {'repaint': {'enabled': False}, 'tone': {'enabled': True}}
+            plan = {'version': 3, 'retry_allowed': True, 'changes': ['retain covered dress'],
+                    'prompt': 'covered fashion illustration', 'reference_policy': 'none',
+                    'gemini_reference_policy': 'style_only', 'safe_rendering_clauses': []}
+            gen = Mock(side_effect=[BLOCK, {'saved_files': [first]}])
+            with patch('utils.first_image_review.review_request', return_value=plan):
+                generate_first_image(gen, prompt='old', image_paths=[ref], checkpoint=cp,
+                    plan_callback=lambda p: apply_safe_plan(payload, steps, p))
+            self.assertEqual(gen.call_args.kwargs['image_paths'], [])
+            self.assertEqual(payload['image_paths'], [])
+            self.assertEqual(payload['style_ref_path'], ref)
+            self.assertTrue(steps['repaint']['enabled'])
+            self.assertEqual(steps['repaint']['reference_mode'], 'style')
+            self.assertNotIn('generation_clauses', payload)
+            self.assertFalse(payload['skip_quality_refine'])
+            self.assertIn('IMAGE 2', safe_repaint_firmware(payload, 'old'))
+            preserved = {'style_ref_path': ref}
+            old_steps = {'repaint': {'enabled': False}}
+            apply_safe_plan(preserved, old_steps, plan, restore_reference=False)
+            self.assertFalse(old_steps['repaint']['enabled'])
+
+    def test_worker_fallback_uses_style_transfer_then_caches_paid_stages(self):
+        from PIL import Image
+        from modules.image_analysis.single_analyzer import GptImageGenWorkerThread
+        with tempfile.TemporaryDirectory() as directory:
+            first = str(Path(directory) / 'first.png'); ref = str(Path(directory) / 'ref.png')
+            for path in (first, ref):
+                Image.new('RGB', (32, 48), 'white').save(path)
+            cp_path = str(Path(directory) / 'checkpoint.json')
+            plan = {'version': 3, 'retry_allowed': True, 'changes': ['covered original outfit'],
+                    'prompt': 'covered dress illustration', 'reference_policy': 'none',
+                    'gemini_reference_policy': 'style_only', 'safe_rendering_clauses': []}
+            kwargs = dict(request_payload={'prompt': 'old theme', 'image_paths': [ref], 'style_ref_path': ref},
+                steps={'repaint': {'enabled': False}}, analysis_result={'task_hash': '12345678'},
+                style_ref_path=ref, checkpoint_path=cp_path)
+            clean = {'needs_refine': False, 'structural_issues': [], 'needs_review': False}
+            with patch('utils.first_image_review.review_request', return_value=plan), \
+                 patch('modules.others.api_backend.generate_image_aigc2d_gpt', side_effect=[BLOCK, {'saved_files': [first]}]) as gen, \
+                 patch('utils.analysis_gen.run_gpt_image_pipeline', return_value=[first]) as repaint, \
+                 patch('utils.identity_audit.audit_image_identity', return_value={'mismatch': False, 'differences': []}) as identity, \
+                 patch('utils.refine_quality.audit_refine_quality', return_value=clean), \
+                 patch('utils.refine_quality.audit_hand_quality', return_value=clean), \
+                 patch('utils.analysis_gen.publish_final_output', return_value=first):
+                worker = GptImageGenWorkerThread(**kwargs); worker.run()
+                self.assertEqual(worker.last_status, 'success')
+                self.assertEqual(gen.call_args.kwargs['image_paths'], [])
+                self.assertEqual(repaint.call_args.kwargs['style_ref_path'], ref)
+                self.assertIn('fully clothed', repaint.call_args.kwargs['firmware'])
+                self.assertNotIn('old theme', repaint.call_args.kwargs['firmware'])
+                resumed = GptImageGenWorkerThread(**kwargs); resumed.run()
+                self.assertEqual(resumed.last_status, 'success')
+                self.assertEqual(gen.call_count, 2)
+                repaint.assert_called_once(); identity.assert_called_once()
+
     def test_gpt_only_safe_alternative_still_runs_identity_gate(self):
         from PIL import Image
         from modules.image_analysis.single_analyzer import GptImageGenWorkerThread

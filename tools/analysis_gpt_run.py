@@ -259,7 +259,7 @@ def main():
     from utils import post_process as pp
     from utils.analysis_gen import (build_first_pass_request, first_pass_sub_dir,
                                     publish_final_output, resolve_content_text,
-                                    run_face_hair_style_refine)
+                                    run_face_hair_style_refine, run_gpt_image_pipeline)
 
     result = json.load(open(args.json, encoding="utf-8"))
     source = args.source_image or str(result.get("source_image_path") or "")
@@ -389,7 +389,8 @@ def main():
         from utils.first_image_review import generate_first_image, apply_safe_plan
         saved, payload["prompt"] = generate_first_image(generate_image_aigc2d_gpt,
             analysis_result=result,
-            plan_callback=lambda plan: apply_safe_plan(payload, steps, plan),
+            plan_callback=lambda plan: apply_safe_plan(payload, steps, plan,
+                original_style_ref=repaint_style_ref, restore_reference=not args.no_dual),
             prompt=payload["prompt"], image_paths=list(payload.get("image_paths") or []),
             model="gpt-image-2", size=size, quality=args.quality, output_format="png", n=1,
             api_type="aigc-2d-gpt", file_prefix=os.path.splitext(os.path.basename(args.json))[0][:24],
@@ -402,8 +403,15 @@ def main():
             print("❌ 首图生成失败（看 log/<日期>.log）")
             return 1
         if payload.get("safe_alternative"):
+            from utils.first_image_review import safe_repaint_firmware
+            args.firmware = safe_repaint_firmware(payload, args.firmware)
             repaint_style_ref = str(payload.get("style_ref_path") or "")
             style_clauses = list(payload.get("clauses") or []) + proportion_clauses
+            args.identity_audit = True
+            args.identity_correct = True
+            args.quality_refine = bool(payload.get("safe_style_restore"))
+            manifest["firmware"] = args.firmware
+            manifest["repaint_style_ref"] = repaint_style_ref
         base_path = saved[0]
         print(f"      首图: {os.path.relpath(base_path, BASE)}  {_metrics(base_path)}")
 
@@ -430,12 +438,25 @@ def main():
           f"重绘参考 {steps['repaint']['reference_mode']} | 画风条款 {len(style_clauses)} 条")
     outs = []
     for trial in range(max(1, args.repeat)):
-        outs.extend(pp.run_pipeline([base_path], steps, firmware=args.firmware,
-                           style_ref_path=repaint_style_ref, style_clauses=style_clauses,
-                           final_dir=output_dir,
-                           work_dir=os.path.join(output_dir, f"steps-{trial + 1}") if output_dir else None,
-                           resume=False,
-                           log_callback=lambda m: print("      ", m)))
+        work_dir = os.path.join(output_dir or os.path.dirname(os.path.abspath(base_path)),
+                                f"steps-{trial + 1}")
+        try:
+            if payload.get("safe_alternative"):
+                outs.extend(run_gpt_image_pipeline([base_path], steps, firmware=args.firmware,
+                    style_ref_path=repaint_style_ref, style_clauses=style_clauses,
+                    final_dir=output_dir, work_dir=work_dir, strict=True,
+                    log_callback=lambda m: print("      ", m)))
+            else:
+                outs.extend(pp.run_pipeline([base_path], steps, firmware=args.firmware,
+                    style_ref_path=repaint_style_ref, style_clauses=style_clauses,
+                    final_dir=output_dir, work_dir=work_dir, resume=False,
+                    log_callback=lambda m: print("      ", m)))
+        except Exception as exc:
+            manifest["status"] = "pipeline_failed"
+            manifest["pipeline_error"] = f"{type(exc).__name__}: {exc}"
+            save_manifest()
+            print("❌ 安全替代重绘失败，已保留首图和断点：" + str(exc))
+            return 1
     manifest["outputs"] = outs
     if ((steps.get("repaint") or {}).get("enabled") and payload.get("face_hair_refine")
             and outs and repaint_style_ref

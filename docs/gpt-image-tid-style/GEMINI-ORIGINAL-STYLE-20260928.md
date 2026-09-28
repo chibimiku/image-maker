@@ -2,7 +2,7 @@
 
 用户要求独立验证 Gemini 是否可以接收原画风参考图，之前的 GPT 首图审核拒绝和文字复核判断不能替代这项图片接口实测。
 
-直接调用现有 `modules.others.api_backend.generate_image_repaint`，Gemini Pro 2K，每例一次。Image 1 使用已经验证的完整礼服成品，Image 2 使用原画风图，比例2:3。实验提示词 `prompts/gpt-image-optimize/covered-outfit-style-transfer.md` 明确迁移普通绘画技法，保留源图身份、服装覆盖、手部、构图；没有追加原画风的内衣改款或身体材质文字。原默认固件及自动安全替代配方没有修改。
+独立实验直接调用现有 `modules.others.api_backend.generate_image_repaint`，Gemini Pro 2K，每例一次。Image 1 使用已经验证的完整礼服成品，Image 2 使用原画风图，比例2:3。实验提示词 `prompts/gpt-image-optimize/covered-outfit-style-transfer.md` 明确迁移普通绘画技法，保留源图身份、服装覆盖、手部、构图；没有追加原画风的内衣改款或身体材质文字。当时尚未修改自动安全替代配方。
 
 |案例|Gemini 双参考结果|身份/人体检查|画风与内容观察|
 |---|---|---|---|
@@ -12,6 +12,12 @@
 Satou 另用当前图单参考做一次定点棕瞳修订，没有再发送画风图；约28秒出图，身份复审与人体复审通过。人工查看棕色已恢复，当前动漫画法保留。原双参考图、修订图和审计均保存，不覆盖旧成品。
 
 此轮新增3次Gemini图片调用：2次双参考画风重绘+1次源图定点瞳色修订。没有重新调用 GPT 首图。文字审计临时使用经授权的 GPT 5.6 Luna，未改变默认模型。
+
+## 接入审核拦截后的正式工序
+
+首图审核拦截后的文字复核现在分别返回 `reference_policy`（GPT 安全重试）和 `gemini_reference_policy`（后续普通画法迁移）。两例在线文字复核均选择 GPT `none`、Gemini `style_only`。GPT 的一次安全重试仍是纯文字、完整服装；若拿到首图，Gemini 首次重绘才附上原画风图，并改用 `covered-outfit-style-transfer.md`。身份、人体结构与最终画风复核保持启用；后续定点修订不再发送画风图。缺少参考图会标红，联网成功产物由断点缓存，不重复收费。GUI 与 `tools/analysis_gpt_run.py` 共用此方案；CLI 的安全替代重绘失败也标为 `pipeline_failed`。
+
+在线隔离续跑使用 satou 已缓存的合规 GPT 首图，没有重新请求 GPT：正式工序确实向 Gemini Pro 2K 发送了当前图加原画风图，成功得到 `1696×2528` 重绘图。随后 source-only 质量修订也成功出图，但肉眼可见人物发色、瞳色、服装和背景全被换掉；文字复审判定背景的窗、镜面灯和梳妆台明显丢失，且画法变得过于扁平，严重程度为 `major`。流程因此在质量门禁标红，**没有发布成品，也不能宣称完整链路通过**。原图、首次重绘、质量修订和两次审计保存在 `data/test-result/20260928/safe-style-integrated/satou/`，断点可续跑，已成功的联网步骤不会重复调用。这个结果说明后续质量修订存在严重画面漂移风险，不能因为首次 Gemini 重绘成功就跳过门禁。
 
 ## 结论与边界
 

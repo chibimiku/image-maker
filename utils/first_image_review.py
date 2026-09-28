@@ -33,20 +33,26 @@ def review_request(prompt, analysis_result, image_paths):
     if plan.get("retry_allowed") is True:
         if plan.get("reference_policy") not in {"none", "keep"}:
             raise ValueError("安全替代必须明确参考图保留策略")
+        if plan.get("gemini_reference_policy") not in {"none", "style_only"}:
+            raise ValueError("安全替代必须明确 Gemini 的画法参考策略")
         if (not isinstance(plan.get("changes"), list) or
                 not isinstance(plan.get("safe_rendering_clauses"), list) or
                 not isinstance(plan.get("prompt"), str)):
             raise ValueError("安全替代的修改说明、渲染条款或提示词格式无效")
-    plan["version"] = 2
+    plan["version"] = 3
     return plan
 
 
-def apply_safe_plan(payload, steps, plan):
+def apply_safe_plan(payload, steps, plan, *, original_style_ref="", restore_reference=True):
     """Remove old style instructions throughout subsequent stages for alternatives."""
     if not plan or plan.get("retry_allowed") is not True:
         return
+    original_ref = str(original_style_ref or payload.get("fallback_style_ref_path") or
+                       payload.get("style_ref_path") or "")
+    payload["fallback_style_ref_path"] = original_ref
     payload["prompt"] = plan["prompt"]
     payload["safe_alternative"] = True
+    payload["safe_style_restore"] = False
     # A former clothing override no longer authorizes identity differences.
     payload["skip_identity_refine"] = False
     # The new full prompt supersedes old clothing overrides and render targets.
@@ -64,6 +70,34 @@ def apply_safe_plan(payload, steps, plan):
             steps["repaint"]["reference_mode"] = "none"
         if "tone" in steps:
             steps["tone"]["enabled"] = False
+    if plan.get("gemini_reference_policy") == "none":
+        payload["style_ref_path"] = ""
+        payload["repaint_reference_mode"] = "none"
+        if "repaint" in steps:
+            steps["repaint"]["reference_mode"] = "none"
+    want_restore = (restore_reference and plan.get("reference_policy") == "none" and
+                    plan.get("gemini_reference_policy") == "style_only" and bool(original_ref))
+    if want_restore and not Path(original_ref).is_file():
+        raise FileNotFoundError("Gemini 画法参考图已不存在，请恢复参考图后续跑：" + original_ref)
+    if want_restore:
+        # GPT's retry remains text-only. Restore this image only for the separate,
+        # fully covered technique-transfer task, never the rejected outfit theme.
+        payload["style_ref_path"] = original_ref
+        payload["repaint_reference_mode"] = "style"
+        payload["safe_style_restore"] = True
+        payload["skip_repaint"] = False
+        payload["skip_quality_refine"] = False
+        payload["face_hair_refine"] = False
+        steps.setdefault("repaint", {}).update(enabled=True, reference_mode="style", scope="full")
+        if "tone" in steps:
+            steps["tone"]["enabled"] = False
+
+
+def safe_repaint_firmware(payload, original_firmware):
+    if payload.get("safe_style_restore"):
+        from utils.prompt_loader import read_prompt_file
+        return read_prompt_file("gpt-image-optimize/covered-outfit-style-transfer.md")
+    return original_firmware
 
 
 def generate_first_image(generate, *, prompt, analysis_result=None, checkpoint=None,
@@ -99,7 +133,7 @@ def generate_first_image(generate, *, prompt, analysis_result=None, checkpoint=N
                      original_image_paths=list(kwargs.get("image_paths") or []))
         if checkpoint:
             checkpoint.save()
-    if "plan" not in state or (state["plan"].get("version", 1) < 2 and not state.get("retry_attempted")):
+    if "plan" not in state or (state["plan"].get("version", 1) < 3 and not state.get("retry_attempted")):
         log("首图被审核拦截：请求文字接口复核素材与无依据扩写。")
         state["plan"] = review_request(prompt, analysis_result, kwargs.get("image_paths"))
         if checkpoint:

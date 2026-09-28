@@ -1454,10 +1454,19 @@ class GptImageGenWorkerThread(QThread):
             raise RuntimeError("GPT 首图接口未返回图片")
         safe_plan = self.checkpoint.data.get("first_safe_review", {}).get("plan")
         if safe_plan and self.checkpoint.data.get("first_safe_review", {}).get("outputs"):
-            from utils.first_image_review import apply_safe_plan
-            apply_safe_plan(self.request_payload, self.steps, safe_plan)
+            from utils.first_image_review import apply_safe_plan, safe_repaint_firmware
+            later_done = any(self.checkpoint.data["stages"].get(stage, {}).get("status") == "success"
+                             for stage in ("pipeline", "identity", "hands", "final_review", "publish"))
+            restore_reference = not later_done or bool(self.checkpoint.data.get("safe_style_restore"))
+            apply_safe_plan(self.request_payload, self.steps, safe_plan,
+                            original_style_ref=self.style_ref_path, restore_reference=restore_reference)
             self.style_ref_path = str(self.request_payload.get("style_ref_path") or "")
             self.style_clauses = list(self.request_payload.get("clauses") or []) + list(self.request_payload.get("proportion_clauses") or [])
+            self.firmware = safe_repaint_firmware(self.request_payload, self.firmware)
+            if self.request_payload.get("safe_style_restore"):
+                self.checkpoint.data["safe_style_restore"] = True
+                self.checkpoint.save()
+                self.log_signal.emit("[安全替代] GPT 首图不带参考图；Gemini 重绘恢复原画风图，仅迁移画法并保留完整服装。")
             self.log_signal.emit("[安全替代] 后续工序沿用新提示词与参考图策略，原画风的改款要求已移除。")
         self._stage_done("first", saved)
         first_image = saved[0]
@@ -3799,12 +3808,16 @@ class SingleAnalyzerWidget(QWidget):
         """
         steps = steps or {}
         slots = 1                                                   # 首图
-        if (steps.get("repaint") or {}).get("enabled"):
+        fallback_repaint = bool(request_payload and (request_payload.get("style_ref_path") or
+                                                       request_payload.get("fallback_style_ref_path")))
+        if request_payload is not None:
+            slots += 2  # 审核拦截后的文字改良与一次 GPT 重试，按最坏情况预留。
+        if (steps.get("repaint") or {}).get("enabled") or fallback_repaint:
             slots += 17  # 原 9 份 + 人体 5 份 + 最终审计/兜底修复/复审 3 份
             if (request_payload or {}).get("face_hair_refine"):
                 slots += 1
         elif request_payload is not None:
-            slots += 4  # 人体审计 + 最终审计/按需兜底/复审。
+            slots += 9  # 安全替代身份审计/两轮修订复审 + 人体 + 最终门禁。
         if (steps.get("local") or {}).get("enabled"):
             regions = (steps["local"].get("regions") or [steps["local"].get("region") or "hair"])
             slots += max(1, len([r for r in regions if str(r).strip()]))
