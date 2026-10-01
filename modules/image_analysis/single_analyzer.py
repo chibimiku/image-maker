@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import re
+import random
 import hashlib
 import logging
 import tempfile
@@ -26,6 +27,11 @@ from utils.image_encoding import compress_and_encode_image as _base_compress_and
 from utils.image_upscale_runtime import JpgAutoUpscaleThread, list_esrgan_models, normalize_upscale_options
 from utils.prompt_loader import read_prompt_file, render_prompt_file, find_missing_prompt_files
 from utils.llm_retry import call_with_retry, load_retry_settings, format_wait
+from utils.analysis_fallback import (
+    call_with_refusal_fallback,
+    is_refusal_error,
+    load_fallback_config,
+)
 from utils.output_isolation import resolve_output_target
 from modules.image_analysis.dir_batch_selector import DirectoryBatchSelectorDialog
 
@@ -44,6 +50,7 @@ CLIPBOARD_SNAPSHOT_DIR = os.path.join("cache", "temp", "single-analyzer-clipboar
 
 
 ANALYSIS_GPT_UI_NODE = "analysis_gpt_pipeline"
+RANDOM_STYLE_LABEL = "随机"
 # 默认链：GPT 首图 → Gemini（源图 + 完整画风图）→ 一次 source-only 质量修订 → 身份定点修订。
 # recipe_version 只迁移配方键一次；用户之后的自定义选择继续保留。
 GPT_RECIPE_VERSION = 7
@@ -53,6 +60,8 @@ STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
 # 分析 Tab 默认为 "style"（源图 + 完整画风图）；其它参考组合留给无头 CLI 对照实验。
 # —— §三十一 实测线锚图会把画面塌成白底线稿 / 铺满「碎玻璃」纹理。
 ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure": False,
+                            "auto_gen_original": False, "auto_gen_refined": False,
+                            "style_selection": "",
                             "local": False, "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
                             "quality": "high",
@@ -411,6 +420,9 @@ def _safe_json_from_response(response, log_callback=None, step_label="Step"):
 
     finish_reason = getattr(choice, "finish_reason", "unknown")
     _log_step_diag(f"{step_label} finish_reason: {finish_reason}", log_callback)
+    if finish_reason == "content_filter":
+        raise ValueError(f"{step_label} 服务端内容过滤导致响应被截断，无法得到有效 JSON；"
+                         "请检查输入图片或分析提示词，或改用其他可用的文本分析服务")
 
     content = getattr(choice.message, "content", None)
     if content is None:
@@ -558,7 +570,44 @@ def compress_and_encode_image(image_source, max_dim=2048, log_callback=None):
         image_source, max_dim=max_dim, quality=100, log_callback=log_callback
     )
 
-def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, pixiv_candidates=None, extra_llm_prompt="", timeout_seconds=120, status_callback=None, cancel_check=None):
+def _step_label_refusal_text(step_label):
+    """给备用端点用的「这段响应是不是拒绝/空壳」判定。
+
+    拒绝常常是 HTTP 200 + 正常 body（`finish_reason=content_filter`、`refusal`、
+    content 为 None、或干脆回一句"抱歉，我无法分析这张图片"），异常路径抓不到它。
+    这里把可疑文本挑出来交给 `utils.analysis_fallback.is_refusal_text` 判定。
+    """
+    def _inspect(response):
+        try:
+            choice = response.choices[0]
+        except (IndexError, AttributeError, TypeError):
+            return ""
+        message = getattr(choice, "message", None)
+        refusal = str(getattr(message, "refusal", "") or "").strip()
+        if refusal:
+            return refusal
+        content = getattr(message, "content", None)
+        if content is None:
+            # content 为 None：finish_reason 是唯一线索，直接当拒绝文本交上去
+            return f"{step_label} content 为 None (finish_reason: {getattr(choice, 'finish_reason', 'unknown')})"
+        if str(getattr(choice, "finish_reason", "") or "") == "content_filter":
+            return str(content)
+        # content_filter 之外：只有结果里"本该是英文的描述"写着拒绝话术时才当拒绝
+        try:
+            payload = json.loads(str(content))
+        except (TypeError, ValueError):
+            return ""
+        if not isinstance(payload, dict):
+            return ""
+        for key in ("english_description", "description", "english"):
+            if key in payload:
+                return str(payload.get(key) or "")
+        return ""
+
+    return _inspect
+
+
+def step_1_analyze_image(image_source, client, model_name, log_callback=None, booru_tag_limit=30, local_booru_tags=None, pixiv_candidates=None, extra_llm_prompt="", timeout_seconds=120, status_callback=None, cancel_check=None, use_fallback=None):
     mime_type, base64_image = compress_and_encode_image(image_source, log_callback=log_callback)
     if not base64_image:
         if log_callback:
@@ -570,31 +619,62 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
         analyze_prompt = merge_prompt_with_pixiv_tag_hints(analyze_prompt, pixiv_candidates)
         analyze_prompt = append_extra_llm_prompt(analyze_prompt, extra_llm_prompt)
         system_prompt = _load_system_prompt()
-        response = call_with_retry(
-            lambda: client.chat.completions.create(
-                model=model_name,
-                response_format={ "type": "json_object" },
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": analyze_prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{mime_type};base64,{base64_image}", "detail": "high"}
-                            }
-                        ]
-                    }
-                ],
-                temperature=0.7, max_completion_tokens=16384, timeout=timeout_seconds
+        # Vision 请求体只在这里组装一次：主端点与备用端点发的是同一份 kwargs（同一张图、
+        # 同一段提示词），区别只有 base_url/model/key —— 见 utils/analysis_fallback.py。
+        vision_kwargs = {
+            "model": model_name,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": analyze_prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{mime_type};base64,{base64_image}", "detail": "high"}
+                        }
+                    ]
+                }
+            ],
+            "temperature": 0.7,
+            "max_completion_tokens": 16384,
+            "timeout": timeout_seconds,
+        }
+        fallback_cfg = load_fallback_config() if use_fallback is None or use_fallback else None
+
+        # 【关键】解析放在第一选择的调用里面：拒绝/空壳响应不是异常，若先返回再解析，
+        # 备用端点就永远不会被触发 —— 队列里那条任务会在解析这一步炸掉，明明"备用方案已接住"
+        # 却被标成失败。把解析纳入 `call_with_refusal_fallback` 的判定范围，才真正形成
+        # 「第一选择被拒 → 备用端点接手 → 任务成功」的闭环。
+        # `client=None` 时用第一选择的客户端；备用端点接手时由它把自己的客户端传进来，
+        # 于是**两条端点走同一套"发请求 + 解析 + 拒绝判定"**，返回的永远是 (响应, 解析结果)。
+        local_client = client
+
+        def _request_and_parse(client=None, **kwargs):
+            active = client if client is not None else local_client
+            response = active.chat.completions.create(**kwargs)
+            return response, _safe_json_from_response(
+                response, log_callback=log_callback, step_label="Step 1")
+
+        response, parsed = call_with_retry(
+            lambda: call_with_refusal_fallback(
+                call=_request_and_parse,
+                request_kwargs=vision_kwargs,
+                fallback=fallback_cfg,
+                primary_client=client,
+                timeout_seconds=timeout_seconds,
+                log_callback=log_callback,
+                step_label="Step 1 Vision 请求",
+                use_fallback=use_fallback,
+                refusal_text=_step_label_refusal_text("Step 1"),
+                call_handles_parsing=True,
             ),
             settings=load_retry_settings(),
             step_label="Step 1 Vision 请求",
             log_callback=log_callback,
             cancel_check=cancel_check,
         )
-        parsed = _safe_json_from_response(response, log_callback=log_callback, step_label="Step 1")
         fallback_data = {"booru-tags": normalize_booru_tags(local_booru_tags or [], limit=booru_tag_limit)}
         normalized = _normalize_analysis_result(parsed, fallback_data=fallback_data, booru_tag_limit=booru_tag_limit)
         if local_booru_tags:
@@ -605,7 +685,14 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
         if log_callback:
             log_callback(error_msg)
         if status_callback:
-            status_callback("timeout" if _is_timeout_error(e) else "error")
+            if _is_timeout_error(e):
+                status_callback("timeout")
+            elif is_refusal_error(e):
+                # 被模型/审核拒绝：不是超时也不是网络错误，单独标一类，
+                # 方便日志里一眼区分「对面坏了」和「对面不肯分析这张图」。
+                status_callback("refused")
+            else:
+                status_callback("error")
         print(error_msg)
         return None
 
@@ -889,7 +976,7 @@ class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
 
-    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override="", remove_photo_style=False):
+    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override="", remove_photo_style=False, use_fallback=None, gpt_prompts=True):
         super().__init__()
         self.image_source = image_source
         self.api_key = api_key
@@ -906,6 +993,15 @@ class WorkerThread(QThread):
         self.enable_outfit_check = bool(enable_outfit_check)
         self.outfit_style_override = str(outfit_style_override or "").strip()
         self.remove_photo_style = bool(remove_photo_style)
+        # 「备用分析端点」开关：None = 跟配置走（默认开）；False = 本次分析不切备用。
+        # 之所以做成运行期参数：一次分析的整条链路要按同一次勾选状态走，
+        # 不能在跑到一半时被配置改动翻掉。
+        self.use_fallback = None if use_fallback is None else bool(use_fallback)
+        # gpt-image 专用短提示词字段（`gpt_image_prompt` / `gpt_image_prompt_short`）只服务于
+        # **gpt-image 通道**，每档各要一次文本模型调用。只出 Gemini 图的任务（分析后不自动生图，
+        # 或生图通道单选 Gemini）根本不会用到这两个字段，跑它们等于白花两次调用与等待时间 ——
+        # 由界面按「本次任务会不会真的用上」传进来（见 `_compute_gpt_prompts_for_task`）。
+        self.gpt_prompts = bool(gpt_prompts)
         self.last_status = "idle"
         self.last_error = ""
         # 右键「重跑并生图」时由界面指定本次分析完成后要生成的提示词类型（original / refined）
@@ -972,6 +1068,7 @@ class WorkerThread(QThread):
 
         if self.extra_llm_prompt:
             self.log_signal.emit("已启用附加 prompts，LLM 请求将追加重点关注要求")
+        self._log_fallback_plan(step_log)
         self.log_signal.emit(f"正在使用模型 [{self.model_name}] 开始 Step 1: 读取并压缩图片，发送 Vision 请求...")
         stage_status = {"value": "ok"}
         initial_result = step_1_analyze_image(
@@ -985,7 +1082,8 @@ class WorkerThread(QThread):
             extra_llm_prompt=self.extra_llm_prompt,
             timeout_seconds=self.timeout_seconds,
             status_callback=lambda status: stage_status.update({"value": status}),
-            cancel_check=self.isInterruptionRequested
+            cancel_check=self.isInterruptionRequested,
+            use_fallback=self.use_fallback,
         )
         
         if initial_result:
@@ -1153,36 +1251,72 @@ class WorkerThread(QThread):
                 if original_booru_tags:
                     final_result["booru-tags"] = original_booru_tags
                 # gpt-image 通道专用短提示词：单独字段，与 Gemini 用的长 prompts 分开（不混用）。
-                # 两档：full（≤1400，内容优先）与 short（≤500，要挂画风参考图时用）
-                try:
-                    from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
-                                                           SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)
-                    desc = str(final_result.get("english_description") or "").strip()
-                    if desc:
-                        text_cfg = {"base_url": self.base_url, "api_key": self.api_key, "model": self.model_name}
-                        self.log_signal.emit("正在生成 gpt-image 专用短提示词（完整档 / 短锚档）...")
-                        field = build_gpt_image_prompt(desc, text_cfg=text_cfg, max_chars=FIELD_MAX_CHARS,
-                                                       tier="full", log_callback=self.log_signal.emit)
-                        if field:
-                            final_result[FIELD_KEY] = field
-                            self.log_signal.emit(f"gpt-image 完整档 {len(field)} 字符")
-                        short_field = build_gpt_image_prompt(desc, text_cfg=text_cfg,
-                                                             max_chars=SHORT_FIELD_MAX_CHARS, tier="short",
-                                                             log_callback=self.log_signal.emit)
-                        if short_field:
-                            final_result[SHORT_FIELD_KEY] = short_field
-                            self.log_signal.emit(f"gpt-image 短锚档 {len(short_field)} 字符")
-                except Exception as exc:  # noqa: BLE001 - 附加步骤失败不影响分析结果
-                    self.log_signal.emit(f"gpt-image 短提示词生成失败，已跳过: {type(exc).__name__}: {exc}")
+                # 两档：full（≤1400，内容优先）与 short（≤500，要挂画风参考图时用）。
+                # 只出 Gemini 图的任务用不到这两个字段，整段跳过（每档各一次文本模型调用）。
+                if not getattr(self, "gpt_prompts", True):
+                    self.log_signal.emit(
+                        "已跳过 gpt-image 专用短提示词（本次任务只出 Gemini 图，用不到这两个字段）。")
+                else:
+                    try:
+                        from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
+                                                               SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)
+                        desc = str(final_result.get("english_description") or "").strip()
+                        if desc:
+                            text_cfg = {"base_url": self.base_url, "api_key": self.api_key, "model": self.model_name}
+                            self.log_signal.emit("正在生成 gpt-image 专用短提示词（完整档 / 短锚档）...")
+                            field = build_gpt_image_prompt(desc, text_cfg=text_cfg, max_chars=FIELD_MAX_CHARS,
+                                                           tier="full", log_callback=self.log_signal.emit)
+                            if field:
+                                final_result[FIELD_KEY] = field
+                                self.log_signal.emit(f"gpt-image 完整档 {len(field)} 字符")
+                            short_field = build_gpt_image_prompt(desc, text_cfg=text_cfg,
+                                                                 max_chars=SHORT_FIELD_MAX_CHARS, tier="short",
+                                                                 log_callback=self.log_signal.emit)
+                            if short_field:
+                                final_result[SHORT_FIELD_KEY] = short_field
+                                self.log_signal.emit(f"gpt-image 短锚档 {len(short_field)} 字符")
+                    except Exception as exc:  # noqa: BLE001 - 附加步骤失败不影响分析结果
+                        self.log_signal.emit(f"gpt-image 短提示词生成失败，已跳过: {type(exc).__name__}: {exc}")
                 self.last_status = "success"
             self.finish_signal.emit(final_result if final_result else {})
         else:
             if self.isInterruptionRequested() or self._force_cancel_requested:
                 self.last_status = "cancelled"
+            elif stage_status.get("value") in ("timeout", "refused"):
+                self.last_status = str(stage_status.get("value"))
             else:
-                self.last_status = "timeout" if stage_status.get("value") == "timeout" else "error"
+                self.last_status = "error"
             self.log_signal.emit("Step 1 失败，流程终止。")
             self.finish_signal.emit({})
+
+    def _log_fallback_plan(self, log_callback):
+        """开跑前把「有没有备用方案、什么条件下切」写进日志。
+
+        这一段是给用户排障用的：分析失败时最常见的问题是「备用方案其实没配齐」
+        （少了 key 或 model），只看到一句「被拒绝」会以为是没生效。这里先说清楚。
+        """
+        if self.use_fallback is False:
+            log_callback("备用分析端点：本次分析已手动关闭（配置页勾选框未勾选）。")
+            return
+        try:
+            cfg = load_fallback_config()
+        except Exception as exc:  # noqa: BLE001 - 读配置失败不该拖垮分析
+            log_callback(f"备用分析端点：配置读取失败，已跳过（{type(exc).__name__}: {exc}）")
+            return
+        if not cfg.enabled:
+            log_callback(
+                "备用分析端点：未启用。第一选择被拒时不会自动切换"
+                "（在「设置 → 文本分析 API」页勾选『备用方案』并填好端点/模型/Key）。"
+            )
+            return
+        missing = cfg.missing()
+        if missing:
+            log_callback(f"备用分析端点：配置不完整，已跳过（缺少 {', '.join(missing)}）。")
+            return
+        swapped_from = str(cfg.extra.get("model_swapped_from") or "").strip()
+        if swapped_from:
+            log_callback(f"备用分析端点：{swapped_from} 已知不读图，已自动改用 {cfg.model}。")
+        log_callback(f"备用分析端点已就绪：{cfg.describe()}")
 
 class ImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
@@ -1797,6 +1931,7 @@ class AnalysisHistoryDetailDialog(QDialog):
             f"提交时间: {self.task_record.get('submit_time_text', '-')}",
             f"完成时间: {self.task_record.get('finish_time_text', '-')}",
             f"任务 Hash: {self.task_record.get('task_hash', '-')}",
+            f"画风预设: {self.task_record.get('style_name') or '-'}",
             f"图片源: {self.task_record.get('source_desc', '-')}",
             f"标题: {self.task_record.get('title', '未命名')}",
             f"JSON 文件: {self.task_record.get('saved_json_path', '-')}",
@@ -1828,8 +1963,9 @@ class AnalysisHistoryDetailDialog(QDialog):
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, remove_photo_style_default_getter_func=None, remove_photo_style_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, remove_photo_style_default_getter_func=None, remove_photo_style_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None, persist_ui_state=True, fallback_default_getter_func=None, fallback_changed_callback=None):
         super().__init__()
+        self.persist_ui_state = bool(persist_ui_state)
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
         self.get_styles = styles_getter_func
@@ -1849,6 +1985,10 @@ class SingleAnalyzerWidget(QWidget):
         self.on_outfit_style_changed = outfit_style_changed_callback
         self.on_outfit_style_deleted = outfit_style_delete_callback
         self.on_styles_reload = styles_reload_callback
+        # 备用分析端点：界面勾选状态要写回「设置 → 文本分析 API → 备用方案」
+        self.get_fallback_default_from_app = fallback_default_getter_func
+        self.on_fallback_changed = fallback_changed_callback
+        self.use_fallback_single = True
         
         self.image_source = None
         self.current_aspect_ratio = "1:1"
@@ -1860,6 +2000,7 @@ class SingleAnalyzerWidget(QWidget):
         self._image_gen_thread_seq = 0
         self._post_thread_seq = 0
         self._analysis_history = {}
+        self._random_style_by_task_hash = {}
 
         # 【新增】用来保存正在执行的生图线程池，防止被垃圾回收
         self._active_img_threads = []
@@ -1981,6 +2122,18 @@ class SingleAnalyzerWidget(QWidget):
         self.remove_photo_style_cb.setChecked(bool(self.get_remove_photo_style_default()) if self.get_remove_photo_style_default else False)
         self.remove_photo_style_cb.toggled.connect(self.on_remove_photo_style_toggled)
         nsfw_layout.addWidget(self.remove_photo_style_cb)
+        # 备用分析端点：紧凑勾选框放进这一行（不新增常驻行，布局契约见 AGENTS.md）
+        self.use_fallback_cb = QCheckBox("被拒时用备用方案")
+        self.use_fallback_cb.setToolTip(
+            "第一选择拒绝分析这张图（内容过滤 / refusal / 审核拦截）时，\n"
+            "把同一份请求（同一张图、同一段提示词）改发给备用端点重跑一次。\n"
+            "备用端点在「设置 → 文本分析 API → 备用方案」配置；\n"
+            "第一选择正常返回时不产生任何额外请求。"
+        )
+        self.use_fallback_single = self.get_fallback_default()
+        self.use_fallback_cb.setChecked(self.use_fallback_single)
+        self.use_fallback_cb.toggled.connect(self.on_use_fallback_toggled)
+        nsfw_layout.addWidget(self.use_fallback_cb)
         nsfw_layout.addStretch()
         layout.addLayout(nsfw_layout)
 
@@ -2302,11 +2455,16 @@ class SingleAnalyzerWidget(QWidget):
     def update_styles(self, style_keys):
         """由外部 app.py 调用以同步最新的画风列表"""
         curr_main = self.main_style_combo.currentText()
+        preferred = curr_main or getattr(self, "_saved_style_selection", "")
+        ordered_styles = [name for name in style_keys if name != RANDOM_STYLE_LABEL]
+        insert_at = (ordered_styles.index("默认(无附加)") + 1
+                     if "默认(无附加)" in ordered_styles else min(1, len(ordered_styles)))
+        ordered_styles.insert(insert_at, RANDOM_STYLE_LABEL)
         self.main_style_combo.blockSignals(True)
         self.main_style_combo.clear()
-        self.main_style_combo.addItems(style_keys)
-        if curr_main in style_keys:
-            self.main_style_combo.setCurrentText(curr_main)
+        self.main_style_combo.addItems(ordered_styles)
+        if preferred in ordered_styles:
+            self.main_style_combo.setCurrentText(preferred)
         self.main_style_combo.blockSignals(False)
         self._refresh_style_ref_availability()
 
@@ -2314,12 +2472,33 @@ class SingleAnalyzerWidget(QWidget):
         """加载样式列表后按当前样式的参考图是否存在刷新参考模式可用性。"""
         styles_data = self.get_styles() or {}
         name = self.main_style_combo.currentText()
+        if name == RANDOM_STYLE_LABEL:
+            from utils.styles import enabled_style_names
+            has_ref = any(ref_image_valid(style_ref_image(styles_data, candidate))
+                          for candidate in enabled_style_names(styles_data)
+                          if candidate != RANDOM_STYLE_LABEL)
+            self.style_ref_mode_combo.set_modes_available(has_ref)
+            return has_ref
         has_ref = ref_image_valid(style_ref_image(styles_data, name))
         self.style_ref_mode_combo.set_modes_available(has_ref)
         return has_ref
 
     def _on_style_changed(self, _name=None):
         self._refresh_style_ref_availability()
+        self._saved_style_selection = self.main_style_combo.currentText()
+        self._save_gpt_pipeline_ui()
+
+    def _resolve_generation_style(self, selected_name=None):
+        """Resolve the UI's random choice exactly once at a task entry point."""
+        selected_name = self.main_style_combo.currentText() if selected_name is None else selected_name
+        if selected_name != RANDOM_STYLE_LABEL:
+            return selected_name
+        from utils.styles import enabled_style_names
+        candidates = [name for name in enabled_style_names(self.get_styles() or {})
+                      if name not in (RANDOM_STYLE_LABEL, "默认(无附加)")]
+        if not candidates:
+            raise ValueError("没有可用于随机选择的已启用画风预设")
+        return random.choice(candidates)
 
     def reload_styles(self):
         """重新加载 config-styles.json 配置文件"""
@@ -2427,6 +2606,7 @@ class SingleAnalyzerWidget(QWidget):
             "running": "进行中",
             "success": "已完成",
             "timeout": "超时",
+            "refused": "被拒(未分析)",
             "cancelled": "已取消",
             "error": "失败",
             "idle": "未开始",
@@ -2439,7 +2619,7 @@ class SingleAnalyzerWidget(QWidget):
             return QColor("#1b8f3a")
         if normalized == "running":
             return QColor("#0b63c7")
-        if normalized in ("timeout", "error", "cancelled"):
+        if normalized in ("timeout", "refused", "error", "cancelled"):
             return QColor("#b23a2b")
         return QColor("#444444")
 
@@ -2485,7 +2665,7 @@ class SingleAnalyzerWidget(QWidget):
             return f"{base}·{phase}"
         if record.get("failed_stage") and record.get("pipeline_error"):
             from utils.generation_checkpoint import STAGE_LABELS
-            return base + "·" + STAGE_LABELS.get(record["failed_stage"], record["failed_stage"])
+            base += "·" + STAGE_LABELS.get(record["failed_stage"], record["failed_stage"])
         return base
 
     def _refresh_history_item(self, task_id):
@@ -2503,9 +2683,11 @@ class SingleAnalyzerWidget(QWidget):
             title = str(record.get("title") or "未命名")
             submit_time_text = record.get("submit_time_text", "-")
             source_desc = str(record.get("source_desc") or "-")
+            generated_styles = list(dict.fromkeys(record.get("generation_styles") or []))
+            gen_style_note = f" | 生图画风：{'、'.join(generated_styles)}" if generated_styles else ""
             item.setText(
                 f"[{status_text}] 线程#{record.get('thread_no', '?')} / {record.get('task_hash', '--------')}  {submit_time_text}\n"
-                f"{title} | {source_desc}"
+                f"{title} | 画风：{record.get('style_name') or '-'}{gen_style_note} | {source_desc}"
             )
             item.setForeground(self._status_to_color(record.get("status")))
             break
@@ -2659,7 +2841,7 @@ class SingleAnalyzerWidget(QWidget):
         dialog = AnalysisHistoryDetailDialog(record, self)
         dialog.exec()
 
-    # ==================== 分析队列右键菜单（重跑失败项） ====================
+    # ==================== 分析队列右键菜单（拾取历史） ====================
 
     RERUNNABLE_STATUSES = ("error", "timeout")
 
@@ -2686,60 +2868,23 @@ class SingleAnalyzerWidget(QWidget):
         item = self.history_list.itemAt(pos)
         if item is not None:
             self.history_list.setCurrentItem(item)
+        else:
+            self.history_list.clearSelection()
+            self.history_list.setCurrentRow(-1)
         record = self._selected_history_record()
         source_path = self._history_record_source_path(record)
         usable_path = self._history_record_usable_path(record)
         failed_records = self._failed_history_records()
-        failed_runnable = [r for r in failed_records if self._history_record_usable_path(r)]
-
         menu = QMenu(self.history_list)
-        import_checkpoint_action = menu.addAction("📂 导入工序断点 / 旧首图请求…")
-        recovery_actions = {}
-        checkpoints = list((record or {}).get("generation_checkpoints") or [])
-        idle = bool(record) and not self._pipeline_pending_for_hash(record.get("task_hash"))
-        recovery = menu.addMenu("🧩 工序断点 / Gemini 重绘")
-        recovery.setEnabled(idle and bool(checkpoints))
-        for path in checkpoints:
-            if not os.path.isfile(path):
-                continue
-            try:
-                with open(path, encoding="utf-8") as stream:
-                    checkpoint = json.load(stream)
-                from utils.generation_checkpoint import STAGE_LABELS
-                stage = checkpoint.get("current_stage", "first")
-                name = checkpoint.get("snapshot", {}).get("request_payload", {}).get("style_name", "默认")
-                group = recovery.addMenu(str(name))
-                action = group.addAction("从断点续跑：" + STAGE_LABELS.get(stage, stage))
-                action.setEnabled(checkpoint.get("status") != "success")
-                recovery_actions[action] = (path, "resume")
-                first = checkpoint.get("stages", {}).get("first", {}).get("outputs") or []
-                action = group.addAction("从 GPT 首图重新 Gemini 重绘")
-                action.setEnabled(bool(first) and os.path.isfile(first[0]))
-                recovery_actions[action] = (path, "first")
-                latest = checkpoint.get("last_outputs") or []
-                action = group.addAction("重绘当前图（输入人体 / 姿势修正要求…）")
-                action.setEnabled(bool(latest) and os.path.isfile(latest[-1]))
-                recovery_actions[action] = (path, "current")
-            except (OSError, ValueError):
-                continue
+        idle = not record or not self._pipeline_pending_for_hash(record.get("task_hash"))
+        pickup_action = menu.addAction("🧩 拾取历史…")
+        pickup_action.setEnabled(idle)
         menu.addSeparator()
         if record is not None and not usable_path:
             hint = menu.addAction("⚠️ 分析源图不可用（文件已移动/删除，或剪贴板快照被清空）")
             hint.setEnabled(False)
             menu.addSeparator()
 
-        rerun_action = menu.addAction("🔁 重跑分析")
-        rerun_action.setEnabled(bool(usable_path))
-
-        gen_menu = menu.addMenu("🔁 重跑分析并生图")
-        gen_menu.setEnabled(bool(usable_path))
-        gen_original_action = gen_menu.addAction("基于原始提示词")
-        gen_refined_action = gen_menu.addAction("基于优化提示词")
-        gen_both_action = gen_menu.addAction("原始 + 优化都生成")
-
-        menu.addSeparator()
-        rerun_failed_action = menu.addAction(f"🔁 重跑全部失败项（{len(failed_runnable)}）")
-        rerun_failed_action.setEnabled(bool(failed_runnable))
         clear_failed_action = menu.addAction(f"🧹 清空失败记录（{len(failed_records)}）")
         clear_failed_action.setEnabled(bool(failed_records))
 
@@ -2754,21 +2899,8 @@ class SingleAnalyzerWidget(QWidget):
         chosen = menu.exec(self.history_list.viewport().mapToGlobal(pos))
         if chosen is None:
             return
-        if chosen is import_checkpoint_action:
-            self._import_generation_checkpoint()
-        elif chosen in recovery_actions:
-            path, mode = recovery_actions[chosen]
-            self._resume_generation_checkpoint(record, path, mode)
-        elif chosen is rerun_action:
-            self._rerun_history_record(record)
-        elif chosen is gen_original_action:
-            self._rerun_history_record(record, gen_targets=["original"])
-        elif chosen is gen_refined_action:
-            self._rerun_history_record(record, gen_targets=["refined"])
-        elif chosen is gen_both_action:
-            self._rerun_history_record(record, gen_targets=["original", "refined"])
-        elif chosen is rerun_failed_action:
-            self._rerun_failed_history_records()
+        if chosen is pickup_action:
+            self._pickup_generation_history(record)
         elif chosen is clear_failed_action:
             self._clear_failed_history_records()
         elif chosen is open_dir_action:
@@ -2779,9 +2911,265 @@ class SingleAnalyzerWidget(QWidget):
         elif chosen is remove_action:
             self._remove_history_record(record)
 
-    def _import_generation_checkpoint(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self, "选择 generation-checkpoint.json 或 GPT 首图的 .request.json", "data", "JSON (*.json)")
+    def _pickup_generation_history(self, record, checkpoint_path=""):
+        from modules.image_analysis.history_pickup import (HistoryPickupDialog,
+            branch_from_artifact, discover_generation_checkpoints)
+        from utils.analysis_gen import publish_final_output
+
+        checkpoints = discover_generation_checkpoints(
+            os.path.join(BASE_DIR, "data"), (record or {}).get("task_hash", ""))
+        in_memory = [path for path in (record or {}).get("generation_checkpoints", [])
+                     if os.path.isfile(path)]
+        checkpoints = list(dict.fromkeys(in_memory + checkpoints))
+        path = str(checkpoint_path or "")
+        if path and os.path.isfile(path):
+            checkpoints = list(dict.fromkeys([path] + checkpoints))
+        selected_artifact = None
+        if checkpoints:
+            try:
+                dialog = HistoryPickupDialog(checkpoints, self)
+                if dialog.exec() != QDialog.DialogCode.Accepted:
+                    return False
+                path = dialog.checkpoint_path
+                selected_hash = os.path.basename(os.path.dirname(path)).split("-", 1)[0]
+                artifact = dialog.selected_artifact
+                if dialog.action == "rerun-analysis":
+                    # 断点里的图都救不了场（或用户不想要）→ 拿源图重新分析一次
+                    return self._offer_analysis_rerun(record, checkpoint_path=path)
+                if dialog.action == "resume":
+                    if not record or str(record.get("task_hash") or "").lower() != selected_hash.lower():
+                        record = self._import_generation_checkpoint(path)
+                        if not record:
+                            return False
+                    branch_path, next_stage = branch_from_artifact(
+                        path, artifact["path"], artifact["stage"])
+                    self.log_msg(f"[拾取历史] 从 {artifact['label']} 继续：{next_stage}；新断点 {branch_path}")
+                    return self._resume_generation_checkpoint(record, branch_path)
+                if dialog.action == "publish":
+                    process_dir = os.path.dirname(os.path.abspath(path))
+                    date_dir = os.path.dirname(os.path.dirname(process_dir))
+                    with open(path, encoding="utf-8") as stream:
+                        snapshot = json.load(stream).get("snapshot") or {}
+                    style_name = (snapshot.get("request_payload") or {}).get("style_name", "")
+                    published = publish_final_output(
+                        artifact["path"], style_name=style_name, process_dir=process_dir,
+                        final_dir=date_dir, task_hash=snapshot.get("file_prefix") or
+                        selected_hash, prefer_symlink=True)
+                    kind = "软链" if os.path.islink(published) else "副本（系统不允许软链）"
+                    if record and str(record.get("task_hash") or "").lower() == selected_hash.lower():
+                        record["manual_published"] = published
+                    self.log_msg(f"[拾取历史] 人工选图已发布为{kind}：{published}")
+                    QMessageBox.information(self, "已发布选中图",
+                        f"已建立{kind}：\n{published}\n\n原失败断点与审计记录保留。")
+                    return True
+            except Exception as exc:
+                QMessageBox.warning(self, "拾取历史失败", str(exc))
+                return False
+
+        # 走到这里说明「没有可拾取的过程图」：没有断点，或断点里没有可续跑/发布的图。
+        # 光弹一句「没有可用的分析提示词」就把用户堵死是不对的 —— 分析产物可能丢了，
+        # 但**源图还在**，那就给他一次重新分析的机会（Gemini 与 gpt 通道一视同仁）。
+        return self._resolve_record_without_artifacts(record, checkpoint_path=path)
+
+    def _resolve_record_without_artifacts(self, record, checkpoint_path=""):
+        """没有可拾取过程图时的统一出口：先试重跑生图，再退到「重新分析」。
+
+        重跑生图那一步会自己看通道（gpt-image 记录、没有提示词，都会转到「重新分析」）。
+        """
+        if record is None:
+            QMessageBox.information(self, "没有生图历史", "没有自动保存的 GPT 生图断点。"
+                                    "（选中队列里的某条任务再右键，可重跑它的 Gemini 生图。）")
+            return False
+        if checkpoint_path:
+            # 用户明确挑了一个断点/过程图，但里面没有可续跑或可发布的图 → 直接给「重新分析」
+            return self._offer_analysis_rerun(record, checkpoint_path=checkpoint_path)
+        return self._rerun_gemini_generation(record)
+
+    def _analysis_rerun_summary(self, record, channel, checkpoint_path=""):
+        """重新分析确认框里的清单：来源图 / 画风 / 画幅 / 通道 / 任务号。"""
+        record = record or {}
+        result_json = record.get("result_json") if isinstance(record.get("result_json"), dict) else {}
+        params = record.get("generation_params") if isinstance(record.get("generation_params"), dict) else {}
+        source = self._history_record_usable_path(record)
+        style_name = str(record.get("style_name") or result_json.get("generation_style_name")
+                         or params.get("style_name") or "").strip() or "沿用界面选择"
+        aspect_ratio = str(record.get("aspect_ratio") or result_json.get("aspect_ratio") or "").strip() or "按源图重算"
+        lines = [
+            f"来源图：{os.path.basename(source) if source else '不可用'}",
+            f"画风：{style_name}",
+            f"画幅：{aspect_ratio}",
+            f"生图通道：{'gpt-image' if channel == 'gpt-image' else 'Gemini'}",
+            f"任务号：{record.get('task_hash') or '（新建）'}（沿用原任务号，发布器仍能关联投稿 JSON）",
+        ]
+        if checkpoint_path:
+            lines.append(f"另可见断点（只能从断点图续跑）：{os.path.basename(checkpoint_path)}")
+        if str(record.get('status') or '').lower() in ('error', 'timeout', 'refused'):
+            lines.append(f"原状态：{record.get('status_text') or record.get('status')}")
+        return lines
+
+    def _offer_analysis_rerun(self, record, channel=None, checkpoint_path=""):
+        """重新分析一次这条记录的源图（分析产物丢了 / 只有断点没产物时用）。"""
+        from modules.image_analysis.history_pickup import AnalysisRerunDialog
+
+        source_path = self._history_record_usable_path(record)
+        if not source_path:
+            # 「重新分析」完全靠源图：源图没了就没法凭空重建，只能老实告诉用户
+            QMessageBox.information(
+                self, "无法重新分析",
+                "这条记录既没有可重跑的提示词，也没有可用源图"
+                "（原图已被移动/删除，或剪贴板快照被清理）。\n"
+                "把源图重新拖进预览区再提交分析即可。")
+            return False
+        task_hash = str((record or {}).get("task_hash") or "").strip()
+        if self._pipeline_pending_for_hash(task_hash):
+            QMessageBox.information(self, "任务进行中", "该任务还有生图/后处理线程在跑，请等它结束后再重跑。")
+            return False
+        result_json = record.get("result_json") if isinstance(record.get("result_json"), dict) else {}
+        params = record.get("generation_params") if isinstance(record.get("generation_params"), dict) else {}
+        record_channel = str(params.get("channel") or "").strip()
+        if not channel:
+            channel = "gpt-image" if record_channel == "gpt-image" else "gemini"
+        dialog = AnalysisRerunDialog(
+            self._analysis_rerun_summary(record, channel, checkpoint_path), channel, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+        mode = dialog.mode
+        gen_targets = list(dialog.gen_targets) if mode == "generate" else []
+        if mode == "generate" and not gen_targets:
+            QMessageBox.information(self, "没有可生图的提示词",
+                                    "重新分析后要生成图片，请至少勾选一种提示词。")
+            return False
+        channel_text = "gpt-image" if channel == "gpt-image" else "Gemini"
+        self.log_msg(f"🔁 重新分析：线程#{record.get('thread_no', '?')} / {task_hash or '无任务号'}"
+                     f" → {os.path.basename(source_path)}（通道 {channel_text}，"
+                     f"{'分析后自动生图' if gen_targets else '只做分析'}）")
+        return bool(self._rerun_history_record(record, gen_targets=gen_targets or None,
+                                               header_note=f"拾取历史 → 重新分析（{channel_text}）"))
+
+    # -------- Gemini 生图重跑（没有 GPT 断点时的「拾取历史」） --------
+
+    def _gemini_rerun_summary(self, record, result_json, params, targets_available):
+        """重跑确认框里展示的参数清单（画风 / 画幅 / 提示词 / 任务号）。"""
+        from modules.image_analysis.history_pickup import PROMPT_TYPE_LABELS
+        style_name = str(record.get("style_name") or result_json.get("generation_style_name")
+                         or (params or {}).get("style_name") or "").strip() or "默认(无附加)"
+        aspect_ratio = str(record.get("aspect_ratio") or result_json.get("aspect_ratio")
+                           or (params or {}).get("aspect_ratio") or "").strip() or "沿用分析产物"
+        length_parts = []
+        for key in targets_available:
+            text = (result_json.get("original_english_description") if key == "original"
+                    else result_json.get("english_description")) or record.get(
+                        "original_prompt" if key == "original" else "refined_prompt") or ""
+            length_parts.append(f"{PROMPT_TYPE_LABELS[key]} {len(str(text).strip())} 字符")
+        return [
+            "生图通道：Gemini",
+            f"画风：{style_name}",
+            f"画幅：{aspect_ratio}",
+            f"提示词：{'、'.join(length_parts) or '无'}",
+            f"任务号：{record.get('task_hash') or '（新建）'}（沿用原任务号，发布器仍能关联投稿 JSON）",
+        ]
+
+    def _ask_gemini_rerun_targets(self, record, available, defaults):
+        """弹确认框（可挑提示词）；取消返回空列表。"""
+        from modules.image_analysis.history_pickup import GeminiRerunDialog
+        result_json = record.get("result_json") if isinstance(record.get("result_json"), dict) else {}
+        params = record.get("generation_params") if isinstance(record.get("generation_params"), dict) else {}
+        dialog = GeminiRerunDialog(
+            self._gemini_rerun_summary(record, result_json, params, list(available)),
+            list(available), list(defaults), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return []
+        return dialog.selected_targets()
+
+    def _rerun_gemini_generation(self, record, prompt_types=None):
+        """按队列记录里的参数**新建**一条 Gemini 生图任务重跑（Gemini 没有 GPT 工序断点）。
+
+        - 参数取自记录本身（任务号 / 画风 / 画幅 / 提示词 / 分析产物路径），不重新分析；
+        - 生图通道固定 Gemini，不受当前界面「生图通道」单选框影响；
+        - 原记录与原图保留不动，只多出一条队列任务（`prompt_types` 传了就跳过确认框）。
+        """
+        from modules.image_analysis.history_pickup import (available_prompt_types,
+                                                          default_rerun_targets, PROMPT_TYPE_LABELS)
+        record = record or {}
+        params = record.get("generation_params") if isinstance(record.get("generation_params"), dict) else {}
+        if str(params.get("channel") or "").strip() == "gpt-image":
+            # gpt-image 记录没有断点可续跑时，同样给一次「重新分析」的机会，而不是只弹一句提示
+            self.log_msg("[拾取历史] 这条记录是 gpt-image 通道但没有可用断点 → 转「重新分析」。")
+            return self._offer_analysis_rerun(record, channel="gpt-image")
+        result_json = record.get("result_json") if isinstance(record.get("result_json"), dict) else {}
+        available = available_prompt_types(record, result_json)
+        if not available:
+            # 分析产物丢了（分析没跑完 / 产物被清）→ 用源图重新分析一次，而不是把用户堵死
+            self.log_msg("[拾取历史] 这条记录没有可用的分析提示词 → 转「重新分析」。")
+            return self._offer_analysis_rerun(record, channel="gemini")
+        task_hash = str(record.get("task_hash") or "").strip()
+        if self._pipeline_pending_for_hash(task_hash):
+            QMessageBox.information(self, "任务进行中", "该任务还有生图/后处理线程在跑，请等它结束后再重跑。")
+            return False
+        targets = [t for t in (prompt_types or []) if t in available]
+        if not targets:
+            targets = self._ask_gemini_rerun_targets(
+                record, available, default_rerun_targets(record, available))
+        if not targets:
+            return False
+
+        source_path = self._history_record_usable_path(record)
+        style_name = str(record.get("style_name") or result_json.get("generation_style_name")
+                         or params.get("style_name") or "").strip()
+        aspect_ratio = str(record.get("aspect_ratio") or result_json.get("aspect_ratio")
+                           or params.get("aspect_ratio") or "").strip()
+        bundle = {
+            "task_hash": task_hash,
+            "style_name": style_name,
+            "aspect_ratio": aspect_ratio,
+            "original_prompt": str(record.get("original_prompt")
+                                   or result_json.get("original_english_description") or "").strip(),
+            "refined_prompt": str(record.get("refined_prompt")
+                                  or result_json.get("english_description") or "").strip(),
+            "analysis_json_path": str(record.get("saved_json_path") or "").strip(),
+            # 源图只用于画面尺寸/比例参考；分析产物和提示词都在，剪贴板记录也能重跑
+            "source_image_path": source_path,
+        }
+
+        number = self._next_thread_no("_analysis_thread_seq")
+        rerun_record = self._create_history_record(number, source_path, datetime.datetime.now(),
+                                                   task_hash, source_path=source_path)
+        rerun_record.update(
+            status="running", status_text=self._status_to_text("running"), phase="Gemini 生图",
+            title=str(record.get("title") or "未命名"), style_name=style_name,
+            aspect_ratio=aspect_ratio, original_prompt=bundle["original_prompt"],
+            refined_prompt=bundle["refined_prompt"], result_json=record.get("result_json"),
+            saved_json_path=bundle["analysis_json_path"], rerun_of=record.get("task_id"),
+            source_origin="file" if source_path else "none",
+        )
+        rerun_record["source_desc"] = (
+            f"重跑 Gemini 生图（来源：线程#{record.get('thread_no', '?')}"
+            + (f" / {os.path.basename(source_path)}" if source_path else " / 无源图，仅用提示词") + "）")
+        self._insert_history_record(rerun_record)
+
+        self.log_msg("\n" + ("=" * 72))
+        self.log_msg(f"🔁 重跑 Gemini 生图：线程#{record.get('thread_no', '?')} / {task_hash}"
+                     f" → 新队列任务 线程#{number}（画风 {style_name or '默认'}，画幅 "
+                     f"{aspect_ratio or '沿用分析产物'}，提示词 "
+                     f"{'、'.join(PROMPT_TYPE_LABELS.get(t, t) for t in targets)}）")
+        started = 0
+        for target in targets:
+            if self.trigger_image_generation(target, is_auto=False, prompt_bundle=bundle,
+                                             analysis_thread_no=record.get("thread_no"),
+                                             channel="gemini"):
+                started += 1
+        if not started:
+            self._update_history_record(
+                rerun_record["task_id"], status="error", phase="",
+                pipeline_error="Gemini 重跑没有启动（生图 API Key 或提示词为空）")
+            return False
+        self._update_history_record(rerun_record["task_id"], status="running", phase="Gemini 生图")
+        return True
+
+    def _import_generation_checkpoint(self, path=None):
+        if path is None:
+            path, _ = QFileDialog.getOpenFileName(
+                self, "选择 generation-checkpoint.json 或 GPT 首图的 .request.json", "data", "JSON (*.json)")
         if not path:
             return False
         try:
@@ -2800,7 +3188,7 @@ class SingleAnalyzerWidget(QWidget):
             self._insert_history_record(record)
             if checkpoint.get("imported_legacy"):
                 self.log_msg("[断点导入] 已恢复旧首图及工序配置；旧快照未保存的审计开关/条款取当前画风配置，请核对。")
-            return True
+            return record
         except Exception as exc:
             QMessageBox.warning(self, "导入失败", str(exc))
             return False
@@ -2875,7 +3263,7 @@ class SingleAnalyzerWidget(QWidget):
             QMessageBox.warning(self, "无法续跑", str(exc))
             return False
 
-    def _rerun_history_record(self, record, gen_targets=None):
+    def _rerun_history_record(self, record, gen_targets=None, header_note=None):
         """按记录里的源图（原图或剪贴板快照）重新提交一次分析（可选：分析成功后自动生图）。"""
         usable_path = self._history_record_usable_path(record)
         if not usable_path:
@@ -2895,7 +3283,8 @@ class SingleAnalyzerWidget(QWidget):
         thread = self._launch_analysis_task(
             _clone_image_source(usable_path),
             gen_targets=gen_targets,
-            header_note=f"重跑来源: 线程#{record.get('thread_no', '?')}（{record.get('status_text', '未知')}）",
+            header_note=header_note or f"重跑来源: 线程#{record.get('thread_no', '?')}"
+                                       f"（{record.get('status_text', '未知')}）",
         )
         if thread is None:
             return False
@@ -3034,6 +3423,12 @@ class SingleAnalyzerWidget(QWidget):
             QMessageBox.warning(self, "缺少配置", "文本分析 API Key 和 模型名称不能为空！")
             return None
 
+        try:
+            selected_style_name = self._resolve_generation_style()
+        except ValueError as exc:
+            QMessageBox.warning(self, "随机画风不可用", str(exc))
+            return None
+
         timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
         booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
         analysis_thread_no = self._next_thread_no("_analysis_thread_seq")
@@ -3041,6 +3436,8 @@ class SingleAnalyzerWidget(QWidget):
         submit_time = datetime.datetime.now()
         ddl = submit_time + datetime.timedelta(seconds=max(1, timeout_seconds))
         task_hash = _generate_task_hash(image_source_snapshot, submit_time, analysis_thread_no)
+        if self.main_style_combo.currentText() == RANDOM_STYLE_LABEL:
+            self._random_style_by_task_hash[task_hash] = selected_style_name
 
         if header_note:
             self.log_msg(header_note, prefix=thread_prefix)
@@ -3048,6 +3445,7 @@ class SingleAnalyzerWidget(QWidget):
         self.log_msg(f"图片源: {_describe_image_source(image_source_snapshot)}", prefix=thread_prefix)
         self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}", prefix=thread_prefix)
         self.log_msg(f"任务 Hash: {task_hash}", prefix=thread_prefix)
+        self.log_msg(f"本次画风预设: {selected_style_name}", prefix=thread_prefix)
         self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）", prefix=thread_prefix)
         retry_settings = load_retry_settings()
         if retry_settings.enabled and retry_settings.times > 0:
@@ -3075,6 +3473,7 @@ class SingleAnalyzerWidget(QWidget):
             analysis_thread_no, image_source_snapshot, submit_time, task_hash,
             source_path=clipboard_snapshot_path or None,
         )
+        history_record["style_name"] = selected_style_name
         self._insert_history_record(history_record)
 
         thread = WorkerThread(
@@ -3086,12 +3485,16 @@ class SingleAnalyzerWidget(QWidget):
             timeout_seconds=timeout_seconds,
             enable_outfit_check=enable_outfit_check,
             outfit_style_override=self.outfit_style_combo.currentText().strip(),
-            remove_photo_style=remove_photo_style
+            remove_photo_style=remove_photo_style,
+            use_fallback=bool(self.use_fallback_cb.isChecked()),
+            gpt_prompts=self._compute_gpt_prompts_for_task(
+                forced_targets=[t for t in (gen_targets or []) if t in ("original", "refined")]),
         )
         thread.meta_thread_no = analysis_thread_no
         thread.meta_source_snapshot = image_source_snapshot
         thread.meta_task_id = history_record["task_id"]
         thread.meta_task_hash = task_hash
+        thread.meta_style_name = selected_style_name
         thread.meta_force_gen_targets = [t for t in (gen_targets or []) if t in ("original", "refined")]
         self._active_analysis_threads.append(thread)
         self._update_analysis_cancel_btn()
@@ -3109,6 +3512,21 @@ class SingleAnalyzerWidget(QWidget):
     def on_use_nsfw_toggled(self, checked):
         if self.on_nsfw_changed:
             self.on_nsfw_changed(bool(checked))
+
+    def on_use_fallback_toggled(self, checked):
+        """备用方案勾选框：本次分析是否允许切到备用端点。
+
+        只影响之后提交的分析；已经在跑的线程按提交时那份状态走
+        （`WorkerThread.use_fallback` 在构造时定型），不会跑到一半被翻掉。
+        """
+        self.use_fallback_single = bool(checked)
+        self.log_msg(
+            "备用分析端点: 已开启（第一选择被拒 / 审核拦截时自动改走备用端点）"
+            if checked else
+            "备用分析端点: 已关闭（第一选择被拒时直接失败，不切换）"
+        )
+        if self.on_fallback_changed:
+            self.on_fallback_changed(bool(checked))
 
     def on_enable_outfit_check_toggled(self, checked):
         if self.on_outfit_check_changed:
@@ -3180,6 +3598,22 @@ class SingleAnalyzerWidget(QWidget):
         self.use_nsfw_cb.blockSignals(True)
         self.use_nsfw_cb.setChecked(bool(checked))
         self.use_nsfw_cb.blockSignals(False)
+
+    def get_fallback_default(self):
+        getter = getattr(self, "get_fallback_default_from_app", None)
+        if getter:
+            try:
+                return bool(getter())
+            except Exception:  # noqa: BLE001 - 读不到就用本地缓存值
+                pass
+        return bool(getattr(self, "use_fallback_single", True))
+
+    def set_use_fallback_default(self, checked):
+        """由「设置 → 文本分析 API → 备用方案」的勾选框同步过来（不触发保存回调）。"""
+        self.use_fallback_single = bool(checked)
+        self.use_fallback_cb.blockSignals(True)
+        self.use_fallback_cb.setChecked(bool(checked))
+        self.use_fallback_cb.blockSignals(False)
 
     def set_outfit_check_default(self, checked):
         self.enable_outfit_check_cb.blockSignals(True)
@@ -3356,6 +3790,11 @@ class SingleAnalyzerWidget(QWidget):
         task_hash = str(getattr(thread, "meta_task_hash", "") or "").strip()
         if task_hash:
             result_json["task_hash"] = task_hash
+        selected_style_name = str(getattr(thread, "meta_style_name", "") or
+                                  (self._analysis_history.get(task_id) or {}).get("style_name") or "").strip()
+        if not selected_style_name:
+            selected_style_name = self._resolve_generation_style()
+        result_json["generation_style_name"] = selected_style_name
 
         self.log_msg("========== 最终处理结果 ==========", prefix=thread_prefix)
         self.log_msg(json.dumps(result_json, indent=4, ensure_ascii=False), prefix=thread_prefix)
@@ -3413,7 +3852,6 @@ class SingleAnalyzerWidget(QWidget):
             self.current_task_hash = safe_task_hash
             
             
-            selected_style_name = self.main_style_combo.currentText()
             styles_data = self.get_styles()
             current_fixed_tags = style_prompt(styles_data, selected_style_name)
             
@@ -3535,6 +3973,7 @@ class SingleAnalyzerWidget(QWidget):
                     auto_targets.append("refined")
             prompt_bundle = {
                 "task_hash": local_task_hash,
+                "style_name": selected_style_name,
                 "aspect_ratio": local_aspect_ratio,
                 # 文件输入时给 GPT 首图直接读取实际像素；剪贴板输入没有路径，
                 # 下游会回退到上面的分析比例。不要让画风参考图决定输出方向。
@@ -3690,6 +4129,9 @@ class SingleAnalyzerWidget(QWidget):
     def _load_gpt_pipeline_ui(self, state=None):
         """恢复上次的通道 / 工序 / 区域 / 画质选择；老配置按「效果最好的配方」升级一次。"""
         state = load_analysis_gpt_ui() if state is None else state
+        self._saved_style_selection = str(state.get("style_selection") or "")
+        self.auto_gen_orig_cb.setChecked(bool(state.get("auto_gen_original", False)))
+        self.auto_gen_ref_cb.setChecked(bool(state.get("auto_gen_refined", False)))
         for widget, key in ((self.gpt_first_pass_mode, "first_pass_mode"),):
             idx = widget.findData(state.get(key, ANALYSIS_GPT_UI_DEFAULTS[key]))
             widget.setCurrentIndex(max(0, idx))
@@ -3725,6 +4167,9 @@ class SingleAnalyzerWidget(QWidget):
         regions = [str(r) for r in data] if isinstance(data, (list, tuple)) else [str(data or "hair")]
         return {
             "channel": "gpt-image" if self._gpt_image_channel_active() else "gemini",
+            "style_selection": self.main_style_combo.currentText() or getattr(self, "_saved_style_selection", ""),
+            "auto_gen_original": bool(self.auto_gen_orig_cb.isChecked()),
+            "auto_gen_refined": bool(self.auto_gen_ref_cb.isChecked()),
             "repaint": bool(self.gpt_pp_repaint.isChecked()),
             "structure": bool(self.gpt_pp_structure.isChecked()),
             "local": bool(self.gpt_pp_local.isChecked()),
@@ -3743,10 +4188,14 @@ class SingleAnalyzerWidget(QWidget):
 
     def _save_gpt_pipeline_ui(self, *_args):
         """任何选择变化都记下来（下次启动自动恢复）。"""
+        if not self.persist_ui_state:
+            return
         save_analysis_gpt_ui(self._gpt_pipeline_ui_state())
 
     def _connect_gpt_pipeline_signals(self):
-        for widget, signal in ((self.gen_channel_gemini, "toggled"),
+        for widget, signal in ((self.auto_gen_orig_cb, "toggled"),
+                               (self.auto_gen_ref_cb, "toggled"),
+                               (self.gen_channel_gemini, "toggled"),
                                (self.gpt_pp_repaint, "toggled"),
                                (self.gpt_pp_structure, "toggled"),
                                (self.gpt_pp_local, "toggled"),
@@ -3763,6 +4212,24 @@ class SingleAnalyzerWidget(QWidget):
     def _gpt_image_channel_active(self) -> bool:
         widget = getattr(self, "gen_channel_gpt", None)
         return bool(widget is not None and widget.isChecked())
+
+    def _compute_gpt_prompts_for_task(self, forced_targets=None) -> bool:
+        """本次分析要不要生成 gpt-image 专用短提示词（两档各一次文本模型调用）。
+
+        `gpt_image_prompt` / `gpt_image_prompt_short` **只有 gpt-image 通道会读**：
+
+        - 生图通道单选 **Gemini**（`gen_channel_gpt` 没勾）且不自动生图 → 跳过（本次用不上）；
+        - 勾了自动生图、或有强制生图目标（「重跑分析并生图」会带 `gen_targets`）→ 照常生成
+          （那次生图的通道可能被显式指定成 gpt，宁多算一次也不要把要用的字段抽掉）。
+
+        判据与无头链路共用：`utils.analysis_gpt_prompt.should_build_gpt_prompts`。
+        """
+        from utils.analysis_gpt_prompt import should_build_gpt_prompts
+        return should_build_gpt_prompts(
+            channel="gpt-image" if self._gpt_image_channel_active() else "gemini",
+            will_generate=bool(self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked()),
+            forced_targets=forced_targets,
+        )
 
     def _on_gen_channel_changed(self):
         active = self._gpt_image_channel_active()
@@ -3935,7 +4402,13 @@ class SingleAnalyzerWidget(QWidget):
         thread.start()
         return True
 
-    def trigger_image_generation(self, prompt_type, is_auto=False, prompt_bundle=None, analysis_thread_no=None, auto_group_id=None):
+    def trigger_image_generation(self, prompt_type, is_auto=False, prompt_bundle=None, analysis_thread_no=None, auto_group_id=None, channel=None):
+        """按提示词类型出图。
+
+        `channel`：显式指定本次生图通道（`"gemini"` / `"gpt-image"`）。
+        默认 `None` = 跟随界面上的「生图通道」单选。队列右键「拾取历史」对没有 GPT 断点的
+        记录重跑时传 `"gemini"`，保证按**原通道**重跑，而不是跟着当前界面选择走。
+        """
         self.save_img_cfg()
         
         img_base_url, img_key, model_name, api_type = self.get_img_config()
@@ -3946,6 +4419,9 @@ class SingleAnalyzerWidget(QWidget):
                 QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空，请检查【全局配置】。")
             return False
         timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+        # 界面单选（会写回界面记忆）与本次强制通道分开：强制通道不改界面、也不改记忆
+        ui_channel_pinned = channel is None
+        gpt_channel = self._gpt_image_channel_active() if ui_channel_pinned else (str(channel) == "gpt-image")
         
         prompt_context = prompt_bundle or {
             "task_hash": self.current_task_hash,
@@ -3959,7 +4435,7 @@ class SingleAnalyzerWidget(QWidget):
         if not str(prompt_to_use).strip():
             # gpt 通道的内容来自「分析产物里的描述」，本窗口没带描述时不该直接跳过
             _json_for_gpt = str(prompt_context.get("analysis_json_path") or "").strip()
-            if self._gpt_image_channel_active() and _json_for_gpt and os.path.isfile(_json_for_gpt):
+            if gpt_channel and _json_for_gpt and os.path.isfile(_json_for_gpt):
                 self.log_msg("[gpt 通道] 本次没有 prompt 文本 → 直接用分析产物里的描述作为内容")
             else:
                 self.log_msg(f"{prompt_type} 提示词为空，已跳过本次生图。")
@@ -3968,7 +4444,20 @@ class SingleAnalyzerWidget(QWidget):
         _face_quality_suffix = "detailed face, clear facial features, sharp focus on face"
         prompt_to_use = f"{prompt_to_use}, {_face_quality_suffix}"
         
-        selected_style_name = self.main_style_combo.currentText()
+        selected_style_name = str(prompt_context.get("style_name") or "").strip()
+        if not selected_style_name:
+            try:
+                selected_style_name = (
+                    self._random_style_by_task_hash.get(task_hash)
+                    if self.main_style_combo.currentText() == RANDOM_STYLE_LABEL else None
+                ) or self._resolve_generation_style()
+            except ValueError as exc:
+                if is_auto:
+                    self.log_msg(f"自动生图已跳过：{exc}")
+                else:
+                    QMessageBox.warning(self, "随机画风不可用", str(exc))
+                return False
+        self.log_msg(f"[生图入口] 本次画风预设: {selected_style_name}")
         styles_data = self.get_styles() or {}
         has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
         active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
@@ -3977,7 +4466,7 @@ class SingleAnalyzerWidget(QWidget):
         )
         from utils.analysis_gen import resolve_gemini_reference_content
         style_entry = (styles_data or {}).get(selected_style_name)
-        if not self._gpt_image_channel_active():
+        if not gpt_channel:
             anchored_prompt, anchor_field = resolve_gemini_reference_content(
                 style_entry, prompt_context, prompt_to_use, active_mode)
             if anchor_field:
@@ -3993,14 +4482,22 @@ class SingleAnalyzerWidget(QWidget):
         # 【修改】动态实例化线程对象存放至列表，避免并发勾选导致线程互相覆盖报错
         final_gen_ar = self._resolve_ar_for_second_stage(prompt_context.get("aspect_ratio", self.current_aspect_ratio))
 
-        self._save_gpt_pipeline_ui()
+        if ui_channel_pinned:
+            self._save_gpt_pipeline_ui()
         # ---- gpt-image-2 通道：用 gpt 专用短锚 + 画风参考图出图，再按勾选跑工序 ----
-        if self._gpt_image_channel_active():
-            return self._start_gpt_image_thread(
+        if gpt_channel:
+            started = self._start_gpt_image_thread(
                 prompt_type=prompt_type, prompt_context=prompt_context, task_hash=task_hash,
                 selected_style_name=selected_style_name, styles_data=styles_data,
                 is_auto=is_auto, analysis_thread_no=analysis_thread_no, auto_group_id=auto_group_id,
                 timeout_seconds=timeout_seconds)
+            if started:
+                self._note_generation_style(task_hash, selected_style_name)
+                self._note_generation_params(
+                    task_hash, channel="gpt-image", prompt_type=prompt_type,
+                    style_name=selected_style_name, style_ref_mode=active_mode,
+                    aspect_ratio=str(prompt_context.get("aspect_ratio") or ""))
+            return started
 
         img_thread = ImageGenWorkerThread(
             prompt=prompt_to_use,
@@ -4039,7 +4536,46 @@ class SingleAnalyzerWidget(QWidget):
         # 清除完成的线程并同步按钮状态
         img_thread.finished.connect(lambda t=img_thread: self._on_image_thread_stopped(t))
         img_thread.start()
+        self._note_generation_style(task_hash, selected_style_name)
+        self._note_generation_params(
+            task_hash, channel="gemini", prompt_type=prompt_type,
+            style_name=selected_style_name, style_ref_mode=active_mode,
+            aspect_ratio=str(final_gen_ar or ""))
         return True
+
+    def _note_generation_style(self, task_hash, style_name):
+        """Record the resolved style for every generated image attempt."""
+        for task_id in self._history_task_ids_for_hash(task_hash):
+            record = self._analysis_history.get(task_id)
+            if record is None:
+                continue
+            styles = record.setdefault("generation_styles", [])
+            if style_name not in styles:
+                styles.append(style_name)
+                self._refresh_history_item(task_id)
+
+    def _note_generation_params(self, task_hash, channel="", prompt_type="", style_name="",
+                                aspect_ratio="", style_ref_mode=""):
+        """把这次生图用的通道与参数记在队列记录上，供「拾取历史」原样重跑。
+
+        `prompt_types` 按尝试累积（一条任务可能同时跑原始 + 优化两种提示词），
+        重跑对话框据此预勾选；其余字段取最后一次生效的值。
+        """
+        for task_id in self._history_task_ids_for_hash(task_hash):
+            record = self._analysis_history.get(task_id)
+            if record is None:
+                continue
+            params = record.setdefault("generation_params", {})
+            for key, value in (("channel", channel), ("style_name", style_name),
+                               ("aspect_ratio", aspect_ratio), ("style_ref_mode", style_ref_mode)):
+                if str(value or "").strip():
+                    params[key] = value
+            if prompt_type in ("original", "refined"):
+                used = [t for t in (params.get("prompt_types") or []) if t in ("original", "refined")]
+                if prompt_type not in used:
+                    used.append(prompt_type)
+                params["prompt_types"] = used
+                params["prompt_type"] = prompt_type
 
     def on_image_generation_finished(self, thread, saved_files):
         checkpoint_path = str(getattr(thread, "checkpoint_path", "") or "")

@@ -15,7 +15,7 @@ from openai import OpenAI
 
 # 引入抽离出去的独立组件
 from modules.image_analysis.style_analyzer import StyleAnalyzerWidget
-from modules.image_analysis.single_analyzer import SingleAnalyzerWidget
+from modules.image_analysis.single_analyzer import SingleAnalyzerWidget, RANDOM_STYLE_LABEL
 # 【新增】引入批量提示词生成组件
 from modules.image_generation.prompt_generator import PromptGeneratorWidget
 # 【新增】引入批量图片分析组件
@@ -61,6 +61,18 @@ from utils.llm_retry import (
     DEFAULT_RETRY_TIMES as DEFAULT_TEXT_RETRY_TIMES,
     DEFAULT_RETRY_INTERVAL_SECONDS as DEFAULT_TEXT_RETRY_INTERVAL_SECONDS,
 )
+# 备用分析端点（第一选择拒绝分析图片时改走第二个端点，实现见 utils/analysis_fallback.py）
+from utils.analysis_fallback import (
+    DEFAULT_TRIGGER as DEFAULT_FALLBACK_TRIGGER,
+    FALLBACK_TRIGGER_CHOICES,
+    fallback_api_key_env_name,
+    fallback_api_key_source,
+    load_fallback_config,
+    resolve_fallback_api_key,
+    resolve_fallback_trigger,
+)
+
+DEFAULT_FALLBACK_ENABLED = True
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "conf", "config.json")
@@ -258,7 +270,11 @@ class AppWindow(QWidget):
             outfit_style_default_getter_func=self.get_single_outfit_style_override,
             outfit_style_changed_callback=self.update_single_outfit_style_override,
             outfit_style_delete_callback=self.delete_outfit_style_history_item,
-            styles_reload_callback=self.load_styles_config
+            styles_reload_callback=self.load_styles_config,
+            fallback_default_getter_func=lambda: bool(
+                getattr(self, "fallback_enabled_cb", None) and self.fallback_enabled_cb.isChecked()
+            ),
+            fallback_changed_callback=self.on_single_fallback_changed,
         )
 
         # 【新增】监听画风切换信号以实现多端同步和记忆
@@ -488,6 +504,56 @@ class AppWindow(QWidget):
         self.text_retry_interval_spin.valueChanged.connect(lambda _v: self.save_text_config(silent=True))
         text_layout.addRow("重试间隔:", self.text_retry_interval_spin)
         # ==========================================================================
+
+        # ================= 备用方案（第一选择拒绝分析图片时改走第二个端点） =================
+        # 「gpt-5.6-luna」这类第一选择偶尔会拒绝分析图片（content_filter / refusal），
+        # 这种失败重试没用（同一张图必然被同样拒绝），只能换一个模型 —— 就是这个区块。
+        self.fallback_enabled_cb = QCheckBox("第一选择被拒时改用备用方案")
+        self.fallback_enabled_cb.setChecked(DEFAULT_FALLBACK_ENABLED)
+        self.fallback_enabled_cb.setToolTip(
+            "图片分析 Step 1 被第一选择拒绝（内容过滤 / refusal / 审核拦截）时，\n"
+            "把**同一份请求**（同一张图、同一段提示词）发给下面的备用端点重跑。\n"
+            "第一选择正常返回时不产生任何额外请求。\n"
+            "留空则自动复用上面的「文本分析（NSFW）」通道（本机指向 deepseek）。"
+        )
+        self.fallback_enabled_cb.toggled.connect(self._on_fallback_toggled)
+        text_layout.addRow("备用方案:", self.fallback_enabled_cb)
+
+        self.fallback_url_input = QLineEdit()
+        self.fallback_url_input.setPlaceholderText("留空则复用「文本分析（NSFW）」的 Base URL")
+        self.fallback_url_input.setToolTip("备用文本分析端点，例：https://api.deepseek.com")
+        self.fallback_url_input.editingFinished.connect(lambda: self.save_text_config(silent=True))
+        text_layout.addRow("备用 Base URL:", self.fallback_url_input)
+
+        self.fallback_model_combo = FilterableComboBox()
+        self.fallback_model_combo.setEditable(True)
+        self.fallback_model_combo.setToolTip("备用分析模型，例：deepseek-flash（需带图片理解能力）")
+        self.fallback_model_combo.currentTextChanged.connect(lambda _t: self.save_text_config(silent=True))
+        text_layout.addRow("备用分析模型:", self.fallback_model_combo)
+
+        self.fallback_key_input = QLineEdit()
+        self.fallback_key_input.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
+        self.fallback_key_input.setPlaceholderText(
+            f"留空则用环境变量 {fallback_api_key_env_name()}（未配则复用 NSFW 的 key）"
+        )
+        self.fallback_key_input.editingFinished.connect(lambda: self.save_text_config(silent=True))
+        text_layout.addRow("备用 API Key:", self.fallback_key_input)
+
+        self.fallback_trigger_combo = QComboBox()
+        for value, label in FALLBACK_TRIGGER_CHOICES:
+            self.fallback_trigger_combo.addItem(label, value)
+        self.fallback_trigger_combo.setToolTip(
+            "「被拒/审核拦截时」只覆盖模型拒绝这类失败；\n"
+            "「任何失败时」连超时、断连、429 也一起切过去（第一选择的重试仍会先跑完）。"
+        )
+        self.fallback_trigger_combo.currentIndexChanged.connect(lambda _i: self.save_text_config(silent=True))
+        text_layout.addRow("备用触发条件:", self.fallback_trigger_combo)
+
+        self.fallback_hint_label = QLabel("")
+        self.fallback_hint_label.setWordWrap(True)
+        self.fallback_hint_label.setStyleSheet("color: #8a6d00;")
+        text_layout.addRow("", self.fallback_hint_label)
+        # ==================================================================================
 
         self.save_text_cfg_btn = QPushButton("保存分析配置")
         self.save_text_cfg_btn.clicked.connect(self.save_text_config)
@@ -788,6 +854,80 @@ class AppWindow(QWidget):
             self.nsfw_key_input.setPlaceholderText(f"已由环境变量 {nsfw_source[4:]} 提供，此处留空即可")
             self.nsfw_key_input.setToolTip(f"当前生效：{nsfw_source}（优先级高于 conf/config.json 的 nsfw_api_key）")
 
+    def _apply_fallback_hint(self, config=None):
+        """把「备用方案实际会走哪条通道」写清楚（只暴露来源与变量名，不显示密钥值）。
+
+        这一段是给排障用的：备用方案有两种取法（页面自己填的 `fallback_*`、
+        或复用「文本分析（NSFW）」通道），只看输入框是空的会以为没配。
+        """
+        label = getattr(self, "fallback_hint_label", None)
+        try:
+            cfg = load_fallback_config()
+        except Exception as exc:  # noqa: BLE001 - 提示失败不该影响界面
+            if label is not None:
+                label.setText(f"备用方案配置读取失败：{type(exc).__name__}: {exc}")
+            return
+
+        key_env = str(cfg.key_source)[4:] if str(cfg.key_source).startswith("env:") else ""
+        field = getattr(self, "fallback_key_input", None)
+        if field is not None:
+            if key_env:
+                field.setPlaceholderText(f"已由环境变量 {key_env} 提供，此处留空即可")
+                field.setToolTip(f"当前生效：{cfg.key_source}（优先级高于 conf/config.json 的 fallback_api_key）")
+                field.setEnabled(False)
+            else:
+                field.setPlaceholderText(
+                    f"可填这里，或用环境变量 {fallback_api_key_env_name()}（未配时复用「文本分析（NSFW）」的 key）"
+                )
+                field.setToolTip("")
+                field.setEnabled(True)
+
+        if label is None:
+            return
+        field_names = {"base_url": "Base URL", "model": "模型", "api_key": "API Key"}
+        missing = cfg.missing()
+        if missing:
+            who = "、".join(field_names.get(item, item) for item in missing)
+            if missing == ["base_url", "api_key", "model"]:
+                label.setText(f"备用方案未配置（留空时自动复用「文本分析（NSFW）」通道）。")
+            else:
+                label.setText(f"备用方案配置不完整，被拒时不会切换（缺少 {who}）。")
+            return
+
+        if str(cfg.key_source).startswith("env:"):
+            key_from = f"环境变量 {key_env}"
+        elif str(cfg.key_source) == "config":
+            key_from = "本页 / 配置文件"
+        elif str(cfg.key_source) == "nsfw":
+            key_from = "借用「文本分析（NSFW）」的 key"
+        else:
+            key_from = "未配置"
+        # 复用 NSFW 通道时的 key 来源说清楚（别让用户以为漏配了）
+        if "NSFW" in cfg.source_label and key_env:
+            key_from = f"复用 NSFW 的 {key_env}"
+        enabled_text = "已启用" if cfg.enabled else "未启用（第一选择被拒时不切换）"
+        trigger_text = "被拒/审核拦截时" if cfg.trigger == "refusal" else "第一选择任何失败时"
+        label.setText(
+            f"{enabled_text} · 生效端点：{cfg.model} @ {cfg.base_url} · key 来源：{key_from} · "
+            f"触发条件：{trigger_text}（{cfg.source_label}）"
+        )
+
+    def _on_fallback_toggled(self, _checked=None):
+        self._apply_fallback_hint()
+        self.save_text_config(silent=True)
+
+    def _collect_fallback_config(self):
+        """从界面读备用方案四项（不含 key 的解析）。"""
+        combo = getattr(self, "fallback_trigger_combo", None)
+        trigger = combo.currentData() if combo is not None else DEFAULT_FALLBACK_TRIGGER
+        return {
+            "fallback_enabled": bool(getattr(self, "fallback_enabled_cb", None) and self.fallback_enabled_cb.isChecked()),
+            "fallback_base_url": self.fallback_url_input.text().strip(),
+            "fallback_model": self.fallback_model_combo.currentText().strip(),
+            "fallback_api_key": self.fallback_key_input.text().strip(),
+            "fallback_trigger": str(trigger or DEFAULT_FALLBACK_TRIGGER),
+        }
+
     def _apply_img_key_hint(self, api_config, api_type):
         """图片节点 key 来自环境变量时，输入框留空并提示变量名（不显示密钥值）。
 
@@ -911,6 +1051,15 @@ class AppWindow(QWidget):
         self.remove_photo_style_single = bool(checked)
         self.save_text_config(silent=True)
 
+    def on_single_fallback_changed(self, checked):
+        """分析 Tab 的「被拒时用备用方案」勾选框 → 回写设置页（两处状态必须一致）。"""
+        if hasattr(self, "fallback_enabled_cb"):
+            self.fallback_enabled_cb.blockSignals(True)
+            self.fallback_enabled_cb.setChecked(bool(checked))
+            self.fallback_enabled_cb.blockSignals(False)
+            self._apply_fallback_hint()
+        self.save_text_config(silent=True)
+
     def on_style_analyzer_test_gen_changed(self, checked):
         self.style_analyzer_test_gen = bool(checked)
         self.save_text_config(silent=True)
@@ -932,6 +1081,9 @@ class AppWindow(QWidget):
         if not self._style_sync_enabled:
             return
         if not style_name: return
+        # 单图分析的「随机」是入口操作模式，不是画风配置；不能同步到其他 Tab。
+        if style_name == RANDOM_STYLE_LABEL:
+            return
         self.last_used_style = style_name
         
         # 阻断信号避免死循环
@@ -944,6 +1096,9 @@ class AppWindow(QWidget):
             self.single_gen_debug_tab.main_style_combo,
             self.sd_workflow_tab.style_combo,
         ]:
+            if (combo is self.single_analyzer_tab.main_style_combo
+                    and combo.currentText() == RANDOM_STYLE_LABEL):
+                continue
             if combo.currentText() != style_name:
                 combo.blockSignals(True)
                 combo.setCurrentText(style_name)
@@ -1030,6 +1185,41 @@ class AppWindow(QWidget):
                     self.text_retry_enabled_cb.blockSignals(False)
                     self.text_retry_times_spin.blockSignals(False)
                     self.text_retry_interval_spin.blockSignals(False)
+
+                    # 备用方案（第一选择拒绝分析图片时改走第二个端点）
+                    self.fallback_enabled_cb.blockSignals(True)
+                    self.fallback_url_input.blockSignals(True)
+                    self.fallback_model_combo.blockSignals(True)
+                    self.fallback_key_input.blockSignals(True)
+                    self.fallback_trigger_combo.blockSignals(True)
+                    try:
+                        self.fallback_enabled_cb.setChecked(
+                            bool(config.get("fallback_enabled", DEFAULT_FALLBACK_ENABLED))
+                        )
+                        self.fallback_url_input.setText(str(config.get("fallback_base_url", "") or "").strip())
+                        # key 由环境变量提供时输入框留空（界面只暴露变量名，永不显示密钥值）
+                        fallback_key_text = str(config.get("fallback_api_key", "") or "").strip()
+                        if str(fallback_api_key_source(config)).startswith("env:"):
+                            fallback_key_text = ""
+                        self.fallback_key_input.setText(fallback_key_text)
+                        saved_fallback_model = str(config.get("fallback_model", "") or "").strip()
+                        if saved_fallback_model:
+                            self.fallback_model_combo.addItem(saved_fallback_model)
+                            self.fallback_model_combo.setCurrentText(saved_fallback_model)
+                        saved_fallback_trigger = resolve_fallback_trigger(config)
+                        for index in range(self.fallback_trigger_combo.count()):
+                            if self.fallback_trigger_combo.itemData(index) == saved_fallback_trigger:
+                                self.fallback_trigger_combo.setCurrentIndex(index)
+                                break
+                    finally:
+                        self.fallback_enabled_cb.blockSignals(False)
+                        self.fallback_url_input.blockSignals(False)
+                        self.fallback_model_combo.blockSignals(False)
+                        self.fallback_key_input.blockSignals(False)
+                        self.fallback_trigger_combo.blockSignals(False)
+                    self._apply_fallback_hint(config)
+                    self.single_analyzer_tab.set_use_fallback_default(self.fallback_enabled_cb.isChecked())
+                    self.batch_analyzer_tab.set_use_fallback_default(self.fallback_enabled_cb.isChecked())
                     self.pic_cate_state = config.get("pic_cate", self.pic_cate_state)
                     if hasattr(self, "pic_cate_tab"):
                         self.pic_cate_tab.set_values(self.pic_cate_state)
@@ -1061,6 +1251,8 @@ class AppWindow(QWidget):
             self.batch_analyzer_tab.set_use_nsfw_default(self.use_nsfw_batch)
             self.batch_analyzer_tab.set_outfit_check_default(self.enable_outfit_check_batch)
             self.batch_analyzer_tab.set_upscale_options_defaults(self.upscale_options)
+            if hasattr(self, "fallback_enabled_cb"):
+                self.batch_analyzer_tab.set_use_fallback_default(self.fallback_enabled_cb.isChecked())
         self._refresh_outfit_style_widgets()
         if hasattr(self, "prompt_generator_tab"):
             self.prompt_generator_tab.set_upscale_options_defaults(self.upscale_options)
@@ -1179,7 +1371,8 @@ class AppWindow(QWidget):
         if hasattr(self, 'single_analyzer_tab'):
             self.single_analyzer_tab.update_styles(keys)
             # 恢复上次保存的最后使用画风
-            if self.last_used_style in keys:
+            if (self.last_used_style in keys
+                    and self.single_analyzer_tab.main_style_combo.currentText() != RANDOM_STYLE_LABEL):
                 self.single_analyzer_tab.main_style_combo.setCurrentText(self.last_used_style)
                 
         if hasattr(self, 'prompt_generator_tab'):
@@ -1333,6 +1526,7 @@ class AppWindow(QWidget):
             "text_retry_enabled": bool(self.text_retry_enabled_cb.isChecked()),
             "text_retry_times": int(self.text_retry_times_spin.value()),
             "text_retry_interval_seconds": int(round(self.text_retry_interval_spin.value() * 60)),
+            **self._collect_fallback_config(),
             "last_used_style": getattr(self, "last_used_style", "默认(无附加)"),
             "upscale_options": normalize_upscale_options(getattr(self, "upscale_options", {})),
             "pic_cate": self.pic_cate_state,
