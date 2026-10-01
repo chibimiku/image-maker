@@ -254,6 +254,13 @@ class VideoGenWidget(QWidget):
         self.audio_btn.clicked.connect(lambda: self._browse_into(self.audio_edit, "音频 (*.mp3 *.wav)"))
         in_grid.addWidget(self.audio_edit, 3, 1)
         in_grid.addWidget(self.audio_btn, 3, 2)
+        in_grid.addWidget(QLabel("输出目录:"), 4, 0)
+        self.out_dir_edit = QLineEdit()
+        self.out_dir_edit.setText("data/video_generation")
+        in_grid.addWidget(self.out_dir_edit, 4, 1)
+        out_dir_btn = QPushButton("浏览...")
+        out_dir_btn.clicked.connect(self._browse_output_dir)
+        in_grid.addWidget(out_dir_btn, 4, 2)
         layout.addLayout(in_grid)
 
         self.prompt_edit = QPlainTextEdit()
@@ -321,6 +328,11 @@ class VideoGenWidget(QWidget):
         path, _ = QFileDialog.getOpenFileName(self, "选择文件", "", pattern)
         if path:
             edit.setText(path)
+
+    def _browse_output_dir(self):
+        path = QFileDialog.getExistingDirectory(self, "选择视频输出目录", self.out_dir_edit.text())
+        if path:
+            self.out_dir_edit.setText(path)
 
     def _on_mode_changed(self, index):
         mode = self.mode_combo.currentData()

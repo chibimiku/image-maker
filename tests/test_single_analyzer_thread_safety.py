@@ -75,6 +75,9 @@ def test_on_process_finished_thread_safety_no_race_condition(qapp, monkeypatch, 
         outfit_style_default_getter_func=lambda: "",
     )
 
+    # 勾选框会从 conf/config.json 恢复上次的选择：显式关掉「原始提示词生图」，
+    # 否则用户配置里勾着它时每个任务会触发两次生图，用例断言跟着失效。
+    widget.auto_gen_orig_cb.setChecked(False)
     widget.auto_gen_ref_cb.setChecked(True)
 
     results = []
@@ -141,6 +144,9 @@ def test_on_process_finished_thread_safety_concurrent(qapp, monkeypatch, tmp_pat
         outfit_style_default_getter_func=lambda: "",
     )
 
+    # 勾选框会从 conf/config.json 恢复上次的选择：显式关掉「原始提示词生图」，
+    # 否则用户配置里勾着它时每个任务会触发两次生图，用例断言跟着失效。
+    widget.auto_gen_orig_cb.setChecked(False)
     widget.auto_gen_ref_cb.setChecked(True)
 
     results = []
@@ -226,6 +232,9 @@ def test_on_process_finished_prompt_bundle_isolation(qapp, monkeypatch, tmp_path
         outfit_style_default_getter_func=lambda: "",
     )
 
+    # 勾选框会从 conf/config.json 恢复上次的选择：显式关掉「原始提示词生图」，
+    # 否则用户配置里勾着它时每个任务会触发两次生图，用例断言跟着失效。
+    widget.auto_gen_orig_cb.setChecked(False)
     widget.auto_gen_ref_cb.setChecked(True)
 
     results = []
@@ -282,6 +291,9 @@ def test_on_process_finished_analysis_json_path_in_bundle(qapp, monkeypatch, tmp
         outfit_style_default_getter_func=lambda: "",
     )
 
+    # 勾选框会从 conf/config.json 恢复上次的选择：显式关掉「原始提示词生图」，
+    # 否则用户配置里勾着它时每个任务会触发两次生图，用例断言跟着失效。
+    widget.auto_gen_orig_cb.setChecked(False)
     widget.auto_gen_ref_cb.setChecked(True)
 
     results = []

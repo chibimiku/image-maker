@@ -4,9 +4,11 @@ import logging
 import os
 import re
 import tempfile
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
-from playwright.sync_api import sync_playwright, Browser, Page, TimeoutError as PlaywrightTimeout
+if TYPE_CHECKING:
+    from playwright.sync_api import Browser, Page
 
 from .models import CatalogItem, PART_BAG, PART_DRESS, PART_HAIR_ACCESSORY, PART_SHOES, PART_SOCKS
 
@@ -138,6 +140,10 @@ class MaylaAdapter:
 
     def _ensure_browser(self):
         if self._browser is None:
+            try:
+                from playwright.sync_api import sync_playwright
+            except ImportError as exc:
+                raise RuntimeError("MAYLA 采集需要 Playwright；安装 playwright 与 Chromium 后重试") from exc
             self._playwright = sync_playwright().start()
             self._browser = self._playwright.chromium.launch(headless=self.headless)
 
@@ -168,6 +174,7 @@ class MaylaAdapter:
     # ------------------------------------------------------------------
 
     def _goto(self, page: Page, url: str):
+        from playwright.sync_api import TimeoutError as PlaywrightTimeout
         for attempt in range(MAX_RETRIES + 1):
             try:
                 page.goto(url, timeout=self.timeout * 1000, wait_until="domcontentloaded")

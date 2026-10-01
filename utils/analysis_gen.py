@@ -55,7 +55,7 @@ def first_pass_sub_dir(steps: dict, run_key: str = "") -> str:
 
 
 def publish_final_output(source_path: str, *, style_name: str = "", process_dir: str = "",
-                         final_dir: str = "", task_hash: str = "") -> str:
+                         final_dir: str = "", task_hash: str = "", prefer_symlink: bool = False) -> str:
     """把工作目录里选中的最终图只发布一份到 `data/<YYYYMMDD>/`。
 
     首图、首次重绘、质量/身份修订和审计 JSON 均保留在 `process_dir`；
@@ -96,7 +96,15 @@ def publish_final_output(source_path: str, *, style_name: str = "", process_dir:
         while os.path.exists(target):
             target = f"{base}_{idx}{suffix}"
             idx += 1
-        shutil.copy2(source, target)
+        if prefer_symlink and os.name in ("nt", "posix"):
+            # Windows may require Developer Mode or symlink privilege. Keep manual
+            # publication usable there by copying when link creation is denied.
+            try:
+                os.symlink(source, target, target_is_directory=False)
+            except (OSError, NotImplementedError):
+                shutil.copy2(source, target)
+        else:
+            shutil.copy2(source, target)
     trace_dir = os.path.abspath(process_dir or os.path.dirname(source))
     os.makedirs(trace_dir, exist_ok=True)
     with open(os.path.join(trace_dir, "published-final.json"), "w", encoding="utf-8") as f:

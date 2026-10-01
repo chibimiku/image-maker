@@ -108,7 +108,14 @@ def test_step_2_json_failure_is_visible_in_gui_and_file_log(captured_log):
 
 
 def test_step_2_empty_content_is_visible_in_gui_and_file_log(captured_log):
-    """content 为 None（安全过滤/拒绝响应）：同样要留下 finish_reason 与说明。"""
+    """content 为 None（安全过滤/拒绝响应）：同样要留下 finish_reason 与说明。
+
+    注意 `_safe_json_from_response` 的判定顺序：`finish_reason == "content_filter"`
+    会先被判为「服务端内容过滤」并抛出（即使 content 恰好有值也是脏数据）；
+    只有 finish_reason 正常、content 却是 None 时才走「content 为 None」那条分支。
+    两条分支都要有明确原因 —— 这里同时锁住它们。
+    """
+    # ① finish_reason=content_filter（content 即使是 None 也先报"内容过滤"）
     gui_messages = []
     client = _FakeClient(_FakeResponse(None, finish_reason="content_filter", refusal="blocked"))
 
@@ -117,8 +124,21 @@ def test_step_2_empty_content_is_visible_in_gui_and_file_log(captured_log):
     )
 
     assert result is None
-    assert any("content 为 None" in m for m in gui_messages), gui_messages
+    assert any("服务端内容过滤" in m for m in gui_messages), gui_messages
     assert any("content_filter" in m for m in gui_messages), gui_messages
+    assert any("服务端内容过滤" in m for m in captured_log.messages), captured_log.messages
+
+    # ② finish_reason 正常但 content 为 None（拒绝响应 / 安全过滤，无 finish_reason 线索）
+    gui_messages = []
+    client = _FakeClient(_FakeResponse(None, finish_reason="stop", refusal="blocked"))
+
+    result = step_2_refine_description(
+        STEP1_RESULT, client, "test-model", log_callback=gui_messages.append
+    )
+
+    assert result is None
+    assert any("content 为 None" in m for m in gui_messages), gui_messages
+    assert any("refusal" in m for m in gui_messages), gui_messages
     assert any("content 为 None" in m for m in captured_log.messages), captured_log.messages
 
 

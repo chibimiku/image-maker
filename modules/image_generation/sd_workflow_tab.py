@@ -342,7 +342,13 @@ class SdWorkflowWidget(QWidget):
         self.init_ui()
         self._bind_attribute_references()
         self._connect_signals()
-        self._load_config_to_sub_widgets()
+        # 子控件 setValue/setText 会发出 config_changed；装载配置不是用户编辑，
+        # 启动时不应写回 conf/config-sd.json（只读环境也必须能打开主界面）。
+        self._syncing = True
+        try:
+            self._load_config_to_sub_widgets()
+        finally:
+            self._syncing = False
 
     # ---------------------------------------------------------- 配置 IO
     def load_config(self):
