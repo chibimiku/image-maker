@@ -1,0 +1,5 @@
+Treat the supplied image as a finished painting. Refine the COLOUR FLOW of its existing materials while retaining its exact objects, character, open parasol, pose and composition. Do not redraw the scene.
+
+For each continuous object, keep one readable low-to-mid-value colour foundation beneath the local details: deep brown beneath the twin-tail highlights, pink or lavender beneath each dress ruffle, ivory beneath lace highlights, navy beneath the room's glints, and indigo-blue beneath the scattered cyan reflections on the blurred foreground frame. Let shadows and reflected hues follow the existing form across short gaps. Keep the brightest accents small, irregular and separate. Do not connect them into brighter lines or spread bloom.
+
+Preserve the face and eyes, the existing hand grip, garment construction, lace marks, frame geometry, toys, furniture, stars, camera framing and painterly softness. Do not smooth or simplify fine detail, add pattern or props, shift the palette, increase saturation, make flat colour bands, or alter any silhouette. Output one image at the original aspect ratio.

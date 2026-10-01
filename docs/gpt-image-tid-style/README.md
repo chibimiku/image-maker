@@ -713,6 +713,7 @@ Sol 指出旧锚图"内容泄漏 + 结构不够强"，给了改良锚图提示�
 1. **gpt-image 通道单独出字段**：分析产物新增 `gpt_image_prompt`（≤1400 字符），与 Gemini 用的长 `prompts.txt` **完全分开**，另存 `-gpt-image-prompts.txt`。
    - 新增 `utils/analysis_gpt_prompt.py`：`build_gpt_image_prompt`（文本模型压缩，保留构图/姿势/服装/道具/镜头，禁增删）、`compose_gpt_image_prompt`（画风短版 `prompt_gpt` + 该字段）、`composed_length_warning`（>2500 字符告警：画风参考图会失效、长文本有断连风险）、`call_text_model` / `load_text_api_config`。
    - 接入点：`analysis_pipeline.analyze_single_image`（Step 5 之后，开关 `enable_gpt_image_prompt_single`，默认 True，失败只告警不中断）、`analysis_pipeline.save_result_to_source`（落盘 `-gpt-image-prompts.txt`）、`single_analyzer`（GUI 路径同样生成 + 落盘）。
+   - **只出 Gemini 图的任务不生成这两个字段**（2026-10-01，用户反馈）：每档各要一次文本模型调用，而字段只有 gpt-image 通道会读。判据统一在 `utils.analysis_gpt_prompt.should_build_gpt_prompts`（通道是 gpt-image / 本次有生图意图 / 有强制生图目标才算），GUI 由 `SingleAnalyzerWidget._compute_gpt_prompts_for_task` 传 `WorkerThread(gpt_prompts=…)`，无头链路用 `analyze_single_image(..., compute_gpt_prompts=False)` 或配置 `generation_channel` / `auto_generate_images` / `generation_targets`。回归用例 `tests/test_analysis_gpt_prompt_skipping.py`。
    - 提示词模板：`prompts/analysis-gpt-prompt-system.md` / `-user.md`；命令行：`python tools/build_gpt_image_prompt.py --json <分析产物.json> --max-chars 1400 --show`。
 2. **两个勾选都保持开启**（`enable_outfit_check_single` / `remove_photo_style_single`），本轮实测就是全开跑的。
 3. **不改构图**：字段生成的 system prompt 里把"构图/镜头/取景/姿势不得改动"写成硬规则。
@@ -758,7 +759,8 @@ Sol 指出旧锚图"内容泄漏 + 结构不够强"，给了改良锚图提示�
   `resolve_content_field(result, tier)`
 - 模板 `prompts/analysis-gpt-prompt-short-system.md`（明确"短比完整更重要"）
 - 落盘：`-gpt-image-prompts.txt`（完整档）与 `-gpt-image-short-prompts.txt`（短锚档）分开；开关
-  `enable_gpt_image_prompt_single` / `enable_gpt_image_prompt_short_single`（都默认 True）
+  `enable_gpt_image_prompt_single` / `enable_gpt_image_prompt_short_single`（都默认 True）；
+  只出 Gemini 图的任务两个字段都不生成（`should_build_gpt_prompts`，见前面 §分析产物那一节）
 - CLI：`python tools/build_gpt_image_prompt.py --json <产物.json> --tier short --show`
 
 实测（素材照 → 分析产物 + **tid 画风参考图**，全部 1 张）：

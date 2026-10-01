@@ -1,8 +1,11 @@
 {
     "_comment": "gpt-image 产物优化（Gemini 重绘提线）统一配置。改这里即可换 prompt / 站点 / 模型 / 尺寸，不要在 .py 里写死。",
     "_theory": "理论、实验数据与指标口径见 docs/gpt-image-optimize/README.md。",
-    "enabled": false,
-    "final_candidate_repair": {"model": "gemini-3.1-flash-image-preview", "max_repairs": 1},
+    "enabled": true,
+    "final_candidate_repair": {
+        "model": "gemini-3.1-flash-image-preview",
+        "max_repairs": 1
+    },
     "site": "new.aigc2d",
     "api_type": "aigc2d",
     "model": "gemini-3-pro-image-preview",

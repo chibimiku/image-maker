@@ -359,6 +359,79 @@ python tools/web-probe.py download "https://wear.jp/yyuk1101a/26674416/" --attr 
 - 增加“读取浏览器导出的 cookies 文件并自动请求”
 - 再进一步接入独立浏览器自动化方案（如 Playwright / Selenium），但那就不再是现在这种轻量 CLI 了
 
+## 单图分析 + 生图 CLI（与主界面同一条执行链）
+
+单图分析界面的「生成时使用的画风预设」可选 **随机**。每次提交分析任务时从已启用的实际画风预设中抽取一个（不含「默认(无附加)」），同一任务的自动原始/优化生图及随后手动生图沿用该结果。队列、分析 JSON 的 `generation_style_name` 和生图请求记录的都是抽中的画风名；「随机」只保存为界面选择，不同步到其他 Tab。单独点生图按钮且当前任务没有绑定随机画风时，会在该次生图入口抽取。
+
+在仓库根目录用系统 Python 运行。`tools/analyze_fashion.py` 的旧 `--dir` 用法仍是只分析；加入 `--image`（可重复）或 `--generate` 后，命令会在无头 Qt 中创建主界面使用的同一个 `SingleAnalyzerWidget`，使用同一套分析线程、生图线程、GPT 断点、身份/人体/最终审计和发布判断。默认生成优化提示词图；失败返回非零，原始分析 JSON 与过程断点仍保留。
+
+流程边界：`single_analyzer.WorkerThread` 做 Step 1–5 分析并保存 JSON/TXT；Gemini 通道把所选原始/优化描述交给 `ImageGenWorkerThread`，GPT 通道用分析内容锚组首图请求、由 `GptImageGenWorkerThread` 执行重绘与门禁。两条链的图片产物最后经可选 JPG 处理并由队列状态机收尾。CLI 只映射控件和排队，不复制模型调用逻辑，也不保存 GUI 偏好。分析 JSON 已存在时的 GPT 实验入口是 `tools/analysis_gpt_run.py`。
+
+```powershell
+python -u tools/analyze_fashion.py --image "data/source/example.jpg" --style sheya-style --channel gemini --reference-mode priority --generate refined --dry-run
+python -u tools/analyze_fashion.py --image "data/source/example.jpg" --style sheya-style --channel gemini --reference-mode priority --generate refined
+python -u tools/analyze_fashion.py --image "data/source/example.jpg" --style sheya-style --channel gpt --generate refined --repaint --quality high --scope full
+python -u tools/analyze_fashion.py --dir "data/source" --generate both --channel gpt --test-output
+python -u tools/analyze_fashion.py --image "data/source/example.jpg" --generate none --save-to-source
+```
+
+`--dry-run` 只创建无头分析 Tab、校验图片与画风并打印实际控件映射；不调用分析或生图 API。`--test-output` 把产物隔离到 `data/test-result/<日期>/`。默认正式产物仍在 `data/<日期>/`；`--save-to-source` 只适用于 `--generate none`，也不能与 `--test-output` 同用。API key 由现有 `.env`/`conf/config.json` 解析，不在命令行传递。
+
+| 分析 Tab 选项 | CLI 参数 |
+|---|---|
+| 本地图/目录批量、原始/优化提示词生图 | `--image`（可重复）/ `--dir`、`--generate none\|original\|refined\|both` |
+| NSFW 文本接口、服装检查/风格覆盖、去照片风格、booru 数量 | `--nsfw`、`--outfit-check` / `--outfit-style`、`--remove-photo-style`、`--booru-tag-limit` |
+| 画风与参考图模式 | `--style`、`--reference-mode off\|head\|priority\|interleave` |
+| 生图通道 | `--channel gemini\|gpt`；Gemini 可用 `--image-api` / `--image-model` 覆盖当前节点 |
+| GPT 画质、首图接口、尺寸跟随 | `--quality`、`--first-pass-mode`、`--size-follow-input` / `--no-size-follow-input` |
+| GPT 重绘、范围、结构线、局部区域 | `--repaint` / `--no-repaint`、`--scope`、`--structure`、`--local --region <区域键>` |
+| GPT 色调、目标与加墨 | `--tone --tone-target style\|photo`、`--ink` |
+| JPG 后处理 | `--jpg-upscale --upscale-model <名称> --upscale-by <倍率> --webp-target-mb <MB>` |
+| 请求超时、文本模型 | `--timeout`、`--text-model` |
+| 分析/生图长宽比覆盖 | `--aspect-ratio-first`、`--aspect-ratio-second`（默认保持分析比例） |
+
+`--region stable-four` 选择界面的实验性四区串联；其余区域键可用 `python -u tools/analyze_fashion.py --help` 和 `utils/post_process.py` 的 `REGION_LABELS` 查看。未传 `--style` 时沿用 GUI 保存的画风。GPT 通道使用 GUI 固定的 `aigc-2d-gpt` 节点；`--image-api` 与 `--image-model` 只针对 Gemini。界面上的手动停止可在 CLI 中用 `Ctrl+C`。已有 GPT 断点可用下列旧实验入口从默认失败工序续跑；该入口默认隔离测试产出，请勿把它当作正式发布命令：
+
+```powershell
+python -u tools/analysis_gpt_run.py --app-resume-checkpoint "data/<日期>/analysis-gpt-image/<任务>/generation-checkpoint.json"
+```
+
+若已有分析 JSON，GPT 生图实验仍可用 `python -u tools/analysis_gpt_run.py --json <分析.json> --style <画风> --dry-run`。该命令的实验参数可能与 GUI 默认值不同；要复现 UI 的完整分析到生图流程，请用上面的 `tools/analyze_fashion.py` 入口。
+
+### 命令行拾取历史：从结果日志列出过程、选图续跑或发布
+
+GUI 的分析队列右键 **「拾取历史」** 会自动扫描 `data/<日期>/analysis-gpt-image/<任务>/generation-checkpoint*.json`，在窗口顶部选择该任务已保存的尝试，再按时间查看过程文件和工序。选中某条队列任务时只展示它自己的断点；要浏览全部已保存的 GPT 任务，可在队列空白处右键选择「拾取历史」。无须手工挑选 JSON。Gemini 分析若在 Step 1 就失败，尚未进入生图工序，因此不会有 GPT 生图断点。Step 1 如显示「服务端内容过滤导致响应被截断」，表示接口返回 `finish_reason=content_filter`，该次响应不能解析为完整分析 JSON；需检查输入图、分析提示词或文本分析服务。
+
+**Gemini 通道的重跑**：Gemini 生图不写工序断点，所以选中这类队列任务右键「拾取历史」时不再只弹「没有断点」，而是询问是否**按相同参数新建一条队列任务**重跑——弹窗里列出通道、画风、画幅、提示词长度与沿用原任务号，并可勾选重跑「优化提示词 / 原始提示词」（默认勾选该任务上次实际跑过的那种）。确认后队列里多出一条 `[进行中·Gemini 生图]` 的任务，画风、画幅、提示词、分析产物路径都取自原记录，生图通道固定为 Gemini（不跟当前界面单选走），原任务与原图保留不动。沿用原任务号是为了让新产物仍能被 `publish_server.py` 关联到同目录的投稿 JSON。记录里没有可用提示词（分析未完成）或标明是 gpt-image 通道但断点已丢失时，会给出对应提示而不是静默改通道。
+
+`tools/analyze_fashion.py --image ... --channel gpt --generate refined` 完成每张图后，会在终端打印任务结果，同时逐项保存到 `data/<日期>/analysis-cli-results-<时间>-<短码>.json`；带 `--test-output` 时日志和产物都进入 `data/test-result/<日期>/`。日志中的 `checkpoints` 指向各任务的 `generation-checkpoint.json`。失败时仍可读取断点中的成功产物和审计文件。
+
+下面的三条命令在完整分析 CLI `tools/analyze_fashion.py` 中直接可用；`tools/analysis_gpt_run.py` 也接受同样的历史参数。输入可以是**结果日志、单个 `generation-checkpoint.json` 或任务目录**。先 `list`，再从打印的编号里选择 `--task`（日志中的任务，默认 1）和 `--pick`（该任务的过程文件编号）：
+
+```powershell
+python tools/analyze_fashion.py --history-list "data/<日期>/analysis-cli-results-<时间>-<短码>.json"
+python tools/analyze_fashion.py --history-resume "data/<日期>/analysis-cli-results-<时间>-<短码>.json" --task 1 --pick 15
+python tools/analyze_fashion.py --history-publish "data/<日期>/analysis-cli-results-<时间>-<短码>.json" --task 1 --pick 15
+```
+
+`list` 先打印任务状态、hash、分析 JSON、最终产物与错误，再按文件时间列出工序名称、图片、审计 JSON、提示词与绝对路径；`--history-json` 改为结构化 JSON 输出，便于脚本提取 `task`、`pick`、`stage` 和 `path`。也可直接传断点，例如：
+
+```powershell
+python tools/analyze_fashion.py --history-list "data/20260928/analysis-gpt-image/65ebea5b-renian-221533-e26768/generation-checkpoint.json"
+```
+
+这条任务的实际候选图 `65ebea5b-final-rescue-1_222055-f5eb51.jpg` 在列表中是 **15 号**。经人工确认后，将它直接选为最终结果的命令是：
+
+```powershell
+python tools/analyze_fashion.py --history-publish "data/20260928/analysis-gpt-image/65ebea5b-renian-221533-e26768/generation-checkpoint.json" --pick 15
+```
+
+本机执行结果是 `data/20260928/65ebea5b_renian-final-rescue-1_222055-f5eb51.jpg` 软链；已确认它指向所选过程 JPG，且 `publish_server.py` 能匹配同目录的 `65ebea5b` 分析 JSON。命令只把图片放到发布目录，**不会自动加入发布 Server 队列**；启动 `python publish_server.py` 后，将这张最终图拖入队列即可。原失败断点仍标记为 `error`。同一候选图重复执行发布命令会产生带序号的另一份最终图，请勿重复操作。
+
+`--history-resume` **从选中图之后的工序重新推断**，创建独立 `generation-checkpoint-pickup-*.json`，复用前面的成功结果，再执行后续审计和修订；它会调用模型，可能产生费用，失败仍返回非零并保留候选图。选中 `final_review` 的失败候选图时，会再次执行最终复核。原断点不改动，新尝试在同目录写独立的 `resume-result-<断点名>.json`，同时刷新 `resume-result.json` 供查看最近一次结果。`--history-publish` 不调用模型：人工将选中图作为最终图放进原日期目录，优先创建软链，系统不允许时复制；保留原审计失败状态，并写 `published-final.json` 记录选图来源。发布图的文件名把任务 hash 放在首个下划线字段，便于 `publish_server.py` 关联同目录的分析 JSON。
+
+实验入口 `tools/analysis_gpt_run.py --json ... --output-dir ...` 的 `request.json` 也可以用 `--history-list` 查看、用 `--history-publish` 人工选图；它没有逐阶段断点，因此不能用 `--history-resume` 续跑。需要可选节点的重推断，请用上面的完整分析 CLI 生成断点。
+
 ## PyQt6 人工冒烟
 
 建议在真实桌面环境下额外做一轮主界面人工冒烟，重点验证 `app.py`。
@@ -383,6 +456,8 @@ python app.py
 - `单图分析` 中拖拽本地图片后，预览、按钮状态、日志是否正常更新
 - `单图分析` 中复制图片到剪贴板后按 `Ctrl+V`，预览和日志是否正常更新
 - 托盘通知相关路径在系统托盘可用或不可用时都不应导致程序崩溃
+
+MAYLA 采集依赖可选的 Playwright/Chromium；未安装时主界面仍可启动，只有执行 MAYLA 采集时会提示缺少依赖。视频生成 Tab 的输出目录在“生成参数”中设置；SD 工作流读取配置时不会自动写回 `conf/config-sd.json`。
 
 通过标准：
 

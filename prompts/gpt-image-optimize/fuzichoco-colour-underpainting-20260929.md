@@ -1,0 +1,7 @@
+The attached image is a finished illustration. Make a subtle colour-underpainting pass while retaining the existing drawing and painterly texture. Keep the same scene, face, body, hands, open parasol, outfit, furnishings, framing, and all intentional small lights.
+
+The goal is continuity of the LOW- and MID-VALUE colour beneath the highlights. Do not join highlight dots into a bright neon line. Do not brighten existing highlights. Instead, make the quieter underlying pigment flow through each continuous object so its shape reads between the glints.
+
+In the blurred blue frame at the lower-left foreground, preserve its current geometry, blur and scattered small glints, but give the long blue material a continuous subdued indigo/cyan body tone between those glints. Its brightest spots should stay small and secondary. Apply the same principle elsewhere: coherent brown hair masses beneath sparse teal reflections; coherent pink/lavender fabric planes beneath selective white highlights; broad navy room shadows beneath the window sparkle. Preserve the separation between pink cloth, ivory lace and blue background.
+
+This is a low-strength glazing pass, not a redesign, sharpening pass or smooth filter. Preserve the location and form of every object and contour. No new lights, no stronger bloom, no plastic gloss, no flat colour fill, no erased lace or brush detail, no change to the face or umbrella. Return one image at the same aspect ratio and framing.
