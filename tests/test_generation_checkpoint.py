@@ -150,7 +150,11 @@ def test_hand_gate_after_identity_despite_skip_quality_and_reuses_paid_repair(ap
     worker.run()
     assert worker.last_status == "success"
     assert paid == [[repainted]]
-    assert attempts == [repainted, corrected, corrected]
+    # 第二次运行时「修复前的复审」已由断点缓存（不再调用接口），实际发生的审计是：
+    # ① 修手后复审计一次（首次调用故意超时，不写缓存，所以重跑要重来）；
+    # ② 人体门禁结论通过；
+    # ③ 最终复核再审一次实际要发布的像素（final_review 独立成 stage 之后新增的那道）。
+    assert attempts == [repainted, corrected, corrected, corrected]
     assert events[-1] == "publish"
 
 

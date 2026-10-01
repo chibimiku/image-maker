@@ -620,7 +620,8 @@ def test_style_enabled_checkbox_hides_generation_choices_but_keeps_manager_entry
     generated = [window.single_analyzer_tab.main_style_combo.itemText(i)
                  for i in range(window.single_analyzer_tab.main_style_combo.count())]
     assert managed == ["显示画风", "隐藏画风"]
-    assert generated == ["显示画风"]
+    # 分析 Tab 的生图下拉只列启用的画风，外加一个常驻的「随机」（每次任务单独抽一个已启用画风）
+    assert generated == ["显示画风", "随机"]
 
     window.style_manage_combo.setCurrentText("隐藏画风")
     assert window.style_enabled_checkbox.isChecked() is False
