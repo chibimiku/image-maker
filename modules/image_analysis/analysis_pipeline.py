@@ -94,8 +94,15 @@ def save_step1_analysis(result: dict | None, image_path: str,
 
 
 def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 300,
-                         log_callback: LogCallback = None) -> dict | None:
-    """对单图执行完整 LLM 分析链（Step 1~5），返回分析结果 JSON，失败返回 None。"""
+                         log_callback: LogCallback = None,
+                         compute_gpt_prompts: bool | None = None) -> dict | None:
+    """对单图执行完整 LLM 分析链（Step 1~5），返回分析结果 JSON，失败返回 None。
+
+    `compute_gpt_prompts`：要不要生成 gpt-image 专用短提示词字段（`gpt_image_prompt` /
+    `gpt_image_prompt_short`，各一次文本模型调用）。`None` = 按配置开关与任务情况自动判断
+    （见 `utils.analysis_gpt_prompt.should_build_gpt_prompts`）；只出 Gemini 图的调用方传
+    `False` 明确跳过。
+    """
     from modules.others.api_backend import apply_secret_env_overrides
 
     # 只在内存副本上套用环境变量（IMAGE_MAKER_TEXT_API_KEY 优先），绝不回写磁盘配置
@@ -128,6 +135,9 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
     )
 
     _log(log_callback, f"== Step 1: Vision 分析 (模型 {model_name}) ==")
+    # 备用分析端点：被拒/审核拦截时改走第二个端点（配置见「设置 → 文本分析 API → 备用方案」）。
+    # 无头链路没有界面勾选框，直接取配置里的 fallback_enabled（默认 True）。
+    use_fallback = bool(config.get("fallback_enabled", True))
     initial_result = step_1_analyze_image(
         image_path,
         client,
@@ -137,6 +147,7 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
         local_booru_tags=local_booru_tags,
         pixiv_candidates=pixiv_candidates,
         timeout_seconds=timeout_seconds,
+        use_fallback=use_fallback,
     )
     if not initial_result:
         _log(log_callback, "❌ Step 1 失败，流程终止。")
@@ -216,7 +227,21 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
 
     # gpt-image 通道专用短提示词：单独字段（与 Gemini 用的长 prompts 分开，不混用）。
     # 两档：full（≤1400，不挂参考图/内容优先）与 short（≤500，要挂画风参考图时用；短文本才压得住参考图）。
-    if final_result and config.get("enable_gpt_image_prompt_single", True):
+    # 只有 gpt-image 通道会用这两个字段。判据：调用方显式 `compute_gpt_prompts=False`（只出
+    # Gemini 图的链路）→ 跳过；配置开关 / `generation_channel` / 自动生图意图 → 走
+    # `should_build_gpt_prompts`；都没给时保持旧行为（配置开关开着就算）。
+    from utils.analysis_gpt_prompt import should_build_gpt_prompts
+    want_gpt_prompts = should_build_gpt_prompts(
+        channel=config.get("generation_channel", ""),
+        will_generate=bool(config.get("auto_generate_images", False)),
+        forced_targets=config.get("generation_targets"),
+        enabled=(compute_gpt_prompts is not False)
+        and bool(config.get("enable_gpt_image_prompt_single", True)),
+    )
+    if not want_gpt_prompts:
+        _log(log_callback, "跳过 gpt-image 专用短提示词：本次任务只出 Gemini 图，用不到这两个字段"
+                           "（每档各一次文本模型调用）。")
+    if final_result and want_gpt_prompts:
         try:
             from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
                                                    SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)

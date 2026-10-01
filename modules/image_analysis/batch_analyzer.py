@@ -34,6 +34,8 @@ class BatchAnalyzerWidget(QWidget):
         self.get_outfit_style_default = outfit_style_default_getter_func
         self.on_outfit_style_changed = outfit_style_changed_callback
         self.on_outfit_style_deleted = outfit_style_delete_callback
+        # 备用分析端点（被拒时切第二个端点）：全局开关，默认跟随配置
+        self.use_fallback = None
         
         self.target_directory = ""
         self.image_files = []
@@ -507,7 +509,8 @@ class BatchAnalyzerWidget(QWidget):
                 extra_llm_prompt=extra_llm_prompt,
                 timeout_seconds=timeout_seconds,
                 enable_outfit_check=self.enable_outfit_check_cb.isChecked(),
-                outfit_style_override=self.outfit_style_combo.currentText().strip()
+                outfit_style_override=self.outfit_style_combo.currentText().strip(),
+                use_fallback=self.use_fallback,
             )
             thread.log_signal.connect(lambda text, wid=worker_id: self.log_msg(f"[线程-{wid}] {text}"))
             thread.finish_signal.connect(lambda result, t=thread, wid=worker_id, path=image_path: self.on_worker_finished(t, wid, path, result))
@@ -1010,6 +1013,14 @@ class BatchAnalyzerWidget(QWidget):
         self.use_nsfw_cb.blockSignals(True)
         self.use_nsfw_cb.setChecked(bool(checked))
         self.use_nsfw_cb.blockSignals(False)
+
+    def set_use_fallback_default(self, checked):
+        """备用分析端点开关（在「设置 → 文本分析 API → 备用方案」配置）。
+
+        批量分析里没有单独的勾选框：备用方案是全局配置，单图/批量共用同一个开关，
+        这里只是把它同步进本 Tab（勾选框在单图分析 Tab 与设置页）。
+        """
+        self.use_fallback = bool(checked)
 
     def set_outfit_check_default(self, checked):
         self.enable_outfit_check_cb.blockSignals(True)

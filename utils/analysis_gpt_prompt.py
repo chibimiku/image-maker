@@ -54,6 +54,30 @@ def normalize_chat_base(base_url: str) -> str:
     return url
 
 
+def should_build_gpt_prompts(channel: str = "", will_generate: bool = False,
+                             forced_targets=None, enabled: bool = True) -> bool:
+    """这次任务要不要生成 gpt-image 专用短提示词（每档各一次文本模型调用）。
+
+    `gpt_image_prompt` / `gpt_image_prompt_short` **只有 gpt-image 通道会读**。所以：
+
+    - `channel` 是 gpt-image → 要；是 gemini（或空）→ 只有 `will_generate` / `forced_targets`
+      为真时才要（那次生图可能显式指定 gpt 通道，不能把字段抽掉）；
+    - `will_generate=False`（分析后不自动生图）且没有强制生图目标 → 这两档字段没人用，直接跳过；
+    - `enabled=False`（配置开关关掉）恒为否。
+
+    GUI（`SingleAnalyzerWidget._compute_gpt_prompts_for_task`）与无头链路
+    （`analysis_pipeline.analyze_single_image`）共用这一条判据，避免两处规则漂移。
+    """
+    if not enabled:
+        return False
+    name = str(channel or "").strip().lower()
+    if "gpt" in name:
+        return True
+    if any(str(t).strip() in ("original", "refined") for t in (forced_targets or [])):
+        return True
+    return bool(will_generate)
+
+
 def load_text_api_config(config_path: str = None) -> dict:
     """读 conf/config.json 的文本通道配置（顶层 base_url/model + 环境变量里的 key）。"""
     from modules.others.api_backend import resolve_text_api_key
