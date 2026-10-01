@@ -24,12 +24,11 @@ class GenerationCheckpoint:
         self.save()
 
     def save(self):
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        # 落盘走 utils.atomic_io：D 盘 os.replace 偶发 WinError 5，一次瞬时失败会让整条已付费工序链标红
+        from utils.atomic_io import write_json_atomic
+
         self.data["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        temp = self.path + ".tmp"
-        with open(temp, "w", encoding="utf-8") as stream:
-            json.dump(self.data, stream, ensure_ascii=False, indent=2)
-        os.replace(temp, self.path)
+        write_json_atomic(self.path, self.data, indent=2, ensure_ascii=False)
 
     def begin(self, stage, inputs):
         entry = self.data["stages"].get(stage, {})

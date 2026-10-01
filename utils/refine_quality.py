@@ -2,6 +2,7 @@
 """三图质量审计：GPT 首图（内容锚）/ 当前重绘 / 画风参考图。"""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -13,6 +14,22 @@ from utils.analysis_gpt_prompt import call_text_model, load_text_api_config
 def _prompt(name: str) -> str:
     from utils.prompt_loader import read_prompt_file
     return read_prompt_file("gpt-image-optimize/" + name).strip()
+
+
+def file_sha256(path: str) -> str:
+    """Content hash of one artefact; used to bind every audit to the pixels it judged.
+
+    Audits that name a file are not proof that the *selected* file was judged:
+    a later repair rewrites the selection. Recording this hash in every audit
+    result lets a report prove (or disprove) the binding without trusting mtime.
+    """
+    if not path or not os.path.isfile(path):
+        return ""
+    hasher = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            hasher.update(block)
+    return hasher.hexdigest()
 
 
 def _json_object(text: str) -> dict:
@@ -141,7 +158,36 @@ def audit_refine_quality(original_path: str, candidate_path: str, style_path: st
     result["ownership_uncertain"] = value.get("ownership_uncertain") or []
     result.update({"original": os.path.abspath(original_path), "candidate": os.path.abspath(candidate_path),
                    "style_reference": os.path.abspath(style_path), "raw": raw})
+    # Bind the verdict to the exact pixels reviewed, and say which images were sent.
+    result.update({"candidate_sha256": file_sha256(candidate_path),
+                   "original_sha256": file_sha256(original_path),
+                   "style_reference_sha256": file_sha256(style_path),
+                   "audit_images": [os.path.abspath(path) for path in paths],
+                   "audit_image_sha256": [file_sha256(path) for path in paths]})
     return result
+
+
+def write_style_reference_absent_audit(candidate: str, audit_call, output_dir: str) -> dict:
+    """没有画风参考图可用时的只读终审：仍然审，但明确记录缺的是哪张图。
+
+    参考图不参与生成，不代表可以跳过终审；这里不做任何修补，只落一条
+    ``needs_refine=True`` 的结论，让门禁按「未通过」处理。
+    """
+    audit = {"needs_refine": True, "severity": "unknown", "audit_error": "",
+             "structural_issues": [], "line_issues": [], "background_drift": [], "style_gaps": [],
+             "candidate": os.path.abspath(candidate), "candidate_sha256": file_sha256(candidate),
+             "summary": "本配置没有可用的画风参考图（style reference），"
+                        "终审只完成「有审计记录」这一步，不给出通过结论。",
+             "style_reference_absent": True, "audit_only": True}
+    # needs_review 让门禁按「未通过」处理：只有 needs_refine 而没有具体缺陷条目时，
+    # should_refine_quality 会判成不需要修订，那等于默认放行。
+    audit["needs_review"] = True
+    audit["ownership_uncertain"] = [{"region": "whole image",
+                                     "reason": "没有画风参考图，无法完成画风对照终审"}]
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, "final-quality-audit.json"), "w", encoding="utf-8") as stream:
+        json.dump(audit, stream, ensure_ascii=False, indent=2)
+    return audit
 
 
 def build_quality_correction_prompt(audit: dict) -> str:
@@ -191,15 +237,22 @@ def match_final_canvas(path, size):
 
 
 def review_final_candidate(candidate, audit_call, output_dir, operation=None,
-                           cancel_check=None, log_callback=None):
-    """Bounded source-only rescue; cache paid operations before any subsequent audit."""
+                           cancel_check=None, log_callback=None, audit_only: bool = False):
+    """Bounded source-only rescue; cache paid operations before any subsequent audit.
+
+    ``audit_only=True`` is the verifiable no-repair path: the current frozen
+    candidate is audited exactly once, the audit JSON is written, and the
+    function returns without generating anything. A candidate that would have
+    triggered a rescue still comes back unchanged, so the caller must treat the
+    audit findings as a gate failure instead of silently repairing the image.
+    """
     from PIL import Image
     from utils.gpt_image_optimize import load_config
     from modules.others.api_backend import generate_image_repaint
     cfg = load_config().get("final_candidate_repair") or {}
     operation = operation or (lambda key, call: call())
     os.makedirs(output_dir, exist_ok=True)
-    limit = max(0, min(2, int(cfg.get("max_repairs", 1))))
+    limit = 0 if audit_only else max(0, min(2, int(cfg.get("max_repairs", 1))))
     task_match = re.match(r"^([0-9a-fA-F]{8})(?=[^0-9a-fA-F]|$)", os.path.basename(candidate))
     repair_prefix = (task_match.group(1) + "-" if task_match else "") + "final-rescue"
     for round_no in range(limit + 1):
@@ -207,12 +260,19 @@ def review_final_candidate(candidate, audit_call, output_dir, operation=None,
             raise RuntimeError("最终兜底已取消")
         current = candidate
         audit = operation(f"final_review-v2-audit-{round_no}", lambda: audit_call(current))
+        if not isinstance(audit, dict):
+            audit = {"needs_refine": False, "severity": "unknown", "audit_error": "审计未返回结果"}
+        audit.setdefault("candidate", os.path.abspath(current))
+        audit.setdefault("candidate_sha256", file_sha256(current))
+        audit["audit_only"] = bool(audit_only)
         with open(os.path.join(output_dir, f"final-quality-audit-{round_no}.json"), "w", encoding="utf-8") as stream:
             json.dump(audit, stream, ensure_ascii=False, indent=2)
+        if audit_only:
+            return current, audit
         if audit.get("needs_review"):
             raise RuntimeError("最终肢体归属不明确，保留候选图，需人工确认")
         if not should_refine_quality(audit):
-            return candidate, audit
+            return current, audit
         repairs = []
         for key in ("structural_issues", "line_issues", "background_drift", "style_gaps"):
             for item in audit.get(key) or []:
@@ -275,7 +335,8 @@ def audit_hand_quality(candidate_path: str, text_cfg: dict | None = None,
         result = normalize_quality_audit(value)
         # A contradictory needs_refine=false must not hide a confident defect.
         result["needs_refine"] = bool(result["structural_issues"])
-        result.update(candidate=os.path.abspath(candidate_path), raw=raw)
+        result.update(candidate=os.path.abspath(candidate_path), raw=raw,
+                      candidate_sha256=file_sha256(candidate_path))
         result["character_limb_inventory"] = value.get("character_limb_inventory", [])
         result["ownership_uncertain"] = value.get("ownership_uncertain") or []
         result["needs_review"] = bool(result["ownership_uncertain"])

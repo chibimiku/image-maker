@@ -1184,6 +1184,71 @@ STYLE_REF_FACE_HAIR_GRAMMAR = (
     "render those same facts with the reference artist's facial and hair drawing language."
 )
 
+def log_repaint_call(directory: str, before: set, prompt: str, source_paths: list,
+                     prefix: str, resolution: str, aspect_ratio: str) -> None:
+    """把这一次真实的重绘请求写进 `<目录>/api-calls.jsonl`。
+
+    受控实验需要证明「实际送出的文字与图片是什么」，而不是只看命令行参数：
+    行里同时记录完整提示词、逐张图片路径与内容哈希、以及本次新产出的文件名。
+    """
+    try:
+        import datetime
+        import hashlib
+        import json as _json
+        after = sorted(set(os.listdir(directory)) - set(before)) if os.path.isdir(directory) else []
+        entry = {
+            "kind": "gemini-image-repaint",
+            "logged_at": datetime.datetime.now().isoformat(timespec="seconds"),
+            "operation": prefix,
+            "resolution": str(resolution),
+            "aspect_ratio": str(aspect_ratio),
+            "prompt": str(prompt or ""),
+            "prompt_sha256": hashlib.sha256(str(prompt or "").encode("utf-8")).hexdigest(),
+            "prompt_chars": len(str(prompt or "")),
+            "reference_images": [{"path": str(path), "sha256": _file_digest(path),
+                                  "role": "source" if index == 0 else "style_or_extra"}
+                                 for index, path in enumerate(source_paths)],
+            "new_files": after,
+        }
+        with open(os.path.join(directory, "api-calls.jsonl"), "a", encoding="utf-8") as handle:
+            handle.write(_json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
+def _file_digest(path: str) -> str:
+    import hashlib
+    if not path or not os.path.isfile(str(path)):
+        return ""
+    hasher = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            hasher.update(block)
+    return hasher.hexdigest()
+
+
+# 受控实验（第三轮 P1）专用：把「第几张图」的指代换成具名指代，其余文字逐字保留。
+# 只在 `reference_mode="none"` 且显式打开 text_without_image 时使用：
+# 目的是让「图片是否送入请求」成为唯一变量，而不是同时改掉整段参考图条款。
+STYLE_REFERENCE_FILE_LABEL = "the named style reference file {name} (NOT attached to this request)"
+
+
+def text_without_image_phrasing(prompt: str, style_reference_name: str) -> str:
+    """把只在多图请求里成立的指代替换成同名具名指代。"""
+    text = str(prompt or "")
+    if not text:
+        return text
+    label = STYLE_REFERENCE_FILE_LABEL.format(name=style_reference_name or "the style reference image")
+    source_label = "the attached source image"
+    replacements = (
+        ("Image 3", label), ("Image 2", label), ("Image 1", source_label),
+        ("the style reference image", label),
+    )
+    for old, new in replacements:
+        text = text.replace(old, new)
+    return text
+
+
 # 「身份/内容锁」：**每一档编辑范围都会追加**（放在最后，权重最高）。
 # 为什么必须有（§三十一 补记）：`person_noface` 那档原本允许"可以改身体/衣服/头发"，
 # 结果 tid 那组把**画风参考图的角色**（粉色头发 + 水手服 + 金鱼/水波）整套搬了进来，只留下源图的姿势与场景。
@@ -1339,7 +1404,9 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         prefix = "repaint"
                     repaint_ratio = snapped_aspect_ratio(current)
                     repaint_prompt = fw_text
-                    if ref_mode in ("style", "style_neutral", "both") and style_ref_path and os.path.isfile(str(style_ref_path)):
+                    has_style_text = (ref_mode in ("style", "style_neutral", "both")
+                                      and style_ref_path and os.path.isfile(str(style_ref_path)))
+                    if has_style_text:
                         repaint_prompt = (repaint_prompt or "") + (
                             STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
                             else STYLE_REF_ROLE_IN_REPAINT)
@@ -1348,6 +1415,31 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
                         if clauses:
                             repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
+                    elif cfg.get("text_without_image") and style_ref_path and os.path.isfile(str(style_ref_path)):
+                        # 受控实验（第三轮 P1）：只把参考图从请求里拿掉，文字段落保持不变。
+                        # 唯一改写是「Image 1 / Image 2」这类只在图片真的送出时才成立的指代，
+                        # 换成同一段话里对同两张图的具名指代；其余内容逐字复用。
+                        repaint_prompt = (repaint_prompt or "") + (
+                            STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
+                            else STYLE_REF_ROLE_IN_REPAINT)
+                        if ref_mode in ("style", "both"):
+                            repaint_prompt += STYLE_REF_FACE_HAIR_GRAMMAR
+                        clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
+                        if clauses:
+                            repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
+                        repaint_prompt = text_without_image_phrasing(
+                            repaint_prompt, os.path.basename(str(style_ref_path)))
+                        log("[工序] 受控模式：本次只发送源图，画风参考图未送出；文字段落保持一致，"
+                            "仅把图片指代改成具名指代")
+                    elif cfg.get("clauses_without_image") and (style_clauses or []):
+                        # 受控实验（第三轮 P2）：不发送画风参考图，也不提参考图；
+                        # 只把画风条款当成本次重绘的文字规格。用于「只改一条画法句」的对照。
+                        clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
+                        if clauses:
+                            repaint_prompt = (repaint_prompt or "") + (
+                                "\n\nSTYLE LANGUAGE (rendering targets for this repaint):\n- "
+                                + "\n- ".join(clauses))
+                        log("[工序] 受控模式：不发送画风参考图，只把画风条款当成重绘的文字规格")
                     # 编辑范围：**不裁切、不贴回**，只用提示词要求模型保留不该动的部分（见 §三十一）
                     # 范围句只能放宽「渲染质量」；身份/设计/内容由 IDENTITY_LOCK_CLAUSE 兜底（放在最后 = 权重最高）
                     scope_key = str(cfg.get("scope") or "").strip().lower()
@@ -1357,12 +1449,15 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         log(f"[工序] 重绘编辑范围：{REPAINT_SCOPE_LABELS.get(scope_key, scope_key)}")
                     if scope_key in REPAINT_SCOPE_CLAUSES:
                         repaint_prompt = (repaint_prompt or "") + IDENTITY_LOCK_CLAUSE
+                    before = set(os.listdir(sub_dir)) if os.path.isdir(sub_dir) else set()
                     saved = generate_image_repaint(
                         source_paths=[current], resolution=str(cfg.get("resolution") or "2K"),
                         prompt=repaint_prompt or None, use_detail_suffix=False,
                         aspect_ratio=repaint_ratio,
                         extra_reference_paths=extra_refs,
                         save_sub_dir=sub_dir, file_prefix=prefix)
+                    log_repaint_call(sub_dir, before, repaint_prompt or "", [current] + list(extra_refs),
+                                     prefix, str(cfg.get("resolution") or "2K"), repaint_ratio)
                     log(f"[工序] 重绘输出比例锁定为 {repaint_ratio}（按源图比例）")
                     out = saved[0] if saved else ""
                     if not out:

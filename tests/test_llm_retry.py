@@ -267,3 +267,13 @@ def test_step_1_analyze_image_retries_on_429(monkeypatch, tmp_path):
     assert completions.calls == 3
     assert result["english_description"] == "a girl"
     assert sum("429 限流" in line for line in logs) == 2
+
+
+def test_filtered_step_1_reports_cause_instead_of_json_syntax():
+    from modules.image_analysis.single_analyzer import _safe_json_from_response
+
+    message = type("Message", (), {"content": '{"english_description":"incomplete'})()
+    choice = type("Choice", (), {"message": message, "finish_reason": "content_filter"})()
+    response = type("Response", (), {"choices": [choice]})()
+    with pytest.raises(ValueError, match="服务端内容过滤"):
+        _safe_json_from_response(response, step_label="Step 1")
