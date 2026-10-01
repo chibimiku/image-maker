@@ -144,6 +144,7 @@ class RefImageCard(QFrame):
                 f"{self.index + 1}. {name}", Qt.TextElideMode.ElideMiddle, self.thumb_size
             )
         )
+        self.caption_label.setToolTip(f"{name}\n{self._size_text()}（拖动可与其它参考图交换顺序）")
         self.setToolTip(f"{self.path}\n{self._size_text()}（拖动可与其它参考图交换顺序）")
 
     def _size_text(self) -> str:
@@ -246,16 +247,22 @@ class RefImageGrid(QWidget):
     image_clicked = pyqtSignal(str)
     image_double_clicked = pyqtSignal(str)
 
-    def __init__(self, max_images=16, thumb_size=DEFAULT_THUMB_SIZE, parent=None, compact_when_empty=False):
+    def __init__(self, max_images=16, thumb_size=DEFAULT_THUMB_SIZE, parent=None, compact_when_empty=False,
+                 compact_thumb_size=0):
         """`compact_when_empty=True` 时，没有图片就不占缩略图高度（只留一行占位提示）。
 
         gpt-image-2 Tab 用它换回约 170px 的垂直空间（那个 Tab 上方控件多，
         否则 Qt 会把可拉伸的提示词编辑框压到最小高度）；其它 Tab 保持原来的固定高度。
+
+        `compact_thumb_size`（>0 时生效）：**有图时**改用这个更小的缩略图尺寸，并让高度严格等于
+        卡片实际高度（`thumb_size + 40`）。默认的 `thumb_size + 76 ~ +104` 会白留一片空白，
+        用户 2026-09-30 反馈过「插入图片后附件栏变大、把界面撑爆」。
         """
         super().__init__(parent)
         self.max_images = max(1, int(max_images))
-        self.thumb_size = int(thumb_size)
         self.compact_when_empty = bool(compact_when_empty)
+        self.compact_thumb_size = int(compact_thumb_size or 0)
+        self.thumb_size = int(self.compact_thumb_size or thumb_size)
         self._paths = []
         self._cards = []
 
@@ -292,10 +299,19 @@ class RefImageGrid(QWidget):
 
     # ---------------- 查询 ----------------
     def _apply_height_for_content(self):
-        """按是否有缩略图调整高度：compact 模式下空列表只占一行占位提示的高度。"""
+        """按是否有缩略图调整高度：compact 模式下空列表只占一行占位提示的高度。
+
+        有图时的默认高度沿用旧口径（`thumb_size + 76 ~ +104`，给卡片留一点余量）；
+        传了 `compact_thumb_size` 的 Tab 收紧成**卡片实际高度**（`thumb_size + 40`），
+        避免缩略图一出现就凭空多出几十像素、把下面的日志/队列挤掉。
+        """
         if self.compact_when_empty and not self._paths:
             self.setMinimumHeight(0)
             self.setMaximumHeight(self.placeholder.sizeHint().height() + 16)
+        elif self.compact_thumb_size:
+            height = self.thumb_size + 40
+            self.setMinimumHeight(height)
+            self.setMaximumHeight(height)
         else:
             self.setMinimumHeight(self.thumb_size + 76)
             self.setMaximumHeight(self.thumb_size + 104)

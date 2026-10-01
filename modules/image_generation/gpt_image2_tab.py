@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -68,6 +69,7 @@ from modules.others.api_backend import (
     resolve_images_endpoint,
     resolve_models_endpoint,
 )
+from utils.post_process import DEFAULT_FEATHER, DEFAULT_STRUCTURE_STRENGTH, REGION_LABELS
 from utils.gpt_image_optimize import (
     ASPECT_RATIO_AUTO,
     ASPECT_RATIO_OPTIONS as REPAINT_DEFAULT_ASPECT_OPTIONS,
@@ -122,6 +124,33 @@ MODE_CHOICES = (MODE_GENERATE, MODE_EDIT, MODE_REPAINT)
 IMAGE_FILTER = "图片 (*.png *.jpg *.jpeg *.webp *.bmp)"
 # 尺寸=自动：按参考图实际比例在 1536x1024 / 1024x1536 / 1024x1024 里挑（宽图不会输出竖图）
 SIZE_FOLLOW_INPUT = "auto-follow-input"
+
+# ---------------- 推荐配方（与「图片分析」Tab 的 gpt 通道默认一致）----------------
+# 「重绘 + 色调校准（目标=画风参考图）+ 线条加墨」是分析 Tab 实测的默认配方
+# （`single_analyzer.ANALYSIS_GPT_UI_DEFAULTS`），本 Tab 以前只有「线条加墨」默认勾上、
+# 重绘开关跟固件里的 `enabled:false` 走，等于没有默认；这里补一个可一键恢复的默认配方。
+# 结构线叠加 / 局部重绘仍是实验工序（局部重绘有鬼影风险，见 post_process 注释），默认关。
+RECOMMENDED_REPAINT_ENABLED = True
+RECOMMENDED_POST = {
+    "repaint": RECOMMENDED_REPAINT_ENABLED,
+    "structure": False,
+    "tone": True,
+    "tone_target": "style",
+    "ink": True,
+    "local": False,
+    "local_region": "hair",
+    "local_feather": DEFAULT_FEATHER,
+    "structure_strength": DEFAULT_STRUCTURE_STRENGTH,
+}
+# 复选框一行的文案里「重绘」这个名字会随模式变（生图/编辑=可选链式重绘，重绘模式=恒定走重绘）。
+# 文案刻意短：这些开关是横排的，字太长会把整行撑出横向滚动条（完整解释都在 tooltip 里）。
+REPAINT_CHECK_TEXT = {
+    MODE_GENERATE: "出图后立即重绘优化",
+    MODE_EDIT: "出图后立即重绘优化",
+    MODE_REPAINT: "重绘优化（本模式恒定执行）",
+}
+POST_TOGGLE_TEXT = "▸ 后处理参数（结构线强度 / 局部区域）"
+REPAINT_TOGGLE_TEXT = "▸ 重绘参数（模型 / 分辨率 / 比例 / 次数）"
 
 
 def _read_config_image() -> dict:
@@ -209,21 +238,22 @@ class PricingWorker(QThread):
 
 
 class PostProcessWorker(QThread):
-    """后台跑勾选的后处理工序（结构线叠加 / 局部重绘+羽化贴回）。"""
+    """后台跑勾选的后处理工序（结构线叠加 / 局部重绘+羽化贴回 / 色调校准 / 线条加墨）。"""
     log = pyqtSignal(str)
     done = pyqtSignal(list)
 
-    def __init__(self, paths, steps, firmware=None, parent=None):
+    def __init__(self, paths, steps, firmware=None, parent=None, style_ref_path=None):
         super().__init__(parent)
         self.paths = list(paths or [])
         self.steps = steps or {}
         self.firmware = firmware
+        self.style_ref_path = style_ref_path
 
     def run(self):
         try:
             from utils.post_process import run_pipeline
             result = run_pipeline(self.paths, self.steps, firmware=self.firmware,
-                                  log_callback=self.log.emit)
+                                  log_callback=self.log.emit, style_ref_path=self.style_ref_path)
         except Exception as exc:  # noqa: BLE001 - 后处理失败不能让结果列表空掉
             self.log.emit(f"[后处理] 失败，改为使用重绘/生图原始产物：{type(exc).__name__}: {exc}")
             result = list(self.paths)
@@ -360,11 +390,17 @@ class GptImage2Widget(QWidget):
         for widget, signal in ((getattr(self, "repaint_check", None), "toggled"),
                                (getattr(self, "structure_check", None), "toggled"),
                                (getattr(self, "local_repaint_check", None), "toggled"),
+                               (getattr(self, "post_tone_check", None), "toggled"),
+                               (getattr(self, "post_ink_check", None), "toggled"),
                                (getattr(self, "quality_combo", None), "currentIndexChanged"),
                                (getattr(self, "size_combo", None), "currentIndexChanged"),
                                (getattr(self, "site_combo", None), "currentIndexChanged")):
             if widget is not None:
                 getattr(widget, signal).connect(lambda *_: self._refresh_budget())
+
+        # 功能开关本身常驻可见，勾选即生效；这里只补"参数状态变化要提示/落盘"的两类联动
+        self.post_tone_target.currentIndexChanged.connect(self._on_tone_target_changed)
+        self.post_ink_check.toggled.connect(lambda _c: self.save_defaults())
 
     @property
     def image_paths(self) -> list:
@@ -375,12 +411,39 @@ class GptImage2Widget(QWidget):
     def initUI(self):
         layout = QVBoxLayout(self)
 
-        form = QFormLayout()
+        # 顶部参数区：**宽屏横排**（2026-09-30 用户反馈「上半部分高度不够」后压缩）。
+        # 原来这里是 QFormLayout 一行一个控件（站点/模式/模型/尺寸/尺寸提示/画质/输出格式/张数 = 8 行），
+        # 直排吃掉了上半屏，把队列与日志挤下去。现在是 3 行：
+        #   行 0 = 站点 | 模式              行 1 = 模型(+刷新) | 尺寸(+自动尺寸提示)
+        #   行 2 = 画质 | 输出格式 | 张数
+        # 每行一个 QHBoxLayout（纵向 Fixed）—— **不要用 QGridLayout**：它的 minimumSize 比你按列
+        # 量出来的实际需求还大 20%（实测 1078 vs 整页 ~890），会平白给整页加一条横向滚动条。
+        top = QVBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(6)
+
+        def _line():
+            row = QHBoxLayout()
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(8)
+            return row
+
+        def _fixed_row(hbox):
+            holder = QWidget()
+            hbox.setContentsMargins(0, 0, 0, 0)
+            holder.setLayout(hbox)
+            holder.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+            return holder
+
+        def _cell_label(text):
+            label = QLabel(text)
+            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            return label
+
         self.site_combo = QComboBox()
         self.site_combo.addItem(SITE_AIGC2D, SITE_AIGC2D)
         self.site_combo.addItem(SITE_AUTODL, SITE_AUTODL)
         self.site_combo.currentIndexChanged.connect(lambda _index: self.on_site_changed(self.current_site()))
-        form.addRow("站点:", self.site_combo)
 
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(list(MODE_CHOICES))
@@ -391,7 +454,6 @@ class GptImage2Widget(QWidget):
             "重绘：用 Gemini 3 Pro Image 对已有产物做『重绘提线』——修手、连通发丝、\n"
             "      保住蕾丝/褶皱结构（提示词固件在 prompts/gpt-image-optimize/）"
         )
-        form.addRow("模式:", self.mode_combo)
 
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)     # 下拉选常见模型，也允许手输新模型名
@@ -399,42 +461,71 @@ class GptImage2Widget(QWidget):
             "下拉列出该站点可用的 gpt-image 系列（含 2.5 的 flare / sunburst 与 -c 计费版）；\n"
             "也可以直接手输模型名；点「刷新模型列表」按站点接口现拉一次。"
         )
-        model_row = QHBoxLayout()
-        model_row.setContentsMargins(0, 0, 0, 0)
-        model_row.addWidget(self.model_combo, stretch=1)
         self.refresh_models_btn = QPushButton("刷新模型列表")
         self.refresh_models_btn.setToolTip("GET {base_url}/v1/models，按站点拉取可用模型")
         self.refresh_models_btn.clicked.connect(self.refresh_models)
-        model_row.addWidget(self.refresh_models_btn)
-        form.addRow("模型:", model_row)
 
         self.size_combo = QComboBox()
-        form.addRow("尺寸:", self.size_combo)
         self.size_info_label = QLabel("")
         self.size_info_label.setStyleSheet("color: #666; font-size: 11px;")
-        form.addRow("", self.size_info_label)
+        self.size_info_label.setToolTip("当前「自动尺寸」实际会下发的档位（按参考图比例挑）。")
 
         self.quality_combo = QComboBox()
         for label, value in QUALITY_CHOICES:
             self.quality_combo.addItem(label, value)
-        form.addRow("画质:", self.quality_combo)
 
         self.output_format_combo = QComboBox()
         self.output_format_combo.addItems(list(GPT_IMAGE2_OUTPUT_FORMATS))
-        form.addRow("输出格式:", self.output_format_combo)
 
         self.n_spin = QSpinBox()
         self.n_spin.setRange(1, 10)
         self.n_spin.setValue(1)
-        form.addRow("张数:", self.n_spin)
-        layout.addLayout(form)
 
-        # ---------------- 产物优化（Gemini 重绘提线） ----------------
-        # 布局取舍：**功能开关（勾选框）常驻顶层可见**，只有 4 行参数收进可折叠区。
-        # 原因：整块常驻会给 Tab 增加 ~270px 最小高度，一旦超过窗口高度，Qt 就会把可拉伸的
+        # 行 0：站点 | 模式
+        row0 = _line()
+        row0.addWidget(_cell_label("站点:"), 0)
+        row0.addWidget(self.site_combo, 3)
+        row0.addWidget(_cell_label("模式:"), 0)
+        row0.addWidget(self.mode_combo, 3)
+        top.addWidget(_fixed_row(row0))
+
+        # 行 1：模型 + 刷新 | 尺寸 + 自动尺寸提示
+        row1 = _line()
+        row1.addWidget(_cell_label("模型:"), 0)
+        row1.addWidget(self.model_combo, 4)
+        row1.addWidget(self.refresh_models_btn, 1)
+        row1.addWidget(_cell_label("尺寸:"), 0)
+        row1.addWidget(self.size_combo, 0)
+        row1.addWidget(self.size_info_label, 2)
+        top.addWidget(_fixed_row(row1))
+
+        # 行 2：画质 | 输出格式 | 张数
+        row2 = _line()
+        row2.addWidget(_cell_label("画质:"), 0)
+        row2.addWidget(self.quality_combo, 3)
+        row2.addWidget(_cell_label("输出格式:"), 0)
+        row2.addWidget(self.output_format_combo, 2)
+        row2.addWidget(_cell_label("张数:"), 0)
+        row2.addWidget(self.n_spin, 0)
+        self.n_hint_label = QLabel("一次一张")
+        self.n_hint_label.setStyleSheet("color: #666; font-size: 11px;")
+        self.n_hint_label.setVisible(False)
+        row2.addWidget(self.n_hint_label, 0)
+        row2.addStretch(1)
+        top.addWidget(_fixed_row(row2))
+        layout.addLayout(top)
+
+        # ---------------- 产物优化 + 后处理：开关横向排列，参数收进折叠区 ----------------
+        # 布局取舍（2026-09-30 用户反馈「上半截全重叠在一起了」后重排）：
+        # ① **功能开关（勾选框）全部塞进一行横排**，不再每个开关独占一行 —— 重绘 / 结构线叠加 /
+        #    局部重绘 / 色调校准 + 目标 / 线条加墨 / 重试失败步骤 / 恢复推荐 原来是 8 行、
+        #    加上顶部 8 行表单，上半屏全被开关占满；② **只有参数**（结构线强度 / 局部区域 / 羽化、
+        #    重绘模型 / 分辨率 / 比例 / 次数）留在折叠区里；③ 顶部给一个「恢复推荐」，默认配方与
+        #    「图片分析」Tab 的 gpt 通道一致（重绘 + 色调校准(目标=画风参考图) + 线条加墨）。
+        # 注意：整块常驻会给 Tab 增加 ~270px 最小高度，一旦超过窗口高度，Qt 就会把可拉伸的
         # prompt_edit 压到最小值（输入框看起来过小）——所以折叠的是参数，不是功能本身。
         self._repaint_config = load_repaint_config()
-        self.repaint_check = QCheckBox("出图后立即重绘优化（以重绘结果作为产物）")
+        self.repaint_check = QCheckBox(REPAINT_CHECK_TEXT[MODE_GENERATE])
         self.repaint_check.setToolTip(
             "勾选后：gpt-image 出图/编辑 → 每张自动送去 Gemini 重绘提线 → 结果列表里只有重绘产物。\n"
             "生图和编辑两种模式都支持（gpt-image 出的分辨率都偏低，重绘顺带提分辨率与细节）。\n"
@@ -442,31 +533,108 @@ class GptImage2Widget(QWidget):
             "参数与提示词固件：prompts/gpt-image-optimize/（理论见 docs/gpt-image-optimize/）。"
         )
         self.repaint_check.toggled.connect(self.on_repaint_toggled)
-        layout.addWidget(self.repaint_check)
 
         # ---------------- 后处理流水线（每道工序一个勾选框，可任意组合） ----------------
         # 结构线叠加 = 纯本地像素精修（不调模型）；局部重绘 = 按区域裁切重绘再羽化贴回（一次 Gemini 调用）。
         # 实测见 docs/gpt-image-tid-style/README.md §4.20 / §4.21。
-        from utils.post_process import DEFAULT_FEATHER, DEFAULT_STRUCTURE_STRENGTH, REGION_LABELS
-        self.structure_check = QCheckBox("结构线叠加（纯本地，不改内容；线条更连贯）")
+        self.structure_check = QCheckBox("结构线叠加（本地）")
         self.structure_check.setToolTip(
-            "抽出画面里的长结构边，按局部色调整色后按强度叠回：纯本地、几毫秒、零 API 成本。\n"
+            "抽出画面里的长结构边，按局部色调整色后按强度叠回：纯本地、几毫秒、零 API 成本，不改画面内容。\n"
             "实测三族平均骨架段长 +6~22%、端点密度最多 −16%，配色与饱和度几乎不动。"
         )
-        layout.addWidget(self.structure_check)
 
-        self.local_repaint_check = QCheckBox("局部重绘 + 羽化贴回（按区域强化头发 / 脸 / 裙子）")
+        self.local_repaint_check = QCheckBox("局部重绘 + 羽化贴回")
         self.local_repaint_check.setToolTip(
             "按区域裁切 → 放大 → 走 Gemini 重绘（当前固件 + 区域强调句）→ 羽化贴回。\n"
             "头发糊就选「头发」，脸部用「脸部」；Gemini 没有 mask，这是最接近遮罩式局部重绘的做法。"
         )
-        layout.addWidget(self.local_repaint_check)
 
-        self.post_toggle_btn = QPushButton("▸ 后处理参数（结构线强度 / 局部区域）")
+        self.post_tone_check = QCheckBox("色调校准")
+        self.post_tone_check.setToolTip(
+            "按参考图匹配亮度/饱和度：目标选画风参考图时画面更深更饱和、线条更清楚（画质优先）；\n"
+            "选输入照片则更接近照片原色（色彩保真）。只改亮度/饱和度，不动色相。"
+        )
+        self.post_tone_target = QComboBox()
+        self.post_tone_target.addItem("目标=画风参考图", "style")
+        self.post_tone_target.addItem("目标=输入照片", "photo")
+        self.post_tone_target.setToolTip("色调校准的目标：画风参考图 = 画质优先；输入照片 = 色彩保真。")
+
+        self.post_ink_check = QCheckBox("线条加墨")
+        self.post_ink_check.setToolTip("只把已有线条压深，让线明显深于局部底色 —— 解决「线条看着稀碎」的问题。")
+
+        # 后处理失败重试：读取 pipeline-steps/pipeline-manifest.json，从失败节点继续
+        self.post_retry_btn = QPushButton("重试失败步骤")
+        self.post_retry_btn.setEnabled(False)
+        self.post_retry_btn.setToolTip(
+            "后处理按「重绘提线 → 结构线叠加 → 局部重绘」执行，每步产物与状态记录在\n"
+            "<产物目录>/pipeline-steps/pipeline-manifest.json；\n"
+            "某步失败时点这里会跳过已成功的步骤，只重跑失败的那一步。"
+        )
+        self.post_retry_btn.clicked.connect(self.retry_failed_post_steps)
+
+        self.post_reset_btn = QPushButton("恢复推荐")
+        self.post_reset_btn.setToolTip(
+            "恢复与「图片分析」Tab 一致的推荐配方：\n"
+            "重绘 ✓ / 色调校准 ✓（目标=画风参考图）/ 线条加墨 ✓；结构线叠加与局部重绘默认关。\n"
+            "参数同时回到默认（结构线强度 %.2f、羽化 %d）。" % (DEFAULT_STRUCTURE_STRENGTH, DEFAULT_FEATHER)
+        )
+        self.post_reset_btn.clicked.connect(self.reset_post_defaults)
+
+        # 开关**横排**（两行，按处置顺序分组）；参数（结构线强度 / 局部区域 / 羽化、重绘
+        # 模型 / 分辨率 / 比例 / 次数）在下方两个折叠区里，默认收起 —— 否则这些行会把提示词输入框压成一条。
+        switch_row = QVBoxLayout()
+        switch_row.setContentsMargins(0, 0, 0, 0)
+        switch_row.setSpacing(4)
+
+        # 第一行：一次出图之后会动到画面的工序
+        post_row = QHBoxLayout()
+        post_row.setContentsMargins(0, 0, 0, 0)
+        post_row.setSpacing(10)
+        for widget in (self.repaint_check, self.structure_check, self.local_repaint_check):
+            post_row.addWidget(widget)
+        post_row.addStretch(1)
+        # 第二行：本地收尾工序（色调校准 + 目标 / 线条加墨）与两个动作按钮
+        finish_row = QHBoxLayout()
+        finish_row.setContentsMargins(0, 0, 0, 0)
+        finish_row.setSpacing(10)
+        for widget in (self.post_tone_check, self.post_tone_target, self.post_ink_check,
+                       self.post_retry_btn, self.post_reset_btn):
+            finish_row.addWidget(widget)
+        finish_row.addStretch(1)
+
+        switch_row.addLayout(post_row)
+        switch_row.addLayout(finish_row)
+        self.post_switch_row = QWidget()
+        self.post_switch_row.setLayout(switch_row)
+        self.post_switch_row.setToolTip(
+            "功能开关全部常驻可见（上下两行）：① 出图后的画面工序（重绘 / 结构线叠加 / 局部重绘）；\n"
+            "② 本地收尾（色调校准 + 目标、线条加墨）与动作按钮。"
+        )
+        layout.addWidget(self.post_switch_row)
+
+        self.post_toggle_btn = QPushButton(POST_TOGGLE_TEXT)
         self.post_toggle_btn.setCheckable(True)
-        self.post_toggle_btn.setToolTip("展开/收起后处理参数；开关本身在上面两个勾选框。")
+        self.post_toggle_btn.setToolTip("展开/收起后处理参数；开关本身在上面的横排里。")
         self.post_toggle_btn.toggled.connect(lambda on: self.post_panel.setVisible(bool(on)))
-        layout.addWidget(self.post_toggle_btn)
+
+        self.repaint_toggle_btn = QPushButton(REPAINT_TOGGLE_TEXT)
+        self.repaint_toggle_btn.setCheckable(True)
+        self.repaint_toggle_btn.setToolTip(
+            "展开/收起重绘参数；不用的平时收起，输入框才有正常高度。\n"
+            "重绘模型默认 gemini-3-pro-image-preview（Nano Banana Pro）。"
+        )
+        self.repaint_toggle_btn.toggled.connect(self.on_repaint_panel_toggled)
+
+        # 两个折叠按钮共用一行：参数区本来默认收起，没必要各占一行
+        toggle_row = QHBoxLayout()
+        toggle_row.setContentsMargins(0, 0, 0, 0)
+        toggle_row.setSpacing(10)
+        toggle_row.addWidget(self.post_toggle_btn)
+        toggle_row.addWidget(self.repaint_toggle_btn)
+        toggle_row.addStretch(1)
+        self.param_toggle_row = QWidget()
+        self.param_toggle_row.setLayout(toggle_row)
+        layout.addWidget(self.param_toggle_row)
 
         self.post_panel = QWidget()
         self.post_panel.setVisible(False)
@@ -476,7 +644,7 @@ class GptImage2Widget(QWidget):
         self.structure_strength_spin.setRange(0.05, 1.0)
         self.structure_strength_spin.setSingleStep(0.05)
         self.structure_strength_spin.setValue(DEFAULT_STRUCTURE_STRENGTH)
-        self.structure_strength_spin.setToolTip("结构线不透明度；0.35 轻微、0.50 推荐、0.70 以上偏硬。")
+        self.structure_strength_spin.setToolTip("结构线不透明度；0.28 默认、0.50 明显、0.70 以上偏硬。")
         post_form.addRow("结构线强度:", self.structure_strength_spin)
         self.local_region_combo = QComboBox()
         for key, label in REGION_LABELS.items():
@@ -496,44 +664,6 @@ class GptImage2Widget(QWidget):
         self.local_feather_spin.setToolTip("贴回时的羽化半径（像素），越大接缝越柔和、改动越局部。")
         post_form.addRow("贴回羽化:", self.local_feather_spin)
         layout.addWidget(self.post_panel)
-        # 色调校准 + 线条加墨
-        self.post_tone_check = QCheckBox("色调校准（按参考图匹配亮度/饱和度）")
-        self.post_tone_check.setToolTip(
-            "目标选画风参考图时画面更深更饱和、线条更清楚（画质优先）；选输入照片更接近照片原色。"
-        )
-        self.post_tone_target = QComboBox()
-        self.post_tone_target.addItem("目标=画风参考图（画质优先）", "style")
-        self.post_tone_target.addItem("目标=输入照片（色彩保真）", "photo")
-        self.post_ink_check = QCheckBox("线条加墨（解决线条稀碎）")
-        self.post_ink_check.setChecked(True)
-        layout.addWidget(self.post_tone_check)
-        layout.addWidget(self.post_tone_target)
-        layout.addWidget(self.post_ink_check)
-
-        # 后处理失败重试：读取 pipeline-steps/pipeline-manifest.json，从失败节点继续
-        post_retry_row = QHBoxLayout()
-        self.post_retry_btn = QPushButton("重试失败步骤（从失败节点继续）")
-        self.post_retry_btn.setEnabled(False)
-        self.post_retry_btn.setToolTip(
-            "后处理按「重绘提线 → 结构线叠加 → 局部重绘」执行，每步产物与状态记录在\n"
-            "<产物目录>/pipeline-steps/pipeline-manifest.json；\n"
-            "某步失败时点这里会跳过已成功的步骤，只重跑失败的那一步。"
-        )
-        self.post_retry_btn.clicked.connect(self.retry_failed_post_steps)
-        post_retry_row.addWidget(self.post_retry_btn)
-        post_retry_row.addStretch(1)
-        self.post_retry_row = QWidget()
-        self.post_retry_row.setLayout(post_retry_row)
-        layout.addWidget(self.post_retry_row)
-
-        self.repaint_toggle_btn = QPushButton("▸ 重绘参数（模型 / 分辨率 / 比例 / 次数）")
-        self.repaint_toggle_btn.setCheckable(True)
-        self.repaint_toggle_btn.setToolTip(
-            "展开/收起重绘参数；不用的平时收起，输入框才有正常高度。\n"
-            "重绘模型默认 gemini-3-pro-image-preview（Nano Banana Pro）。"
-        )
-        self.repaint_toggle_btn.toggled.connect(self.on_repaint_panel_toggled)
-        layout.addWidget(self.repaint_toggle_btn)
 
         self.repaint_panel = QWidget()
         repaint_panel_layout = QVBoxLayout(self.repaint_panel)
@@ -613,9 +743,11 @@ class GptImage2Widget(QWidget):
         self.prompt_edit.setToolTip("提示词编辑区（可拖动下方边框调整高度）")
         layout.addWidget(self.prompt_edit)
 
-        # 长度护栏 + 成本估算：常驻显示，避免用户写出"太长会爆 / 让画风参考图失效"的提示词
+        # 注意：这段文字**不要堆太长**，QLabel 的最小宽度会传染给整个 Tab（用户 2026-09-30 反馈过
+        # 「绿色字成了两行、完全打乱布局」）。逐工序成本明细与口径说明都放悬浮提示。
         self.budget_label = QLabel("")
-        self.budget_label.setWordWrap(True)
+        self.budget_label.setWordWrap(False)
+        self.budget_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.budget_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.budget_label.setToolTip(
             "长度：软上限 2000 字符（超过它画风参考图基本失效）、硬上限 15000 字符"
@@ -641,7 +773,7 @@ class GptImage2Widget(QWidget):
         self.style_combo.setMinimumWidth(220)
         self.style_combo.setToolTip(
             "选择画风后：提示词自动带上该画风的「gpt-image 专用短版说明」(prompt_gpt)，\n"
-            "并把画风的参考图追加到参考图列表**最后一张**（内容图在前、画风图在后），\n"
+            "并把该画风自带的参考图追加到附件栏**最后一张**（你插入的图在前、画风图在后），\n"
             "同时在提示词里写明两者的职责分工——避免把画风参考图的角色/服装/构图搬进来。\n"
             "要改画风说明就编辑 conf/config-styles.json 的 prompt_gpt 字段（或跑 tools/convert_styles_gpt.py）。"
         )
@@ -653,11 +785,14 @@ class GptImage2Widget(QWidget):
         layout.addLayout(style_row)
         self.reload_styles()
 
-        layout.addWidget(QLabel("画风参考图:"))
+        # 附件栏：用户自己插入的图就是「参考图」，画风自带的参考图由上面的「画风」下拉管，两者不要混叫
+        self.ref_header_label = QLabel("参考图（自己插入的素材图，作为垫图 / 编辑对象）:")
+        layout.addWidget(self.ref_header_label)
         self.image_grid = RefImageGrid(
             max_images=GPT_IMAGE2_MAX_REFERENCE_IMAGES,
             parent=self,
-            compact_when_empty=True,   # 空列表时不吃缩略图高度，把空间让给提示词编辑框
+            compact_when_empty=True,    # 空列表时不吃缩略图高度，把空间让给提示词编辑框
+            compact_thumb_size=72,      # 有图时用小缩略图 + 紧凑高度：附件栏不再把界面撑爆
         )
         self.image_grid.images_changed.connect(self._on_images_changed)
         self.image_grid.image_clicked.connect(self.show_preview)
@@ -705,8 +840,17 @@ class GptImage2Widget(QWidget):
         body_row.addWidget(self.preview_label, stretch=1)
         layout.addLayout(body_row, stretch=1)
 
+        # 结果列表：**只能占一行高度、宽度永不随文件名变长**（用户 2026-09-30 反馈
+        # 「产出图片后文件名太长会把这部分界面撑开、直接穿透到右边」）。
+        # 长文件名走省略号，完整路径放 tooltip（日志里也有）。
         self.result_list = QListWidget()
         self.result_list.setMaximumHeight(90)
+        self.result_list.setMinimumHeight(68)     # 约 3 行：再多会把上面的日志/预览压掉
+        self.result_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.result_list.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self.result_list.setUniformItemSizes(True)
+        self.result_list.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.result_list.setToolTip("双击打开所在目录；完整路径见悬浮提示与运行日志。")
         self.result_list.itemDoubleClicked.connect(self.open_item)
         layout.addWidget(self.result_list)
 
@@ -756,6 +900,9 @@ class GptImage2Widget(QWidget):
 
     def on_mode_changed(self, mode: str):
         mode_text = str(mode)
+        # 勾选框文案随模式变：重绘模式下它恒为生效状态（置灰），写「出图后立即重绘」会误导
+        if hasattr(self, "repaint_check"):
+            self.repaint_check.setText(REPAINT_CHECK_TEXT.get(mode_text, REPAINT_CHECK_TEXT[MODE_GENERATE]))
         if mode_text == MODE_REPAINT:
             # 进入重绘模式：**总是把固件正文填进提示词框**。
             # 这样用户能直接看到实际在用的重绘提示词（含修手/保蕾丝等约束），
@@ -784,13 +931,62 @@ class GptImage2Widget(QWidget):
         self._refresh_repaint_hint()
         self._on_images_changed(self.image_paths)
 
+    def reset_post_defaults(self):
+        """「恢复推荐」：把重绘/后处理开关与参数拉回推荐配方（与「图片分析」Tab 的 gpt 通道一致）。
+
+        只有 GUI 状态变化 + 落盘，不额外弹窗：勾选框自己就说明了当前设置
+        （界面控件已表达的状态不要再写一遍文字）。
+        """
+        self._apply_post_state(dict(RECOMMENDED_POST))
+        self.save_repaint_defaults()
+        self.save_defaults()
+        self._refresh_repaint_hint()
+        self._refresh_budget()
+        self._append_log("[配方] 已恢复推荐默认：重绘优化 ✓ / 色调校准 ✓(目标=画风参考图) / 线条加墨 ✓；"
+                         "结构线叠加与局部重绘关")
+
+    def _apply_post_state(self, state: dict):
+        """把一份配方（勾选框 + 参数）套到界面上；`repaint` 缺省时不动重绘勾选框。"""
+        state = state or {}
+        if "repaint" in state and hasattr(self, "repaint_check"):
+            self.repaint_check.setChecked(bool(state["repaint"]))
+        if "structure" in state:
+            self.structure_check.setChecked(bool(state["structure"]))
+        if "tone" in state:
+            self.post_tone_check.setChecked(bool(state["tone"]))
+        if "tone_target" in state:
+            _set_combo_by_data(self.post_tone_target, state.get("tone_target"), "style")
+        if "ink" in state:
+            self.post_ink_check.setChecked(bool(state["ink"]))
+        if "local" in state:
+            self.local_repaint_check.setChecked(bool(state["local"]))
+        if "local_region" in state:
+            idx = self.local_region_combo.findData(state.get("local_region"))
+            if idx >= 0:
+                self.local_region_combo.setCurrentIndex(idx)
+        if "local_feather" in state:
+            try:
+                self.local_feather_spin.setValue(max(8, int(state.get("local_feather") or DEFAULT_FEATHER)))
+            except (TypeError, ValueError):
+                pass
+        if "structure_strength" in state:
+            try:
+                self.structure_strength_spin.setValue(
+                    float(state.get("structure_strength") or DEFAULT_STRUCTURE_STRENGTH))
+            except (TypeError, ValueError):
+                pass
+
+    def post_default_state(self) -> dict:
+        """推荐配方（与「图片分析」Tab 的 gpt 通道默认一致）。"""
+        return dict(RECOMMENDED_POST)
+
     # ---------------- 产物优化（重绘） ----------------
     def on_repaint_panel_toggled(self, expanded: bool):
         """展开/收起**重绘参数**（模型/分辨率/比例/次数）；开关本身常驻可见，不在折叠区里。"""
         if hasattr(self, "repaint_panel"):
             self.repaint_panel.setVisible(bool(expanded))
         arrow = "▾" if expanded else "▸"
-        self.repaint_toggle_btn.setText(f"{arrow} 重绘参数（模型 / 分辨率 / 比例 / 次数）")
+        self.repaint_toggle_btn.setText(arrow + REPAINT_TOGGLE_TEXT[1:])
 
     def repaint_enabled(self) -> bool:
         """本次是否会走重绘。
@@ -841,6 +1037,11 @@ class GptImage2Widget(QWidget):
                 labels = [x for x in labels if x]
                 source_state = f"（源图实际 {'、'.join(labels)}）" if labels else ""
                 notices.append(f"⚠ 输出比例被强制为 {chosen}{source_state}，与源图不一致时可能被拉伸")
+        if hasattr(self, "post_tone_check") and self.post_tone_check.isChecked() \
+                and not self.tone_reference_path():
+            # 色调校准是本地工序，但没有目标图它就没法比色 —— 这种"勾了但不生效"必须说出来
+            wants = "画风参考图" if str(self.post_tone_target.currentData() or "style") == "style" else "输入图"
+            notices.append(f"⚠ 色调校准已勾选但没有可用目标（需要{wants}）")
         if hasattr(self, "repaint_notice"):
             self.repaint_notice.setText("；".join(notices))
             self.repaint_notice.setVisible(bool(notices))
@@ -861,7 +1062,7 @@ class GptImage2Widget(QWidget):
     def save_repaint_defaults(self):
         """把重绘选项写回 prompts/gpt-image-optimize/config.json（用户改了就不用每次重设）。"""
         conf = dict(self._repaint_config)
-        conf["enabled"] = bool(self.repaint_check.isChecked())
+        conf["enabled"] = bool(self.repaint_enabled())
         conf["model"] = self.repaint_model_combo.currentText().strip() or REPAINT_DEFAULTS["model"]
         conf["resolution"] = self.repaint_resolution_combo.currentText().strip() or REPAINT_DEFAULTS["resolution"]
         conf["aspect_ratio"] = str(
@@ -1093,6 +1294,8 @@ class GptImage2Widget(QWidget):
         self.n_spin.setValue(saved_n)
         # autodl 通道一次一张，没有 n 参数
         self.n_spin.setEnabled(site != SITE_AUTODL)
+        if hasattr(self, "n_hint_label"):
+            self.n_hint_label.setVisible(site == SITE_AUTODL)
 
     def load_defaults(self):
         data = _read_config_image()
@@ -1113,10 +1316,15 @@ class GptImage2Widget(QWidget):
                 if idx >= 0:
                     self.style_combo.setCurrentIndex(idx)
             repaint_node = node.get("repaint") if isinstance(node.get("repaint"), dict) else {}
+            post_node = node.get("post_process") if isinstance(node.get("post_process"), dict) else {}
+            if not repaint_node and not post_node:
+                # 从没保存过 → 用推荐配方（与「图片分析」Tab 的 gpt 通道默认同一套），
+                # 而不是沿用固件里那个 `enabled:false`（那样「默认选项」等于全关）。
+                self._apply_post_state(dict(RECOMMENDED_POST))
             if hasattr(self, "repaint_check"):
                 saved_enabled = repaint_node.get("enabled")
                 if saved_enabled is None:
-                    saved_enabled = bool(load_repaint_config().get("enabled"))
+                    saved_enabled = self.repaint_check.isChecked()
                 self.repaint_check.setChecked(bool(saved_enabled))
                 if repaint_node.get("model"):
                     self.repaint_model_combo.setCurrentText(str(repaint_node["model"]))
@@ -1128,27 +1336,40 @@ class GptImage2Widget(QWidget):
                     self.repaint_repeat_spin.setValue(max(1, int(repaint_node.get("repeat") or 1)))
                 except (TypeError, ValueError):
                     self.repaint_repeat_spin.setValue(1)
-            post_node = node.get("post_process") if isinstance(node.get("post_process"), dict) else {}
-            if post_node and hasattr(self, "structure_check"):
-                self.structure_check.setChecked(bool(post_node.get("structure_enabled")))
-                try:
-                    self.structure_strength_spin.setValue(float(post_node.get("structure_strength") or 0.5))
-                except (TypeError, ValueError):
-                    pass
-                self.local_repaint_check.setChecked(bool(post_node.get("local_enabled")))
-                region = str(post_node.get("local_region") or "hair")
-                idx = self.local_region_combo.findData(region)
-                if idx >= 0:
-                    self.local_region_combo.setCurrentIndex(idx)
-                try:
-                    self.local_feather_spin.setValue(max(8, int(post_node.get("local_feather") or 48)))
-                except (TypeError, ValueError):
-                    pass
-                if post_node.get("panel_open"):
-                    self.post_toggle_btn.setChecked(True)
-                    self.post_panel.setVisible(True)
+            if hasattr(self, "structure_check"):
+                tone_target = post_node.get("tone_target")
+                self.post_tone_check.setChecked(
+                    bool(post_node["tone_enabled"]) if "tone_enabled" in post_node
+                    else (RECOMMENDED_POST["tone"] if not post_node else False))
+                _set_combo_by_data(self.post_tone_target, tone_target, RECOMMENDED_POST["tone_target"])
+                self.post_ink_check.setChecked(
+                    bool(post_node["ink_enabled"]) if "ink_enabled" in post_node
+                    else (RECOMMENDED_POST["ink"] if not post_node else False))
+                if post_node:
+                    self.structure_check.setChecked(bool(post_node.get("structure_enabled")))
+                    try:
+                        self.structure_strength_spin.setValue(float(post_node.get("structure_strength") or 0.5))
+                    except (TypeError, ValueError):
+                        pass
+                    self.local_repaint_check.setChecked(bool(post_node.get("local_enabled")))
+                    region = str(post_node.get("local_region") or "hair")
+                    idx = self.local_region_combo.findData(region)
+                    if idx >= 0:
+                        self.local_region_combo.setCurrentIndex(idx)
+                    try:
+                        self.local_feather_spin.setValue(max(8, int(post_node.get("local_feather") or 48)))
+                    except (TypeError, ValueError):
+                        pass
+                    if post_node.get("panel_open"):
+                        self.post_toggle_btn.setChecked(True)
+                        self.post_panel.setVisible(True)
         finally:
             self._loading = False
+
+    def _on_tone_target_changed(self, _index=None):
+        """切换色调校准目标：重算提示（目标可能不存在）并落盘。"""
+        self._refresh_repaint_hint()
+        self.save_defaults()
 
     def save_defaults(self):
         data = _read_config_image()
@@ -1183,6 +1404,9 @@ class GptImage2Widget(QWidget):
                 "local_enabled": bool(self.local_repaint_check.isChecked()),
                 "local_region": str(self.local_region_combo.currentData() or "hair"),
                 "local_feather": int(self.local_feather_spin.value()),
+                "tone_enabled": bool(self.post_tone_check.isChecked()),
+                "tone_target": str(self.post_tone_target.currentData() or "style"),
+                "ink_enabled": bool(self.post_ink_check.isChecked()),
                 "panel_open": bool(self.post_toggle_btn.isChecked()),
             }
         data[CONFIG_NODE] = node
@@ -1197,8 +1421,8 @@ class GptImage2Widget(QWidget):
         count = len(paths or [])
         mode_hint = "编辑=至少 1 张" if self.mode_combo.currentText() == MODE_EDIT else "生图=可留空(作为垫图)"
         self.ref_label.setText(
-            f"参考图 {count}/{GPT_IMAGE2_MAX_REFERENCE_IMAGES}"
-            f"（{mode_hint}；拖入图片、拖动缩略图排序、点 × 删除，顺序即提交顺序）:"
+            f"已选 {count}/{GPT_IMAGE2_MAX_REFERENCE_IMAGES} 张（{mode_hint}；"
+            "拖入图片、拖动缩略图排序、点 × 删除，顺序即提交顺序）"
         )
         # 缩略图出现/消失会改变网格高度，让布局把富余空间重新分给提示词编辑框
         if hasattr(self, "image_grid"):
@@ -1412,7 +1636,8 @@ class GptImage2Widget(QWidget):
         post_steps = self.post_pipeline_steps()
         active_post = [name for name, cfg in post_steps.items() if isinstance(cfg, dict) and cfg.get("enabled")]
         if active_post:
-            labels = {"structure": "结构线叠加", "local": "局部重绘+羽化贴回"}
+            labels = {"structure": "结构线叠加", "local": "局部重绘+羽化贴回",
+                      "tone": "色调校准", "ink": "线条加墨"}
             self._append_log("[链路] 出图" + (" → 重绘" if chain_repaint else "")
                              + " → " + " → ".join(labels.get(n, n) for n in active_post)
                              + "，最终产物为最后一道工序的输出。")
@@ -1487,8 +1712,16 @@ class GptImage2Widget(QWidget):
             return
         self.status_label.setText(f"完成, {len(paths)} 张")
         for path in paths:
-            item = QListWidgetItem(f"{os.path.basename(path)}  ->  {path}")
+            name = os.path.basename(path)
+            size = ""
+            try:
+                size = f"  ({os.path.getsize(path) / 1024:.0f} KB)"
+            except OSError:
+                pass
+            # 只显示文件名（超长自动省略）——把完整路径写进条目里会把列表撑宽、顶破版面
+            item = QListWidgetItem(f"{name}{size}")
             item.setData(Qt.ItemDataRole.UserRole, path)
+            item.setToolTip(path)
             self.result_list.addItem(item)
             self._append_log(f"[结果] 已保存: {path}")
         self.show_preview(paths[0])
@@ -1585,11 +1818,32 @@ class GptImage2Widget(QWidget):
         except Exception as exc:  # noqa: BLE001
             est = None
             self._append_log(f"[估算] 成本估算失败（忽略）: {exc}")
-        lines = [format_budget(budget)]
+
+        detail_lines = [format_budget(budget)]
         if est:
-            detail = " + ".join(f"{s['label'].split(' ')[0]} ${s['usd']:.4f}" for s in est["steps"])
-            lines.append(f"单张全工序估算 ≈ ${est['total_usd']:.3f}（≈¥{est['total_cny']:.2f}） ｜ {detail}")
-        self.budget_label.setText("\n".join(lines))
+            detail_lines.extend(format_pipeline_cost(est).splitlines())
+            detail_lines.append("逐工序：" + " + ".join(
+                f"{s['label'].split(' ')[0]} ${s['usd']:.4f}" for s in est["steps"]))
+        # 单行摘要：只留用户最需要在打字时看到的信息（还能写多少字符 / 会不会爆 / 花了多少钱）
+        summary = f"长度 {budget['total_chars']:,} 字符"
+        if budget["over_hard"]:
+            summary += f" ｜ ⚠ 超硬上限 {budget['total_chars'] - budget['hard_limit']:,}，中转站会断连"
+        elif budget["over_soft"]:
+            summary += f" ｜ ⚠ 超建议值（画风参考图会失效），还能砍 {budget['total_chars'] - budget['soft_limit']:,}"
+        else:
+            summary += f" ｜ 还能输入约 {budget['remaining_soft']:,} 字符"
+        if est:
+            summary += f" ｜ 估算 ¥{est['total_cny']:.2f}"
+        # 超长时右边截断（左边是"超没超"的关键信息）；QLabel 不支持省略号，这里手工裁
+        keep = max(24, self.budget_label.width() // 8)
+        self.budget_label.setText(summary if len(summary) <= keep else summary[:keep - 1] + "…")
+        self.budget_label.setToolTip(
+            "\n".join(detail_lines) + "\n\n"
+            "长度：软上限 2000 字符（超过它画风参考图基本失效）、硬上限 15000 字符"
+            "（本中转站实测 15662 字符直接断连），官网上限 32000。\n"
+            "成本：按中转站公开价目 + 本项目实测 token 用量估算（new-api 口径），"
+            "分组倍率取实测路由分组（gpt-image → Openai-Gpt-1，Gemini 图片 → Discounted-Banana-1）。"
+        )
         if budget["over_hard"]:
             color = "#c62828"
         elif budget["over_soft"]:
@@ -1615,16 +1869,32 @@ class GptImage2Widget(QWidget):
             self._refresh_budget()
 
     def post_pipeline_steps(self):
-        """按界面勾选框组装后处理流水线（未勾选的工序不会执行）。"""
-        from utils.post_process import default_pipeline
-        steps = default_pipeline()
-        steps["structure"]["enabled"] = bool(self.structure_check.isChecked())
-        steps["structure"]["strength"] = float(self.structure_strength_spin.value())
-        steps["local"]["enabled"] = bool(self.local_repaint_check.isChecked())
-        steps["local"]["region"] = str(self.local_region_combo.currentData() or "hair")
-        steps["local"]["feather"] = int(self.local_feather_spin.value())
-        steps["local"]["resolution"] = str(self.repaint_resolution_combo.currentText() or "2K")
-        return steps
+        """按界面勾选框组装后处理流水线（未勾选的工序不会执行）。
+
+        工序配置统一由 `utils.analysis_gen.pipeline_steps_from_flags` 生成 —— 与「图片分析」Tab 的
+        gpt 通道同源，避免两边各写一份默认值后漂移。色调校准是**本地**工序（零 API 成本），
+        但它必须有一个目标图：没有可用目标时这里直接不启用，免得白跑一遍还改掉产物名。
+        """
+        from utils.analysis_gen import pipeline_steps_from_flags
+        return pipeline_steps_from_flags(
+            repaint=False,          # 重绘在本 Tab 是独立的「重绘模式 / 链式重绘」，不走这条流水线
+            structure=bool(self.structure_check.isChecked()),
+            structure_strength=float(self.structure_strength_spin.value()),
+            local=bool(self.local_repaint_check.isChecked()),
+            local_region=str(self.local_region_combo.currentData() or "hair"),
+            local_feather=int(self.local_feather_spin.value()),
+            resolution=str(self.repaint_resolution_combo.currentText() or "2K"),
+            tone=bool(self.post_tone_check.isChecked()) and bool(self.tone_reference_path()),
+            tone_target=str(self.post_tone_target.currentData() or "style"),
+            ink=bool(self.post_ink_check.isChecked()),
+        )
+
+    def tone_reference_path(self) -> str:
+        """色调校准的目标图：目标=画风参考图 → 所绘画风的参考图；目标=输入照片 → 第一张参考图。"""
+        target = str(self.post_tone_target.currentData() or "style")
+        if target == "photo":
+            return str(self.image_paths[0]) if self.image_paths else ""
+        return str(self.current_style_block()[1] or "")
 
     def _last_post_outputs(self):
         """最近一次生成/重绘的产物路径（重试用）。"""
@@ -1660,13 +1930,13 @@ class GptImage2Widget(QWidget):
 
     def _start_post_process(self, paths):
         """在后台线程跑勾选的后处理工序（局部重绘要走网络，不能卡 UI）。"""
-        from utils.post_process import run_pipeline
         steps = self.post_pipeline_steps()
         self.status_label.setText("后处理中...(局部重绘可能要 1 分钟)")
         firmware = None
         if steps["local"]["enabled"]:
             firmware = str(self.current_repaint_config().get("system_prompt") or "")
-        self._post_worker = PostProcessWorker(paths, steps, firmware, self)
+        self._post_worker = PostProcessWorker(paths, steps, firmware, self,
+                                              style_ref_path=self.current_style_block()[1])
         self._post_worker.log.connect(self._append_log)
         self._post_worker.log.connect(self._on_post_progress)
         self._post_worker.done.connect(self._on_post_done)

@@ -341,6 +341,76 @@ def test_tab_loads_per_site_defaults(tab):
     assert tab.n_spin.value() == 3
 
 
+def test_top_options_are_laid_out_in_three_widescreen_rows(tab):
+    """顶部参数要横排压到 3 行、且不重复成列（用户 2026-09-30：宽屏上高度还是不够）。
+
+    以前是 QFormLayout 一行一个控件（站点/模式/模型/尺寸/尺寸提示/画质/输出格式/张数 = 8 行），
+    直排把队列与日志挤下去。现在同行的控件 y 相同、跨行的 y 递增。
+    """
+    tab.resize(1060, 800)
+    tab.show()                      # 要显示过一次才有真实坐标（offscreen 平台也一样）
+
+    def _pos(widget):
+        return widget.mapTo(tab, widget.rect().topLeft())
+
+    rows = [[tab.site_combo, tab.mode_combo],
+            [tab.model_combo, tab.size_combo],
+            [tab.quality_combo, tab.output_format_combo, tab.n_spin]]
+    for row in rows:
+        ys = {_pos(w).y() for w in row}
+        assert len(ys) == 1, f"{row} 不在同一行: {ys}"
+        xs = [_pos(w).x() for w in row]
+        assert xs == sorted(xs), f"{row} 的横向顺序不对: {xs}"
+
+    assert _pos(tab.site_combo).y() < _pos(tab.model_combo).y() < _pos(tab.quality_combo).y()
+    assert _pos(tab.quality_combo).y() < _pos(tab.repaint_check).y()
+    tab.hide()
+
+
+def test_top_area_keeps_the_page_narrow(tab):
+    """顶部三行的横向布局不能反过来把整页撑宽（2026-09-30 用 QGridLayout 时实测多出 ~150px）。"""
+    lay = tab.layout()
+    assert lay is not None
+    min_w = lay.minimumSize().width()
+    assert min_w <= 1000, f"整页最小宽度 {min_w}px 太宽（默认窗口只有 1100）"
+
+
+
+def test_top_option_rows_do_not_stretch_vertically(tab):
+    """行容器纵向固定：多出来的高度归下面的日志/队列，不能被平摊到这几行之间。"""
+    from PyQt6.QtWidgets import QSizePolicy
+
+    for row in (tab.site_combo, tab.model_combo, tab.quality_combo):
+        holder = row.parentWidget()
+        assert holder.sizePolicy().verticalPolicy() is QSizePolicy.Policy.Fixed
+
+
+def test_top_options_stay_compact_and_leave_room_for_log(tab):
+    """顶部参数区的高度被锁住：再直排回去会把提示词框/日志挤没。"""
+    tab.resize(1060, 800)
+    tab.show()
+    top = {tab.site_combo, tab.mode_combo, tab.model_combo, tab.refresh_models_btn,
+           tab.size_combo, tab.size_info_label, tab.quality_combo,
+           tab.output_format_combo, tab.n_spin}
+    bottom = max(w.mapTo(tab, w.rect().bottomLeft()).y() for w in top)
+    top_edge = min(w.mapTo(tab, w.rect().topLeft()).y() for w in top)
+    assert bottom - top_edge <= 110, f"顶部参数区占了 {bottom - top_edge}px（3 行应该 ≤110px）"
+    assert tab.prompt_edit.height() >= 140, "压完顶部之后提示词框仍要有正常高度"
+    tab.hide()
+
+
+def test_bottom_cell_moves_to_the_same_row_as_quality_and_format(tab):
+    """「张数」并到第三行右侧；autodl 一次一张时旁边给出原因，而不是只剩一个灰框。"""
+    assert tab.n_hint_label.isHidden() is True             # aigc2d：可以多张，不用提示
+    tab.site_combo.setCurrentIndex(tab.site_combo.findData(SITE_AUTODL))
+    assert tab.n_spin.isEnabled() is False
+    assert tab.n_hint_label.isHidden() is False
+    assert tab.n_hint_label.text()
+    tab.site_combo.setCurrentIndex(tab.site_combo.findData(SITE_AIGC2D))
+    assert tab.n_spin.isEnabled() is True
+    assert tab.n_hint_label.isHidden() is True
+
+
 def test_switching_site_repopulates_size_model_and_n(tab):
     tab.site_combo.setCurrentIndex(tab.site_combo.findData(SITE_AUTODL))
     sizes = [tab.size_combo.itemData(i) for i in range(tab.size_combo.count())]
@@ -611,10 +681,9 @@ def test_reference_grid_shows_thumbnails_with_ordinal_captions(tab, tmp_path):
         assert card.thumb_label.pixmap().isNull() is False
         assert card.caption_label.text().startswith(f"{index + 1}.")
         assert card.path == paths[index]
-        # 说明文字保留文件后缀，但绝不显示目录
-        assert card.caption_label.text().endswith("png")
+        # 说明文字是文件名（超宽会省略，但绝不显示目录）；完整路径只在 tooltip 里
+        assert os.path.basename(paths[index]) in card.caption_label.toolTip()
         assert os.sep not in card.caption_label.text()
-        # 完整路径只在 tooltip 里
         assert paths[index] in card.toolTip()
         assert paths[index] not in card.caption_label.text()
 
@@ -1153,6 +1222,9 @@ def test_repaint_notice_only_shows_when_action_needed(tab, monkeypatch):
     from utils.gpt_image_optimize import ASPECT_RATIO_AUTO
 
     monkeypatch.setenv("IMAGE_MAKER_AIGC2D_API_KEY", "sk-TEST-000000000000000000000000000")
+    # 推荐配方默认勾着「色调校准」，但当前既没选画风、也没有参考图 → 它会提示"没有可用目标"。
+    # 这条用例量的是「缺 key / 强制比例」两类提醒，所以先把色调校准关掉再比。
+    tab.post_tone_check.setChecked(False)
     tab._refresh_repaint_hint()   # 构造时还没这个 key，重算一次提示
 
     assert tab.repaint_notice.isHidden() is True
@@ -1218,6 +1290,95 @@ def test_repaint_options_always_usable(tab):
                        tab.repaint_aspect_combo, tab.repaint_repeat_spin):
             assert widget.isEnabled() is True, f"{mode} 模式下参数应可用"
     tab.mode_combo.setCurrentText(MODE_GENERATE)
+
+
+def test_reference_grid_keeps_its_compact_height_with_images(tab, tmp_path):
+    """附件栏有图之后也只能占「一行小缩略图」的高度（用户 2026-09-30：插入图片后界面被撑爆）。
+
+    旧口径是 `thumb_size + 76 ~ +104`（96 缩略图 → 最多 200px），加上卡片实际高度就凭空多出
+    约 220px；现在 gpt-image-2 Tab 用 `compact_thumb_size=72` + 高度严格等于卡片高度。
+    """
+    from PyQt6.QtGui import QImage
+
+    empty_max = tab.image_grid.maximumHeight()
+    assert empty_max < 100
+    paths = []
+    for idx in range(3):
+        path = tmp_path / f"p{idx}.png"
+        QImage(320, 240, QImage.Format.Format_RGB32).save(str(path))
+        paths.append(str(path))
+    tab._add_paths(paths)
+    assert tab.image_grid.maximumHeight() <= 120, "有图时也要保持一行小缩略图的高度"
+    assert tab.image_grid.maximumHeight() == tab.image_grid.thumb_size + 40
+    assert tab.image_grid.thumb_size <= 80, "该 Tab 的缩略图要小（上方控件多）"
+    # 加图前后整个 Tab 的最小高度只差一格缩略图，而不是两百多像素
+    tab.clear_images()
+    assert tab.image_grid.maximumHeight() == empty_max
+
+
+def test_budget_label_is_a_single_line(tab):
+    """提示词框下面那行绿色字只能占一行（用户 2026-09-30：折成两行把布局打乱了）。
+
+    以前 wordWrap=True 且把逐工序成本明细全塞进去，选了画风之后必然折行；
+    现在只留单行摘要（明细在 tooltip 里），且横向策略 Ignored —— 它的最小宽度不会再传染给整个 Tab。
+    """
+    from PyQt6.QtWidgets import QSizePolicy
+
+    tab.resize(1060, 800)
+    tab.show()
+    tab.reload_styles()
+    if tab.style_combo.count() > 1:
+        tab.style_combo.setCurrentIndex(1)          # 选画风：提示词会变长，最容易被撑爆的情形
+    tab.prompt_edit.setPlainText("测试" * 400)
+    tab._refresh_budget()
+    app_line = tab.budget_label.text()
+    assert "\n" not in app_line
+    assert len(app_line) <= 80, f"单行摘要过长：{app_line}"
+    assert "字符" in app_line
+    assert tab.budget_label.wordWrap() is False
+    assert tab.budget_label.sizePolicy().horizontalPolicy() is QSizePolicy.Policy.Ignored
+    # 明细与口径说明在悬浮提示里，不能被删掉
+    assert "$" in tab.budget_label.toolTip() or "估算" in tab.budget_label.toolTip()
+    assert tab.budget_label.height() <= 22
+    tab.hide()
+
+
+def test_attachment_header_does_not_say_style_reference(tab):
+    """用户自己插入的图不能叫「画风参考图」（那是画风下拉自带的图）+ 计数行文案。"""
+    assert "画风参考图" not in tab.ref_header_label.text()
+    assert "参考图" in tab.ref_header_label.text()
+    tab._on_images_changed([])
+    assert "画风参考图" not in tab.ref_label.text()
+    assert "0/{}".format(GPT_IMAGE2_MAX_REFERENCE_IMAGES) in tab.ref_label.text()
+
+
+def test_result_list_never_widens_the_page(tab, tmp_path):
+    """产出图片后长文件名不能把这部分界面撑开（用户 2026-09-30：文件名太长会穿透到右边）。
+
+    - 列表项只放文件名（以后缀/大小做提示），完整路径进 tooltip 与日志
+    - 横向滚动条关闭 + 横向策略 Ignored：列表宽度永远听布局的，不听最长的那个文件名
+    """
+    from PyQt6.QtGui import QImage
+    from PyQt6.QtWidgets import QSizePolicy
+
+    long_name = ("sayhana-20260930-8f3a91c2-final-rp+sline28+tonectrl+ink_"
+                 "超长文件名测试_第二十三轮修订版_最终定稿_v3_真的没有更长的了.png")
+    path = tmp_path / long_name
+    QImage(64, 64, QImage.Format.Format_RGB32).save(str(path))
+
+    tab._show_results([str(path)])
+
+    assert tab.result_list.count() == 1
+    item = tab.result_list.item(0)
+    assert item.data(Qt.ItemDataRole.UserRole) == str(path)
+    assert str(path) not in item.text(), "完整路径不能写进条目文本（会把列表撑宽）"
+    assert long_name[:20] in item.text()
+    assert item.toolTip() == str(path)                       # 完整路径仍看得到
+    assert tab.result_list.horizontalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    assert tab.result_list.textElideMode() == Qt.TextElideMode.ElideMiddle
+    assert tab.result_list.sizePolicy().horizontalPolicy() is QSizePolicy.Policy.Ignored
+    assert tab.result_list.minimumSizeHint().width() < 200   # 再长的文件名也不抬最小宽度
+    assert tab.result_list.maximumHeight() <= 90
 
 
 def test_reference_grid_is_compact_when_empty(tab, tmp_path):
@@ -1538,14 +1699,56 @@ def test_resolve_request_size_uses_reference_orientation(tab, tmp_path):
 
 # ---------------- 后处理流水线（结构线叠加 / 局部重绘）勾选框 ----------------
 
-def test_post_process_switches_visible_and_default_off(tab):
-    """两道后处理工序各有独立勾选框，默认关闭；参数放折叠区里。"""
-    assert tab.structure_check.parent() is not None
-    assert tab.local_repaint_check.parent() is not None
+def test_post_process_switches_are_one_visible_row(tab):
+    """后处理开关横排常驻可见（两行，按处置顺序分组）；实验工序默认关，参数放折叠区里。"""
+    # 2026-09-30：以前每个开关各占一行，上半屏全被开关占满
+    for widget in (tab.repaint_check, tab.structure_check, tab.local_repaint_check):
+        assert widget.parent() is tab.post_switch_row, f"{widget} 不在开关横排里"
+    for widget in (tab.post_tone_check, tab.post_tone_target, tab.post_ink_check,
+                   tab.post_retry_btn, tab.post_reset_btn):
+        assert widget.parent() is tab.post_switch_row, f"{widget} 不在开关横排里"
     assert tab.structure_check.isChecked() is False
     assert tab.local_repaint_check.isChecked() is False
     assert tab.post_panel.isVisible() is False
     assert tab.post_toggle_btn.isChecked() is False
+    assert tab.post_toggle_btn.parent() is tab.param_toggle_row   # 两个折叠按钮共用一行
+
+
+def test_default_recipe_matches_analysis_tab(tab):
+    """默认配方与「图片分析」Tab 的 gpt 通道一致：重绘 ✓ / 色调校准 ✓ / 线条加墨 ✓，实验工序关。"""
+    assert tab.post_default_state() == {
+        "repaint": True, "structure": False, "tone": True, "tone_target": "style",
+        "ink": True, "local": False, "local_region": "hair",
+        "local_feather": tab.local_feather_spin.value(),
+        "structure_strength": tab.structure_strength_spin.value(),
+    }
+    # 没写过配置的机器上，勾选框直接就是这个状态（不再跟着固件的 enabled:false 全关）
+    assert tab.repaint_check.isChecked() is True
+    assert tab.post_tone_check.isChecked() is True
+    assert tab.post_ink_check.isChecked() is True
+    assert tab.post_tone_target.currentData() == "style"
+
+
+def test_reset_button_restores_recommended_recipe(tab, repaint_config):
+    """「恢复推荐」把勾选框与参数拉回默认配方（用户乱点之后一键回得来）。"""
+    tab.repaint_check.setChecked(False)
+    tab.structure_check.setChecked(True)
+    tab.local_repaint_check.setChecked(True)
+    tab.local_region_combo.setCurrentIndex(tab.local_region_combo.findData("skirt"))
+    tab.structure_strength_spin.setValue(0.9)
+    tab.post_tone_check.setChecked(False)
+    tab.post_ink_check.setChecked(False)
+
+    tab.post_reset_btn.click()
+
+    assert tab.repaint_check.isChecked() is True
+    assert tab.structure_check.isChecked() is False
+    assert tab.local_repaint_check.isChecked() is False
+    assert tab.local_region_combo.currentData() == "hair"
+    assert abs(tab.structure_strength_spin.value() - tab.post_default_state()["structure_strength"]) < 1e-6
+    assert tab.post_tone_check.isChecked() is True
+    assert tab.post_tone_target.currentData() == "style"
+    assert tab.post_ink_check.isChecked() is True
 
 
 def test_post_pipeline_steps_follow_checkboxes(tab):
@@ -1553,6 +1756,7 @@ def test_post_pipeline_steps_follow_checkboxes(tab):
     steps = tab.post_pipeline_steps()
     assert steps["structure"]["enabled"] is False
     assert steps["local"]["enabled"] is False
+    assert steps["repaint"]["enabled"] is False     # 重绘在本 Tab 是独立模式，不进这条流水线
     tab.structure_check.setChecked(True)
     tab.structure_strength_spin.setValue(0.35)
     tab.local_repaint_check.setChecked(True)
@@ -1566,11 +1770,51 @@ def test_post_pipeline_steps_follow_checkboxes(tab):
     assert steps["local"]["feather"] == 64
 
 
+def test_tone_and_ink_are_wired_into_the_pipeline(tab, tmp_path):
+    """色调校准 / 线条加墨以前只有勾选框、从不进流水线（死开关）；现在必须真的生效。
+
+    色调校准还需要一个目标图：目标=画风参考图时没有画风参考图就不启用（免得白跑还改产物名）。
+    """
+    assert tab.post_ink_check.isChecked() is True
+    steps = tab.post_pipeline_steps()
+    assert steps["ink"]["enabled"] is True
+    assert steps["tone"]["enabled"] is False, "默认目标=画风参考图，但当前没选画风 → 无目标，不启用"
+
+    # 目标=输入照片 + 有参考图 → 启用，并把目标图交给流水线
+    from PyQt6.QtGui import QImage
+    image_path = tmp_path / "ref.png"
+    QImage(64, 64, QImage.Format.Format_RGB32).save(str(image_path))
+    tab._add_paths([str(image_path)])
+    tab.post_tone_target.setCurrentIndex(tab.post_tone_target.findData("photo"))
+    assert tab.tone_reference_path() == str(image_path)
+    assert tab.post_pipeline_steps()["tone"]["enabled"] is True
+
+    # 目标=画风参考图：没有所选画风时依旧不启用
+    tab.post_tone_target.setCurrentIndex(tab.post_tone_target.findData("style"))
+    assert tab.post_pipeline_steps()["tone"]["enabled"] is False
+
+
+def test_tone_without_target_is_reported(tab, monkeypatch):
+    """勾了「色调校准」但没有可用目标时必须在提示行说出来（勾了不生效不能是静默的）。"""
+    # 本机 .env 里有没有重绘 key 不该影响这条用例，先给一把假 key
+    monkeypatch.setenv("IMAGE_MAKER_AIGC2D_API_KEY", "sk-TEST-000000000000000000000000000")
+    assert tab.post_tone_check.isChecked() is True
+    tab._refresh_repaint_hint()
+    assert "色调校准" in tab.repaint_notice.text()
+
+    tab.post_tone_check.setChecked(False)
+    tab._refresh_repaint_hint()
+    assert tab.repaint_notice.text() == ""
+
+
 def test_post_process_defaults_persist(tab, tmp_path):
-    """后处理勾选与参数要按站点持久化。"""
+    """后处理勾选与参数要按站点持久化（色调/加墨也一起存）。"""
     tab.structure_check.setChecked(True)
     tab.local_repaint_check.setChecked(True)
     tab.local_region_combo.setCurrentIndex(tab.local_region_combo.findData("skirt"))
+    tab.post_tone_check.setChecked(False)
+    tab.post_ink_check.setChecked(False)
+    tab.post_tone_target.setCurrentIndex(tab.post_tone_target.findData("photo"))
     tab.save_defaults()
     data = json.load(open(gpt_image2_tab.CONFIG_IMAGE_FILE, encoding="utf-8"))
     node = data[gpt_image2_tab.CONFIG_NODE]["post_process"]
@@ -1578,6 +1822,22 @@ def test_post_process_defaults_persist(tab, tmp_path):
     assert node["local_enabled"] is True
     assert node["local_region"] == "skirt"
     assert node["local_feather"] == tab.local_feather_spin.value()
+    assert node["tone_enabled"] is False
+    assert node["tone_target"] == "photo"
+    assert node["ink_enabled"] is False
+
+
+def test_saved_recipe_wins_over_recommended_defaults(tab, tmp_path, qapp, monkeypatch):
+    """保存过的配方要盖过推荐默认（默认只在"从没保存过"时生效，不能每次启动把用户设置冲掉）。"""
+    tab.repaint_check.setChecked(False)
+    tab.post_tone_check.setChecked(False)
+    tab.post_ink_check.setChecked(False)
+    tab.save_defaults()
+
+    rebuild = GptImage2Widget()          # 同一份配置文件，重新构造一次
+    assert rebuild.repaint_check.isChecked() is False
+    assert rebuild.post_tone_check.isChecked() is False
+    assert rebuild.post_ink_check.isChecked() is False
 
 
 def test_dead_dual_reference_switch_is_removed(tab, tmp_path):
