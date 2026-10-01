@@ -393,6 +393,22 @@ def add_to_queue(image_path: str, json_path_override: str | None = None) -> dict
 
     json_path_override: 显式传入元数据 JSON 路径（拖入 JSON 时使用），不再自动 find_metadata_json。
     """
+    if not os.path.isfile(image_path):
+        return {"ok": False, "message": f"图片文件不存在: {image_path}", "uuid": None}
+    json_path = json_path_override or find_metadata_json(image_path)
+    if not json_path or not os.path.isfile(json_path):
+        return {"ok": False, "message": f"找不到对应的投稿 JSON，未添加图片: {image_path}",
+                "uuid": None, "error": "missing_metadata"}
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        if not isinstance(metadata, dict):
+            raise ValueError("根节点必须是 JSON 对象")
+        metadata_str = json.dumps(metadata, ensure_ascii=False)
+    except (OSError, UnicodeError, ValueError) as exc:
+        return {"ok": False, "message": f"投稿 JSON 无法读取或格式无效，未添加图片: {json_path} ({exc})",
+                "uuid": None, "error": "invalid_metadata"}
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
@@ -414,15 +430,6 @@ def add_to_queue(image_path: str, json_path_override: str | None = None) -> dict
                 "message": f"图片内容已存在 (MD5 重复): {existing_md5['uuid']} → {existing_md5['image_path']}",
                 "uuid": None,
             }
-
-        json_path = json_path_override or find_metadata_json(image_path)
-        metadata_str = None
-        if json_path:
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    metadata_str = f.read()
-            except Exception:
-                pass
 
         item_uuid = str(uuid.uuid4())
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -707,6 +714,7 @@ class PublishServerWindow(QMainWindow):
         urls = event.mimeData().urls()
         added = 0
         skipped = 0
+        metadata_errors = []
         for url in urls:
             path = url.toLocalFile()
             if not os.path.isfile(path):
@@ -721,6 +729,8 @@ class PublishServerWindow(QMainWindow):
                 else:
                     skipped += 1
                     self._log(f"[!] {os.path.basename(path)}: {result['message']}")
+                    if result.get("error") in ("missing_metadata", "invalid_metadata"):
+                        metadata_errors.append(result["message"])
                 continue
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"):
                 continue
@@ -731,9 +741,14 @@ class PublishServerWindow(QMainWindow):
             else:
                 skipped += 1
                 self._log(f"[!] {os.path.basename(path)}: {result['message']}")
+                if result.get("error") in ("missing_metadata", "invalid_metadata"):
+                    metadata_errors.append(result["message"])
         self._current_page = 1
         self._refresh_table()
         self._log(f"拖拽完成：成功 {added}，跳过 {skipped}")
+        if metadata_errors:
+            QMessageBox.warning(self, "投稿 JSON 缺失或无效",
+                                "以下图片未加入发布队列：\n\n" + "\n".join(metadata_errors))
 
     # ── 表格刷新 ──
     def _refresh_table(self):
