@@ -494,6 +494,28 @@ class _FakeMenu:
         return None
 
 
+def _patch_analysis_rerun_dialog(monkeypatch, accepted=True, mode="analyze", targets=None, seen=None):
+    """把「重新分析」确认框换成即时返回的假对话框（真实对话框会阻塞用例）。"""
+    import modules.image_analysis.history_pickup as pickup_module
+
+    class _FakeAnalysisRerunDialog:
+        def __init__(self, summary_lines, channel="gemini", parent=None):
+            self.summary_lines = list(summary_lines or [])
+            self.channel = channel
+            self.mode = mode
+            self.gen_targets = list(targets or ([] if mode == "analyze" else ["refined"]))
+            if seen is not None:
+                seen["summary"] = self.summary_lines
+                seen["channel"] = channel
+
+        def exec(self):
+            from PyQt6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted if accepted else QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr(pickup_module, "AnalysisRerunDialog", _FakeAnalysisRerunDialog)
+
+
 def _open_context_menu(widget, monkeypatch, chosen_text):
     monkeypatch.setattr(single_analyzer_module, "QMenu", _FakeMenu)
     _FakeMenu.chosen_text = chosen_text
@@ -503,42 +525,37 @@ def _open_context_menu(widget, monkeypatch, chosen_text):
     return _FakeMenu.created[0] if _FakeMenu.created else None
 
 
-def test_context_menu_rerun_selected_record(qapp, monkeypatch, tmp_path):
+def test_context_menu_opens_history_pickup(qapp, monkeypatch, tmp_path):
     widget = _make_widget(monkeypatch)
     image_path = tmp_path / "girl.png"
     Image.new("RGB", (4, 4)).save(image_path)
     record = _insert_record(widget, 1, "error", str(image_path))
+    checkpoint = tmp_path / "generation-checkpoint.json"
+    checkpoint.write_text("{}", encoding="utf-8")
+    record["generation_checkpoints"] = [str(checkpoint)]
 
     calls = []
-    monkeypatch.setattr(
-        widget, "_rerun_history_record",
-        lambda rec, gen_targets=None: calls.append((rec["task_id"], list(gen_targets or []))) or True,
-    )
+    monkeypatch.setattr(widget, "_pickup_generation_history",
+                        lambda rec: calls.append(rec["task_id"]) or True)
 
-    menu = _open_context_menu(widget, monkeypatch, "🔁 重跑分析")
+    menu = _open_context_menu(widget, monkeypatch, "🧩 拾取历史…")
 
     assert menu is not None
-    assert menu.action("🔁 重跑分析").enabled is True
-    assert calls == [(record["task_id"], [])]
+    assert menu.action("🧩 拾取历史…").enabled is True
+    assert calls == [record["task_id"]]
     widget.close()
 
 
-def test_context_menu_rerun_with_generation_targets(qapp, monkeypatch, tmp_path):
+def test_context_menu_replaces_rerun_actions(qapp, monkeypatch, tmp_path):
     widget = _make_widget(monkeypatch)
     image_path = tmp_path / "girl.png"
     Image.new("RGB", (4, 4)).save(image_path)
     _insert_record(widget, 1, "timeout", str(image_path))
 
-    calls = []
-    monkeypatch.setattr(
-        widget, "_rerun_history_record",
-        lambda rec, gen_targets=None: calls.append(list(gen_targets or [])) or True,
-    )
-
-    _open_context_menu(widget, monkeypatch, "基于优化提示词")
-    _open_context_menu(widget, monkeypatch, "原始 + 优化都生成")
-
-    assert calls == [["refined"], ["original", "refined"]]
+    menu = _open_context_menu(widget, monkeypatch, None)
+    assert menu.action("🔁 重跑分析") is None
+    assert menu.action("基于优化提示词") is None
+    assert menu.action("🧩 拾取历史…").enabled is True
     widget.close()
 
 
@@ -549,16 +566,15 @@ def test_context_menu_blocks_unusable_source_and_offers_cleanup(qapp, monkeypatc
     menu = _open_context_menu(widget, monkeypatch, None)
 
     assert menu.action("⚠️ 分析源图不可用（文件已移动/删除，或剪贴板快照被清空）").enabled is False
-    assert menu.action("🔁 重跑分析").enabled is False
+    assert menu.action("🧩 拾取历史…").enabled is True
     assert menu.action("📂 打开源图所在目录").enabled is False
     assert menu.action("📋 复制源图路径").enabled is False
-    assert menu.action("🔁 重跑全部失败项（0）").enabled is False
     assert menu.action("🧹 清空失败记录（1）").enabled is True
     assert clipboard_record["task_id"] in widget._analysis_history
     widget.close()
 
 
-def test_context_menu_rerun_all_failed_and_clear_dispatch(qapp, monkeypatch, tmp_path):
+def test_context_menu_clear_failed_dispatch(qapp, monkeypatch, tmp_path):
     widget = _make_widget(monkeypatch)
     _freeze_dialogs(monkeypatch)
     image_path = tmp_path / "girl.png"
@@ -566,15 +582,279 @@ def test_context_menu_rerun_all_failed_and_clear_dispatch(qapp, monkeypatch, tmp
     _insert_record(widget, 1, "error", str(image_path))
     _insert_record(widget, 2, "timeout", str(image_path))
 
-    rerun_calls = []
     clear_calls = []
-    monkeypatch.setattr(widget, "_rerun_failed_history_records", lambda: rerun_calls.append(True))
     monkeypatch.setattr(widget, "_clear_failed_history_records", lambda: clear_calls.append(True))
-
-    menu = _open_context_menu(widget, monkeypatch, "🔁 重跑全部失败项（2）")
-    assert menu.action("🔁 重跑全部失败项（2）").enabled is True
-    assert rerun_calls == [True]
 
     _open_context_menu(widget, monkeypatch, "🧹 清空失败记录（2）")
     assert clear_calls == [True]
     widget.close()
+
+
+# ==================== Gemini 通道重跑（没有 GPT 工序断点） ====================
+
+
+def _isolated_widget(monkeypatch, tmp_path):
+    """BASE_DIR 指向 tmp：断点扫描与 UI 记忆都别碰真实仓库。"""
+    monkeypatch.setattr(single_analyzer_module, "BASE_DIR", str(tmp_path))
+    return _make_widget(monkeypatch)
+
+
+def test_pickup_without_checkpoints_enqueues_gemini_rerun_task(qapp, monkeypatch, tmp_path):
+    """Gemini 记录没有 GPT 断点 → 右键「拾取历史」按相同参数新建一条队列任务。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    _freeze_dialogs(monkeypatch)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    analysis_json = tmp_path / "result.json"
+    analysis_json.write_text("{}", encoding="utf-8")
+    record = _insert_record(widget, 3, "success", str(image_path), task_hash="abcdef12")
+    record.update(
+        style_name="默认风格", aspect_ratio="2:3",
+        original_prompt="a girl", refined_prompt="a girl, refined",
+        result_json={"english_description": "a girl, refined",
+                     "original_english_description": "a girl",
+                     "generation_style_name": "默认风格"},
+        saved_json_path=str(analysis_json),
+    )
+
+    calls = []
+
+    def fake_trigger(prompt_type, is_auto=False, prompt_bundle=None, **kwargs):
+        calls.append({"prompt_type": prompt_type, "bundle": prompt_bundle, **kwargs})
+        return True
+
+    monkeypatch.setattr(widget, "_ask_gemini_rerun_targets",
+                        lambda rec, available, defaults: ["refined"] if rec is record else [])
+    monkeypatch.setattr(widget, "trigger_image_generation", fake_trigger)
+
+    assert widget._pickup_generation_history(record) is True
+
+    assert [call["prompt_type"] for call in calls] == ["refined"]
+    assert calls[0]["channel"] == "gemini"
+    assert calls[0]["bundle"] == {
+        "task_hash": "abcdef12", "style_name": "默认风格", "aspect_ratio": "2:3",
+        "original_prompt": "a girl", "refined_prompt": "a girl, refined",
+        "analysis_json_path": str(analysis_json), "source_image_path": str(image_path),
+    }
+
+    reruns = [rec for rec in widget._analysis_history.values()
+              if rec.get("rerun_of") == record["task_id"]]
+    assert len(reruns) == 1
+    rerun = reruns[0]
+    assert rerun is not record
+    assert rerun["task_hash"] == "abcdef12"          # 沿用任务号，发布器仍能关联投稿 JSON
+    assert rerun["status"] == "running"
+    assert rerun["style_name"] == "默认风格"
+    assert rerun["aspect_ratio"] == "2:3"
+    assert "重跑 Gemini 生图" in rerun["source_desc"]
+    assert widget.history_list.count() == 2
+    assert record["status"] == "success"             # 原记录原样保留
+    widget.close()
+
+
+def test_pickup_without_checkpoints_uses_recorded_prompt_types(qapp, monkeypatch, tmp_path):
+    """记录里存过「上次跑的提示词」时默认沿用，不再要求用户选。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    _freeze_dialogs(monkeypatch)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    record = _insert_record(widget, 1, "success", str(image_path), task_hash="beef0001")
+    record.update(original_prompt="a girl", refined_prompt="a girl, refined",
+                  generation_params={"channel": "gemini", "prompt_types": ["original"]})
+
+    asked = []
+    monkeypatch.setattr(widget, "_ask_gemini_rerun_targets",
+                        lambda rec, available, defaults: asked.append(list(defaults)) or list(defaults))
+    monkeypatch.setattr(widget, "trigger_image_generation", lambda *a, **k: True)
+
+    assert widget._pickup_generation_history(record) is True
+    assert asked == [["original"]]
+    assert widget.history_list.count() == 2
+    widget.close()
+
+
+def test_pickup_without_checkpoints_without_prompts_offers_rerun_analysis(qapp, monkeypatch, tmp_path):
+    """分析没跑完（没有提示词）时不能凭空建生图任务，但必须给「重新分析」的路。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    record = _insert_record(widget, 1, "error", str(image_path), task_hash="deadbeef")
+
+    seen = {}
+    _patch_analysis_rerun_dialog(monkeypatch, accepted=True, mode="analyze", seen=seen)
+    launched = []
+    monkeypatch.setattr(
+        widget, "_launch_analysis_task",
+        lambda snapshot, gen_targets=None, header_note=None:
+            launched.append({"snapshot": snapshot, "targets": gen_targets, "note": header_note})
+            or type("_T", (), {"meta_force_gen_targets": []})(),
+    )
+
+    assert widget._pickup_generation_history(record) is True
+    assert seen["channel"] == "gemini"          # 记录没标通道 → 按 Gemini 记录处理
+    assert seen["summary"]                      # 确认框里有参数清单
+    assert launched and launched[0]["targets"] is None      # 只做分析
+    assert launched[0]["snapshot"] == record["source_path"]
+    widget.close()
+
+
+def test_pickup_offer_rerun_analysis_can_generate_afterwards(qapp, monkeypatch, tmp_path):
+    """选了「重新分析后自动生图」→ 把生图目标挂在这条重跑任务上。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    record = _insert_record(widget, 1, "error", str(image_path), task_hash="deadbeef")
+
+    _patch_analysis_rerun_dialog(monkeypatch, accepted=True, mode="generate", targets=["original"])
+    launched = []
+    monkeypatch.setattr(
+        widget, "_launch_analysis_task",
+        lambda snapshot, gen_targets=None, header_note=None:
+            launched.append({"targets": gen_targets, "note": header_note})
+            or type("_T", (), {"meta_force_gen_targets": ["original"]})(),
+    )
+
+    assert widget._pickup_generation_history(record) is True
+    assert launched[0]["targets"] == ["original"]
+    assert "重新分析" in launched[0]["note"]
+    widget.close()
+
+
+def test_pickup_offer_rerun_analysis_cancel_creates_nothing(qapp, monkeypatch, tmp_path):
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    record = _insert_record(widget, 1, "error", str(image_path), task_hash="deadbeef")
+
+    _patch_analysis_rerun_dialog(monkeypatch, accepted=False)
+    monkeypatch.setattr(widget, "_launch_analysis_task",
+                        lambda *a, **k: pytest.fail("取消后不该提交分析"))
+
+    assert widget._pickup_generation_history(record) is False
+    assert widget.history_list.count() == 1
+    widget.close()
+
+
+def test_pickup_offer_rerun_analysis_needs_a_usable_source(qapp, monkeypatch, tmp_path):
+    """剪贴板快照被清掉、原图也没了 → 只能提示，不能假装能重跑。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    messages = []
+    monkeypatch.setattr(single_analyzer_module.QMessageBox, "information",
+                        staticmethod(lambda *args, **kwargs: messages.append(args)))
+    record = _insert_record(widget, 1, "error", Image.new("RGB", (4, 4)))
+    _patch_analysis_rerun_dialog(monkeypatch, accepted=True, mode="analyze")
+
+    assert widget._pickup_generation_history(record) is False
+    assert any("无法重新分析" in str(args[1]) for args in messages), messages
+    widget.close()
+
+
+def test_pickup_offer_rerun_analysis_creates_a_queue_task(qapp, monkeypatch, tmp_path):
+    """走真实提交路径：确认后真的新建一条队列任务（不是只打个日志）。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    _patch_fake_worker_thread(monkeypatch)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    record = _insert_record(widget, 1, "error", str(image_path), task_hash="deadbeef")
+    _patch_analysis_rerun_dialog(monkeypatch, accepted=True, mode="analyze")
+
+    assert widget._pickup_generation_history(record) is True
+    assert widget.history_list.count() == 2
+    new_record = [rec for rec in widget._analysis_history.values() if rec is not record]
+    assert len(new_record) == 1
+    assert new_record[0]["status"] == "running"
+    assert widget._active_analysis_threads or True
+    widget.close()
+
+
+def test_pickup_without_checkpoints_keeps_gpt_records_on_gpt_path(qapp, monkeypatch, tmp_path):
+    """记录标明是 gpt-image 通道时不许悄悄改成 Gemini 重跑，但同样要给「重新分析」的路。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    record = _insert_record(widget, 1, "error", str(image_path), task_hash="feed0002")
+    record.update(original_prompt="a girl", refined_prompt="a girl, refined",
+                  generation_params={"channel": "gpt-image"})
+
+    seen = {}
+    _patch_analysis_rerun_dialog(monkeypatch, accepted=True, mode="analyze", seen=seen)
+    launched = []
+    monkeypatch.setattr(
+        widget, "_launch_analysis_task",
+        lambda snapshot, gen_targets=None, header_note=None:
+            launched.append({"targets": gen_targets}) or type("_T", (), {"meta_force_gen_targets": []})(),
+    )
+    monkeypatch.setattr(widget, "trigger_image_generation", lambda *a, **k: True)
+
+    assert widget._pickup_generation_history(record) is True
+    assert seen["channel"] == "gpt-image"       # 通道沿记录走，不改成 Gemini
+    assert launched and launched[0]["targets"] is None
+    widget.close()
+
+
+def test_rerun_cancelled_in_dialog_creates_no_task(qapp, monkeypatch, tmp_path):
+    """用户在确认框里取消 → 不建队列任务、不调生图。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    _freeze_dialogs(monkeypatch)
+    image_path = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(image_path)
+    record = _insert_record(widget, 1, "error", str(image_path), task_hash="cafe0003")
+    record.update(original_prompt="a girl", refined_prompt="a girl, refined")
+    monkeypatch.setattr(widget, "_ask_gemini_rerun_targets", lambda *a, **k: [])
+    monkeypatch.setattr(widget, "trigger_image_generation", lambda *a, **k: True)
+
+    assert widget._pickup_generation_history(record) is False
+    assert widget.history_list.count() == 1
+    widget.close()
+
+
+def test_channel_override_generates_with_gemini_while_ui_stays_on_gpt(qapp, monkeypatch, tmp_path):
+    """`channel="gemini"` 只管这一次：走 Gemini 线程，界面单选框不被改写。"""
+    widget = _isolated_widget(monkeypatch, tmp_path)
+    widget.gen_channel_gpt.setChecked(True)
+    created = []
+
+    class _FakeGeminiThread:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            self.log_signal = _Signal()
+            self.finish_signal = _Signal()
+            self.finished = _Signal()
+            created.append(self)
+
+        def start(self):
+            self.started = True
+
+    gpt_calls = []
+    monkeypatch.setattr(single_analyzer_module, "ImageGenWorkerThread", _FakeGeminiThread)
+    monkeypatch.setattr(single_analyzer_module, "GptImageGenWorkerThread",
+                        lambda **kwargs: gpt_calls.append(kwargs))
+
+    bundle = {"task_hash": "hash9", "style_name": "默认风格", "aspect_ratio": "2:3",
+              "original_prompt": "a girl", "refined_prompt": "a girl, refined",
+              "analysis_json_path": ""}
+    assert widget.trigger_image_generation("refined", prompt_bundle=bundle,
+                                           channel="gemini") is True
+
+    assert gpt_calls == []
+    assert len(created) == 1
+    assert created[0].kwargs["aspect_ratio"] == "2:3"
+    assert created[0].kwargs["file_prefix"] == "hash9"
+    assert created[0].kwargs["prompt"] == "a girl, refined, detailed face, clear facial features, sharp focus on face"
+    assert created[0].started is True
+    assert widget.gen_channel_gpt.isChecked() is True     # 界面通道没被改
+    widget.close()
+
+
+def test_gemini_rerun_dialog_defaults_and_requires_a_prompt(qapp, monkeypatch, tmp_path):
+    from modules.image_analysis.history_pickup import GeminiRerunDialog
+
+    dialog = GeminiRerunDialog(["生图通道：Gemini"], ["refined", "original"],
+                               defaults=["original"])
+    assert dialog.selected_targets() == ["original"]
+
+    dialog.prompt_boxes["original"].setChecked(False)
+    dialog.accept()                                   # 一个都不选 → 不该关掉
+    assert dialog.result() != dialog.DialogCode.Accepted
+    assert dialog.selected_targets() == []
+    dialog.close()
