@@ -30,6 +30,7 @@ except Exception:  # noqa: BLE001
     pass
 
 from utils.refine_quality import file_sha256 as final_sha256  # noqa: E402  （门禁按内容哈希绑定图片）
+from utils.refine_quality import final_quality_decision, quality_failure_details, record_quality_audit  # noqa: E402
 
 
 def _metrics(path):
@@ -446,14 +447,18 @@ def apply_analysis_tab_options(tab, options):
                         ("jpg_upscale", "enable_jpg_upscale_cb"),
                         ("repaint", "gpt_pp_repaint"), ("structure", "gpt_pp_structure"),
                         ("local", "gpt_pp_local"), ("tone", "gpt_pp_tone"),
-                        ("ink", "gpt_pp_ink"), ("size_follow_input", "gpt_size_follow_cb")):
+                        ("ink", "gpt_pp_ink")):
         checked(widget, options[key])
+    # 尺寸：勾选框管「跟随输入图」，取消后用手动档（以手动档为准）；无头路径的 --size 单独生效。
+    checked("gpt_size_follow_cb", options.get("size_follow_input", True))
     checked("gen_channel_gpt" if options["channel"] == "gpt" else "gen_channel_gemini", True)
     for key, widget in (("quality", "gpt_quality_combo"),
                         ("region", "gpt_pp_region"), ("scope", "gpt_pp_scope"),
                         ("first_pass_mode", "gpt_first_pass_mode"),
                         ("tone_target", "gpt_pp_tone_target")):
         selected(widget, options[key])
+    if options.get("first_pass_size"):      # 老调用方可能不带这个键（保持兼容）
+        selected("gpt_size_combo", options["first_pass_size"])
     tab.outfit_style_combo.blockSignals(True)
     tab.outfit_style_combo.setCurrentText(options.get("outfit_style", ""))
     tab.outfit_style_combo.blockSignals(False)
@@ -469,6 +474,7 @@ def apply_analysis_tab_options(tab, options):
         widget.setValue(options[key])
         widget.blockSignals(old)
     tab._on_gen_channel_changed()
+    tab._sync_gpt_size_controls()      # blockSignals 绕过 toggled，这里补一次启用状态
     plan = {"style": style, "reference_mode": tab.style_ref_mode_combo.selected_mode(),
             "channel": options["channel"], "upscale": tab._collect_upscale_options()}
     if options["channel"] == "gpt":
@@ -946,6 +952,9 @@ def main():
     ap.add_argument("--publish-final", action="store_true",
                     help="只把身份门禁后的最终选中图复制到 data/<当天>/；其余产物留在 --output-dir")
     ap.add_argument("--dry-run", action="store_true", help="保存请求清单，不调用图片接口")
+    ap.add_argument("--effective-request-only", action="store_true",
+                    help="只组装**最终有效重绘请求**（与真正发送同一个组装函数）并落盘，"
+                         "不调用任何图片接口；受控实验用它取得付费许可前的冻结请求。")
     ap.add_argument("--prompt-recipe", choices=["legacy", "reference"], default="legacy")
     ap.add_argument("--styles-file", default="",
                     help="换用另一份画风表（整份替换 conf/config-styles.json）。受控实验用："
@@ -973,6 +982,7 @@ def main():
     args = ap.parse_args()
 
     from modules.others.api_backend import (generate_image_aigc2d_gpt,
+                                            normalize_gpt_image2_size,
                                             pick_gpt_image2_size_for_images)
     from utils import post_process as pp
     from utils.analysis_gen import (build_first_pass_request, first_pass_sub_dir,
@@ -991,12 +1001,22 @@ def main():
     if args.content_ref == "on":
         content_ref = args.content_image if (args.content_image and os.path.isfile(args.content_image)) else source
         content_ref = content_ref if (content_ref and os.path.isfile(content_ref)) else ""
+    # 尺寸先定，再组装首图请求：正文开头可能带着分析阶段误判出来的画幅，实测它能压过 size 参数，
+    # 所以要把本次生效尺寸交给组装点一起对齐。auto = 按**源图**（拿不到才看内容图/分析比例），
+    # 画风参考图的朝向永远不参与。--size 传具体值时以该值为准。
+    size = str(args.size or "").strip()
+    if size.lower() == "auto":
+        size_sources = [source] if os.path.isfile(source) else ([content_ref] if content_ref else [])
+        size = (pick_gpt_image2_size_for_images(size_sources) if size_sources
+                else normalize_gpt_image2_size(aspect_ratio=str(result.get("aspect_ratio") or "")))
     # 首图请求与 GUI 走**同一个组装点**（画风说明 + 内容锚 + 排除句 + 渲染语言条款），
     # 内容锚沿用分析产物里的 gpt 字段（GUI 那条链用与 Gemini 同源的分析描述）。
     payload = build_first_pass_request(styles, args.style, result, tier="short",
                                        content_text=str(result.get(args.content_field) or ""),
                                        prompt_recipe=args.prompt_recipe,
-                                       content_image_path=content_ref)
+                                       content_image_path=content_ref, size=size)
+    if payload.get("aspect_alignment"):
+        print("      内容锚画幅按本次尺寸改写: " + " / ".join(payload["aspect_alignment"]))
     if args.prompt_file:
         with open(args.prompt_file, encoding="utf-8") as f:
             payload["prompt"] = f.read()
@@ -1082,9 +1102,6 @@ def main():
     output_dir = os.path.abspath(args.output_dir) if args.output_dir else None
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-    size = args.size
-    if str(size).lower() == "auto":
-        size = pick_gpt_image2_size_for_images([source] if os.path.isfile(source) else payload["image_paths"])
     manifest = {"analysis_json": os.path.abspath(args.json), "content_field": args.content_field,
                 "source": source, "style": args.style, "request": payload,
                 "size": size, "quality": args.quality, "mode": args.first_pass_mode,
@@ -1097,6 +1114,44 @@ def main():
             with open(os.path.join(output_dir, "request.json"), "w", encoding="utf-8") as f:
                 json.dump(manifest, f, ensure_ascii=False, indent=2)
     save_manifest()
+    if args.effective_request_only:
+        # 第四轮 P0.3：受控实验要求「dry-run 与实际发送共用同一个组装结果」。
+        # 这里走的正是 run_pipeline 重绘分支会走的那条组装路径（`assemble_repaint_request`），
+        # 只是把结果落盘而不发送。`--dry-run` 单独用不足以证明最终重绘 prompt 已正确组装。
+        if not args.base_image and not args.use_source_base:
+            print("❌ --effective-request-only 需要 --base-image（受控实验不重新出首图）")
+            return 1
+        probe_base = os.path.abspath(args.base_image) if args.base_image else source
+        if not os.path.isfile(probe_base):
+            print("❌ 冻结首图不存在：" + str(probe_base))
+            return 1
+        probe_dir = output_dir or os.path.dirname(probe_base)
+        os.makedirs(probe_dir, exist_ok=True)
+        request = pp.assemble_repaint_request(
+            probe_base, steps["repaint"], firmware=args.firmware,
+            style_ref_path=repaint_style_ref, style_clauses=style_clauses,
+            sub_dir=probe_dir, prefix="effective-request-probe", work_dir=probe_dir)
+        request["run_id"] = str(os.environ.get("IMAGE_MAKER_SEND_BUDGET_RUN_ID") or "")
+        request["firmware_path"] = str(args.firmware)
+        request["repaint_ref"] = str(args.repaint_ref)
+        request["clauses_file"] = str(args.repaint_clauses_file or "")
+        request["clauses"] = list(style_clauses or [])
+        request["steps"] = steps
+        request["analysis_json"] = os.path.abspath(args.json)
+        request["analysis_sha256"] = final_sha256(os.path.abspath(args.json))
+        request["base_image"] = probe_base
+        path = os.path.join(probe_dir, "effective-request.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(request, handle, ensure_ascii=False, indent=2)
+        emitted = pp.emit_effective_request(request)
+        print("有效请求已落盘：" + path)
+        if emitted:
+            print("有效请求副本：" + emitted)
+        print(f"  prompt {request['prompt_chars']} 字符 sha256={request['prompt_sha256'][:16]} | "
+              f"源图 {len(request['source_paths'])} 张 + 追加参考 {len(request['extra_reference_paths'])} 张 | "
+              f"{request['model']} @{request['resolution']} 比例={request['aspect_ratio']} n=1 "
+              f"detail_suffix={request['detail_suffix_applied']}")
+        return 0
     if args.dry_run:
         print("预检完成；未调用图片接口。")
         return 0
@@ -1111,12 +1166,6 @@ def main():
         base_path = source
         print(f"[3/4] 跳过 gpt-image 生成，直接用原图作为工序输入")
     else:
-        size = args.size
-        if str(size).lower() == "auto":
-            refs_for_size = list(payload.get("image_paths") or [])
-            if source and os.path.isfile(source):
-                refs_for_size.insert(0, source)
-            size = pick_gpt_image2_size_for_images(refs_for_size)
         print(f"[3/4] gpt-image-2 出首图（quality={args.quality}, size={size}, "
               f"端点={'/images/generations（新建图片）' if args.first_pass_mode == 'generate' else '/images/edits'}）…")
         from utils.first_image_review import generate_first_image, apply_safe_plan
@@ -1256,9 +1305,9 @@ def main():
                 proportion_clauses=proportion_clauses)
             manifest["quality_refine"]["before"] = quality_audit
             if output_dir:
-                with open(os.path.join(output_dir, "refine-quality-audit-0.json"),
-                          "w", encoding="utf-8") as f:
-                    json.dump(quality_audit, f, ensure_ascii=False, indent=2)
+                record_quality_audit(quality_audit, os.path.join(output_dir, "refine-quality-audit-0.json"), print)
+            else:
+                print(quality_failure_details(quality_audit))
             if should_refine_quality(quality_audit) and not args.audit_only:
                 quality_prompt = build_quality_correction_prompt(quality_audit)
                 quality_prompt += "\n\n" + repair_style_guard(payload)
@@ -1274,14 +1323,14 @@ def main():
                         proportion_clauses=proportion_clauses)
                     manifest["quality_refine"]["after"] = quality_after
                     if output_dir:
-                        with open(os.path.join(output_dir, "refine-quality-audit-1.json"),
-                                  "w", encoding="utf-8") as f:
-                            json.dump(quality_after, f, ensure_ascii=False, indent=2)
+                        record_quality_audit(quality_after, os.path.join(output_dir, "refine-quality-audit-1.json"), print)
+                    else:
+                        print(quality_failure_details(quality_after))
                     if should_refine_quality(quality_after) and (
                             quality_after.get("severity") == "major" or any(
                                 float(item.get("confidence") or 0) >= .72
                                 for item in quality_after.get("background_drift", []))):
-                        raise RuntimeError("质量修订产生重大漂移，禁止继续修身份或发布")
+                        raise RuntimeError("质量修订产生重大漂移，禁止继续修身份或发布：\n" + quality_failure_details(quality_after))
                     print("      质量门禁: 已用当前图 + GPT 首图做一次文字驱动修订（未再次发送画风图）")
             else:
                 print("      质量门禁: 未发现需定点修复的高置信问题")
@@ -1446,7 +1495,7 @@ def main():
                 manifest["final_review"] = final_quality
                 manifest["selected_output"] = selected
                 outs = [selected]
-                if should_refine_quality(final_quality) or final_quality.get("needs_review"):
+                if final_quality_decision(final_quality)["action"] not in {"accept", "accept_with_warning"}:
                     manifest["status"] = "review_required"
                 if output_dir:
                     with open(os.path.join(output_dir, "final-quality-audit.json"), "w", encoding="utf-8") as f:
@@ -1473,7 +1522,7 @@ def main():
             manifest["final_review"] = final_quality
             manifest["selected_output"] = selected
             outs = [selected]
-            if should_refine_quality(final_quality) or final_quality.get("needs_review"):
+            if final_quality_decision(final_quality)["action"] not in {"accept", "accept_with_warning"}:
                 manifest["status"] = "review_required"
             if output_dir:
                 with open(os.path.join(output_dir, "final-quality-audit.json"), "w", encoding="utf-8") as f:

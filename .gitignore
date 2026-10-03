@@ -134,6 +134,12 @@ models/segmentation/sam2/sam2.1_hiera_l.yaml
 # ultralytics 在 cwd 留下的缓存（库自动生成，不是项目文件）
 Ultralytics/
 
+# 书籍材料（本地留档，不入库）：原书 PDF 约 73MB + book-html 全书转录约 241MB（150 页逐页
+# 文本、章节 HTML、431 张抠图、150 张扫描图）。同目录的 7 个 .md 是实验记录与工作流设计，
+# 仍然入库；README 里指向 book-html/index.html 的链接在 clone 出来的仓库里是死链，属预期。
+docs/261003-color-improve/*.pdf
+docs/261003-color-improve/book-html/
+
 # gpt-image 画风实验的**原始图片产物**（约 800MB，本地留档）：只忽略图片，
 # 同目录的 .md / .txt / .json 是实验记录，仍然入库；结论都在 docs/gpt-image-tid-style/*.md 里。
 docs/gpt-image-tid-style/**/*.png

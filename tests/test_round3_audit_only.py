@@ -37,10 +37,18 @@ def _quality(counts):
 
 
 def _clean(counts):
+    """一份 schema 完整的「无缺陷」终审结论。
+
+    注意（第四轮 P0.2）：门禁现在要求结论字段齐全——合法 boolean ``needs_refine``、
+    合法严重度、四个问题集合，以及归属结论（``ownership_uncertain`` 或 ``needs_review``）。
+    这里的假审计照真实 ``normalize_quality_audit``/``audit_refine_quality`` 的输出补齐，
+    否则按「缺结论不能通过」处理，用例测的就不再是原意。
+    """
     def fake(*args, **kwargs):
         counts.append("audit")
         return {"needs_refine": False, "severity": "none", "structural_issues": [],
                 "line_issues": [], "background_drift": [], "style_gaps": [],
+                "ownership_uncertain": [], "needs_review": False,
                 "candidate": str(args[0]) if args else "",
                 "candidate_sha256": __import__("utils.refine_quality", fromlist=["file_sha256"]).file_sha256(
                     str(args[0]) if args else "")}
@@ -59,8 +67,9 @@ def _identity(mismatch=False):
 
 def _anatomy():
     def fake(*args, **kwargs):
-        return {"needs_refine": False, "structural_issues": [], "line_issues": [],
+        return {"needs_refine": False, "severity": "none", "structural_issues": [], "line_issues": [],
                 "background_drift": [], "style_gaps": [],
+                "ownership_uncertain": [], "needs_review": False,
                 "candidate": str(args[0]), "candidate_sha256":
                     __import__("utils.refine_quality", fromlist=["file_sha256"]).file_sha256(str(args[0]))}
     return fake
@@ -101,7 +110,9 @@ class UpstreamFailureTests(unittest.TestCase):
             final = _image(Path(folder) / "final.png")
             gate = evaluate_final_gate(
                 final_image=final, identity=_identity()(final), anatomy=_anatomy()(final),
-                quality={"before": {"severity": "none", "needs_refine": False}},
+                quality={"before": {"severity": "none", "needs_refine": False,
+                                    "structural_issues": [], "line_issues": [],
+                                    "background_drift": [], "style_gaps": []}},
                 final_review=_clean([])(final), identity_action="accept")
             self.assertEqual(gate["status"], "complete")
 

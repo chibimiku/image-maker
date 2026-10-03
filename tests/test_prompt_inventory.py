@@ -16,6 +16,7 @@ REQUIRED_PROMPT_FILES = [
     "prompt-generator-user.md",
     "recompute-pixiv-tags.md",
     "refine-desc.md",
+    "refine-desc-system.md",
     "sd-make-system_prompt.md",
     "single-analyzer-outfit-check.md",
     "single-analyzer-system.md",

@@ -179,3 +179,60 @@ def plan_output(source_path: str, config: dict = None) -> dict:
         "save_sub_dir": str(conf.get("save_sub_dir") or DEFAULTS["save_sub_dir"]),
         "file_prefix": f"{prefix_base}_{stem}",
     }
+
+
+def resolve_repaint_call(config: dict = None, *, source_path: str = "", model=None, resolution=None,
+                         aspect_ratio=None, repeat=None, prompt=None, prompt_suffix=None,
+                         use_detail_suffix=None, save_sub_dir=None, file_prefix=None,
+                         api_type=None) -> dict:
+    """解析**这一次重绘调用**的最终参数（单一事实来源）。
+
+    第四轮 P0.3：受控实验要求「预检算出来的请求」就是「实际发出去的请求」，所以
+    模型 / 分辨率 / 比例 / prompt 与后缀 / 重复次数 / 落盘位置都在这里解析一次，
+    `generate_image_repaint` 与预检入口共用同一份结果。
+    """
+    conf = dict(DEFAULTS)
+    conf.update(config or {})
+    resolved_prompt_from_config = prompt is None
+    if prompt is None:
+        conf_for_prompt = dict(conf)
+        if use_detail_suffix is not None:
+            conf_for_prompt["use_detail_suffix"] = use_detail_suffix
+        resolved_prompt = build_repaint_prompt(conf_for_prompt)
+    else:
+        resolved_prompt = str(prompt or "")
+    if prompt_suffix is not None:
+        resolved_suffix = str(prompt_suffix or "")
+    elif use_detail_suffix is False:
+        resolved_suffix = ""
+    else:
+        suffix_relative = str(conf.get("detail_suffix") or "").strip()
+        try:
+            resolved_suffix = read_prompt_relative(suffix_relative) if suffix_relative else ""
+        except Exception:  # noqa: BLE001 - 后缀缺失不影响主 prompt
+            resolved_suffix = ""
+    try:
+        resolved_repeat = max(1, int(repeat if repeat is not None else conf.get("repeat") or 1))
+    except (TypeError, ValueError):
+        resolved_repeat = 1
+    plan = plan_output(source_path, conf) if source_path else {
+        "save_sub_dir": str(conf.get("save_sub_dir") or DEFAULTS["save_sub_dir"]),
+        "file_prefix": str(conf.get("file_prefix") or DEFAULTS["file_prefix"])}
+    return {
+        "model": str(model or conf.get("model") or DEFAULTS["model"]),
+        "resolution": str(resolution or conf.get("resolution") or DEFAULTS["resolution"]),
+        "aspect_ratio": resolve_aspect_ratio({"aspect_ratio": aspect_ratio} if aspect_ratio else conf,
+                                             ASPECT_RATIO_AUTO),
+        "repeat": resolved_repeat,
+        "prompt": resolved_prompt,
+        "prompt_from_config": resolved_prompt_from_config,
+        "prompt_suffix": resolved_suffix,
+        "detail_suffix_applied": bool(resolved_suffix),
+        "use_detail_suffix": bool(use_detail_suffix),
+        "api_type": str(api_type or conf.get("api_type") or DEFAULTS["api_type"]),
+        "save_sub_dir": str(save_sub_dir or plan["save_sub_dir"]),
+        "file_prefix": str(file_prefix or plan["file_prefix"]),
+        "config_source": str(PROMPT_DIR_RELATIVE + "/config.json"),
+        "detail_suffix_source": str(conf.get("detail_suffix") or ""),
+        "system_prompt_source": str(conf.get("system_prompt") or ""),
+    }

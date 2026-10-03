@@ -30,6 +30,7 @@ from utils.llm_retry import call_with_retry, load_retry_settings, format_wait
 from utils.analysis_fallback import (
     call_with_refusal_fallback,
     is_refusal_error,
+    is_refusal_text,
     load_fallback_config,
 )
 from utils.output_isolation import resolve_output_target
@@ -41,6 +42,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 SYSTEM_PROMPT_FILE = "single-analyzer-system.md"
 STYLE_ANALY_PROMPT_FILE = "style-analy.md"
 REFINE_DESC_PROMPT_FILE = "refine-desc.md"
+REFINE_DESC_SYSTEM_PROMPT_FILE = "refine-desc-system.md"
 OUTFIT_CHECK_PROMPT_FILE = "single-analyzer-outfit-check.md"
 REMOVE_PHOTO_STYLE_PROMPT_FILE = "remove-photo-style.md"
 RECOMPUTE_PIXIV_TAGS_PROMPT_FILE = "recompute-pixiv-tags.md"
@@ -66,6 +68,7 @@ ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure"
                             "regions": list(STABLE_LOCAL_REGIONS),
                             "quality": "high",
                             "size_follow_input": True,
+                            "first_pass_size": "1024x1536",   # 取消「跟随输入图」后用的手动档
                             "tone": False, "tone_target": "style", "ink": False,
                             "repaint_scope": "full", "first_pass_mode": "generate",
                             "recipe_version": GPT_RECIPE_VERSION}
@@ -122,7 +125,7 @@ def get_single_analyzer_required_prompt_files(enable_refine=True, enable_outfit_
         STYLE_ANALY_PROMPT_FILE,
     ]
     if enable_refine:
-        files.append(REFINE_DESC_PROMPT_FILE)
+        files.extend((REFINE_DESC_PROMPT_FILE, REFINE_DESC_SYSTEM_PROMPT_FILE))
     if enable_outfit_check:
         files.append(OUTFIT_CHECK_PROMPT_FILE)
     if enable_remove_photo_style:
@@ -520,6 +523,21 @@ def resolve_gpt_first_pass_size(prompt_context=None, analysis_result=None, curre
     ).strip() or "1:1"
     return normalize_gpt_image2_size(aspect_ratio=aspect_ratio)
 
+
+def resolve_first_pass_size_for_task(prompt_context=None, analysis_result=None, current_source_path="",
+                                     follow_input: bool = True, manual_size: str = "") -> tuple:
+    """本次首图的 ``(尺寸, 来源说明)``：**用户手动选的尺寸优先**。
+
+    界面上的「跟随输入图」勾掉后以手动档为准，不再回头去看输入图或分析产物 —— 用户既然手动
+    点了就按他点的出。勾着时才按**输入图**比例挑（`resolve_gpt_first_pass_size`）。
+    画风参考图的朝向在任何一支里都不参与：它只提供画法，不决定画幅。
+    """
+    manual = str(manual_size or "").strip()
+    if not follow_input and manual:
+        from modules.others.api_backend import normalize_gpt_image2_size
+        return normalize_gpt_image2_size(size=manual), "手动指定"
+    return resolve_gpt_first_pass_size(prompt_context, analysis_result, current_source_path), "按输入图比例"
+
 def _looks_like_base64_text(value: str) -> bool:
     if not isinstance(value, str):
         return False
@@ -696,6 +714,35 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
         print(error_msg)
         return None
 
+def _save_refine_diagnostic(request, source, *, error=None, path=None, log_callback=None):
+    """保留文本请求与 Step 1，失败时可追查；不读取客户端、headers 或密钥。"""
+    try:
+        if path is None:
+            directory = os.path.join(BASE_DIR, "cache", "temp", "analysis-refine")
+            os.makedirs(directory, exist_ok=True)
+            fd, path = tempfile.mkstemp(prefix="step2-", suffix=".json", dir=directory)
+            os.close(fd)
+        fingerprint = hashlib.sha256(
+            json.dumps(request["messages"], ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        data = {"step": "refine", "prompt_sha256": fingerprint,
+                "request": request, "step1_result": source, "error": error}
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, ensure_ascii=False, indent=2)
+        with open(os.path.splitext(path)[0] + ".txt", "w", encoding="utf-8") as handle:
+            handle.write(f"Step 2 | model={request['model']} | sha256={fingerprint}\n")
+            for message in request["messages"]:
+                handle.write(f"\n[{message['role']}]\n{message['content']}\n")
+            if error:
+                handle.write(f"\n[error]\n{error}\n")
+        if error is None:
+            _log_step_diag(f"Step 2 请求快照: {path}（prompt sha256={fingerprint[:12]}）", log_callback)
+        return path
+    except Exception as exc:
+        _log_step_diag(f"Step 2 诊断快照保存失败: {type(exc).__name__}", log_callback)
+        return None
+
+
 def step_2_refine_description(original_json_data, client, model_name, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, status_callback=None, log_callback=None, cancel_check=None):
     original_description = original_json_data.get("english_description", "")
     jp_title = original_json_data.get("japanese_title", "")
@@ -725,33 +772,53 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
             "Please optimize these booru-tags with your own understanding and keep only final high-quality tags."
         )
     refine_prompt = append_extra_llm_prompt(refine_prompt, extra_llm_prompt)
+    if original_json_data.get("aspect_ratio"):
+        refine_prompt += "\n输入 aspect_ratio: " + json.dumps(original_json_data["aspect_ratio"])
+    request_kwargs = None
+    diagnostic_path = None
     
     try:
-        system_prompt = _load_system_prompt()
+        system_prompt = read_prompt_file(REFINE_DESC_SYSTEM_PROMPT_FILE).strip()
+        request_kwargs = dict(
+            model=model_name, response_format={"type": "json_object"},
+            messages=[{"role": "system", "content": system_prompt},
+                      {"role": "user", "content": refine_prompt}],
+            temperature=0.3, max_completion_tokens=16384, timeout=timeout_seconds,
+        )
+        diagnostic_path = _save_refine_diagnostic(
+            request_kwargs, original_json_data, log_callback=log_callback)
         response = call_with_retry(
-            lambda: client.chat.completions.create(
-                model=model_name,
-                response_format={ "type": "json_object" },
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": refine_prompt}
-                ],
-                temperature=0.7, max_completion_tokens=16384, timeout=timeout_seconds
-            ),
+            lambda: client.chat.completions.create(**request_kwargs),
             settings=load_retry_settings(),
             step_label="Step 2 refine 请求",
             log_callback=log_callback,
             cancel_check=cancel_check,
         )
         final_result_json = _safe_json_from_response(response, log_callback=log_callback, step_label="Step 2")
+        choices = getattr(response, "choices", None) or []
+        if choices and getattr(getattr(choices[0], "message", None), "refusal", None):
+            raise ValueError("Step 2 返回拒绝响应（refusal），未完成描述编辑")
+        if not isinstance(final_result_json, dict):
+            raise ValueError("Step 2 返回的 JSON 不是对象")
+        if is_refusal_text(final_result_json.get("english_description", "")):
+            raise ValueError("Step 2 返回拒绝响应，未完成描述编辑")
+        if not str(final_result_json.get("english_description") or "").strip():
+            raise ValueError("Step 2 缺少有效 english_description，不能用原文冒充精修成功")
         final_result_json = _normalize_analysis_result(final_result_json, fallback_data=original_json_data, booru_tag_limit=booru_tag_limit)
         # 将原始描述也存入最终结果，方便后续对比或同时生成
         final_result_json["original_english_description"] = original_description
         return final_result_json
     except Exception as e:
         _log_step_diag(f"Step 2 二次加工时发生错误: {e}", log_callback)
+        if request_kwargs is not None and diagnostic_path:
+            _save_refine_diagnostic(request_kwargs, original_json_data, error=str(e),
+                                    path=diagnostic_path, log_callback=log_callback)
+        refused = is_refusal_error(e)
+        if refused:
+            _log_step_diag("Step 2 被服务端过滤或拒绝；已停止后续步骤，未重发同一请求。"
+                           "请结合请求快照检查模板、Step 1 描述与附加指令。", log_callback)
         if status_callback:
-            status_callback("timeout" if _is_timeout_error(e) else "error")
+            status_callback("timeout" if _is_timeout_error(e) else "refused" if refused else "error")
         return None
 
 def step_3_check_outfit_consistency(final_json_data, client, model_name, timeout_seconds=120, outfit_style_override="", status_callback=None, log_callback=None, cancel_check=None):
@@ -1130,7 +1197,8 @@ class WorkerThread(QThread):
                         self.log_signal.emit("任务已取消（Step 2 未完成）。")
                         self.finish_signal.emit({})
                         return
-                    self.last_status = "timeout" if stage_status.get("value") == "timeout" else "error"
+                    self.last_status = (stage_status["value"]
+                                        if stage_status.get("value") in ("timeout", "refused") else "error")
                     self.log_signal.emit(
                         f"Step 2 执行失败（{self.last_status}），后续步骤已终止；原因见上方 Step 2 诊断信息。"
                     )
@@ -1261,17 +1329,20 @@ class WorkerThread(QThread):
                         from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
                                                                SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)
                         desc = str(final_result.get("english_description") or "").strip()
+                        source_ratio = str(final_result.get("aspect_ratio") or "").strip()
                         if desc:
                             text_cfg = {"base_url": self.base_url, "api_key": self.api_key, "model": self.model_name}
                             self.log_signal.emit("正在生成 gpt-image 专用短提示词（完整档 / 短锚档）...")
                             field = build_gpt_image_prompt(desc, text_cfg=text_cfg, max_chars=FIELD_MAX_CHARS,
-                                                           tier="full", log_callback=self.log_signal.emit)
+                                                           tier="full", log_callback=self.log_signal.emit,
+                                                           aspect_ratio=source_ratio)
                             if field:
                                 final_result[FIELD_KEY] = field
                                 self.log_signal.emit(f"gpt-image 完整档 {len(field)} 字符")
                             short_field = build_gpt_image_prompt(desc, text_cfg=text_cfg,
                                                                  max_chars=SHORT_FIELD_MAX_CHARS, tier="short",
-                                                                 log_callback=self.log_signal.emit)
+                                                                 log_callback=self.log_signal.emit,
+                                                                 aspect_ratio=source_ratio)
                             if short_field:
                                 final_result[SHORT_FIELD_KEY] = short_field
                                 self.log_signal.emit(f"gpt-image 短锚档 {len(short_field)} 字符")
@@ -1660,7 +1731,8 @@ class GptImageGenWorkerThread(QThread):
             try:
                 import json as _json
                 from utils.refine_quality import (audit_refine_quality, build_quality_correction_prompt,
-                                                  should_refine_quality, repair_style_guard)
+                                                  should_refine_quality, repair_style_guard,
+                                                  record_quality_audit, quality_failure_details)
                 from utils.post_process import snapped_aspect_ratio
                 from modules.others.api_backend import generate_image_repaint
                 quality_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
@@ -1669,9 +1741,8 @@ class GptImageGenWorkerThread(QThread):
                 quality = self.checkpoint.operation("quality-audit-before", lambda: audit_refine_quality(first_image, saved[-1], self.style_ref_path,
                                                first_pass_prompt=actual_prompt,
                                                proportion_clauses=proportion_clauses))
-                with open(os.path.join(quality_dir, "refine-quality-audit-0.json"),
-                          "w", encoding="utf-8") as f:
-                    _json.dump(quality, f, ensure_ascii=False, indent=2)
+                record_quality_audit(quality, os.path.join(quality_dir, "refine-quality-audit-0.json"),
+                                     self.log_signal.emit)
                 if should_refine_quality(quality):
                     quality_prompt = build_quality_correction_prompt(quality)
                     quality_prompt += "\n\n" + repair_style_guard(self.request_payload)
@@ -1691,14 +1762,14 @@ class GptImageGenWorkerThread(QThread):
                             first_image, saved[-1], self.style_ref_path,
                             first_pass_prompt=actual_prompt,
                             proportion_clauses=proportion_clauses))
-                        with open(os.path.join(quality_dir, "refine-quality-audit-1.json"),
-                                  "w", encoding="utf-8") as f:
-                            _json.dump(quality_after, f, ensure_ascii=False, indent=2)
+                        audit_path = os.path.join(quality_dir, "refine-quality-audit-1.json")
+                        record_quality_audit(quality_after, audit_path, self.log_signal.emit)
                         if should_refine_quality(quality_after) and (
                                 quality_after.get("severity") == "major" or any(
                                     float(item.get("confidence") or 0) >= 0.72
                                     for item in quality_after.get("background_drift", []))):
-                            raise RuntimeError("质量修订复审仍有明确缺陷或画面漂移，禁止将该候选图作为完成产物")
+                            raise RuntimeError("质量修订复审仍有明确缺陷或画面漂移，禁止将该候选图作为完成产物：\n"
+                                               + quality_failure_details(quality_after) + "\n审计记录：" + audit_path)
                         if should_refine_quality(quality_after):
                             self.log_signal.emit("[质量门禁] 局部缺陷留给后续人体修订，最终复核通过前禁止发布。")
                         self.log_signal.emit(
@@ -1833,7 +1904,7 @@ class GptImageGenWorkerThread(QThread):
                 and not self.isInterruptionRequested() and self._stage_needed("final_review", saved)):
             import json as _json
             from utils.refine_quality import audit_refine_quality, should_refine_quality, repair_style_guard
-            from utils.refine_quality import review_final_candidate
+            from utils.refine_quality import review_final_candidate, final_quality_decision, quality_failure_details
             def final_audit_call(candidate):
                 if not (self.style_ref_path and os.path.isfile(self.style_ref_path)
                         and self.request_payload.get("repaint_reference_mode", "style") != "none"):
@@ -1854,9 +1925,11 @@ class GptImageGenWorkerThread(QThread):
             saved = [selected]
             with open(os.path.join(final_dir, "final-quality-audit.json"), "w", encoding="utf-8") as f:
                 _json.dump(final_audit, f, ensure_ascii=False, indent=2)
-            if should_refine_quality(final_audit) or final_audit.get("needs_review"):
-                raise RuntimeError("最终复核发现人体结构、画风或过曝问题，保留候选图与审计，禁止发布")
-            self.log_signal.emit("[最终复核] 人体结构、画风与局部明暗可读性通过。" if self.style_ref_path else
+            final_decision = final_quality_decision(final_audit)
+            if final_decision["action"] not in {"accept", "accept_with_warning"}:
+                raise RuntimeError("最终复核未通过，保留候选图与审计，禁止发布：\n" + quality_failure_details(final_audit))
+            self.log_signal.emit("[最终复核] 带警告通过：" + final_decision["reason"] if final_decision["action"] == "accept_with_warning" else
+                                 "[最终复核] 人体结构、画风与局部明暗可读性通过。" if self.style_ref_path else
                                  "[最终复核] 人体结构检查通过；无画风参考图，不评价原画风贴近度。")
         self._stage_done("final_review", saved)
         if self.isRequestInterruption_requested_safe():
@@ -2303,14 +2376,26 @@ class SingleAnalyzerWidget(QWidget):
         self.gpt_quality_combo.setMaximumWidth(180)
         q_row.addWidget(self.gpt_quality_combo)
 
-        self.gpt_size_follow_cb = QCheckBox("尺寸跟随输入图")
+        self.gpt_size_follow_cb = QCheckBox("跟随输入图")
         self.gpt_size_follow_cb.setChecked(True)
         self.gpt_size_follow_cb.setToolTip(
-            "gpt-image-2 只有 1024x1024 / 1536x1024 / 1024x1536 三档尺寸；\n"
-            "勾上后按**输入图的实际比例**挑：横图 → 1536x1024，竖图 → 1024x1536，方图 → 1024x1024。\n"
-            "取消勾选则固定用 1024x1536。"
+            "勾上：按**输入图的实际比例**挑 gpt-image-2 的三档尺寸\n"
+            "（横图 → 1536x1024，竖图 → 1024x1536，方图 → 1024x1024）。\n"
+            "画风参考图的朝向不参与 —— 它只提供画法，不决定画幅。\n"
+            "取消勾选：用右边的尺寸下拉手动指定，以你选的那个为准。"
         )
         q_row.addWidget(self.gpt_size_follow_cb)
+
+        # 手动尺寸档：取消「跟随输入图」后生效。默认仍是 1024x1536，与取消勾选的历史行为一致。
+        self.gpt_size_combo = QComboBox()
+        for _label, _val, _tip in (("1024x1536 竖版", "1024x1536", "竖构图 2:3"),
+                                   ("1536x1024 横版", "1536x1024", "横构图 3:2"),
+                                   ("1024x1024 方版", "1024x1024", "正方形 1:1")):
+            self.gpt_size_combo.addItem(_label, _val)
+            self.gpt_size_combo.setItemData(self.gpt_size_combo.count() - 1, _tip, 3)  # Qt.ToolTipRole
+        self.gpt_size_combo.setToolTip("手动指定首图尺寸（取消左侧「跟随输入图」后生效）。")
+        self.gpt_size_combo.setMaximumWidth(128)
+        q_row.addWidget(self.gpt_size_combo)
 
         self.gpt_pp_tone = QCheckBox("色调校准")
         self.gpt_pp_tone.setToolTip(
@@ -2690,6 +2775,8 @@ class SingleAnalyzerWidget(QWidget):
                 f"{title} | 画风：{record.get('style_name') or '-'}{gen_style_note} | {source_desc}"
             )
             item.setForeground(self._status_to_color(record.get("status")))
+            item.setToolTip(str(record.get("pipeline_error") or "") + "\n" +
+                            "\n".join(record.get("generation_checkpoints") or []))
             break
         if not found:
             self.log_msg(f"⚠️ _refresh_history_item: task_id={task_id} 对应的 QListWidgetItem 未找到，列表可能已被清空")
@@ -4141,6 +4228,11 @@ class SingleAnalyzerWidget(QWidget):
         self.gpt_pp_structure.setChecked(bool(state.get("structure")))
         self.gpt_pp_local.setChecked(bool(state.get("local")))
         self.gpt_size_follow_cb.setChecked(bool(state.get("size_follow_input", True)))
+        # 老配置只有「尺寸跟随输入图」勾选框：当时取消勾选就等于固定 1024x1536，这里照旧迁移。
+        _size_idx = self.gpt_size_combo.findData(str(state.get("first_pass_size") or "1024x1536"))
+        if _size_idx >= 0:
+            self.gpt_size_combo.setCurrentIndex(_size_idx)
+        self._sync_gpt_size_controls()
         self.gpt_pp_tone.setChecked(bool(state.get("tone")))
         self.gpt_pp_ink.setChecked(bool(state.get("ink")))
         _ti = self.gpt_pp_tone_target.findData(str(state.get("tone_target") or "style"))
@@ -4177,6 +4269,7 @@ class SingleAnalyzerWidget(QWidget):
             "regions": regions,
             "quality": str(self.gpt_quality_combo.currentData() or "high"),
             "size_follow_input": bool(self.gpt_size_follow_cb.isChecked()),
+            "first_pass_size": str(self.gpt_size_combo.currentData() or "1024x1536"),
             "tone": bool(self.gpt_pp_tone.isChecked()),
             "tone_target": str(self.gpt_pp_tone_target.currentData() or "style"),
             "ink": bool(self.gpt_pp_ink.isChecked()),
@@ -4192,6 +4285,14 @@ class SingleAnalyzerWidget(QWidget):
             return
         save_analysis_gpt_ui(self._gpt_pipeline_ui_state())
 
+    def _sync_gpt_size_controls(self, *_args):
+        """勾着「跟随输入图」时把手动尺寸档置灰：这次以输入图为准，别让人以为选得动。"""
+        combo = getattr(self, "gpt_size_combo", None)
+        follow = getattr(self, "gpt_size_follow_cb", None)
+        if combo is None or follow is None:
+            return
+        combo.setEnabled(not follow.isChecked())
+
     def _connect_gpt_pipeline_signals(self):
         for widget, signal in ((self.auto_gen_orig_cb, "toggled"),
                                (self.auto_gen_ref_cb, "toggled"),
@@ -4206,8 +4307,10 @@ class SingleAnalyzerWidget(QWidget):
                                (self.gpt_pp_scope, "currentIndexChanged"),
                                (self.gpt_pp_region, "currentIndexChanged"),
                                (self.gpt_first_pass_mode, "currentIndexChanged"),
+                               (self.gpt_size_combo, "currentIndexChanged"),
                                (self.gpt_quality_combo, "currentIndexChanged")):
             getattr(widget, signal).connect(self._save_gpt_pipeline_ui)
+        self.gpt_size_follow_cb.toggled.connect(self._sync_gpt_size_controls)
 
     def _gpt_image_channel_active(self) -> bool:
         widget = getattr(self, "gen_channel_gpt", None)
@@ -4316,12 +4419,31 @@ class SingleAnalyzerWidget(QWidget):
             content_text = str(analysis_result.get("english_description")
                                or analysis_result.get("original_english_description") or "").strip()
 
+        # 首图尺寸先定，再组装请求：内容锚开头可能写着分析阶段误判出来的画幅
+        # （"Vertical 2:3 illustration" 之类），实测它能压过请求里的 size —— 所以尺寸要一起传进去，
+        # 由 build_first_pass_request 按**本次生效尺寸**改写正文。手动指定优先，画风参考图永不参与。
+        follow_cb = getattr(self, "gpt_size_follow_cb", None)
+        size_combo = getattr(self, "gpt_size_combo", None)
+        if follow_cb is None and size_combo is None:
+            size, size_source = None, "控件缺失，沿用线程默认"
+        else:
+            size, size_source = resolve_first_pass_size_for_task(
+                prompt_context, analysis_result,
+                self.image_source if isinstance(self.image_source, str) else "",
+                follow_input=(follow_cb is None or follow_cb.isChecked()),
+                manual_size=str(size_combo.currentData() or "") if size_combo is not None else "")
+
         # 首图请求统一从 build_first_pass_request 组装（画风说明 + 内容锚 + 排除句 + 渲染语言条款）。
         # 这里以前自己拼、漏传 extra_clauses，导致 GUI 首图永远没有 RENDERING LANGUAGE 段
         # （CLI 是传了的）——2026-09-24 定位并修掉。
         request_payload = build_first_pass_request(
             styles_data, selected_style_name, analysis_result,
-            content_text=content_text, tier="short")
+            content_text=content_text, tier="short", size=size or "")
+        if size:
+            self.log_msg(f"[gpt 通道] 尺寸 {size}（{size_source}；画风参考图的朝向不参与）")
+        if request_payload.get("aspect_alignment"):
+            self.log_msg("[gpt 通道] 内容锚画幅按本次尺寸改写：" +
+                         "、".join(request_payload["aspect_alignment"]))
         ref = str(request_payload.get("style_ref_path") or "")
         style_clauses = (list(request_payload.get("clauses") or [])
                          + list(request_payload.get("proportion_clauses") or []))
@@ -4362,14 +4484,6 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_ref_btn.setEnabled(False)
         quality = str(getattr(self, "gpt_quality_combo", None).currentData()
                       if getattr(self, "gpt_quality_combo", None) else "high") or "high"
-        size = None
-        if getattr(self, "gpt_size_follow_cb", None) is None or self.gpt_size_follow_cb.isChecked():
-            size = resolve_gpt_first_pass_size(
-                prompt_context,
-                analysis_result,
-                self.image_source if isinstance(self.image_source, str) else "",
-            )
-            self.log_msg(f"[gpt 通道] 尺寸 {size}（按原始分析图比例自动选；画风图不参与）")
 
         thread = GptImageGenWorkerThread(
             request_payload=request_payload, steps=steps, firmware=firmware,
@@ -4624,6 +4738,10 @@ class SingleAnalyzerWidget(QWidget):
                 stage = getattr(thread, "failed_stage", "")
                 reason = "生图已取消" if status == "cancelled" else (
                     "工序失败：" + STAGE_LABELS.get(stage, stage) if stage else "生图失败（无产物）")
+                checkpoint_data = getattr(getattr(thread, "checkpoint", None), "data", {})
+                detail = str(checkpoint_data.get("error") or "") if isinstance(checkpoint_data, dict) else ""
+                if detail:
+                    reason += "\n" + detail
                 for _tid in self._history_task_ids_for_hash(task_hash_of_thread):
                     rec = self._analysis_history.get(_tid)
                     if rec is not None:

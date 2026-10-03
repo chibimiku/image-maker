@@ -246,12 +246,13 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
             from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
                                                    SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)
             desc = str(final_result.get("english_description") or "").strip()
+            source_ratio = str(final_result.get("aspect_ratio") or "").strip()
             if desc:
                 text_cfg = {"base_url": base_url, "api_key": api_key, "model": model_name}
                 _log(log_callback, "== 附加: 生成 gpt-image 专用短提示词（完整档） ==")
                 field = build_gpt_image_prompt(
                     desc, text_cfg=text_cfg, max_chars=FIELD_MAX_CHARS, tier="full",
-                    log_callback=(lambda m: _log(log_callback, m)),
+                    log_callback=(lambda m: _log(log_callback, m)), aspect_ratio=source_ratio,
                 )
                 if field:
                     final_result[FIELD_KEY] = field
@@ -260,7 +261,7 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
                     _log(log_callback, "== 附加: 生成 gpt-image 专用短提示词（短锚档） ==")
                     short_field = build_gpt_image_prompt(
                         desc, text_cfg=text_cfg, max_chars=SHORT_FIELD_MAX_CHARS, tier="short",
-                        log_callback=(lambda m: _log(log_callback, m)),
+                        log_callback=(lambda m: _log(log_callback, m)), aspect_ratio=source_ratio,
                     )
                     if short_field:
                         final_result[SHORT_FIELD_KEY] = short_field

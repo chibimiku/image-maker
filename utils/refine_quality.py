@@ -9,6 +9,7 @@ import re
 import uuid
 
 from utils.analysis_gpt_prompt import call_text_model, load_text_api_config
+from utils.send_budget import guarded_text_call
 
 
 def _prompt(name: str) -> str:
@@ -55,8 +56,28 @@ def _items(data: dict, key: str, fields: tuple[str, ...]) -> list[dict]:
     return out
 
 
-def normalize_quality_audit(value: dict) -> dict:
+def normalize_quality_audit(value: dict, schema: str = "quality") -> dict:
+    """规范化质量/人体/终审审计结论。
+
+    第四轮 P0.2：**不允许把缺字段默认成「否 / none」再伪装成有效结论**。
+    合法结论必须给出 boolean ``needs_refine``、枚举严重度（none/minor/major），
+    每个 ``*_issues``/``background_drift``/``style_gaps`` 字段都必须是 list。
+    任一缺失时 ``conclusion_valid=false``、``severity="unknown"``，
+    门禁据此只能判 review_required。
+
+    各审计的**真实 schema**不同，必须分开要求（第四轮 P0.2 修订）：
+    * ``schema="quality"`` / ``"final_review"``：``needs_refine`` + ``severity`` +
+      四个问题集合（对应 `refine-quality-audit-system.md` / `final-quality-audit-system.md`）；
+    * ``schema="anatomy"``：``hand-audit-system.md`` 只要求
+      ``structural_issues`` / ``character_limb_inventory`` / ``summary`` / ``needs_refine`` /
+      ``ownership_uncertain``，**没有 severity，也不要求画风字段** —— 拿画风字段去要求人体审计
+      会让每一张图都「缺结论」，那不是审计的问题。
+    """
     data = value if isinstance(value, dict) else {}
+    schema = str(schema or "quality")
+    required_lists = ("structural_issues",) if schema == "anatomy" else (
+        "structural_issues", "line_issues", "background_drift", "style_gaps")
+    require_severity = schema != "anatomy"
     result = {
         "structural_issues": _items(data, "structural_issues", ("region", "observed", "repair")),
         "line_issues": _items(data, "line_issues", ("region", "observed", "repair")),
@@ -64,13 +85,29 @@ def normalize_quality_audit(value: dict) -> dict:
         "style_gaps": _items(data, "style_gaps", ("aspect", "candidate", "target", "repair")),
     }
     findings = sum((result[key] for key in ("structural_issues", "line_issues", "background_drift", "style_gaps")), [])
-    result["needs_refine"] = bool(data.get("needs_refine")) and bool(findings)
-    severity = str(data.get("severity") or ("major" if findings else "none")).lower()
-    result["severity"] = severity if severity in {"none", "minor", "major"} else "minor"
+    raw_needs = data.get("needs_refine")
+    has_bool_needs = isinstance(raw_needs, bool)
+    severity_raw = str(data.get("severity") or "").strip().lower()
+    severity_present = bool(severity_raw)
+    severity_ok = severity_raw in {"none", "minor", "major"}
+    missing_lists = [key for key in required_lists if not isinstance(data.get(key), list)]
+    missing = ([] if has_bool_needs else ["needs_refine"])
+    if require_severity and not severity_ok:
+        missing.append("severity")
+    if severity_present and not severity_ok:
+        missing.append("severity(非法枚举)")
+    missing += missing_lists
+    result["needs_refine"] = (bool(raw_needs) if has_bool_needs else False) and bool(findings)
+    result["severity"] = severity_raw if severity_ok else ("unknown" if require_severity else "")
+    result["severity_required"] = require_severity
     result["confidence"] = max(0.0, min(1.0, float(data.get("confidence") or 0.0)))
     result["protected_features"] = [str(v).strip() for v in (data.get("protected_features") or [])
                                       if str(v).strip()][:20]
     result["summary"] = str(data.get("summary") or "").strip()
+    result["schema"] = schema
+    result["conclusion_valid"] = not missing
+    result["conclusion_missing"] = bool(missing)
+    result["missing_conclusion_fields"] = missing
     return result
 
 
@@ -138,9 +175,10 @@ def audit_refine_quality(original_path: str, candidate_path: str, style_path: st
         if final_review:
             user += "\n\nSELECTED RENDERING TARGETS:\n" + str(style_targets or "")
             user += "\n\nAUTHORIZED DESIGN VARIATIONS:\n" + "\n".join(authorized_changes or [])
-        raw = call_text_model(cfg["base_url"], cfg["api_key"], cfg["model"],
-                              _prompt("final-quality-audit-system.md" if final_review else "refine-quality-audit-system.md"), user,
-                              timeout=timeout, max_tokens=5000 if final_review else 3000, image_paths=proxies)
+        raw = guarded_text_call("quality-audit", call_text_model, cfg["base_url"], cfg["api_key"],
+                                cfg["model"],
+                                _prompt("final-quality-audit-system.md" if final_review else "refine-quality-audit-system.md"), user,
+                                timeout=timeout, max_tokens=5000 if final_review else 3000, image_paths=proxies)
     finally:
         for path in proxies:
             try:
@@ -207,6 +245,63 @@ def build_quality_correction_prompt(audit: dict) -> str:
             .replace("{repairs}", "- " + "\n- ".join(repairs)))
 
 
+QUALITY_FINDING_LABELS = {"structural_issues": "结构", "line_issues": "线条",
+                        "background_drift": "背景漂移", "style_gaps": "画风"}
+
+
+def quality_failure_details(audit: dict) -> str:
+    """Human-readable evidence, including lower-confidence retained findings."""
+    audit = audit or {}
+    lines = [f"严重度={audit.get('severity', 'unknown')}；审计置信度={audit.get('confidence', 0)}"]
+    for key, label in QUALITY_FINDING_LABELS.items():
+        for item in audit.get(key) or []:
+            region = item.get("region") or item.get("aspect") or "未注明区域"
+            observed = item.get("observed") or item.get("candidate") or "未说明"
+            target = item.get("original") or item.get("target")
+            expected = f"；目标：{target}" if target else ""
+            lines.append(f"{label} [{region}] {observed}（置信度 {item.get('confidence', 0)}）{expected}；建议：{item.get('repair') or '人工复核'}")
+    for item in audit.get("ownership_uncertain") or []:
+        lines.append("归属待确认：" + (f"[{item.get('region', '')}] {item.get('reason', '')}"
+                                    if isinstance(item, dict) else str(item)))
+    if audit.get("audit_error"):
+        lines.append("审计错误：" + str(audit["audit_error"]))
+    if audit.get("summary"):
+        lines.append("摘要：" + str(audit["summary"]))
+    return "\n".join(lines)
+
+
+def final_quality_decision(audit: dict) -> dict:
+    """Relax only explicitly minor rendering findings; anatomy stays strict."""
+    audit = audit or {}
+    if audit.get("audit_error") or audit.get("needs_review") or audit.get("ownership_uncertain"):
+        return {"policy": "minor-rendering-v1", "action": "review", "reason": "审计失败或归属不明确"}
+    if not should_refine_quality(audit):
+        return {"policy": "minor-rendering-v1", "action": "accept", "reason": "无高置信缺陷"}
+    hard_findings = any(float(item.get("confidence") or 0) >= .72
+                        for key in ("structural_issues", "background_drift")
+                        for item in audit.get(key) or [])
+    if audit.get("severity") == "minor" and not hard_findings:
+        return {"policy": "minor-rendering-v1", "action": "accept_with_warning",
+                "reason": "仅轻微线条/画风差异，保留警告并通过；结构与背景门禁未放宽"}
+    return {"policy": "minor-rendering-v1", "action": "repair", "reason": "结构、背景或非轻微质量缺陷"}
+
+
+def record_quality_audit(audit: dict, path: str, log_callback=None, *, final=False) -> dict:
+    """Persist original evidence plus a reviewable decision and text sidecar."""
+    audit = dict(audit)
+    if final:
+        audit["gate_decision"] = final_quality_decision(audit)
+    details = quality_failure_details(audit)
+    report = (("门禁：" + audit["gate_decision"]["reason"] + "\n") if final else "") + details
+    with open(path, "w", encoding="utf-8") as stream:
+        json.dump(audit, stream, ensure_ascii=False, indent=2)
+    with open(os.path.splitext(path)[0] + ".txt", "w", encoding="utf-8") as stream:
+        stream.write(report + "\n")
+    if log_callback:
+        log_callback(f"[质量审计] {report}\n审计记录：{os.path.abspath(path)}")
+    return audit
+
+
 def match_final_canvas(path, size):
     """Allow tiny Gemini rounding deficits by extending edge pixels, never stretching."""
     from PIL import Image
@@ -265,13 +360,14 @@ def review_final_candidate(candidate, audit_call, output_dir, operation=None,
         audit.setdefault("candidate", os.path.abspath(current))
         audit.setdefault("candidate_sha256", file_sha256(current))
         audit["audit_only"] = bool(audit_only)
-        with open(os.path.join(output_dir, f"final-quality-audit-{round_no}.json"), "w", encoding="utf-8") as stream:
-            json.dump(audit, stream, ensure_ascii=False, indent=2)
+        audit_path = os.path.join(output_dir, f"final-quality-audit-{round_no}.json")
+        audit = record_quality_audit(audit, audit_path, log_callback, final=True)
+        decision = final_quality_decision(audit)
         if audit_only:
             return current, audit
-        if audit.get("needs_review"):
-            raise RuntimeError("最终肢体归属不明确，保留候选图，需人工确认")
-        if not should_refine_quality(audit):
+        if decision["action"] == "review":
+            raise RuntimeError("最终审计需人工确认，保留候选图：\n" + quality_failure_details(audit) + "\n审计记录：" + audit_path)
+        if decision["action"] in {"accept", "accept_with_warning"}:
             return current, audit
         repairs = []
         for key in ("structural_issues", "line_issues", "background_drift", "style_gaps"):
@@ -283,7 +379,7 @@ def review_final_candidate(candidate, audit_call, output_dir, operation=None,
         with open(os.path.join(output_dir, f"final-repair-{round_no + 1}.txt"), "w", encoding="utf-8") as stream:
             stream.write(prompt)
         if round_no == limit:
-            raise RuntimeError("最终复审仍有缺陷，已达到兜底次数上限，禁止发布")
+            raise RuntimeError("最终复审仍有缺陷，已达到兜底次数上限，禁止发布：\n" + quality_failure_details(audit) + "\n审计记录：" + audit_path)
         with Image.open(current) as image:
             size = image.size
         resolution = "4K" if max(size) > 3072 else "2K" if max(size) > 1536 else "1K"
@@ -326,13 +422,16 @@ def audit_hand_quality(candidate_path: str, text_cfg: dict | None = None,
         proxies.append(_proxy(candidate_path, "anatomy-left", (0, .25, .65, 1)))
         proxies.append(_proxy(candidate_path, "anatomy-right", (.35, .25, 1, 1)))
         cfg = text_cfg or load_text_api_config()
-        raw = call_text_model(cfg["base_url"], cfg["api_key"], cfg["model"],
-                              _prompt("hand-audit-system.md"), "Trace every character's limbs and inspect all visible hands.",
-                              timeout=timeout, max_tokens=4000, image_paths=proxies)
+        raw = guarded_text_call("anatomy-audit", call_text_model, cfg["base_url"], cfg["api_key"],
+                                cfg["model"],
+                                _prompt("hand-audit-system.md"), "Trace every character's limbs and inspect all visible hands.",
+                                timeout=timeout, max_tokens=4000, image_paths=proxies)
         value = _json_object(raw)
         if not isinstance(value.get("structural_issues"), list):
             raise ValueError("手部审计未返回有效 structural_issues")
-        result = normalize_quality_audit(value)
+        # 人体审计的真实 schema（hand-audit-system.md）没有 severity，也不含画风字段，
+        # 所以按 `schema="anatomy"` 规范化：只要求 needs_refine + structural_issues + 归属结论。
+        result = normalize_quality_audit(value, schema="anatomy")
         # A contradictory needs_refine=false must not hide a confident defect.
         result["needs_refine"] = bool(result["structural_issues"])
         result.update(candidate=os.path.abspath(candidate_path), raw=raw,

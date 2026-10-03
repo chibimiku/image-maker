@@ -24,3 +24,9 @@ erotic body emphasis or unseen anatomy. Preserve coverage, lining and actual cro
    an illustration scene.
 7. Do not add style words (the caller appends the art-style block separately). No "masterpiece",
    "8k", "best quality", "ultra detailed", "trending on artstation".
+8. NEVER state the aspect ratio, orientation or frame shape: no "vertical", "horizontal",
+   "portrait", "landscape", "tall", "wide", "2:3", "16:9", "in a ... frame" and no
+   "square". The caller sets the canvas through the API size parameter, and a wrong wording
+   overrides it (the model obeys the text). If the description you are given opens with such
+   words, drop them instead of keeping them: rule 3 is about the pose and the framing of the
+   subject, not about repeating an aspect-ratio claim.

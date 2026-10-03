@@ -11,6 +11,8 @@
 区域预设（比例坐标 left,top,right,bottom）：upper / head / hair / face / skirt / full。
 区域强调句用于把重绘注意力集中到该部位（头发最容易糊，所以 hair 有专门条款）。
 """
+import hashlib
+import json as _json
 import os
 import time
 
@@ -1302,6 +1304,163 @@ REPAINT_SCOPE_LABELS = {
 }
 
 
+def assemble_repaint_prompt(firmware=None, cfg=None, style_ref_path=None, style_clauses=None):
+    """拼装这次重绘的最终提示词（**唯一拼装点**）。
+
+    返回 ``(prompt, log_lines)``。第四轮 P0.3：预检与实际发送必须共用这一段，
+    否则「dry-run 对了」不能证明真正发出去的文字是对的。
+    """
+    cfg = cfg or {}
+    logs = []
+    fw_text = resolve_firmware_text(firmware)
+    prompt = fw_text
+    ref_mode = str(cfg.get("reference_mode") or "").strip().lower()
+    if not ref_mode:
+        ref_mode = "line_anchor" if cfg.get("dual_reference", True) else "none"
+    has_style_ref = bool(ref_mode in ("style", "style_neutral", "both")
+                         and style_ref_path and os.path.isfile(str(style_ref_path)))
+    clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
+    if has_style_ref:
+        prompt = (prompt or "") + (
+            STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
+            else STYLE_REF_ROLE_IN_REPAINT)
+        if ref_mode in ("style", "both"):
+            prompt += STYLE_REF_FACE_HAIR_GRAMMAR
+        if clauses:
+            prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
+    elif cfg.get("text_without_image") and style_ref_path and os.path.isfile(str(style_ref_path)):
+        # 受控实验（第三轮 P1）：只把参考图从请求里拿掉，文字段落保持不变。
+        prompt = (prompt or "") + (
+            STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
+            else STYLE_REF_ROLE_IN_REPAINT)
+        if ref_mode in ("style", "both"):
+            prompt += STYLE_REF_FACE_HAIR_GRAMMAR
+        if clauses:
+            prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
+        prompt = text_without_image_phrasing(prompt, os.path.basename(str(style_ref_path)))
+        logs.append("[工序] 受控模式：本次只发送源图，画风参考图未送出；文字段落保持一致，"
+                    "仅把图片指代改成具名指代")
+    elif cfg.get("clauses_without_image") and clauses:
+        # 受控实验（第三轮 P2 / 第四轮 E1）：不发送画风参考图，也不提参考图；
+        # 只把画风条款当成本次重绘的文字规格。用于「只改一条画法句」的对照。
+        prompt = (prompt or "") + ("\n\nSTYLE LANGUAGE (rendering targets for this repaint):\n- "
+                                   + "\n- ".join(clauses))
+        logs.append("[工序] 受控模式：不发送画风参考图，只把画风条款当成重绘的文字规格")
+    scope_key = str(cfg.get("scope") or "").strip().lower()
+    scope_clause = REPAINT_SCOPE_CLAUSES.get(scope_key, "")
+    if scope_clause:
+        prompt = (prompt or "") + scope_clause
+        logs.append(f"[工序] 重绘编辑范围：{REPAINT_SCOPE_LABELS.get(scope_key, scope_key)}")
+    if scope_key in REPAINT_SCOPE_CLAUSES:
+        prompt = (prompt or "") + IDENTITY_LOCK_CLAUSE
+    return (prompt or ""), logs
+
+
+def _transmitted_image_view(path: str) -> dict:
+    """原文件哈希 + **真正送出的字节**哈希（后端会重编码，两者不能混为一谈）。"""
+    try:
+        from modules.others.api_backend import transmitted_image_digest
+        return transmitted_image_digest(path)
+    except Exception as exc:  # noqa: BLE001 - 取不到哈希不应该阻断组装
+        return {"path": str(path), "file_sha256": _file_digest(path),
+                "digest_error": f"{type(exc).__name__}: {exc}"}
+
+
+def assemble_repaint_request(current, cfg, *, firmware=None, style_ref_path=None, style_clauses=None,
+                             sub_dir="", prefix="", work_dir="", config_path=None,
+                             config: dict = None) -> dict:
+    """组装一次重绘的**有效请求**（不发送）。
+
+    这是「预检」与「实际发送」共用的同一份结果：提示词、参考图顺序与内容哈希
+    （原文件 + 传输字节）、模型 / 分辨率 / 比例 / 落盘参数全部在这里定下来。
+    """
+    from utils.gpt_image_optimize import load_config, resolve_repaint_call
+    cfg = cfg or {}
+    logs = []
+    ref_mode = str(cfg.get("reference_mode") or "").strip().lower()
+    if not ref_mode:
+        ref_mode = "line_anchor" if cfg.get("dual_reference", True) else "none"
+    extra_refs = []
+    if ref_mode in ("style", "style_neutral", "both") and style_ref_path and os.path.isfile(str(style_ref_path)):
+        extra_refs.append(str(style_ref_path))
+    if ref_mode in ("line_anchor", "both"):
+        anchor_path = os.path.join(work_dir or os.path.dirname(str(current)),
+                                   f"{os.path.splitext(os.path.basename(str(current)))[0]}-lineanchor.png")
+        try:
+            build_line_anchor(current, anchor_path)
+            extra_refs.append(anchor_path)
+        except Exception as exc:  # noqa: BLE001
+            logs.append(f"[工序] 线锚图生成失败，跳过: {exc}")
+    if extra_refs:
+        logs.append(f"[工序] 重绘参考：源图 + {len(extra_refs)} 张（{ref_mode}）")
+    prompt, prompt_logs = assemble_repaint_prompt(firmware, cfg, style_ref_path, style_clauses)
+    logs.extend(prompt_logs)
+    aspect_ratio = snapped_aspect_ratio(current)
+    conf = config if config is not None else load_config()
+    call = resolve_repaint_call(conf, source_path=str(current), prompt=prompt,
+                                resolution=str(cfg.get("resolution") or "2K"),
+                                use_detail_suffix=False, repeat=1,
+                                save_sub_dir=sub_dir, file_prefix=prefix)
+    sources = [str(current)] + extra_refs
+    return {
+        "kind": "gemini-image-repaint",
+        "source_paths": [str(current)],
+        "extra_reference_paths": extra_refs,
+        "reference_images": [_transmitted_image_view(path) for path in sources],
+        "prompt": prompt,
+        "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest() if prompt else "",
+        "prompt_chars": len(prompt),
+        "reference_mode": ref_mode,
+        "style_clauses": [str(c).strip() for c in (style_clauses or []) if str(c).strip()],
+        "model": call["model"],
+        "api_type": call["api_type"],
+        "resolution": call["resolution"],
+        "aspect_ratio": call["aspect_ratio"],
+        "repeat": call["repeat"],
+        "n": 1,
+        "use_detail_suffix": False,
+        "detail_suffix_applied": call["detail_suffix_applied"],
+        "system_prompt_source": call["system_prompt_source"],
+        "config_source": call["config_source"],
+        "firmware_source": str(firmware or ""),
+        "save_sub_dir": call["save_sub_dir"],
+        "file_prefix": call["file_prefix"],
+        "config_path": str(config_path or ""),
+        "log_lines": logs,
+        "call_kwargs": {"source_paths": [str(current)], "resolution": call["resolution"],
+                        "prompt": prompt, "use_detail_suffix": False,
+                        "aspect_ratio": call["aspect_ratio"], "extra_reference_paths": extra_refs,
+                        "save_sub_dir": call["save_sub_dir"], "file_prefix": call["file_prefix"]},
+    }
+
+
+def emit_effective_request(request: dict, directory: str = "") -> str:
+    """把有效请求落盘（`IMAGE_MAKER_EFFECTIVE_REQUEST_DIR` 或显式目录），返回写入路径。"""
+    directory = directory or os.environ.get("IMAGE_MAKER_EFFECTIVE_REQUEST_DIR", "")
+    if not directory:
+        return ""
+    try:
+        os.makedirs(directory, exist_ok=True)
+        index = len([name for name in os.listdir(directory)
+                     if name.startswith("effective-request-")]) + 1
+        path = os.path.join(directory, f"effective-request-{index:02d}.json")
+        with open(path, "w", encoding="utf-8") as stream:
+            _json.dump(request, stream, ensure_ascii=False, indent=2)
+    except OSError:
+        return ""
+    return path
+
+
+def dispatch_repaint_request(request: dict, *, log_callback=None, cancel_check=None) -> list:
+    """按**已组装好的**有效请求发送（实际发送的唯一出口）。"""
+    from modules.others.api_backend import generate_image_repaint
+    kwargs = dict(request.get("call_kwargs") or {})
+    if cancel_check is not None:
+        kwargs["cancel_check"] = cancel_check
+    emit_effective_request(request)
+    return generate_image_repaint(**kwargs) or []
+
+
 def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=None,
                  work_dir=None, resume=True, final_dir=None, style_ref_path=None, style_clauses=None):
     """对一批产物依次跑勾选的后处理步骤；返回最终产物路径列表。
@@ -1373,25 +1532,6 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                 os.makedirs(work_dir, exist_ok=True)
                 stem = os.path.splitext(os.path.basename(current))[0]
                 if key == "repaint":
-                    from modules.others.api_backend import generate_image_repaint
-                    fw_text = resolve_firmware_text(firmware)
-                    # 双参考（源图 + 线锚图）：§⑲ 实测线条连通性最好的配方，默认开
-                    extra_refs = []
-                    ref_mode = str(cfg.get("reference_mode") or "").strip().lower()
-                    if not ref_mode:
-                        ref_mode = "line_anchor" if cfg.get("dual_reference", True) else "none"
-                    if ref_mode in ("style", "style_neutral", "both") and style_ref_path and os.path.isfile(str(style_ref_path)):
-                        extra_refs.append(str(style_ref_path))
-                    if ref_mode in ("line_anchor", "both"):
-                        from utils.post_process import build_line_anchor as _bla  # noqa: PLC0415
-                        anchor_path = os.path.join(work_dir, f"{os.path.splitext(os.path.basename(current))[0]}-lineanchor.png")
-                        try:
-                            _bla(current, anchor_path)
-                            extra_refs.append(anchor_path)
-                        except Exception as exc:  # noqa: BLE001
-                            log(f"[工序] 线锚图生成失败，跳过: {exc}")
-                    if extra_refs:
-                        log(f"[工序] 重绘参考：源图 + {len(extra_refs)} 张（{ref_mode}）")
                     # 最后一步 → 直接落 data/<日期>/；否则落 pipeline-steps/（中间产物）
                     if key == last_key:
                         os.makedirs(final_dir, exist_ok=True)
@@ -1402,63 +1542,22 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         # 不用 os.path.relpath（跨盘符会 ValueError）
                         sub_dir = os.path.abspath(work_dir)
                         prefix = "repaint"
-                    repaint_ratio = snapped_aspect_ratio(current)
-                    repaint_prompt = fw_text
-                    has_style_text = (ref_mode in ("style", "style_neutral", "both")
-                                      and style_ref_path and os.path.isfile(str(style_ref_path)))
-                    if has_style_text:
-                        repaint_prompt = (repaint_prompt or "") + (
-                            STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
-                            else STYLE_REF_ROLE_IN_REPAINT)
-                        if ref_mode in ("style", "both"):
-                            repaint_prompt += STYLE_REF_FACE_HAIR_GRAMMAR
-                        clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
-                        if clauses:
-                            repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
-                    elif cfg.get("text_without_image") and style_ref_path and os.path.isfile(str(style_ref_path)):
-                        # 受控实验（第三轮 P1）：只把参考图从请求里拿掉，文字段落保持不变。
-                        # 唯一改写是「Image 1 / Image 2」这类只在图片真的送出时才成立的指代，
-                        # 换成同一段话里对同两张图的具名指代；其余内容逐字复用。
-                        repaint_prompt = (repaint_prompt or "") + (
-                            STYLE_REF_ROLE_NEUTRAL_IN_REPAINT if ref_mode == "style_neutral"
-                            else STYLE_REF_ROLE_IN_REPAINT)
-                        if ref_mode in ("style", "both"):
-                            repaint_prompt += STYLE_REF_FACE_HAIR_GRAMMAR
-                        clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
-                        if clauses:
-                            repaint_prompt += "\n\nSTYLE LANGUAGE (from the reference image):\n- " + "\n- ".join(clauses)
-                        repaint_prompt = text_without_image_phrasing(
-                            repaint_prompt, os.path.basename(str(style_ref_path)))
-                        log("[工序] 受控模式：本次只发送源图，画风参考图未送出；文字段落保持一致，"
-                            "仅把图片指代改成具名指代")
-                    elif cfg.get("clauses_without_image") and (style_clauses or []):
-                        # 受控实验（第三轮 P2）：不发送画风参考图，也不提参考图；
-                        # 只把画风条款当成本次重绘的文字规格。用于「只改一条画法句」的对照。
-                        clauses = [str(c).strip() for c in (style_clauses or []) if str(c).strip()]
-                        if clauses:
-                            repaint_prompt = (repaint_prompt or "") + (
-                                "\n\nSTYLE LANGUAGE (rendering targets for this repaint):\n- "
-                                + "\n- ".join(clauses))
-                        log("[工序] 受控模式：不发送画风参考图，只把画风条款当成重绘的文字规格")
-                    # 编辑范围：**不裁切、不贴回**，只用提示词要求模型保留不该动的部分（见 §三十一）
-                    # 范围句只能放宽「渲染质量」；身份/设计/内容由 IDENTITY_LOCK_CLAUSE 兜底（放在最后 = 权重最高）
-                    scope_key = str(cfg.get("scope") or "").strip().lower()
-                    scope_clause = REPAINT_SCOPE_CLAUSES.get(scope_key, "")
-                    if scope_clause:
-                        repaint_prompt = (repaint_prompt or "") + scope_clause
-                        log(f"[工序] 重绘编辑范围：{REPAINT_SCOPE_LABELS.get(scope_key, scope_key)}")
-                    if scope_key in REPAINT_SCOPE_CLAUSES:
-                        repaint_prompt = (repaint_prompt or "") + IDENTITY_LOCK_CLAUSE
+                    # 组装与实际发送共用同一份「有效请求」（第四轮 P0.3）：
+                    # 预检拿到的 prompt / 参考图 / 参数就是这里真正发出去的那一份。
+                    request = assemble_repaint_request(
+                        current, cfg, firmware=firmware, style_ref_path=style_ref_path,
+                        style_clauses=style_clauses, sub_dir=sub_dir, prefix=prefix,
+                        work_dir=work_dir)
+                    for line in request.get("log_lines") or []:
+                        log(line)
                     before = set(os.listdir(sub_dir)) if os.path.isdir(sub_dir) else set()
-                    saved = generate_image_repaint(
-                        source_paths=[current], resolution=str(cfg.get("resolution") or "2K"),
-                        prompt=repaint_prompt or None, use_detail_suffix=False,
-                        aspect_ratio=repaint_ratio,
-                        extra_reference_paths=extra_refs,
-                        save_sub_dir=sub_dir, file_prefix=prefix)
-                    log_repaint_call(sub_dir, before, repaint_prompt or "", [current] + list(extra_refs),
-                                     prefix, str(cfg.get("resolution") or "2K"), repaint_ratio)
-                    log(f"[工序] 重绘输出比例锁定为 {repaint_ratio}（按源图比例）")
+                    saved = dispatch_repaint_request(request, log_callback=log)
+                    log_repaint_call(sub_dir, before, request.get("prompt") or "",
+                                     list(request.get("source_paths") or [])
+                                     + list(request.get("extra_reference_paths") or []),
+                                     prefix, request.get("resolution") or "2K",
+                                     request.get("aspect_ratio") or "auto")
+                    log(f"[工序] 重绘输出比例锁定为 {request.get('aspect_ratio')}（按源图比例）")
                     out = saved[0] if saved else ""
                     if not out:
                         raise RuntimeError("重绘没有返回图片")

@@ -147,11 +147,16 @@ def sanitize_short_prompt(text: str, max_chars: int = FIELD_MAX_CHARS) -> str:
 
 def build_gpt_image_prompt(description: str, text_cfg: dict = None, max_chars: int = FIELD_MAX_CHARS,
                            attempts: int = 3, timeout: float = DEFAULT_TIMEOUT, log_callback=None,
-                           tier: str = "full") -> str:
+                           tier: str = "full", aspect_ratio: str = "") -> str:
     """用文本模型把长描述压成 gpt-image 专用短提示词（构图/姿势/服装/道具/镜头不变）。
 
     tier="full"  → ≤1400 字符的完整内容锚（不挂参考图、或内容优先时用）
     tier="short" → ≤500 字符的短内容锚（要挂画风参考图时用；文本越短，参考图越能起作用）
+
+    `aspect_ratio` 传**源图实测比例**（分析产物里的 `aspect_ratio` 字段）：上游描述里可能写着
+    推断出来的画幅，而 system prompt 又要求"保持 aspect ratio 与描述一致"，于是假画幅直接被抄进
+    产物（实测 634dfc91：2000x1024 的横图被写成 "Vertical 2:3 illustration"，随后把首图带成竖图）。
+    这里按实测比例改回来，别让假画幅留在落盘产物里继续误导下游。
     """
     desc = str(description or "").strip()
     if not desc:
@@ -174,6 +179,9 @@ def build_gpt_image_prompt(description: str, text_cfg: dict = None, max_chars: i
                                   timeout=timeout)
             out = sanitize_short_prompt(raw, limit)
             if out:
+                if str(aspect_ratio or "").strip():
+                    from utils.aspect_wording import align_aspect_wording
+                    out, _changes = align_aspect_wording(out, ratio=aspect_ratio)
                 return out
             last = "模型返回空内容"
         except Exception as exc:  # noqa: BLE001

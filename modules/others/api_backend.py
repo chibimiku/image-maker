@@ -3,6 +3,7 @@ from logging import config
 import os
 import json
 import base64
+import hashlib
 import io
 import tempfile
 import requests
@@ -950,6 +951,43 @@ def _existing_image_paths(image_paths: list = None) -> list:
             logger.warning(f"找不到本地图片文件 {img_path}，已跳过。")
     return valid_paths
 
+
+def _file_digest(path: str) -> str:
+    """磁盘文件的内容哈希（与「传输字节哈希」分开记录，别互相冒充）。"""
+    import hashlib
+    if not path or not os.path.isfile(str(path)):
+        return ""
+    hasher = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            hasher.update(block)
+    return hasher.hexdigest()
+
+
+IMAGE_RETRY_ENV = "IMAGE_MAKER_IMAGE_MAX_RETRIES"
+
+
+def resolve_image_max_retries(config: dict, default: int = 1) -> int:
+    """这一次图片调用最多允许发几次 HTTP 请求（0 = 只有一次发送，绝不自动重发）。
+
+    受控付费实验（第四轮 P0.4）要求「一次执行最多一次发送」：底层 ``requests`` 的重试
+    会让一次付费动作变成多次扣费，事后账本拦不住。环境变量
+    ``IMAGE_MAKER_IMAGE_MAX_RETRIES`` 是跨配置的总开关（只在图片生成通道生效），
+    没设置时沿用配置文件里的 ``max_retries``。
+    """
+    import os as _os
+    raw = _os.environ.get(IMAGE_RETRY_ENV)
+    if raw is not None and str(raw).strip() != "":
+        try:
+            return max(0, int(float(str(raw).strip())))
+        except (TypeError, ValueError):
+            logger.warning(f"{IMAGE_RETRY_ENV}={raw!r} 不是数字，忽略该覆盖")
+    try:
+        return max(0, int(config.get("max_retries", default) or 0))
+    except (TypeError, ValueError):
+        return max(0, int(default))
+
+
 def _maybe_compress_image_path(img_path, max_dim=2048, temp_files=None):
     """参考图尺寸超过 max_dim 时压缩为 JPEG 临时文件（与分析流程一致）。
 
@@ -986,24 +1024,58 @@ def _cleanup_temp_files(temp_files):
         except OSError:
             pass
 
+def _encode_image_for_transmission(path, max_dim=2048):
+    """把一张图片编码成**真正会送出的字节**（mime, bytes）。
+
+    受控实验（第四轮 P0.3）要求「原文件哈希」与「传输字节哈希」分开记录：
+    这里统一重编码成 JPEG q95（超过 max_dim 还会缩放），所以两者几乎总是不同。
+    本函数是唯一编码点，`to_base64_compressed` 与 `transmitted_image_digest` 共用它，
+    才能保证「预检算出来的哈希」就是「实际送出的哈希」。
+    """
+    from PIL import Image
+    img = Image.open(path)
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    width, height = img.size
+    if max(width, height) > max_dim:
+        scaling = max_dim / max(width, height)
+        img = img.resize((int(width * scaling), int(height * scaling)), Image.Resampling.LANCZOS)
+        logger.info(f"参考图过大已压缩: {path} ({width}x{height}) -> {img.size[0]}x{img.size[1]}")
+    buffered = io.BytesIO()
+    img.save(buffered, format="JPEG", quality=95)
+    return "image/jpeg", buffered.getvalue()
+
+
+def transmitted_image_digest(path, max_dim=2048) -> dict:
+    """这次请求真正送出的图片字节的哈希与大小（压缩失败时回退成原文件字节）。"""
+    import hashlib
+    actual = str(path or "")
+    try:
+        mime, data = _encode_image_for_transmission(actual, max_dim=max_dim)
+        return {"path": actual, "mime": mime, "transmitted_bytes": len(data),
+                "transmitted_sha256": hashlib.sha256(data).hexdigest(),
+                "reencoded": True, "file_sha256": _file_digest(actual)}
+    except Exception as e:  # noqa: BLE001 - 与 to_base64_compressed 的回退保持一致
+        logger.warning(f"参考图压缩失败，使用原图 base64: {path} - {e}")
+        try:
+            with open(actual, "rb") as stream:
+                data = stream.read()
+        except OSError:
+            data = b""
+        return {"path": actual, "mime": _guess_image_mime_type(actual), "transmitted_bytes": len(data),
+                "transmitted_sha256": hashlib.sha256(data).hexdigest(),
+                "reencoded": False, "file_sha256": _file_digest(actual),
+                "encode_error": f"{type(e).__name__}: {e}"}
+
+
 def to_base64_compressed(path, max_dim=2048):
     """转 base64；图片尺寸超过 max_dim 时先压缩（与分析流程一致）。
 
     返回 (mime_type, base64)。压缩失败时回退为原始文件 base64。
     """
     try:
-        from PIL import Image
-        img = Image.open(path)
-        if img.mode != "RGB":
-            img = img.convert("RGB")
-        width, height = img.size
-        if max(width, height) > max_dim:
-            scaling = max_dim / max(width, height)
-            img = img.resize((int(width * scaling), int(height * scaling)), Image.Resampling.LANCZOS)
-            logger.info(f"参考图过大已压缩: {path} ({width}x{height}) -> {int(width * scaling)}x{int(height * scaling)}")
-        buffered = io.BytesIO()
-        img.save(buffered, format="JPEG", quality=95)
-        return "image/jpeg", base64.b64encode(buffered.getvalue()).decode("utf-8")
+        mime, data = _encode_image_for_transmission(path, max_dim=max_dim)
+        return mime, base64.b64encode(data).decode("utf-8")
     except Exception as e:
         logger.warning(f"参考图压缩失败，使用原图 base64: {path} - {e}")
         return _guess_image_mime_type(path), to_base64(path)
@@ -1093,7 +1165,7 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     url = resolve_images_endpoint(api_base, has_images=False, api_type=normalized_api_type)
     api_key = config.get("api_key")
     timeout_val = config.get("timeout", 180)
-    max_retries = config.get("max_retries", 1)
+    max_retries = resolve_image_max_retries(config, 1)
     debug_dump_full_http = _as_bool(config.get("debug_dump_full_http", False), False)
 
     if not api_key:
@@ -1647,7 +1719,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     url = resolve_images_endpoint(api_base, has_images=False, api_type=resolved_api_type)
     api_key = config.get("api_key")
     timeout_val = int(config.get("timeout", 600) or 600)
-    max_retries = int(config.get("max_retries", 1) or 1)
+    max_retries = resolve_image_max_retries(config, 1)
     retry_backoff_s = float(config.get("retry_backoff", 1.0) or 1.0)
     debug_dump_full_http = _as_bool(config.get("debug_dump_full_http", False), False)
 
@@ -2056,7 +2128,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     api_base = config.get("base_url", "https://api.whatai.cc/v1").rstrip('/')
     api_key = config.get("api_key")
     timeout_val = config.get("timeout", 120)      # <--- 读取超时配置，默认120
-    max_retries = config.get("max_retries", 1)    # <--- 读取重试配置，默认1
+    max_retries = resolve_image_max_retries(config, 1)    # 受控实验可用环境变量强制为 0（一次执行最多一次发送）
     debug_dump_full_http = _as_bool(config.get("debug_dump_full_http", False), False)
 
     # TODO: 处理resolution，但是whatai其实根本不接受这个参数，目前只能放在prompt里让模型自己理解了
@@ -2465,7 +2537,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     api_base = str(config.get("base_url", "https://new.aigc2d.com/v1beta/models/") or "https://new.aigc2d.com/v1beta/models/").strip()
     api_key = config.get("api_key")
     timeout_val = config.get("timeout", 180)
-    max_retries = config.get("max_retries", 1)
+    max_retries = resolve_image_max_retries(config, 1)
     debug_dump_full_http = _as_bool(config.get("debug_dump_full_http", False), False)
     # 从配置中读取resolution，如果传入了参数则使用传入的参数
     if resolution is None:
@@ -2842,47 +2914,24 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
 
     返回落盘后的重绘产物路径列表。
     """
-    from utils.gpt_image_optimize import (
-        ASPECT_RATIO_AUTO,
-        DEFAULTS as REPAINT_DEFAULTS,
-        build_repaint_prompt,
-        load_config,
-        plan_output,
-        resolve_aspect_ratio,
-    )
+    from utils.gpt_image_optimize import load_config, resolve_repaint_call
 
     conf = load_config()
-    # 所有兜底都取自 prompts/gpt-image-optimize/config.json 的同义默认值（单一事实来源）
-    resolved_model = str(model or conf.get("model") or REPAINT_DEFAULTS["model"])
-    resolved_resolution = str(resolution or conf.get("resolution") or REPAINT_DEFAULTS["resolution"])
-    # 宽高比默认 auto：不传字段，由模型按输入图比例输出
-    resolved_aspect = resolve_aspect_ratio(
-        {"aspect_ratio": aspect_ratio} if aspect_ratio else conf, ASPECT_RATIO_AUTO
-    )
-    resolved_api_type = str(api_type or conf.get("api_type") or REPAINT_DEFAULTS["api_type"])
-    try:
-        resolved_repeat = max(1, int(repeat if repeat is not None else conf.get("repeat") or 1))
-    except (TypeError, ValueError):
-        resolved_repeat = 1
-
-    if prompt is None:
-        conf_for_prompt = dict(conf)
-        if use_detail_suffix is not None:
-            conf_for_prompt["use_detail_suffix"] = use_detail_suffix
-        resolved_prompt = build_repaint_prompt(conf_for_prompt)
-    else:
-        resolved_prompt = str(prompt or "")
-    if prompt_suffix is not None:
-        resolved_suffix = str(prompt_suffix or "")
-    elif use_detail_suffix is False:
-        resolved_suffix = ""
-    else:
-        suffix_relative = str(conf.get("detail_suffix") or "").strip()
-        try:
-            from utils.gpt_image_optimize import read_prompt_relative
-            resolved_suffix = read_prompt_relative(suffix_relative) if suffix_relative else ""
-        except Exception:  # noqa: BLE001 - 后缀缺失不影响主 prompt
-            resolved_suffix = ""
+    # 所有兜底都取自 prompts/gpt-image-optimize/config.json 的同义默认值（单一事实来源）。
+    # 第四轮 P0.3 起，这一次调用的最终参数在 `resolve_repaint_call` 里解析一次；
+    # 预检入口（工具 CLI / 实验 wrapper）拿到的是同一份结果，不再是「另算一遍」。
+    first_source = next((p for p in (source_paths or []) if p), "")
+    call = resolve_repaint_call(conf, source_path=first_source, model=model, resolution=resolution,
+                                aspect_ratio=aspect_ratio, repeat=repeat, prompt=prompt,
+                                prompt_suffix=prompt_suffix, use_detail_suffix=use_detail_suffix,
+                                save_sub_dir=save_sub_dir, file_prefix=file_prefix, api_type=api_type)
+    resolved_model = call["model"]
+    resolved_resolution = call["resolution"]
+    resolved_aspect = call["aspect_ratio"]
+    resolved_api_type = call["api_type"]
+    resolved_repeat = call["repeat"]
+    resolved_prompt = call["prompt"]
+    resolved_suffix = call["prompt_suffix"]
 
     valid_sources = [p for p in (source_paths or []) if p and os.path.isfile(p)]
     for path in [p for p in (source_paths or []) if p and not os.path.isfile(p)]:
@@ -2894,8 +2943,10 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
     all_saved = []
     extra_refs = [p for p in (extra_reference_paths or []) if p and os.path.isfile(p)]
     multi = len(valid_sources) > 1
+    extra_digests = [transmitted_image_digest(p) for p in extra_refs]
     for index, source in enumerate(valid_sources, start=1):
-        plan = plan_output(source, conf)
+        plan = resolve_repaint_call(conf, source_path=source, save_sub_dir=save_sub_dir,
+                                    file_prefix=file_prefix)
         sub_dir = save_sub_dir or plan["save_sub_dir"]
         if file_prefix:
             base_prefix = f"{file_prefix}_{index:02d}" if multi else str(file_prefix)
@@ -2903,25 +2954,59 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
             base_prefix = f"{plan['file_prefix']}_{index:02d}" if multi else plan["file_prefix"]
         logger.info(f"=== 重绘 {index}/{len(valid_sources)}: {source} -> {resolved_model} @{resolved_resolution}"
                     f"{'（双参考 +%d）' % len(extra_refs) if extra_refs else ''} ===")
-        saved = generate_image_aigc2d(
-            prompt=resolved_prompt,
-            image_paths=[source] + extra_refs,
-            model=resolved_model,
-            aspect_ratio=resolved_aspect,
-            resolution=resolved_resolution,
-            api_type=resolved_api_type,
-            save_sub_dir=sub_dir,
-            file_prefix=base_prefix,
-            return_metadata=False,
-            log_callback=log_callback,
-            cancel_check=cancel_check,
-            prompt_suffix=resolved_suffix,
-            face_quality_boost=False,
-        ) or []
+        # 受控实验（第四轮 P0.3/P0.4）：把「真正送出的字节」与
+        # 「发送前原子预留的名额」都记在请求里；未启用预算时这里是空操作。
+        import utils.send_budget as send_budget
+        reservation = send_budget.reserve_image_attempt(
+            run_id=send_budget.current_run_id(), operation=base_prefix,
+            model=resolved_model, resolution=resolved_resolution, aspect_ratio=resolved_aspect,
+            prompt_sha256=hashlib.sha256(resolved_prompt.encode("utf-8")).hexdigest(),
+            prompt_chars=len(resolved_prompt), source_sha256=_file_digest(source),
+            reference_images=[transmitted_image_digest(source)] + extra_digests,
+            note="重绘（生成接口）")
+        if send_budget.budget_active() and resolve_image_max_retries(conf, 1) != 0:
+            send_budget.settle_image_attempt(reservation, status="refused",
+                                             error="底层图片自动重试未关闭，拒绝发送")
+            raise RuntimeError(
+                f"图片通道的 max_retries 不是 0（{IMAGE_RETRY_ENV} 未设为 0），"
+                "无法保证一次执行最多一次发送；按受控实验规程拒绝发送。")
+        try:
+            saved = generate_image_aigc2d(
+                prompt=resolved_prompt,
+                image_paths=[source] + extra_refs,
+                model=resolved_model,
+                aspect_ratio=resolved_aspect,
+                resolution=resolved_resolution,
+                api_type=resolved_api_type,
+                save_sub_dir=sub_dir,
+                file_prefix=base_prefix,
+                return_metadata=False,
+                log_callback=log_callback,
+                cancel_check=cancel_check,
+                prompt_suffix=resolved_suffix,
+                face_quality_boost=False,
+            ) or []
+        except BaseException as exc:
+            send_budget.settle_image_attempt(reservation, status="unknown",
+                                             error=f"{type(exc).__name__}: {exc}")
+            raise
+        send_budget.settle_image_attempt(
+            reservation, status="success" if saved else "failed",
+            output_path=(saved[0] if saved else ""),
+            output_sha256=(_file_digest(saved[0]) if saved else ""),
+            error="" if saved else "重绘未返回图片")
         if not saved:
             logger.warning(f"重绘第 {index} 张未返回图片（源图 {source}），继续下一张。")
             continue
         for extra in range(2, resolved_repeat + 1):
+            import utils.send_budget as send_budget
+            extra_reservation = send_budget.reserve_image_attempt(
+                run_id=send_budget.current_run_id(), operation=f"{base_prefix}_r{extra}",
+                model=resolved_model, resolution=resolved_resolution, aspect_ratio=resolved_aspect,
+                prompt_sha256=hashlib.sha256(resolved_prompt.encode("utf-8")).hexdigest(),
+                prompt_chars=len(resolved_prompt), source_sha256=_file_digest(source),
+                reference_images=[transmitted_image_digest(source)] + extra_digests,
+                note="重绘（生成接口，repeat 追加）")
             more = generate_image_aigc2d(
                 prompt=resolved_prompt,
                 image_paths=[source] + extra_refs,
@@ -2937,6 +3022,11 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
                 prompt_suffix=resolved_suffix,
                 face_quality_boost=False,
             ) or []
+            send_budget.settle_image_attempt(
+                extra_reservation, status="success" if more else "failed",
+                output_path=(more[0] if more else ""),
+                output_sha256=(_file_digest(more[0]) if more else ""),
+                error="" if more else "重绘未返回图片")
             saved.extend(more)
         all_saved.extend(saved)
     logger.info(f"=== 重绘完成: 源图 {len(valid_sources)} 张 -> 产物 {len(all_saved)} 张 ===")

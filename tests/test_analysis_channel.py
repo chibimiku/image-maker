@@ -788,3 +788,84 @@ def test_analysis_size_checkbox_default_on(analyzer):
 def test_pick_size_helper_used_by_tab_default():
     from modules.others.api_backend import pick_gpt_image2_size_for_images
     assert pick_gpt_image2_size_for_images([], fallback="1536x1024") == "1536x1024"
+
+
+def test_manual_size_choice_beats_portrait_source_and_style_ref(analyzer, tmp_path, monkeypatch):
+    """手动选了尺寸就以它为准：竖向源图、竖向画风图都不许把它改回去。
+
+    同时正文里的假画幅要跟着**手动选定的尺寸**改写（实测正文能压过 size 参数）。
+    """
+    import json
+    import cv2
+    import numpy as np
+
+    tall = tmp_path / "tall_source.png"
+    cv2.imwrite(str(tall), np.full((1200, 600, 3), 200, np.uint8))     # 竖版源图
+    monkeypatch.setattr(sa, "GptImageGenWorkerThread", _FakeGptWorker)
+    _FakeGptWorker.last = {}
+    analyzer.gen_channel_gpt.setChecked(True)
+    analyzer.gpt_size_follow_cb.setChecked(False)
+    analyzer.gpt_size_combo.setCurrentIndex(analyzer.gpt_size_combo.findData("1536x1024"))
+    js = tmp_path / "manual-size.json"
+    js.write_text(json.dumps({"gpt_image_prompt": "Vertical 2:3 illustration, one woman centered-right."}),
+                  encoding="utf-8")
+
+    analyzer.trigger_image_generation("refined", prompt_bundle={
+        "task_hash": "manual-size", "style_name": "tid", "aspect_ratio": "2:3",
+        "original_prompt": "o", "refined_prompt": "r",
+        "analysis_json_path": str(js), "source_image_path": str(tall)})
+
+    assert _FakeGptWorker.last.get("size") == "1536x1024"
+    prompt = str(_FakeGptWorker.last["request_payload"]["prompt"])
+    assert "Horizontal 3:2" in prompt
+    assert "Vertical 2:3" not in prompt
+
+
+def test_size_combo_is_greyed_out_while_following_the_input(analyzer):
+    analyzer.gpt_size_follow_cb.setChecked(True)
+    assert analyzer.gpt_size_combo.isEnabled() is False
+    analyzer.gpt_size_follow_cb.setChecked(False)
+    assert analyzer.gpt_size_combo.isEnabled() is True
+
+
+def test_manual_size_choice_is_remembered(analyzer):
+    import json
+    analyzer.gpt_size_follow_cb.setChecked(False)
+    analyzer.gpt_size_combo.setCurrentIndex(analyzer.gpt_size_combo.findData("1024x1024"))
+    node = json.load(open(sa.analysis_gpt_ui_path(), encoding="utf-8"))[sa.ANALYSIS_GPT_UI_NODE]
+    assert node["size_follow_input"] is False
+    assert node["first_pass_size"] == "1024x1024"
+
+
+def test_resolve_first_pass_size_prefers_the_manual_choice():
+    assert sa.resolve_first_pass_size_for_task({}, {}, "", follow_input=False,
+                                               manual_size="1536x1024") == ("1536x1024", "手动指定")
+    size, source = sa.resolve_first_pass_size_for_task({"aspect_ratio": "2:3"}, {}, "",
+                                                       follow_input=True)
+    assert size == "1024x1536"
+    assert source == "按输入图比例"
+
+
+def test_portrait_style_reference_never_decides_the_size(analyzer, tmp_path, monkeypatch):
+    """挂竖版画风图（data/style-ref/tid.png 是 1000x1442）+ 横版源图 → 尺寸仍按源图。"""
+    import json
+    import cv2
+    import numpy as np
+
+    wide = tmp_path / "wide_source.png"
+    cv2.imwrite(str(wide), np.full((600, 1200, 3), 200, np.uint8))
+    monkeypatch.setattr(sa, "GptImageGenWorkerThread", _FakeGptWorker)
+    _FakeGptWorker.last = {}
+    analyzer.gen_channel_gpt.setChecked(True)
+    analyzer.gpt_size_follow_cb.setChecked(True)
+    js = tmp_path / "style-ref-size.json"
+    js.write_text(json.dumps({"gpt_image_prompt": "one woman, no wording"}), encoding="utf-8")
+
+    analyzer.trigger_image_generation("refined", prompt_bundle={
+        "task_hash": "style-ref-size", "style_name": "tid", "aspect_ratio": "2:3",
+        "original_prompt": "o", "refined_prompt": "r",
+        "analysis_json_path": str(js), "source_image_path": str(wide)})
+
+    payload = _FakeGptWorker.last["request_payload"]
+    assert payload["image_paths"], "本次应当挂上画风参考图"
+    assert _FakeGptWorker.last.get("size") == "1536x1024"

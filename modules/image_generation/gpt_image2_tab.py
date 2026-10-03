@@ -1491,7 +1491,6 @@ class GptImage2Widget(QWidget):
         quality = self.quality_combo.currentData() or "high"
         output_format = self.output_format_combo.currentText().strip() or "png"
         mode_text = self.mode_combo.currentText()
-        mode = "edit" if mode_text == MODE_EDIT else "generate"
 
         # 画风：gpt-image 通道用 prompt_gpt 短版；画风参考图追加到内容图**之后**（最后一张）
         from utils.styles import compose_style_prompt, ordered_reference_images
@@ -1501,6 +1500,9 @@ class GptImage2Widget(QWidget):
                                       style_ref_attached=bool(style_ref),
                                       content_image_count=len(content_images))
         image_paths = ordered_reference_images(content_images, style_ref, style_ref_attached=bool(style_ref))
+        # 按最终附件（含自动追加的画风图）选接口，避免 generate 强制把图片发到
+        # generations 的非标准 image 字段，再因上游不支持而回退重发。
+        mode = "edit" if mode_text == MODE_EDIT or image_paths else "generate"
         if style_text:
             self._append_log(f"[画风] {self.current_style_name()}：说明 {len(style_text)} 字符"
                              + (f" + 参考图 {os.path.basename(style_ref)}（提交顺序最后一张）" if style_ref

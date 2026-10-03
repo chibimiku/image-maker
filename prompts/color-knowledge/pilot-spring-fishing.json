@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "id": "spring-fishing-v1",
+  "api_type": "aigc2d",
+  "model": "gemini-3.1-flash-image-preview",
+  "resolution": "1K",
+  "aspect_ratio": "3:2",
+  "repeats": 2,
+  "subject": "An anime illustration of one young woman with long pink hair fishing beside a river in spring. She wears an elegant ivory Western-style dress with lace and a modest full skirt, and dusty-pink platform heels with clearly visible ribbon bows. Full-body three-quarter view, both shoes visible on the dry riverbank. She holds a fishing rod naturally with both hands, the fishing line extending into the river. Fresh spring foliage, a gently flowing river and a few small blossoms already present on the bank. Her face, long pink hair, dress silhouette, bow decorations and thick platform soles must remain readable. One person, natural connected anatomy, no text or watermark.",
+  "rendering": "Polished anime illustration with fine expressive contours, softly layered painted shading, readable lace and fabric folds, restrained surface detail and coherent natural daylight. Keep the same subject, action, objects, full-body framing and rendering treatment in every image.",
+  "protected": ["long pink hair", "ivory dress", "dusty-pink platform heels", "ribbon bows", "fishing action", "spring riverside", "one person", "full body and both shoes"],
+  "profiles": [
+    {
+      "id": "baseline",
+      "label": "基线：无附加配色方案",
+      "intent": "由模型自行安排颜色",
+      "clauses": [],
+      "sources": []
+    },
+    {
+      "id": "spring-green-rose",
+      "label": "春绿衬粉：主体强调",
+      "intent": "清新春景，粉发少女作为视觉焦点",
+      "palette_preview": ["#72876C", "#B4C7A1", "#E9B6C9", "#F4EDE0", "#405A50"],
+      "preview_source": "designer_approximation_not_book_measurement",
+      "clauses": [
+        "Organize the large background masses around muted yellow-green and deeper leafy green; use a range of light and dark values within these related hues for depth.",
+        "Let the existing pink hair, pink shoe bows and small existing blossoms carry the warm pink accents; keep these accents spatially concentrated around the young woman rather than scattered across the background.",
+        "Keep distant foliage and river reflections less saturated and less contrasty than the subject; separate the ivory dress from its surroundings with local value differences, without bleaching the whole scene.",
+        "Preserve the intrinsic pink hair, ivory dress and dusty-pink shoes. Use color relationships only; do not add objects, change the time of day, pose, outfit design or drawing style."
+      ],
+      "sources": [
+        {"pdf_page": 146, "printed_page": 141, "section": "步骤3-5：色相数量、基调、强调", "evidence": "stated", "adaptation": "以既有粉发为强调区域，绿色背景为基调"},
+        {"pdf_page": 40, "printed_page": 35, "section": "紫藤：色相与色调范围、色相平衡", "evidence": "source_prose", "adaptation": "借鉴窄色相与明暗层次，不复制紫藤、服装或面积数字"},
+        {"pdf_page": 79, "printed_page": 74, "section": "基调与强调色", "evidence": "stated", "adaptation": "使用大面积基调和局部强调，不硬套比例"}
+      ]
+    },
+    {
+      "id": "soft-river-rose",
+      "label": "柔蓝映粉：宁静协调",
+      "intent": "柔和宁静的春日河岸，粉色与冷色环境呼应",
+      "palette_preview": ["#9FBABF", "#738C92", "#C8D1B4", "#E9B6C9", "#F4EDE0"],
+      "preview_source": "designer_approximation_not_book_measurement",
+      "clauses": [
+        "Use soft blue-green river tones and subdued natural greens as the broad environmental base; keep most background colors gently muted, with clear layered values rather than a uniform grey wash.",
+        "Use the existing warm pink hair and dusty-pink shoes as a restrained warm-cool contrast against the cooler river environment; keep small pink blossoms subordinate to the face and hair.",
+        "Give the ivory dress soft cool reflected shadows from the river while retaining its ivory local color; preserve readable lace, skirt folds and shoe platform edges in the light areas.",
+        "Preserve the intrinsic pink hair, ivory dress and dusty-pink shoes. Use color relationships only; do not add objects, change the time of day, pose, outfit design or drawing style."
+      ],
+      "sources": [
+        {"pdf_page": 146, "printed_page": 141, "section": "色调、基调、对比与相对色彩", "evidence": "stated", "adaptation": "用柔和环境色与人物暖粉形成低强度对比"},
+        {"pdf_page": 53, "printed_page": 48, "section": "平静放松与较浅浊色", "evidence": "stated", "adaptation": "保留浅浊色原则；蓝绿来自本任务河景，不称为书中情绪固定配方"},
+        {"pdf_page": 147, "printed_page": 142, "section": "暖冷、柔刚与清晰模糊", "evidence": "source_prose", "adaptation": "将意象轴转换为任务的冷暖与柔和程度"}
+      ]
+    }
+  ]
+}

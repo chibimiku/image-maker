@@ -12,6 +12,7 @@ import os
 
 from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
                                        SHORT_FIELD_MAX_CHARS, STYLE_REF_EXCLUSION)
+from utils.aspect_wording import align_aspect_wording
 
 
 def save_generation_manifest(first_image, request, *, model, size, quality, mode, steps,
@@ -253,7 +254,7 @@ def build_gpt_image_request(analysis_result: dict, style_text: str = "", style_r
 def build_first_pass_request(styles_data, style_name, analysis_result, content_text: str = "",
                              user_hint: str = "", tier: str = "short",
                              content_image_path: str = "", api_type: str = "",
-                             prompt_recipe: str = "legacy") -> dict:
+                             prompt_recipe: str = "legacy", size: str = "") -> dict:
     """**首图请求的唯一组装点**（GUI 的 gpt 通道与 `tools/analysis_gpt_run.py` 共用）。
 
     以前 GUI 自己拼这一段，漏了渲染语言条款（`extra_clauses` 没传），于是 GUI 出的首图永远比 CLI
@@ -262,6 +263,10 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
 
     组装顺序：画风 `prompt_gpt` → 内容锚 → 参考图排除句 → `RENDERING LANGUAGE` 条款。
     条款来源：画风条目手写的 `repaint_clauses` 优先，缺失时按 `prompt_gpt` 字段确定性派生。
+
+    `size` 传**本次实际生效的首图尺寸**：内容锚开头可能写着分析阶段误判出来的画幅
+    （"Vertical 2:3 illustration" 之类），实测它能压过请求里的 size —— 所以这里按 size 改写。
+    手动选定的尺寸同样按原样传进来，画风参考图的朝向永远不参与。
     """
     from utils.style_gpt import resolve_style_clauses, style_prompt_gpt
     from utils.styles import style_ref_image, ref_image_valid, style_motif_prompt
@@ -276,6 +281,10 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     ref = style_ref_image(styles_data or {}, name) if name else ""
     ref = str(ref or "") if ref_image_valid(ref) else ""
     clauses, clauses_source = resolve_style_clauses(entry)
+    aspect_changes = []
+    if str(size or "").strip():
+        content_text = str(content_text or "").strip() or resolve_content_text(analysis_result, tier)
+        content_text, aspect_changes = align_aspect_wording(content_text, size=size)
     generation_clauses = ([str(c).strip() for c in (entry.get("generation_clauses") or [])
                            if str(c).strip()] if isinstance(entry, dict) else [])
     # 体型/头身比既影响 GPT 首图，也必须在 Gemini 画风重绘和质量门禁中继续有效。
@@ -312,6 +321,8 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                     "proportion_clauses": proportion_clauses,
                     "identity_correction_clauses": identity_correction_clauses,
                     "post_adjustment": post_adjustment,
+                    "requested_size": str(size or ""),
+                    "aspect_alignment": list(aspect_changes),
                     "api_type": str(api_type or "")})
     if prompt_recipe == "reference" and ref and not content_image_path:
         from utils.prompt_loader import render_prompt_file

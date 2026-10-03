@@ -586,9 +586,62 @@ def test_aigc2d_request_uses_aigc2d_backend(tab, tmp_path):
     assert params["size"] == GPT_IMAGE2_SIZE_PORTRAIT
     assert params["quality"] == "medium"
     assert params["n"] == 3
-    assert params["mode"] == "generate"
+    assert params["mode"] == "edit"
     assert params["image_paths"] == [str(image_path)]
     assert params["save_sub_dir"] == "gpt-image-2"
+
+
+@pytest.mark.parametrize(
+    "has_content, style_kind, endpoint",
+    [
+        (False, "none", "generations"),
+        (False, "text", "generations"),
+        (False, "reference", "edits"),
+        (True, "none", "edits"),
+        (True, "reference", "edits"),
+    ],
+)
+def test_tab_routes_final_attachments_on_first_request(
+    tab, tmp_path, monkeypatch, has_content, style_kind, endpoint
+):
+    """实际走 Tab → 后端，画风图也是附件，不应先失败再回退。"""
+    content_path = tmp_path / "content.png"
+    style_path = tmp_path / "style.png"
+    content_path.write_bytes(TINY_PNG)
+    style_path.write_bytes(TINY_PNG)
+    if has_content:
+        tab.image_grid.add_paths([str(content_path)])
+    style_text = "Palette: soft colors" if style_kind != "none" else ""
+    style_ref = str(style_path) if style_kind == "reference" else ""
+    monkeypatch.setattr(tab, "current_style_block", lambda: (style_text, style_ref))
+    tab.mode_combo.setCurrentText(MODE_GENERATE)
+    tab.prompt_edit.setPlainText("a cat by the sea")
+    tab.n_spin.setValue(1)
+    backend, params = tab.build_request()
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return _FakeResponse({"data": [{"b64_json": base64.b64encode(TINY_PNG).decode()}]})
+
+    monkeypatch.setattr(api_backend.requests, "post", fake_post)
+    assert len(backend(**params)) == 1
+    assert len(calls) == 1
+    url, kwargs = calls[0]
+    assert url == f"https://example.invalid/v1/images/{endpoint}"
+    if endpoint == "edits":
+        assert "json" not in kwargs
+        assert len(kwargs["files"]) == len(params["image_paths"])
+    else:
+        assert "files" not in kwargs
+        assert "image" not in kwargs["json"]
+    log_lines = gpt_image2_tab.format_request_dump(
+        params, _fake_api_config(), SITE_AIGC2D, "aigc-2d-gpt", MODE_GENERATE
+    )
+    assert f"端点={url}" in log_lines[1]
 
 
 def test_autodl_request_uses_openai_backend(tab, tmp_path):

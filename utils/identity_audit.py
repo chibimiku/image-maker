@@ -8,6 +8,7 @@ import re
 import time
 
 from utils.analysis_gpt_prompt import call_text_model, load_text_api_config
+from utils.send_budget import guarded_text_call
 
 def _prompt(name: str) -> str:
     from utils.prompt_loader import read_prompt_file
@@ -36,6 +37,14 @@ def _json_object(text: str) -> dict:
 
 
 def normalize_audit(value: dict) -> dict:
+    """把原始身份审计响应规范化成可判定的结论。
+
+    第四轮 P0.2：**不允许把缺字段默认成「否 / none」再伪装成有效结论**。
+    真正的结论必须给出合法 boolean ``mismatch``（字符串 ``"false"`` 不算）、
+    合法严重度（none/minor/major）与 ``differences`` 列表。任一缺失时记
+    ``conclusion_valid=false`` / ``conclusion_missing=true``，严重度记 ``unknown``，
+    门禁据此只能得到 review_required。
+    """
     data = value if isinstance(value, dict) else {}
     differences = []
     for item in data.get("differences") or []:
@@ -49,15 +58,28 @@ def normalize_audit(value: dict) -> dict:
         if feature and expected and observed and confidence >= 0.65:
             differences.append({"feature": feature, "expected": expected, "observed": observed,
                                 "correction": correction, "confidence": confidence})
-    mismatch = bool(data.get("mismatch")) and bool(differences)
-    severity = str(data.get("severity") or ("major" if mismatch else "none")).lower()
-    if severity not in {"none", "minor", "major"}:
-        severity = "minor" if mismatch else "none"
+    raw_mismatch = data.get("mismatch")
+    has_bool_mismatch = isinstance(raw_mismatch, bool)
+    severity_raw = str(data.get("severity") or "").strip().lower()
+    severity_ok = severity_raw in {"none", "minor", "major"}
+    differences_ok = isinstance(data.get("differences"), list)
+    mismatch = bool(raw_mismatch) and bool(differences) if has_bool_mismatch else False
+    missing = []
+    if not has_bool_mismatch:
+        missing.append("mismatch")
+    if not severity_ok:
+        missing.append("severity")
+    if not differences_ok:
+        missing.append("differences")
     anchors = [str(v).strip() for v in (data.get("stable_anchors") or []) if str(v).strip()]
-    return {"mismatch": mismatch, "severity": severity,
+    conclusion_valid = not missing and not (mismatch and severity_raw == "none")
+    return {"mismatch": mismatch, "severity": severity_raw if severity_ok else "unknown",
             "confidence": max(0.0, min(1.0, float(data.get("confidence") or 0.0))),
             "stable_anchors": anchors[:20], "differences": differences,
-            "summary": str(data.get("summary") or "").strip()}
+            "summary": str(data.get("summary") or "").strip(),
+            "conclusion_valid": conclusion_valid,
+            "conclusion_missing": not conclusion_valid,
+            "missing_conclusion_fields": missing}
 
 
 def audit_image_identity(image_path: str, analysis_result: dict, text_cfg: dict = None,
@@ -82,9 +104,10 @@ def audit_image_identity(image_path: str, analysis_result: dict, text_cfg: dict 
             im.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
             im.save(proxy_path, "JPEG", quality=88, optimize=True)
         audit_image = proxy_path
-        raw = call_text_model(cfg["base_url"], cfg["api_key"], cfg["model"],
-                              _prompt("identity-audit-system.md"), user,
-                              timeout=timeout, max_tokens=1800, image_path=audit_image)
+        raw = guarded_text_call("identity-audit", call_text_model, cfg["base_url"], cfg["api_key"],
+                                cfg["model"],
+                                _prompt("identity-audit-system.md"), user,
+                                timeout=timeout, max_tokens=1800, image_path=audit_image)
     finally:
         if proxy_path and os.path.isfile(proxy_path):
             try:

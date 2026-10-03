@@ -1856,119 +1856,302 @@ def _actual_prompt(repeat_dir: Path) -> tuple:
     return "", ""
 
 
-def round_diffcheck(args):
-    """对账：把每个 arm 实际送出的请求摊开，验证差异与声明一致。
+def _round_planned_runs(plan):
+    return [r for r in (plan.get("runs") or []) if r.get("run_id")]
 
-    这是「实际请求差异不符合声明时先修入口、不能付费后称变体已生效」那一条的落地检查：
-    逐字比较同 slot 两臂的真实提示词，逐张比较真实送出的图片（路径 + 内容哈希），
-    并把每条结论写成 can_compare / cannot_compare。
+
+def _round_pair_entries(plan, style, slot):
+    """按计划声明顺序取这一对的臂（顺序即声明顺序，不靠字母序）。"""
+    entries = [r for r in _round_planned_runs(plan)
+               if r.get("style") == style and r.get("slot") == slot]
+    order, first = [], {}
+    for entry in entries:
+        arm = str(entry.get("arm"))
+        if arm not in first:
+            first[arm] = entry
+            order.append(arm)
+    return order, first
+
+
+def _arm_clauses(entry) -> list:
+    """取这一臂的条款：计划里直接写了就用，否则读它声明的 `clauses_file`。"""
+    clauses = [str(c) for c in (entry.get("clauses") or [])]
+    if clauses:
+        return clauses
+    path = str(entry.get("clauses_file") or "")
+    if path and Path(path).is_file():
+        try:
+            value = read_json(path)
+        except (OSError, ValueError):
+            return []
+        if isinstance(value, list):
+            return [str(c) for c in value]
+    return []
+
+
+def _round_pair_declaration(entry_a, entry_b):
+    """从计划推导这一对**允许的**差异（只看声明字段，不看计划里的整段预览）。
+
+    第四轮 P0.3：第三轮 P1 之所以被误判为「全声明成立」，是因为旧检查只比图片数量。
+    这里改成把「声明」表达成一个可执行的变换，再要求实际提示词满足该变换：
+
+    * ``single_sentence_clause``：两臂条款列表只有第 i 条不同（old → new）；实际提示词必须
+      恰好命中 old 一次，且 ``A.replace(old, new) == B``；
+    * ``phrasing_only``：声明差异只是「参考图是否送入」，文字只允许做 `Image N` →
+      具名指代的替换（`utils.post_process.text_without_image_phrasing`）；
+    * ``identical``：声明两臂请求完全相同；
+    * ``undeclared``：计划没有声明 → cannot_compare（不允许按「变体已生效」解读）。
+    """
+    clauses_a = _arm_clauses(entry_a)
+    clauses_b = _arm_clauses(entry_b)
+    if clauses_a and len(clauses_a) == len(clauses_b):
+        diff = [index for index in range(len(clauses_a)) if clauses_a[index] != clauses_b[index]]
+        if len(diff) == 1:
+            index = diff[0]
+            return {"mode": "single_sentence_clause", "changed_index": index,
+                    "old": clauses_a[index], "new": clauses_b[index],
+                    "note": "计划声明两臂只有第 %d 条条款不同（唯一 eye 句）" % (index + 1)}
+    sent_a = bool(entry_a.get("style_reference_sent"))
+    sent_b = bool(entry_b.get("style_reference_sent"))
+    if sent_a != sent_b and clauses_a == clauses_b:
+        with_ref = entry_a if sent_a else entry_b
+        without_ref = entry_b if sent_a else entry_a
+        ref = str(with_ref.get("style_ref_path") or with_ref.get("style_ref_source") or "")
+        return {"mode": "phrasing_only", "reference_name": os.path.basename(ref),
+                "with_ref_arm": str(with_ref.get("arm")),
+                "without_ref_arm": str(without_ref.get("arm")),
+                "note": "计划声明唯一变量是参考图是否送入；文字只允许做具名指代替换"}
+    if clauses_a == clauses_b and sent_a == sent_b:
+        return {"mode": "identical", "note": "计划声明两臂请求完全相同"}
+    return {"mode": "undeclared", "note": "计划没有声明这一对允许的差异"}
+
+
+def _round_line_summary(left: str, right: str) -> dict:
+    """可读的文字差异摘要：逐行比对，列出首个差异与增删行数。"""
+    left_lines, right_lines = left.split("\n"), right.split("\n")
+    changed = [(index, line_a, line_b)
+               for index, (line_a, line_b) in enumerate(zip(left_lines, right_lines))
+               if line_a != line_b]
+    return {"left_lines": len(left_lines), "right_lines": len(right_lines),
+            "changed_line_count": len(changed) + abs(len(left_lines) - len(right_lines)),
+            "first_change": ({"line": changed[0][0] + 1, "left": changed[0][1][:200],
+                              "right": changed[0][2][:200]} if changed else None),
+            "sample_changes": [{"line": index + 1, "left": line_a[:160], "right": line_b[:160]}
+                               for index, line_a, line_b in changed[:6]]}
+
+
+def _round_compare_pair(declaration, arm_a, arm_b, prompt_a, prompt_b, refs_a, refs_b):
+    """按声明比对两臂真实提示词；返回 (problems, evidence)。"""
+    problems, evidence = [], []
+    if not prompt_a or not prompt_b:
+        problems.append("缺少可用提示词（没有 api-calls.jsonl，或日志被截断 / 未转义）")
+        return problems, evidence
+    mode = declaration.get("mode")
+    summary = _round_line_summary(prompt_a, prompt_b)
+    evidence.append({"kind": "text_summary", "arms": [arm_a, arm_b],
+                     "chars": [len(prompt_a), len(prompt_b)], "line_diff": summary,
+                     "identical": prompt_a == prompt_b})
+    if mode == "single_sentence_clause":
+        old = str(declaration.get("old") or "")
+        new = str(declaration.get("new") or "")
+        hits = prompt_a.count(old)
+        if hits != 1:
+            problems.append("%s 臂里声明的 eye 句命中 %d 次（要求恰好 1 次）：非声明行增删" % (arm_a, hits))
+        elif prompt_a.replace(old, new) != prompt_b:
+            problems.append("按声明替换唯一 eye 句后两臂仍不相同：存在非声明差异")
+        evidence.append({"kind": "single_sentence", "arm_a": arm_a, "arm_b": arm_b,
+                         "old_chars": len(old), "new_chars": len(new), "old_hits_in_a": hits})
+    elif mode == "phrasing_only":
+        from utils.post_process import text_without_image_phrasing
+        sent_a, sent_b = bool(refs_a.get("count", 0) > 1), bool(refs_b.get("count", 0) > 1)
+        name = str(declaration.get("reference_name") or "")
+        if sent_a and not sent_b:
+            expected = text_without_image_phrasing(prompt_a, name)
+            compared = (arm_a, arm_b, expected, prompt_b)
+        elif sent_b and not sent_a:
+            expected = text_without_image_phrasing(prompt_b, name)
+            compared = (arm_b, arm_a, expected, prompt_a)
+        else:
+            problems.append("两臂参考图数量相同，声明说唯一变量是「是否送参考图」")
+            compared = None
+        if compared:
+            with_arm, without_arm, expected, actual = compared
+            if expected != actual:
+                problems.append("两臂文字差异不止「图片指代替换」：%s 臂相对 %s 臂少/多了整段文字"
+                                % (without_arm, with_arm))
+            evidence.append({"kind": "phrasing_only", "with_ref_arm": with_arm,
+                             "without_ref_arm": without_arm,
+                             "expected_chars": len(expected), "actual_chars": len(actual)})
+    elif mode == "identical":
+        if prompt_a != prompt_b:
+            problems.append("计划声明两臂请求完全相同，实际提示词不同")
+    else:
+        problems.append("计划没有声明这一对允许的差异，不能按「变体已生效」解读")
+    return problems, evidence
+
+
+def round_diffcheck(args):
+    """对账：按**声明**逐一比对每一次真实请求（第四轮 P0.3 重写）。
+
+    旧版只检查参考图数量、且只比较每臂的第一次提示词，于是第三轮 P1 的 2,795 字符
+    整段增删仍被标成 `all_declared_differences_confirmed`。现在：
+
+    * 每个计划 run 必须有可用的真实提示词，否则 cannot_compare（缺请求 / 缺臂 / 截断日志）；
+    * 同一臂的重复必须逐字相同，且同名文件的**内容哈希**必须一致（同名不同内容 → cannot_compare）；
+    * 送到生成接口的参考图顺序与内容哈希必须与声明一致（顺序差 → cannot_compare）；
+    * 两臂差异必须**恰好等于**已声明的变换（非声明行增删 → cannot_compare）；
+    * 只有全部通过才写 `all_declared_differences_confirmed`，`--strict` 时非零退出。
     """
     round_dir = Path(args.round).resolve()
     plan = record_of(args.plan)
-    runs = plan.get("runs") or []
-    report = {"generated_at": now_stamp(), "round": str(round_dir), "checks": [], "summary": {}}
-    problems = []
-    groups = []
-    for run in runs:
-        key = (run.get("experiment_id"), run.get("style"))
-        entry = next((g for g in groups if g["key"] == key), None)
-        if entry is None:
-            entry = {"key": key, "id": key[0], "style": key[1], "arm_names": [], "declared": {}}
-            groups.append(entry)
-        if run["arm"] not in entry["arm_names"]:
-            entry["arm_names"].append(run["arm"])
-        entry["declared"][run["arm"]] = bool(run.get("style_reference_sent"))
-    for group in groups:
-        exp_id, style = group["id"], group["style"]
-        arm_names, declared = group["arm_names"], group["declared"]
-        for slot in STYLE_SLOTS:
+    groups, order = {}, []
+    for run in _round_planned_runs(plan):
+        key = (str(run.get("experiment_id")), str(run.get("style")))
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(run)
+    report = {"generated_at": now_stamp(), "round": str(round_dir), "checks": [],
+              "pairs": [], "problems": [], "cannot_compare": [], "summary": {}}
+    verdicts = []
+
+    def _record(problem, entry):
+        report["problems"].append(problem)
+        report["cannot_compare"].append(entry)
+
+    for (exp_id, style) in order:
+        entries = groups[(exp_id, style)]
+        slots = []
+        for entry in entries:
+            if str(entry.get("slot")) not in slots:
+                slots.append(str(entry.get("slot")))
+        for slot in slots:
+            arm_order, first = _round_pair_entries(plan, style, slot)
             per_arm = {}
             prompts = {}
-            for arm in arm_names:
-                calls = []
-                base = round_dir / "results" / exp_id / style / slot / arm
-                folders = sorted(base.glob("repeat-*")) if base.is_dir() else []
-                for folder in folders:
-                    call_file = folder / "api-calls.jsonl"
-                    if call_file.is_file():
-                        for line in call_file.read_text(encoding="utf-8").splitlines():
-                            if line.strip():
-                                try:
-                                    calls.append({"repeat": folder.name, **json.loads(line)})
-                                except json.JSONDecodeError:
-                                    continue
-                    prompt, source = _actual_prompt(folder)
-                    if prompt:
-                        prompts.setdefault(arm, []).append({"repeat": folder.name, "prompt": prompt,
-                                                            "source": source})
-                per_arm[arm] = calls
-            for arm, calls in per_arm.items():
-                for call in calls:
-                    refs = [item.get("path") for item in (call.get("reference_images") or [])]
-                    sent = len(refs) > 1
-                    ok = sent == declared.get(arm, False)
-                    check = {"experiment": exp_id, "style": style, "slot": slot, "arm": arm,
-                             "repeat": call["repeat"], "declared_reference_sent": declared.get(arm, False),
-                             "actual_reference_images": refs, "actual_reference_sent": sent,
-                             "prompt_sha256": call.get("prompt_sha256"), "prompt_chars": call.get("prompt_chars"),
-                             "match": ok}
-                    report["checks"].append(check)
-                    if not ok:
-                        problems.append("%s/%s/%s %s: 声明送参考图=%s，实际送=%s" % (
-                            exp_id, style, slot, call["repeat"], declared.get(arm, False), sent))
-            # 两臂文字差异（用真实发出的提示词，不是计划里的预览）
-            first = {arm: (items[0]["prompt"] if items else "") for arm, items in prompts.items()}
-            if len(arm_names) == 2 and all(first.get(arm) for arm in arm_names):
-                left, right = first[arm_names[0]], first[arm_names[1]]
-                left_lines, right_lines = left.split("\n"), right.split("\n")
-                changed = [(i, a, b) for i, (a, b) in enumerate(zip(left_lines, right_lines)) if a != b]
-                report["checks"].append({
-                    "experiment": exp_id, "style": style, "slot": slot, "kind": "text_diff",
-                    "arms": arm_names, "left_lines": len(left_lines), "right_lines": len(right_lines),
-                    "changed_line_count": len(changed) + abs(len(left_lines) - len(right_lines)),
-                    "changed_lines": [{"line": i + 1, "left": a[:240], "right": b[:240]}
-                                      for i, a, b in changed[:6]],
-                    "prompt_sha256": {arm: hashlib.sha256(first[arm].encode("utf-8")).hexdigest()
-                                      for arm in arm_names},
-                    "prompt_source": {arm: (prompts[arm][0]["source"] if prompts.get(arm) else "")
-                                      for arm in arm_names},
-                    "identical": left == right})
-    report["problems"] = problems
+            for arm in arm_order:
+                runs = [r for r in entries if r.get("arm") == arm and r.get("slot") == slot]
+                calls, prompt_rows, problems = [], [], []
+                for run in runs:
+                    output_dir = Path(str(run.get("output_dir") or ""))
+                    repeat_dirs = sorted(output_dir.glob("repeat-*")) if output_dir.is_dir() else []
+                    if not repeat_dirs:
+                        repeat_dirs = [output_dir]
+                    for repeat_dir in repeat_dirs:
+                        prompt, source = _actual_prompt(repeat_dir)
+                        if not prompt:
+                            problems.append("缺少真实请求记录：%s" % repeat_dir)
+                            prompt_rows.append({"repeat": repeat_dir.name, "prompt": "", "source": ""})
+                            continue
+                        if source != "api-calls.jsonl" or "未转义" in source:
+                            problems.append("提示词来自日志（%s），可能被截断：%s" % (source, repeat_dir))
+                        prompt_rows.append({"repeat": repeat_dir.name, "prompt": prompt, "source": source})
+                        calls.extend([{"repeat": repeat_dir.name, **row}
+                                      for row in _round4_read_jsonl(repeat_dir / "api-calls.jsonl")])
+                per_arm[arm] = {"calls": calls, "rows": prompt_rows, "problems": problems}
+                prompts[arm] = prompt_rows
+            pair = {"experiment": exp_id, "style": style, "slot": slot, "arms": arm_order,
+                    "checks": [], "problems": []}
+            for arm in arm_order:
+                rows = per_arm[arm]["rows"]
+                pair["problems"].extend(per_arm[arm]["problems"])
+                if not rows:
+                    pair["problems"].append("%s 臂没有任何请求记录" % arm)
+                    continue
+                shas = {hashlib.sha256(row["prompt"].encode("utf-8")).hexdigest()
+                        for row in rows if row["prompt"]}
+                if len(shas) > 1:
+                    pair["problems"].append("%s 臂的重复之间提示词不一致（同名不同内容）" % arm)
+                names = {row["repeat"] for row in rows}
+                if len(names) != len(rows):
+                    pair["problems"].append("%s 臂出现重复编号被多次执行" % arm)
+                # 实际送出的参考图：顺序与内容哈希
+                for call in per_arm[arm]["calls"]:
+                    refs = call.get("reference_images") or []
+                    plan_entry = first.get(arm) or {}
+                    declared_sent = bool(plan_entry.get("style_reference_sent"))
+                    actual_sent = len(refs) > 1
+                    check = {"kind": "reference_images", "arm": arm, "repeat": call["repeat"],
+                             "declared_sent": declared_sent, "actual_count": len(refs),
+                             "paths": [item.get("path") for item in refs],
+                             "sha256": [item.get("sha256") for item in refs],
+                             "match": declared_sent == actual_sent}
+                    pair["checks"].append(check)
+                    if not check["match"]:
+                        pair["problems"].append(
+                            "%s/%s：声明送参考图=%s，实际送出 %d 张"
+                            % (arm, call["repeat"], declared_sent, len(refs)))
+                    base_sha = str(plan_entry.get("base_sha256") or "")
+                    if base_sha and refs and str(refs[0].get("sha256") or "") != base_sha:
+                        pair["problems"].append(
+                            "%s/%s：首张参考图不是计划的冻结 base（顺序差或内容不同）"
+                            % (arm, call["repeat"]))
+            if len(arm_order) < 2:
+                pair["problems"].append("这一对缺少另一条臂")
+            else:
+                arm_a, arm_b = arm_order[0], arm_order[1]
+                declaration = _round_pair_declaration(first.get(arm_a) or {}, first.get(arm_b) or {})
+                pair["declaration"] = declaration
+                pair["declared_clauses"] = {"arm_a": [c[:120] for c in _arm_clauses(first.get(arm_a) or {})],
+                                            "arm_b": [c[:120] for c in _arm_clauses(first.get(arm_b) or {})]}
+                rows_a = {row["repeat"]: row for row in per_arm.get(arm_a, {}).get("rows", [])}
+                rows_b = {row["repeat"]: row for row in per_arm.get(arm_b, {}).get("rows", [])}
+                if set(rows_a) != set(rows_b):
+                    pair["problems"].append("两臂的重复编号不对齐：%s vs %s"
+                                            % (sorted(rows_a), sorted(rows_b)))
+                calls_a = per_arm.get(arm_a, {}).get("calls", [])
+                calls_b = per_arm.get(arm_b, {}).get("calls", [])
+                refs_a = {"count": len((calls_a[0].get("reference_images") if calls_a else []) or [])}
+                refs_b = {"count": len((calls_b[0].get("reference_images") if calls_b else []) or [])}
+                for repeat in sorted(set(rows_a) & set(rows_b)):
+                    problems, evidence = _round_compare_pair(
+                        declaration, arm_a, arm_b, rows_a[repeat]["prompt"], rows_b[repeat]["prompt"],
+                        refs_a, refs_b)
+                    pair["checks"].append({"kind": "pair_text", "repeat": repeat,
+                                           "declaration_mode": declaration.get("mode"),
+                                           "problems": problems, "evidence": evidence})
+                    pair["problems"].extend("%s：%s" % (repeat, text) for text in problems)
+            pair["verdict"] = "can_compare" if not pair["problems"] else "cannot_compare"
+            verdicts.append(pair["verdict"])
+            for problem in pair["problems"]:
+                _record("%s/%s/%s: %s" % (exp_id, style, slot, problem),
+                        {"experiment": exp_id, "style": style, "slot": slot, "reason": problem})
+            report["pairs"].append(pair)
+    confirmed = bool(verdicts) and all(item == "can_compare" for item in verdicts)
     report["summary"] = {
-        "runs_with_calls": len(report["checks"]),
-        "reference_send_mismatches": len(problems),
-        "verdict": "all_declared_differences_confirmed" if not problems else "entry_must_be_fixed_before_trusting_variant",
+        "pairs": len(verdicts),
+        "pairs_can_compare": sum(1 for item in verdicts if item == "can_compare"),
+        "pairs_cannot_compare": sum(1 for item in verdicts if item == "cannot_compare"),
+        "problems": len(report["problems"]),
+        "verdict": "all_declared_differences_confirmed" if confirmed
+                   else "entry_must_be_fixed_before_trusting_variant",
     }
     out = Path(args.out).resolve() if args.out else round_dir
     out.mkdir(parents=True, exist_ok=True)
     write_json(out / "request-diff-report.json", report)
-    lines = ["# 实际请求差异对账", "",
-             "逐个 arm 从 `api-calls.jsonl` 读真实送出的提示词与参考图；声明与实际不一致时先修入口，",
-             "不把这类差异当成画风结论。", ""]
-    for check in report["checks"]:
-        if check.get("kind") == "text_diff":
-            lines.append("- `%s/%s/%s` 两臂文字：%s（变化 %d 行）" % (
-                check["experiment"], check["style"], check["slot"],
-                "逐字相同" if check["identical"] else "存在差异", check["changed_line_count"]))
-            for item in check["changed_lines"]:
-                lines.append("    - 第 %d 行：%s" % (item["line"], item["left"][:90]))
-        else:
-            lines.append("- `%s/%s/%s/%s/%s`：声明送参考图=%s，实际送=%s → %s" % (
-                check["experiment"], check["style"], check["slot"], check["arm"], check["repeat"],
-                check["declared_reference_sent"], check["actual_reference_sent"],
-                "一致" if check["match"] else "**不一致**"))
-    lines += ["", "结论：`%s`" % report["summary"]["verdict"],
-              "",
-              "注意：这里只回答「实际请求是否符合声明」，不回答「变体是否有效」。",
-              "两类差异要分开读：",
-              "- P1：唯一变量是参考图是否送入（文字只做「Image 1/Image 2」的指代替换）；",
-              "- P2：唯一变量是那一条眼睑/虹膜句，两臂其余文字逐字相同。"]
+    lines = ["# 实际请求差异对账（按声明逐一比对）", "",
+             "逐个 arm、逐个重复从 `api-calls.jsonl` 读真实送出的提示词与参考图；",
+             "先把计划里的「允许差异」表达成可执行的变换，再要求实际请求满足它。", ""]
+    for pair in report["pairs"]:
+        declaration = pair.get("declaration") or {}
+        lines.append("- `%s/%s/%s`：%s（声明模式 `%s`）" % (
+            pair["experiment"], pair["style"], pair["slot"], pair["verdict"],
+            declaration.get("mode", "n/a")))
+        if declaration.get("note"):
+            lines.append("    - 声明：%s" % declaration["note"])
+        for problem in pair["problems"]:
+            lines.append("    - **%s**" % problem)
+    lines += ["", "结论：`%s`" % report["summary"]["verdict"], "",
+              "注意：这里只回答「实际请求是否符合声明」，不回答「变体是否有效」。"]
     (out / "request-diff-report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("请求对账: %s（%d 条检查，%d 个不一致）" % (
-        out / "request-diff-report.json", len(report["checks"]), len(problems)))
-    for text in problems:
+    print("请求对账: %s（%d 对，%d 对不可比，%d 条问题）" % (
+        out / "request-diff-report.json", len(verdicts), report["summary"]["pairs_cannot_compare"],
+        len(report["problems"])))
+    for text in report["problems"]:
         print("  ! " + text)
-    return 1 if problems or args.strict and not report["checks"] else 0
+    if not verdicts:
+        return 1 if args.strict else 0
+    return 0 if confirmed or not args.strict else 1
 
 
 def round_verdict(args):
@@ -2328,6 +2511,975 @@ def round_calls(args):
     return 0
 
 
+# ---------------------------------------------------------------------------
+# 第四轮（eye-face-hair-round4-20261001）族
+#
+# 与 round2/round3 的两点关键差别（PROTOCOL.md P0.3/P0.4）：
+#   1. 有效请求由业务模块的**同一个组装函数**产出，预检与实际发送共用一份结果；
+#   2. 付费动作在真正发出 HTTP 之前先原子预留名额，硬上限跨进程累计。
+# 所有功能都在本 CLI 内，不往 data/ 下放可执行脚本。
+# ---------------------------------------------------------------------------
+
+ROUND4_DEFAULT_DIR = ROOT / "data" / "exp" / "eye-face-hair-round4-20261001"
+ROUND4_PROMPT_REL = "prompts/gpt-image-optimize/eye-round4-20261001"
+ROUND4_ASSETS = ("common.md", "control-clauses.json", "variant-clauses.json")
+ROUND4_CLAUSE_HEADER = "\n\nSTYLE LANGUAGE (rendering targets for this repaint):\n- "
+
+
+def _round4_dir(value=""):
+    return Path(value).resolve() if value else ROUND4_DEFAULT_DIR
+
+
+def _round4_installed(name: str) -> Path:
+    return ROOT / ROUND4_PROMPT_REL / name
+
+
+def _round4_read_jsonl(path) -> list:
+    rows = []
+    path = Path(path)
+    if not path.is_file():
+        return rows
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.strip():
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return rows
+
+
+def round4_install_assets(args):
+    """把 `prompt-assets/` 的素材**逐字**安装到项目 prompts 目录（不解释、不改写）。"""
+    round_dir = _round4_dir(args.round)
+    assets = round_dir / "prompt-assets"
+    target = ROOT / ROUND4_PROMPT_REL
+    target.mkdir(parents=True, exist_ok=True)
+    rows, problems = [], []
+    for name in ROUND4_ASSETS:
+        source = assets / name
+        if not source.is_file():
+            problems.append(f"素材缺失：{source}")
+            continue
+        destination = target / name
+        source_bytes = source.read_bytes()
+        source_sha = hashlib.sha256(source_bytes).hexdigest()
+        replaced = False
+        if destination.is_file() and destination.read_bytes() != source_bytes:
+            if not args.force:
+                problems.append(f"目标已存在且内容不同（拒绝覆盖，需要 --force）：{destination}")
+                continue
+            replaced = True
+        if not destination.is_file() or replaced:
+            destination.write_bytes(source_bytes)
+        installed_sha = hashlib.sha256(destination.read_bytes()).hexdigest()
+        if installed_sha != source_sha:
+            problems.append(f"安装后哈希不一致：{destination}")
+        rows.append({"asset": name, "source": str(source), "installed": str(destination),
+                     "sha256": source_sha, "bytes": len(source_bytes), "replaced": replaced})
+    manifest = {"installed_at": now_stamp(), "round": str(round_dir), "directory": str(target),
+                "files": rows, "problems": problems,
+                "note": "运行时通过现有 prompt loader 读取；安装是逐字节复制，不做任何改写。"}
+    write_json(round_dir / "prompt-install.json", manifest)
+    for row in rows:
+        print("安装 %-22s %s" % (row["asset"], row["sha256"][:16]))
+    for text in problems:
+        print("  ! " + text)
+    return 1 if problems else 0
+
+
+def _round4_asset_facts(round_dir) -> tuple:
+    """比对 `prompt-assets/` 与项目 prompts 目录里的运行时副本。"""
+    rows, problems = [], []
+    for name in ROUND4_ASSETS:
+        source = round_dir / "prompt-assets" / name
+        installed = _round4_installed(name)
+        source_sha = digest(source) if source.is_file() else ""
+        installed_sha = digest(installed) if installed.is_file() else ""
+        rows.append({"asset": name, "source_sha256": source_sha,
+                     "installed_sha256": installed_sha, "installed": str(installed),
+                     "identical": bool(source_sha) and source_sha == installed_sha})
+        if not source_sha:
+            problems.append(f"缺少素材 {source}")
+        elif not installed_sha:
+            problems.append(f"运行时副本未安装：{installed}（先跑 round4-install-assets）")
+        elif source_sha != installed_sha:
+            problems.append(f"运行时副本与素材不一致：{installed}")
+    return rows, problems
+
+
+def _round4_input_facts(round_dir, declared) -> tuple:
+    """核验冻结输入的哈希与声明一致（不改任何文件）。"""
+    rows, problems = [], []
+    for item in declared.get("inputs") or []:
+        slot = item.get("slot")
+        for key, sha_key in (("base", "base_sha256"), ("analysis", "analysis_sha256"),
+                             ("original_source", "original_source_sha256")):
+            relative = str(item.get(key) or "")
+            path = (round_dir / relative).resolve() if relative else None
+            actual = digest(path) if path and path.is_file() else ""
+            expected = str(item.get(sha_key) or "")
+            ok = bool(actual) and actual == expected
+            rows.append({"slot": slot, "role": key, "path": str(path or ""),
+                         "expected_sha256": expected, "actual_sha256": actual, "match": ok,
+                         "recorded_source": str(item.get(key + "_from") or "")})
+            if not ok:
+                problems.append(f"{slot}/{key}: 哈希与声明不符（声明 {expected[:12]} / 实际 "
+                                f"{actual[:12] or '文件不存在'}）")
+    return rows, problems
+
+
+def _round4_clause_facts(round_dir) -> tuple:
+    """两臂条款文件的差异必须**只有**那一条 eye 句。"""
+    control_path = round_dir / "prompt-assets" / "control-clauses.json"
+    variant_path = round_dir / "prompt-assets" / "variant-clauses.json"
+    if not (control_path.is_file() and variant_path.is_file()):
+        return {}, ["缺少 control/variant 条款文件"]
+    control = read_json(control_path)
+    variant = read_json(variant_path)
+    if not (isinstance(control, list) and isinstance(variant, list)):
+        return {}, ["条款文件必须是 JSON 数组"]
+    if len(control) != 1 or len(variant) != 1:
+        return {}, ["本轮每个条款文件必须恰好一条 eye 句（其余段落来自固件）"]
+    facts = {"control_clause": control[0], "variant_clause": variant[0],
+             "control_chars": len(control[0]), "variant_chars": len(variant[0]),
+             "identical": control[0] == variant[0]}
+    problems = []
+    if facts["identical"]:
+        problems.append("两臂条款完全相同，变体没有干预")
+    return facts, problems
+
+
+def _round4_argv(run) -> list:
+    """把一条计划 run 翻译成 `tools/analysis_gpt_run.py` 的实参。
+
+    受控实验只做**一次**整图 source 重绘：不送画风图（`--repaint-ref none`）、
+    不做首图、不触发任何自动修图（`--audit-only`），审计只读。
+    """
+    return [
+        "--json", run["analysis"],
+        "--style", run["style"],
+        "--styles-file", run["styles_file"],
+        "--quality", "high",
+        "--size", "auto",
+        "--source-image", run["source_image"],
+        "--steps", "repaint",
+        "--repaint-scope", "full",
+        "--repaint-ref", "none",
+        "--repaint-clauses-only",
+        "--repaint-clauses-file", run["clauses_file"],
+        "--firmware", run["firmware"],
+        "--base-image", run["base"],
+        "--repaint-style-ref", run["audit_style_ref"],
+        "--identity-audit",
+        "--audit-only",
+        "--final-review-audit",
+        "--output-dir", run["output_dir"],
+    ]
+
+
+def _round4_call_cli(argv, cli_module=None):
+    """在**本进程内**按给定实参跑一次 CLI（sys.argv 是它读参数的方式）。"""
+    if cli_module is None:
+        import tools.analysis_gpt_run as cli_module  # noqa: PLC0415
+    saved = sys.argv
+    sys.argv = ["analysis_gpt_run.py"] + list(argv)
+    try:
+        return cli_module.main()
+    finally:
+        sys.argv = saved
+
+
+def round4_build_plan(args):
+    """声明式任务清单 → 可执行的 `run-plan.json`（零图片调用）。
+
+    `experiment-plan.json` **不是**现有 round-run schema：这里显式转换，并在转换时
+    逐条核验冻结输入、素材安装、条款唯一差异、最终有效请求（≤3000 字符）与
+    「删掉唯一 eye 句后剩余 prompt 逐字相同」。
+    """
+    round_dir = _round4_dir(args.round)
+    declared_path = Path(args.plan) if args.plan else (round_dir / "experiment-plan.json")
+    declared = read_json(declared_path)
+    out = Path(args.out).resolve() if args.out else round_dir
+    problems, checks = [], []
+    if declared.get("schema") != "eye-round4-declarative-v1":
+        problems.append("声明文件的 schema 不是 eye-round4-declarative-v1：" + str(declared.get("schema")))
+    limit = int(declared.get("image_attempt_limit") or 0)
+    declared_runs = declared.get("runs") or []
+    repeats_expected = int(declared.get("repeats_per_arm") or 2)
+    if len(declared_runs) != limit:
+        problems.append(f"计划 run 数 {len(declared_runs)} 与图片尝试上限 {limit} 不一致")
+    if int(declared.get("image_auto_retries") or 0) != 0:
+        problems.append("声明文件要求 image_auto_retries=0")
+    checks.append({"check": "declarative_schema", "ok": not problems, "limit": limit,
+                   "declared_runs": len(declared_runs), "repeats_per_arm": repeats_expected})
+    input_rows, input_problems = _round4_input_facts(round_dir, declared)
+    asset_rows, asset_problems = _round4_asset_facts(round_dir)
+    clause_facts, clause_problems = _round4_clause_facts(round_dir)
+    problems += input_problems + asset_problems + clause_problems
+    slots = {str(item.get("slot")): item for item in (declared.get("inputs") or [])}
+    assets = {name: str(_round4_installed(name)) for name in ROUND4_ASSETS}
+    firmware = str(_round4_installed("common.md"))
+    budget_dir = str(out / "budget")
+    runs = []
+    for run in declared_runs:
+        slot = str(run.get("slot"))
+        item = slots.get(slot)
+        if not item:
+            problems.append(f"{run.get('run_id')}: 声明里没有 slot={slot} 的输入")
+            continue
+        entry = {
+            "run_id": str(run.get("run_id") or ""),
+            "experiment_id": str(run.get("experiment_id") or "E1"),
+            "style": str(run.get("style") or "sheya-style"),
+            "slot": slot, "arm": str(run.get("arm")), "repeat": int(run.get("repeat") or 1),
+            "stage": "single_source_only_eye_clause_repaint",
+            "base": str((round_dir / str(run.get("base"))).resolve()),
+            "analysis": str((round_dir / str(run.get("analysis"))).resolve()),
+            "source_image": str((round_dir / str(item.get("original_source"))).resolve()),
+            "styles_file": str((round_dir / "inputs" / "config-styles-frozen.json").resolve()),
+            "audit_style_ref": str((round_dir / str(declared.get("audit_style_reference")
+                                                    or "inputs/sheya-style-reference.png")).resolve()),
+            "clauses_asset": str(run.get("clauses_asset") or ""),
+            "clauses_file": assets["control-clauses.json" if "control" in str(run.get("arm"))
+                                    else "variant-clauses.json"],
+            "firmware": firmware,
+            "output_dir": str((round_dir / str(run.get("output_dir"))).resolve()),
+            "declared_status": str(run.get("status") or "not_run"),
+            "style_reference_sent": False,
+            "generation_style_reference_sent": False,
+            "audit_style_reference": str(declared.get("audit_style_reference") or ""),
+            "expected_diff": ["唯一差异 = 那条 eye 句（STYLE LANGUAGE 里的 EYE DRAWING 句）；其余 prompt 逐字相同",
+                              "两臂都不送画风参考图到生成接口；画风图只进审计"],
+        }
+        missing = [key for key in ("base", "analysis", "source_image", "styles_file",
+                                   "audit_style_ref", "clauses_file", "firmware")
+                   if not Path(entry[key]).is_file()]
+        for key in missing:
+            problems.append(f"{entry['run_id']}: 缺少 {key} → {entry[key]}")
+        for key, field in (("base", "base_sha256"), ("analysis", "analysis_sha256"),
+                           ("source_image", "source_image_sha256"), ("firmware", "firmware_sha256"),
+                           ("clauses_file", "clauses_sha256")):
+            entry[field] = digest(entry[key]) if Path(entry[key]).is_file() else ""
+        entry["command"] = [sys.executable, str(ROOT / "tools" / "analysis_gpt_run.py")] + _round4_argv(entry)
+        if missing:
+            runs.append(entry)
+            continue
+        # 用**同一个组装函数**算出真正会被送出的有效请求，并落盘冻结。
+        probe_argv = _round4_argv(entry) + ["--effective-request-only"]
+        os.makedirs(entry["output_dir"], exist_ok=True)
+        code = _round4_call_cli(probe_argv)
+        probe_path = Path(entry["output_dir"]) / "effective-request.json"
+        entry["effective_request_path"] = str(probe_path)
+        entry["probe_returncode"] = code
+        if not probe_path.is_file():
+            problems.append(f"{entry['run_id']}: 有效请求组装失败（returncode={code}）")
+            runs.append(entry)
+            continue
+        request = read_json(probe_path)
+        # 冻结副本放在 `effective-requests/`：预检会把产物目录里的临时请求清掉，
+        # 付费前要比对的那一份必须放在预检碰不到的地方。
+        frozen_store = round_dir / "effective-requests"
+        frozen_store.mkdir(parents=True, exist_ok=True)
+        frozen_path = frozen_store / (entry["run_id"] + ".json")
+        frozen_path.write_bytes(probe_path.read_bytes())
+        entry["effective_request_path"] = str(frozen_path)
+        entry["effective_request_probe_path"] = str(probe_path)
+        entry["effective_request_sha256"] = digest(frozen_path)
+        entry["planned_prompt_sha256"] = request.get("prompt_sha256")
+        entry["prompt_chars"] = int(request.get("prompt_chars") or 0)
+        entry["effective_request"] = {
+            "prompt": request.get("prompt"),
+            "source_paths": request.get("source_paths"),
+            "extra_reference_paths": request.get("extra_reference_paths"),
+            "reference_images": request.get("reference_images"),
+            "model": request.get("model"), "resolution": request.get("resolution"),
+            "aspect_ratio": request.get("aspect_ratio"), "use_detail_suffix": request.get("use_detail_suffix"),
+            "detail_suffix_applied": request.get("detail_suffix_applied"),
+            "n": request.get("n"), "repeat": request.get("repeat"),
+            "save_sub_dir": request.get("save_sub_dir"), "file_prefix": request.get("file_prefix"),
+        }
+        runs.append(entry)
+    # 有效请求约束：长度上限 + 两臂只差一条 eye 句
+    max_chars = int(declared.get("effective_repaint_prompt_max_chars") or 3000)
+    by_pair = {}
+    for entry in runs:
+        by_pair.setdefault((entry["slot"], entry["repeat"]), {})[entry["arm"]] = entry
+    pair_rows = []
+    for (slot, repeat), arms in sorted(by_pair.items()):
+        if "control" not in arms or "variant" not in arms:
+            problems.append(f"{slot}/repeat-{repeat}: 缺少 control 或 variant 臂")
+            continue
+        control_prompt = str((arms["control"].get("effective_request") or {}).get("prompt") or "")
+        variant_prompt = str((arms["variant"].get("effective_request") or {}).get("prompt") or "")
+        if not control_prompt or not variant_prompt:
+            problems.append(f"{slot}/repeat-{repeat}: 有效请求缺少 prompt")
+            continue
+        control_clause = str(clause_facts.get("control_clause") or "")
+        variant_clause = str(clause_facts.get("variant_clause") or "")
+        row = {"slot": slot, "repeat": repeat,
+               "control_prompt_chars": len(control_prompt), "variant_prompt_chars": len(variant_prompt),
+               "limit": max_chars,
+               "control_clause_present_once": control_prompt.count(control_clause) == 1,
+               "variant_clause_present_once": variant_prompt.count(variant_clause) == 1}
+        stripped_control = control_prompt.replace(ROUND4_CLAUSE_HEADER + control_clause, "", 1)
+        stripped_variant = variant_prompt.replace(ROUND4_CLAUSE_HEADER + variant_clause, "", 1)
+        row["remainder_identical"] = stripped_control == stripped_variant
+        row["remainder_sha256"] = hashlib.sha256(stripped_control.encode("utf-8")).hexdigest()
+        row["only_declared_clause_changed"] = bool(
+            row["control_clause_present_once"] and row["variant_clause_present_once"]
+            and row["remainder_identical"])
+        row["within_limit"] = len(control_prompt) <= max_chars and len(variant_prompt) <= max_chars
+        if not row["only_declared_clause_changed"]:
+            problems.append(f"{slot}/repeat-{repeat}: 删除唯一 eye 句后剩余 prompt 不相同")
+        if not row["within_limit"]:
+            problems.append(f"{slot}/repeat-{repeat}: 有效 prompt 超过 {max_chars} 字符上限")
+        for arm in ("control", "variant"):
+            refs = (arms[arm].get("effective_request") or {}).get("extra_reference_paths") or []
+            if refs:
+                problems.append(f"{slot}/repeat-{repeat}/{arm}: 生成请求里出现了额外参考图 {refs}")
+            sources = (arms[arm].get("effective_request") or {}).get("source_paths") or []
+            if sources != [arms[arm].get("base")]:
+                problems.append(f"{slot}/repeat-{repeat}/{arm}: 生成请求的源图不是冻结 base：{sources}")
+        pair_rows.append(row)
+    run_plan = {
+        "schema": "eye-round4-run-plan-v1",
+        "generated_at": now_stamp(),
+        "round": str(round_dir),
+        "declarative_plan": str(declared_path.resolve()),
+        "declarative_sha256": digest(declared_path),
+        "status": "ready_for_preflight" if not problems else "blocked",
+        "image_attempt_limit": limit,
+        "image_auto_retries": 0,
+        "budget_dir": budget_dir,
+        "text_audit_attempt_limit": int(declared.get("text_audit_attempt_limit") or 64),
+        "text_audit_attempts_per_stage": 2,
+        "prompt_directory": ROUND4_PROMPT_REL,
+        "firmware": firmware, "firmware_sha256": digest(Path(firmware)) if Path(firmware).is_file() else "",
+        "effective_repaint_prompt_max_chars": max_chars,
+        "generation_style_reference_sent": False,
+        "audit_style_reference": str((round_dir / str(declared.get("audit_style_reference") or "")).resolve()),
+        "allowed_difference": declared.get("allowed_difference"),
+        "ingredients": {"inputs": input_rows, "assets": asset_rows, "clauses": clause_facts},
+        "prompt_pairs": pair_rows,
+        "runs": runs,
+        "runs_total": len(runs),
+        "problems": problems,
+        "notes": ["本文件由 round4-build-plan 从声明式清单转换而来；转换过程零图片调用。",
+                  "模型/端点/分辨率来自现有配置，双方相同；预检记录脱敏快照。",
+                  "不把上一张输出当作下一张输入；每次独立使用冻结 base。"],
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    write_json(out / "run-plan.json", run_plan)
+    report = {"generated_at": run_plan["generated_at"], "round": str(round_dir),
+              "checks": checks + [{"check": "inputs", "problems": input_problems},
+                                  {"check": "assets", "problems": asset_problems},
+                                  {"check": "clauses", "problems": clause_problems}],
+              "prompt_pairs": pair_rows, "problems": problems,
+              "verdict": "ready_for_preflight" if not problems else "blocked"}
+    write_json(out / "run-plan-check.json", report)
+    print("可执行计划 %d 个 run（图片尝试上限 %d）→ %s" % (len(runs), limit, out / "run-plan.json"))
+    for entry in runs:
+        print("  %-24s %s/%s r%d prompt=%d字 sha=%s" % (
+            entry["run_id"], entry["slot"], entry["arm"], entry["repeat"],
+            entry.get("prompt_chars") or 0, str(entry.get("planned_prompt_sha256"))[:10]))
+    for text in problems:
+        print("  ! " + text)
+    return 1 if problems else 0
+
+
+class _Round4FakeBackend:
+    """受控实验的假图片后端：记录发送参数并在本地伪造产物，绝不发 HTTP。"""
+
+    def __init__(self, log=None):
+        self.calls = []
+        self.tripwires = []
+        self.log = log or (lambda m: None)
+
+    def repaint(self, **kwargs):
+        self.calls.append(kwargs)
+        sources = [p for p in (kwargs.get("source_paths") or []) if p]
+        sub_dir = str(kwargs.get("save_sub_dir") or "")
+        prefix = str(kwargs.get("file_prefix") or "fake")
+        os.makedirs(sub_dir, exist_ok=True)
+        target = os.path.join(sub_dir, prefix + ".png")
+        Image.open(sources[0]).convert("RGB").save(target)
+        self.log("[fake] 重绘被调用一次 → " + target)
+        return [target]
+
+    def tripwire(self, name):
+        def fail(*args, **kwargs):
+            self.tripwires.append({"name": name, "args": str(args)[:200], "kwargs": str(kwargs)[:200]})
+            raise AssertionError("受控实验出现未授权的图片调用：" + name)
+        return fail
+
+
+def _round4_fake_text_audits(counter):
+    """假文本审计：返回**schema 完整**的结论，不做任何 HTTP，也不产生修图。"""
+    import utils.refine_quality as quality
+
+    def quality_audit(original, candidate, style, **kwargs):
+        counter.append("quality-audit")
+        if kwargs.get("final_review"):
+            severity, gaps = "minor", [{"aspect": "line weight under the style target",
+                                        "candidate": "soft", "target": "firmer tapered contours",
+                                        "repair": "thicken local contours", "confidence": .8}]
+        else:
+            severity, gaps = "major", [{"aspect": "eye abstraction gap", "candidate": "soft eye edges",
+                                        "target": "graphic eye construction",
+                                        "repair": "tighten eye edges", "confidence": .9}]
+        return {"needs_refine": True, "severity": severity, "confidence": .9,
+                "structural_issues": [], "line_issues": [], "background_drift": [],
+                "style_gaps": gaps, "ownership_uncertain": [], "needs_review": False,
+                "candidate": os.path.abspath(candidate),
+                "candidate_sha256": quality.file_sha256(candidate)}
+
+    def anatomy_audit(candidate, **kwargs):
+        counter.append("anatomy-audit")
+        return {"needs_refine": False, "severity": "none", "confidence": .9,
+                "structural_issues": [], "line_issues": [], "background_drift": [], "style_gaps": [],
+                "ownership_uncertain": [], "needs_review": False,
+                "candidate": os.path.abspath(candidate),
+                "candidate_sha256": quality.file_sha256(candidate)}
+
+    def identity_audit(image_path, analysis, **kwargs):
+        counter.append("identity-audit")
+        return {"mismatch": False, "severity": "none", "confidence": .9, "stable_anchors": [],
+                "differences": [], "summary": "fake", "image": os.path.abspath(image_path),
+                "candidate_sha256": quality.file_sha256(image_path)}
+
+    return quality_audit, anatomy_audit, identity_audit
+
+
+def round4_preflight(args):
+    """假后端跑**完整请求组装路径**，截获真实发送参数（零 HTTP、零付费）。
+
+    这是付费前置条件：证明每个 run 只有一次重绘请求，且没有任何 GPT 首图、
+    质量/身份/人体/终审救援类图片请求；并把截获的发送参数与计划里冻结的
+    有效请求逐字段比对。
+    """
+    from unittest.mock import patch
+    import modules.others.api_backend as backend
+
+    round_dir = _round4_dir(args.round)
+    plan = read_json(Path(args.plan)) if args.plan else read_json(round_dir / "run-plan.json")
+    if plan.get("problems"):
+        print("计划本身有问题，先跑 round4-build-plan 修好：" + "; ".join(plan["problems"])[:400])
+        return 1
+    assertions, runs_report = [], []
+    total_image_calls = 0
+    for entry in plan.get("runs") or []:
+        label = entry["run_id"]
+        if args.run and args.run not in label:
+            continue
+        if (Path(entry["output_dir"]) / "run-record.json").is_file():
+            # 已经有真实执行记录的 run 不允许被预检覆盖（输出目录不可覆盖）。
+            runs_report.append({"run_id": label, "slot": entry["slot"], "arm": entry["arm"],
+                                "repeat": entry["repeat"], "skipped": "already_executed",
+                                "note": "该 run 已有 run-record.json，预检不触碰它的输出目录"})
+            continue
+        text_calls = []
+        fake = _Round4FakeBackend(log=lambda m: None)
+        quality_audit, anatomy_audit, identity_audit = _round4_fake_text_audits(text_calls)
+        os.makedirs(entry["output_dir"], exist_ok=True)
+        for name in ("effective-request.json", "request.json"):
+            stale = Path(entry["output_dir"]) / name
+            if stale.is_file():
+                stale.unlink()
+        captured = {}
+
+        def _dispatch(request, **kwargs):
+            captured["request"] = request
+            return fake.repaint(**request["call_kwargs"])
+
+        with patch.object(backend, "generate_image_repaint", fake.repaint), \
+                patch.object(backend, "generate_image_aigc2d", fake.tripwire("generate_image_aigc2d")), \
+                patch.object(backend, "generate_image_aigc2d_gpt", fake.tripwire("generate_image_aigc2d_gpt")), \
+                patch.object(backend, "generate_image_openai_image", fake.tripwire("generate_image_openai_image")), \
+                patch.object(backend, "generate_image_whatai", fake.tripwire("generate_image_whatai")), \
+                patch("utils.post_process.dispatch_repaint_request", _dispatch), \
+                patch("utils.refine_quality.audit_refine_quality", quality_audit), \
+                patch("utils.refine_quality.audit_hand_quality", anatomy_audit), \
+                patch("utils.identity_audit.audit_image_identity", identity_audit), \
+                patch.dict(os.environ, {"IMAGE_MAKER_SEND_BUDGET_DIR": "",
+                                        "IMAGE_MAKER_EFFECTIVE_REQUEST_DIR": ""}):
+            code = _round4_call_cli(_round4_argv(entry))
+        calls = fake.calls
+        request = captured.get("request") or {}
+        expected = entry.get("effective_request") or {}
+        planned_sha = hashlib.sha256(str(expected.get("prompt") or "").encode("utf-8")).hexdigest()
+        actual_sha = hashlib.sha256(str(request.get("prompt") or "").encode("utf-8")).hexdigest()
+        checks = [
+            {"assertion": "run 只有一次重绘图片请求", "ok": len(calls) == 1, "evidence": len(calls)},
+            {"assertion": "没有 GPT 首图请求", "ok": not fake.tripwires,
+             "evidence": [t["name"] for t in fake.tripwires]},
+            {"assertion": "没有其他图片通道（openai/whatai/gemini 直出）请求",
+             "ok": not fake.tripwires, "evidence": [t["name"] for t in fake.tripwires]},
+            {"assertion": "最终 prompt 与冻结的有效请求逐字相同",
+             "ok": bool(request.get("prompt")) and request.get("prompt") == expected.get("prompt"),
+             "evidence": {"planned_sha256": planned_sha, "actual_sha256": actual_sha,
+                          "planned_chars": len(str(expected.get("prompt") or "")),
+                          "actual_chars": len(str(request.get("prompt") or ""))}},
+            {"assertion": "生成请求只送冻结 base 一张图（顺序一致）",
+             "ok": list(request.get("source_paths") or []) == list(expected.get("source_paths") or []),
+             "evidence": {"actual": request.get("source_paths"), "planned": expected.get("source_paths")}},
+            {"assertion": "没有额外参考图进入生成请求",
+             "ok": not (request.get("extra_reference_paths") or []),
+             "evidence": request.get("extra_reference_paths")},
+            {"assertion": "模型/分辨率/比例与计划一致",
+             "ok": [request.get("model"), request.get("resolution"), request.get("aspect_ratio")]
+                   == [expected.get("model"), expected.get("resolution"), expected.get("aspect_ratio")],
+             "evidence": {"actual": [request.get("model"), request.get("resolution"),
+                                     request.get("aspect_ratio")],
+                          "planned": [expected.get("model"), expected.get("resolution"),
+                                      expected.get("aspect_ratio")]}},
+            {"assertion": "use_detail_suffix=False（不追加细节后缀）",
+             "ok": request.get("detail_suffix_applied") is False, "evidence": request.get("detail_suffix_applied")},
+            {"assertion": "n=1（一次请求只出一张）", "ok": request.get("n") == 1, "evidence": request.get("n")},
+            {"assertion": "源图内容哈希与冻结 base 一致",
+             "ok": (request.get("reference_images") or [{}])[0].get("file_sha256") == entry.get("base_sha256"),
+             "evidence": {"sent": (request.get("reference_images") or [{}])[0].get("file_sha256"),
+                          "frozen": entry.get("base_sha256")}},
+            {"assertion": "CLI 退出码在预期范围内", "ok": code in (0, 1), "evidence": code},
+        ]
+        for check in checks:
+            check["run_id"] = label
+        assertions.extend(checks)
+        total_image_calls += len(calls)
+        runs_report.append({
+            "run_id": label, "slot": entry["slot"], "arm": entry["arm"], "repeat": entry["repeat"],
+            "returncode": code, "image_dispatch_count": len(calls),
+            "tripwire_hits": fake.tripwires, "text_audit_calls": len(text_calls),
+            "text_audit_breakdown": {name: text_calls.count(name) for name in sorted(set(text_calls))},
+            "effective_request_path": str(Path(entry["output_dir"]) / "effective-request.json"),
+            "effective_request_sha256": digest(Path(entry["output_dir"]) / "effective-request.json")
+            if (Path(entry["output_dir"]) / "effective-request.json").is_file() else "",
+            "captured_prompt_sha256": actual_sha,
+            "captured_reference_images": request.get("reference_images"),
+            "captured_call_kwargs_keys": sorted((calls[0] if calls else {}).keys()),
+            "checks": checks,
+        })
+    failed = [item for item in assertions if not item["ok"]]
+    checked = [row for row in runs_report if not row.get("skipped")]
+    report = {"generated_at": now_stamp(), "round": str(round_dir), "mode": "fake_backend_preflight",
+              "real_http_requests": 0, "real_image_calls": 0,
+              "runs": runs_report, "assertions": assertions, "failures": failed,
+              "summary": {"runs_checked": len(checked), "runs_skipped": len(runs_report) - len(checked),
+                          "image_dispatches": total_image_calls,
+                          "assertions": len(assertions), "failed": len(failed)},
+              "code_versions": code_versions(),
+              "verdict": "pass" if (not failed and checked
+                                    and total_image_calls == len(checked)) else "failed"}
+    out = Path(args.out).resolve() if args.out else round_dir
+    out.mkdir(parents=True, exist_ok=True)
+    write_json(out / "preflight-report.json", report)
+    print("预检：%d 个 run，重绘派发 %d 次，断言 %d 条，失败 %d 条 → %s" % (
+        len(runs_report), total_image_calls, len(assertions), len(failed), report["verdict"]))
+    for item in failed:
+        print("  ! %s / %s：%s" % (item["run_id"], item["assertion"], str(item["evidence"])[:240]))
+    return 0 if report["verdict"] == "pass" else 1
+
+
+def code_versions() -> dict:
+    """本轮的代码版本快照（git 状态 + 关键文件哈希）。"""
+    files = ("utils/gate_status.py", "utils/refine_quality.py", "utils/identity_audit.py",
+             "utils/post_process.py", "utils/send_budget.py", "utils/gpt_image_optimize.py",
+             "modules/others/api_backend.py", "tools/analysis_gpt_run.py", "tools/style_face_eval.py")
+    hashes = {}
+    for name in files:
+        path = ROOT / name
+        hashes[name] = digest(path) if path.is_file() else ""
+
+    def _git(*command):
+        try:
+            done = subprocess.run(["git", "-C", str(ROOT), *command], capture_output=True,
+                                  text=True, timeout=30)
+            return done.stdout.strip()
+        except Exception as exc:  # noqa: BLE001
+            return "<git unavailable: %s>" % type(exc).__name__
+    return {"generated_at": now_stamp(), "file_sha256": hashes, "git_head": _git("rev-parse", "HEAD"),
+            "git_status_lines": _git("status", "--porcelain").splitlines()[:200]}
+
+
+def round4_run(args):
+    """按预算 wrapper 执行**一条**计划 run（真正付费的那一步）。
+
+    付费之前：检查计划与冻结有效请求、拒绝重复派发、检查输出目录未被占用；
+    然后设置预算环境变量并串行 spawn `tools/analysis_gpt_run.py`。
+    """
+    import subprocess as sp
+    import utils.send_budget as send_budget
+
+    round_dir = _round4_dir(args.round)
+    plan = read_json(Path(args.plan)) if args.plan else read_json(round_dir / "run-plan.json")
+    runs = plan.get("runs") or []
+    match = [r for r in runs if r.get("run_id") == args.run_id]
+    if not match:
+        raise SystemExit("run-plan.json 里没有 run_id=" + str(args.run_id))
+    entry = match[0]
+    budget_dir = str(Path(plan.get("budget_dir") or (round_dir / "budget")).resolve())
+    limit = int(plan.get("image_attempt_limit") or 8)
+    out_dir = Path(entry["output_dir"])
+    if (out_dir / "run-record.json").is_file():
+        raise SystemExit("该 run 已有执行记录，拒绝重复派发：" + str(out_dir))
+    reusable = send_budget.can_reuse_success(budget_dir, entry["run_id"])
+    if reusable:
+        print("断点恢复：该 run 已有成功产物，直接复用（不再发送）" + reusable)
+        return 0
+    state = send_budget.state(budget_dir, "image", limit)
+    if state["used"] >= limit:
+        raise SystemExit("图片尝试预算已用满（%d/%d），不发送" % (state["used"], limit))
+    probe = Path(entry.get("effective_request_path") or "")
+    if not probe.is_file():
+        raise SystemExit("缺少冻结的有效请求，先跑 round4-build-plan：" + str(probe))
+    if digest(probe) != entry.get("effective_request_sha256"):
+        raise SystemExit("冻结的有效请求已被改动，拒绝派发：" + str(probe))
+    command = entry.get("command") or []
+    if not command:
+        raise SystemExit("计划里没有可执行命令")
+    os.makedirs(out_dir, exist_ok=True)
+    env = dict(os.environ)
+    env.update({
+        "IMAGE_MAKER_SEND_BUDGET_DIR": budget_dir,
+        "IMAGE_MAKER_SEND_BUDGET_RUN_ID": entry["run_id"],
+        "IMAGE_MAKER_SEND_BUDGET_LIMIT": str(limit),
+        "IMAGE_MAKER_TEXT_BUDGET_LIMIT": str(plan.get("text_audit_attempt_limit") or 64),
+        "IMAGE_MAKER_TEXT_BUDGET_PER_STAGE": "2",
+        "IMAGE_MAKER_IMAGE_MAX_RETRIES": "0",
+        "IMAGE_MAKER_EFFECTIVE_REQUEST_DIR": str(out_dir),
+        "PYTHONIOENCODING": "utf-8",
+    })
+    log_path = out_dir / "run.log"
+    print("派发 %s（预算 %d/%d）" % (entry["run_id"], state["used"], limit))
+    if args.dry_run:
+        print("[dry-run] " + " ".join(command))
+        return 0
+    started = datetime.datetime.now()
+    with log_path.open("w", encoding="utf-8", errors="replace") as stream:
+        proc = sp.run(command, cwd=str(ROOT), stdout=stream, stderr=sp.STDOUT,
+                      stdin=sp.DEVNULL, env=env)
+    record = {
+        "run_id": entry["run_id"], "slot": entry["slot"], "arm": entry["arm"],
+        "repeat": entry["repeat"], "stage": entry["stage"],
+        "base_path": entry["base"], "base_sha256": entry["base_sha256"],
+        "analysis_path": entry["analysis"], "analysis_sha256": entry["analysis_sha256"],
+        "source_image": entry["source_image"], "source_image_sha256": entry["source_image_sha256"],
+        "firmware": entry["firmware"], "firmware_sha256": entry["firmware_sha256"],
+        "clauses_file": entry["clauses_file"], "clauses_sha256": entry["clauses_sha256"],
+        "audit_style_ref": entry["audit_style_ref"], "generation_style_reference_sent": False,
+        "planned_effective_request": entry.get("effective_request_path"),
+        "planned_effective_request_sha256": entry.get("effective_request_sha256"),
+        "planned_prompt_sha256": entry.get("planned_prompt_sha256"),
+        "command": " ".join(command), "returncode": proc.returncode,
+        "seconds": round((datetime.datetime.now() - started).total_seconds(), 1),
+        "started_at": started.isoformat(timespec="seconds"), "finished_at": now_stamp(),
+        "log": str(log_path),
+        "budget_used_after": send_budget.state(budget_dir, "image", limit)["used"],
+        "cost_status": "no_billing_export; estimate only (utils/cost_estimate.py)",
+    }
+    manifest = record_of(out_dir / "request.json")
+    record["manifest_status"] = manifest.get("status")
+    selected = str(manifest.get("selected_output") or "")
+    record["selected_output"] = selected
+    record["output_sha256"] = digest(selected) if selected and Path(selected).is_file() else ""
+    gate = manifest.get("final_gate") or {}
+    record["final_gate"] = gate
+    record["gate_status"] = gate.get("status")
+    record["gate_audits"] = gate.get("audits")
+    record["gate_reasons"] = gate.get("reasons")
+    record["audit_image_sha256"] = {
+        "identity": str(((manifest.get("identity") or {}).get("final") or {}).get("candidate_sha256") or ""),
+        "anatomy": str((manifest.get("anatomy_review") or {}).get("candidate_sha256") or ""),
+        "final_review": str((manifest.get("final_review") or {}).get("candidate_sha256") or ""),
+        "quality_latest": str((((manifest.get("quality_refine") or {}).get("after")
+                                or (manifest.get("quality_refine") or {}).get("before")) or {})
+                              .get("candidate_sha256") or ""),
+    }
+    sent = sorted(Path(out_dir).glob("effective-request-*.json"))
+    actual_request = read_json(sent[-1]) if sent else {}
+    record["actual_effective_request_sha256"] = digest(sent[-1]) if sent else ""
+    record["actual_request_matches_plan"] = bool(
+        actual_request and actual_request.get("prompt_sha256") == entry.get("planned_prompt_sha256"))
+    record["actual_reference_images"] = actual_request.get("reference_images")
+    calls = _round4_read_jsonl(out_dir / "api-calls.jsonl")
+    record["repaint_calls"] = len(calls)
+    record["repaint_prompt_sha256"] = [c.get("prompt_sha256") for c in calls]
+    record["repaint_reference_paths"] = [[item.get("path") for item in (c.get("reference_images") or [])]
+                                         for c in calls]
+    write_json(out_dir / "run-record.json", record)
+    print("%s rc=%s status=%s gate=%s → %s" % (
+        entry["run_id"], proc.returncode, record["manifest_status"], record["gate_status"],
+        str(record["output_sha256"])[:12]))
+    return 0 if proc.returncode == 0 else 1
+
+
+def round4_state(args):
+    """读预算账本与逐 run 记录（不发送任何东西）。"""
+    import utils.send_budget as send_budget
+    round_dir = _round4_dir(args.round)
+    plan = read_json(Path(args.plan)) if args.plan else read_json(round_dir / "run-plan.json")
+    budget_dir = str(Path(plan.get("budget_dir") or (round_dir / "budget")).resolve())
+    limit = int(plan.get("image_attempt_limit") or 8)
+    state = send_budget.state(budget_dir, "image", limit)
+    rows = []
+    for entry in plan.get("runs") or []:
+        record = record_of(Path(entry["output_dir"]) / "run-record.json")
+        rows.append({"run_id": entry["run_id"], "slot": entry["slot"], "arm": entry["arm"],
+                     "repeat": entry["repeat"], "executed": bool(record),
+                     "status": record.get("manifest_status", "not_run"),
+                     "gate": record.get("gate_status", ""),
+                     "output_sha256": record.get("output_sha256", ""),
+                     "seconds": record.get("seconds", "")})
+    ledger = _round4_read_jsonl(Path(budget_dir) / "images.jsonl") if budget_dir else []
+    summary = {"generated_at": now_stamp(), "budget_dir": budget_dir, "limit": limit,
+               "used": state["used"], "remaining": state["remaining"], "runs": rows}
+    write_json(round_dir / "calls-summary.json", summary)
+    if budget_dir:
+        os.makedirs(budget_dir, exist_ok=True)
+        with (Path(budget_dir) / "calls.jsonl").open("w", encoding="utf-8") as handle:
+            for row in ledger:
+                handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    print("预算 %d/%d（剩余 %d）" % (state["used"], limit, state["remaining"]))
+    for row in rows:
+        print("  %-24s %-18s %-16s %s" % (row["run_id"], row["status"], row["gate"],
+                                          str(row["output_sha256"])[:12]))
+    return 0
+
+
+def round4_crop_single(args):
+    """对**单张已有输出**重画裁剪（人工定框），并写 crop-review.json。
+
+    第四轮 P0.1：第三轮 `eyes3-P2-sheya-style-a` 的 variant/r1 眼带大半落在水瓶上，
+    那条裁剪不能支持可靠的眼部分数 —— 用权威 `selected_output` 重画，不重新生成旧图。
+
+    * 机器（YuNet/Haar）只写 `detected` 与 `detection_method`，**不写进人工字段**；
+    * `human_checked` / `contains_target_face` / `eye_readable` 只能由调用方显式给出
+      （看不清就写 `NA`，不许用背景代评分）；
+    * 输出落在 `--out/crops/<label>_*.png`，并把条目合并进 `--out/crop-review.json`。
+    """
+    image_path = Path(args.image).resolve()
+    if not image_path.is_file():
+        raise SystemExit("找不到图片：" + str(image_path))
+    out = Path(args.out).resolve()
+    (out / "crops").mkdir(parents=True, exist_ok=True)
+    image = read_image(image_path)
+    head_override = [float(v) for v in str(args.head_box).split(",")] if args.head_box else None
+    eye_override = [float(v) for v in str(args.eye_box).split(",")] if args.eye_box else None
+    auto_box, auto_method = head_box_auto(image)
+    head_box = head_override or list(auto_box)
+    plausible, reason = head_box_plausible(head_box, image.size)
+    band_info = eye_band(head_box)
+    eye_box = eye_override or (band_info["band"] if band_info else head_box)
+    px_head = _norm_box_to_px(head_box, image.size)
+    px_eye = _norm_box_to_px(eye_box, image.size)
+    head_clean = image.crop(px_head)
+    eye_clean = image.crop(px_eye)
+    label = str(args.label or image_path.stem)
+    head_path = out / "crops" / (label + "_head_clean.png")
+    eye_path = out / "crops" / (label + "_eye_clean.png")
+    over_path = out / "crops" / (label + "_head_boxed.jpg")
+    head_clean.save(head_path)
+    eye_clean.save(eye_path)
+    over = head_clean.copy()
+    draw = ImageDraw.Draw(over)
+    lx0, ly0 = px_eye[0] - px_head[0], px_eye[1] - px_head[1]
+    draw.rectangle([lx0, ly0, lx0 + eye_clean.width, ly0 + eye_clean.height],
+                   outline=(0, 200, 0), width=3)
+    draw.text((4, 4), "%s %s" % ("MANUAL" if head_override else auto_method, label), fill=(0, 200, 0))
+    over.save(over_path, quality=92)
+    entry = {
+        "label": label,
+        "round": str(getattr(args, "round", "") or ""),
+        "experiment": str(getattr(args, "experiment", "") or ""),
+        "image": str(image_path),
+        "output_sha256": sha256_of(image_path),
+        "image_size": list(image.size),
+        "head_box_normalized": [round(float(v), 5) for v in head_box],
+        "head_box_pixels": list(px_head),
+        "eye_box_normalized": [round(float(v), 5) for v in eye_box],
+        "eye_box_pixels": list(px_eye),
+        "eye_box_source": "MANUAL" if eye_override else ("EYE_BAND_FROM_HEAD" if band_info else "HEAD"),
+        "eye_band_clipped_to_head_box": bool(band_info and band_info["clipped"]),
+        "head_box_auto_normalized": [round(float(v), 5) for v in auto_box],
+        "detection_method": auto_method,
+        "detected": auto_method in ("YUNET", "AUTO"),
+        "auto_box_plausible": bool(plausible),
+        "auto_box_reason": reason,
+        "box_pixels": list(px_head),
+        "box_normalized": [round(float(v), 5) for v in head_box],
+        "human_checked": (str(args.human_checked) if args.human_checked else None),
+        "contains_target_face": (str(args.contains_target_face) if args.contains_target_face else None),
+        "eye_readable": (str(args.eye_readable) if args.eye_readable else None),
+        "reviewer": str(args.reviewer or "agent"),
+        "reason": str(args.reason or ""),
+        "head_clean": str(head_path), "eye_clean": str(eye_path), "head_boxed": str(over_path),
+        "head_crop_size": list(head_clean.size), "eye_crop_size": list(eye_clean.size),
+        "superseded_crop": str(args.supersedes or ""),
+        "note": "人工定框重画；机器只给 detected，不写人工确认字段。",
+    }
+    review_path = out / "crop-review.json"
+    review = record_of(review_path) if review_path.is_file() else {
+        "generated_at": now_stamp(),
+        "reviewer": {"human_checked": str(args.reviewer or "agent")},
+        "note": "每条的 human_checked / contains_target_face / eye_readable 由看图者填写；"
+                "机器检出不写成人工确认。",
+        "crops": []}
+    review["crops"] = [item for item in (review.get("crops") or []) if item.get("label") != label]
+    review["crops"].append(entry)
+    review["updated_at"] = now_stamp()
+    write_json(review_path, review)
+    print("裁剪 %s → %s" % (label, eye_path))
+    print("  头部框 %s（像素 %s）| 眼带 %s（像素 %s）| 方法 %s | 自动框 %s"
+          % (entry["head_box_normalized"], entry["head_box_pixels"], entry["eye_box_normalized"],
+             entry["eye_box_pixels"], auto_method, plausible))
+    return 0
+
+
+def round4_verify_inputs(args):
+    """P0.1：核验冻结输入与旧证据一致，并解析**真实源图**（不因 original=null 另跑分析）。"""
+    round_dir = _round4_dir(args.round)
+    source_round = Path(args.source_round).resolve() if args.source_round else \
+        (round_dir.parent / "eye-face-hair-round3-20261001")
+    evidence_path = round_dir / "REVIEW-EVIDENCE.json"
+    evidence = record_of(evidence_path)
+    declared = record_of(round_dir / "experiment-plan.json")
+    inputs = {str(item.get("slot")): item for item in (declared.get("inputs") or [])}
+    old_inputs = {str(item.get("slot")): item for item in (evidence.get("inputs") or [])}
+    rows, problems = [], []
+    for slot, item in sorted(inputs.items()):
+        old = old_inputs.get(slot) or {}
+        facts = {"slot": slot}
+        for role, relative, old_key in (("analysis", item.get("analysis"), "analysis_source"),
+                                        ("base", item.get("base"), "base_source")):
+            local = (round_dir / str(relative)).resolve()
+            original = Path(str(old.get(old_key) or ""))
+            facts[role] = {
+                "local": str(local), "local_sha256": digest(local) if local.is_file() else "",
+                "recorded_source": str(original), "recorded_exists": original.is_file(),
+                "recorded_sha256": digest(original) if original.is_file() else "",
+                "declared_sha256": str(item.get("%s_sha256" % role) or ""),
+            }
+            facts[role]["identical_to_recorded"] = bool(
+                facts[role]["local_sha256"] and facts[role]["local_sha256"] == facts[role]["recorded_sha256"])
+            facts[role]["matches_declaration"] = bool(
+                facts[role]["local_sha256"] and facts[role]["local_sha256"] == facts[role]["declared_sha256"])
+            if not facts[role]["identical_to_recorded"]:
+                problems.append("%s/%s 与旧证据记录不一致：%s" % (slot, role, str(original)))
+            # 旧 request.json 的 source 字段（冻结输入里的源图解析路径）
+            manifest = record_of(Path(str(old.get("base_source") or "")).parent.parent / "request.json")
+            if manifest:
+                facts[role]["old_manifest_source"] = str(manifest.get("source") or "")
+        analysis = record_of((round_dir / str(item.get("analysis"))).resolve())
+        facts["analysis_fields"] = {
+            "source_image_path": str(analysis.get("source_image_path") or ""),
+            "original": analysis.get("original"),
+            "gpt_image_prompt_chars": len(str(analysis.get("gpt_image_prompt") or "")),
+            "english_description_chars": len(str(analysis.get("english_description") or "")),
+        }
+        facts["original_source"] = {
+            "local": str((round_dir / str(item.get("original_source"))).resolve()),
+            "sha256": digest((round_dir / str(item.get("original_source"))).resolve()),
+            "from": str(item.get("original_source_from") or ""),
+        }
+        facts["original_source"]["matches_source_image_path"] = bool(
+            facts["analysis_fields"]["source_image_path"]
+            and Path(facts["analysis_fields"]["source_image_path"]).is_file()
+            and digest(Path(facts["analysis_fields"]["source_image_path"]))
+            == facts["original_source"]["sha256"])
+        rows.append(facts)
+    manifest = record_of(round_dir / "input-verification.json")
+    if not manifest and source_round.is_dir():
+        pass
+    report = {"generated_at": now_stamp(), "scope": "P0.1 冻结输入核验",
+              "rule": "源图路径由旧 request.json 的 source 或分析 JSON 的实际字段解析；"
+                      "original=null 不构成重新分析的理由。",
+              "evidence": str(evidence_path), "rows": rows, "problems": problems,
+              "verdict": "verified" if not problems else "mismatch"}
+    write_json(round_dir / "input-verification.json", report)
+    for fact in rows:
+        print("slot %s：analysis %s / base %s（与旧证据逐字相同=%s）" % (
+            fact["slot"], str(fact["analysis"]["local_sha256"])[:12], str(fact["base"]["local_sha256"])[:12],
+            fact["analysis"]["identical_to_recorded"] and fact["base"]["identical_to_recorded"]))
+        print("   源图 %s（analysis.source_image_path 命中=%s）" % (
+            fact["original_source"]["local"], fact["original_source"]["matches_source_image_path"]))
+    for text in problems:
+        print("  ! " + text)
+    return 1 if problems else 0
+
+
+def round4_replay_gate(args):
+    """P0.1：用**当前**纯判定函数离线重算旧产物的门禁，旧状态/新状态/代码版本分列。
+
+    只读：不重跑审计、不发新图、不覆盖旧证据。
+    """
+    from utils.gate_status import evaluate_final_gate
+    target = Path(args.source_round).resolve() if args.source_round else _round4_dir(args.round)
+    out = Path(args.out).resolve() if args.out else _round4_dir(args.round)
+    records = []
+    for manifest_path in sorted(target.rglob("request.json")):
+        if any(part.startswith("pre-rebind") for part in manifest_path.parts):
+            continue
+        manifest = record_of(manifest_path)
+        if not manifest.get("final_gate") and not manifest.get("selected_output"):
+            continue
+        records.append((manifest_path, manifest))
+    rows, changed = [], []
+    from utils.refine_quality import should_refine_quality
+    for manifest_path, manifest in records:
+        selected = str(manifest.get("selected_output") or "")
+        # 忠实重现旧运行时的输入：`--audit-only` 下旧代码会把「质量审计仍有高置信缺陷、
+        # 未自动修订」写进 quality_audit_error。重算时若不还原这一项，就会把上游判红
+        # 当成不存在，得出「旧 review_required 其实是 complete」的假放宽。
+        quality_audit_error = str((manifest.get("quality_refine") or {}).get("audit_error") or "")
+        if manifest.get("audit_only") and should_refine_quality(
+                (manifest.get("quality_refine") or {}).get("before") or {}):
+            quality_audit_error = quality_audit_error or "审计模式：质量审计仍有高置信缺陷，未自动修订"
+        gate = evaluate_final_gate(
+            final_image=selected,
+            identity=(manifest.get("identity") or {}).get("final"),
+            anatomy=manifest.get("anatomy_review"),
+            quality=manifest.get("quality_refine"),
+            final_review=manifest.get("final_review"),
+            identity_action=str((manifest.get("identity") or {}).get("action") or ""),
+            quality_audit_error=quality_audit_error)
+        old = manifest.get("final_gate") or {}
+        row = {
+            "manifest": str(manifest_path),
+            "relative": str(manifest_path.parent.relative_to(target)),
+            "selected_output": selected,
+            "output_sha256": digest(selected) if selected and Path(selected).is_file() else "",
+            "old_status": str(old.get("status") or manifest.get("status") or ""),
+            "old_text": str(old.get("text") or "")[:400],
+            "new_status": gate["status"],
+            "new_text": gate["text"][:400],
+            "new_audits": gate["audits"],
+            "status_changed": str(old.get("status") or "") != gate["status"],
+            "missing_audits": [item["audit"] for item in gate["audits"]
+                               if item["verdict"] not in ("pass", "not_run")],
+        }
+        rows.append(row)
+        if row["status_changed"]:
+            changed.append(row)
+    report = {"generated_at": now_stamp(), "scope": "P0.1 旧产物离线门禁重算",
+              "target": str(target), "evaluator": "utils/gate_status.evaluate_final_gate（当前版本）",
+              "code_versions": code_versions(),
+              "counting": {"manifests": len(rows),
+                           "status_changed": len(changed),
+                           "old_complete_to_new_review": sum(
+                               1 for row in rows if row["old_status"] == "complete"
+                               and row["new_status"] != "complete"),
+                           "old_review_stays_review": sum(
+                               1 for row in rows if row["old_status"] != "complete"
+                               and row["new_status"] != "complete")},
+              "rows": rows,
+              "note": "旧 gate 文本与旧产物保持原样；本文件只增加一列「当前代码重算」的结果。"}
+    out.mkdir(parents=True, exist_ok=True)
+    write_json(out / "old-gate-recompute.json", report)
+    print("离线重算 %d 份旧 manifest：%d 份状态变化" % (len(rows), len(changed)))
+    for row in changed:
+        print("  %-46s %s → %s" % (row["relative"], row["old_status"], row["new_status"]))
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--work", default=str(DEFAULT_WORK), help="Dedicated evaluation directory")
@@ -2417,8 +3569,55 @@ def main():
     verdict.add_argument("--plan", required=True)
     verdict.add_argument("--scores", default="", help="scores.json with per-run human scores and kept-flags")
     verdict.add_argument("--out", default="")
+    r4_install = sub.add_parser("round4-install-assets",
+                                help="第四轮：把 prompt-assets 逐字安装到 prompts 目录")
+    r4_install.add_argument("--round", default="")
+    r4_install.add_argument("--force", action="store_true", help="目标内容不同时也覆盖")
+    r4_plan = sub.add_parser("round4-build-plan",
+                             help="第四轮：声明式清单 → 可执行 run-plan.json（零图片调用）")
+    r4_plan.add_argument("--round", default="")
+    r4_plan.add_argument("--plan", default="", help="声明式 experiment-plan.json（默认取本轮目录）")
+    r4_plan.add_argument("--out", default="")
+    r4_pre = sub.add_parser("round4-preflight",
+                            help="第四轮：假后端跑完整组装路径并截获发送参数（零 HTTP）")
+    r4_pre.add_argument("--round", default="")
+    r4_pre.add_argument("--plan", default="")
+    r4_pre.add_argument("--out", default="")
+    r4_pre.add_argument("--run", default="", help="只预检 run_id 含该子串的那一条")
+    r4_run = sub.add_parser("round4-run", help="第四轮：按预算 wrapper 执行一条计划 run（付费）")
+    r4_run.add_argument("--round", default="")
+    r4_run.add_argument("--plan", default="")
+    r4_run.add_argument("--run-id", required=True)
+    r4_run.add_argument("--dry-run", action="store_true")
+    r4_state = sub.add_parser("round4-state", help="第四轮：读预算账本与逐 run 记录")
+    r4_state.add_argument("--round", default="")
+    r4_state.add_argument("--plan", default="")
+    r4_crop = sub.add_parser("round4-crop-single",
+                             help="第四轮 P0.1：对单张已有输出人工定框重画裁剪并写 crop-review.json")
+    r4_crop.add_argument("--image", required=True)
+    r4_crop.add_argument("--out", required=True)
+    r4_crop.add_argument("--label", default="")
+    r4_crop.add_argument("--head-box", default="", help="归一化 x0,y0,x1,y1（人工定框）")
+    r4_crop.add_argument("--eye-box", default="", help="归一化 x0,y0,x1,y1（不给则按头部框推眼带）")
+    r4_crop.add_argument("--human-checked", default="")
+    r4_crop.add_argument("--contains-target-face", default="")
+    r4_crop.add_argument("--eye-readable", default="", help="yes / no / NA")
+    r4_crop.add_argument("--reviewer", default="")
+    r4_crop.add_argument("--reason", default="")
+    r4_crop.add_argument("--supersedes", default="", help="被这次重画替代的旧裁剪路径")
+    r4_crop.add_argument("--experiment", default="")
+    r4_crop.add_argument("--round-label", default="")
+    r4_verify = sub.add_parser("round4-verify-inputs",
+                               help="第四轮 P0.1：核验冻结输入与旧证据一致并解析真实源图")
+    r4_verify.add_argument("--round", default="")
+    r4_verify.add_argument("--source-round", default="")
+    r4_replay = sub.add_parser("round4-replay-gate",
+                               help="第四轮 P0.1：用当前判定函数离线重算旧产物门禁（只读）")
+    r4_replay.add_argument("--round", default="")
+    r4_replay.add_argument("--source-round", default="")
+    r4_replay.add_argument("--out", default="")
     args = parser.parse_args()
-    {"init": init, "refresh": refresh, "add": add, "import-csv": import_csv,
+    return {"init": init, "refresh": refresh, "add": add, "import-csv": import_csv,
      "box": box, "sheet": sheet,
      "metrics": metrics, "summary": summary, "exp-build": exp_build,
      "exp-metrics": exp_metrics, "exp-heads": exp_heads,
@@ -2426,8 +3625,17 @@ def main():
      "round-compare": round_compare, "round-crops": round_crops,
      "round-review": round_review, "round-prep": round_prep, "round-run": round_run,
      "round-rebind": round_rebind, "round-diffcheck": round_diffcheck,
-     "round-verdict": round_verdict}[args.command](args)
+     "round-verdict": round_verdict,
+     "round4-install-assets": round4_install_assets,
+     "round4-build-plan": round4_build_plan,
+     "round4-preflight": round4_preflight,
+     "round4-run": round4_run,
+     "round4-crop-single": round4_crop_single,
+     "round4-verify-inputs": round4_verify_inputs,
+     "round4-replay-gate": round4_replay_gate,
+     "round4-state": round4_state}[args.command](args)
 
 
 if __name__ == "__main__":
-    main()
+    # 子命令的返回码要真的变成进程退出码（`--strict` 非零退出靠这一行生效）
+    sys.exit(main() or 0)
