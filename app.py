@@ -355,6 +355,7 @@ class AppWindow(QWidget):
             test_gen_changed_callback=self.on_style_analyzer_test_gen_changed,
             test_prompt_getter_func=lambda: self.style_analyzer_test_prompt,
             test_prompt_changed_callback=self.on_style_analyzer_test_prompt_changed,
+            styles_reload_callback=self.load_styles_config,
         )
 
         self.pic_cate_tab = PicCateWidget(

@@ -1,5 +1,17 @@
 # App「多图画风提取」流程与字段说明
 
+## 快速操作（当前版本）
+
+1. 添加同画风参考图，或导入 Agent 筛图清单；默认新增 3 轮、每轮检查 4 张。
+2. 填好固定测试主体与画风参考图，勾选测试生图，点击滚动区外常驻的「开始」按钮。各轮及终审均保留 Gemini 直出、GPT 首图、GPT→Gemini 重绘的实际产物与失败状态。
+3. 「比较并选最佳」调用当前视觉模型，生成十二维量表、主体门禁及可手动选用的报告；「计算深度指标」独立计算本地指标，默认 NPU 优先，无须先运行视觉评分。
+4. 观察两份报告后，在「比较结果」中手动选版本，再「加入画风列表」或「从选中版本续训」。没有人工校准的深度指标不自动替代主体门禁。
+5. 修改代码后重启 app；仅打开新结果或切换指标设备不用重启。
+
+「训练轮次」表示**本次新增轮数**。打开完整的 3 轮训练 JSON 后填 3，实际继续第 4–6 轮；不要填 6，否则会再新增 6 轮。「从选中版本续训」是另一种分支操作：用所选版本重建种子，新目录从 Round 1 起算，`resume_origin` 说明它接在旧运行之后。
+
+DeepSeek 的 taya_oco 续跑任务模板见 [taya_oco 再识别 3 轮](style-extraction/deepseek-taya-oco-resume-3rounds.md)。执行前需重新确认最新结果路径及文件哈希，不能只凭文件名或修改时间选错基线。
+
 ## 输入与边界
 
 入口是 App 的「多图画风提取」Tab，实现在 `modules/image_analysis/style_analyzer.py`。任务至少需要两张同画风参考图；单图无法可靠地区分稳定画法与某个角色、服装、动作或背景。画风前缀决定结果 JSON 文件名。可导入旧 JSON 续训，也可导入一段旧 Prompt 作为新任务的初始基线。
@@ -14,6 +26,7 @@
 4. **局部裁剪细化**：把每张图裁成头发、面部、上半身、下半身和中央细节区域，再按“同一区域、不同参考图”分批比较，用 `style-iter-local-extract.md` 提取全图阶段不易看清且跨图复现的眼睑、睫毛、发束、手指、衣褶和轮廓线细节，最后由 `style-iter-local-merge.md` 合并回母版。裁剪名包含来源路径哈希，同名参考图不会互相覆盖。
 5. **全量最终审查**：把合并后的母版和全部参考图交给 `style-iter-final-review.md`，消除矛盾、重复和少数样本过拟合，生成最终母版。
 6. **按模型和场景派生 Prompt 包**：`style-iter-variants.md` 基于最终母版和全部参考图生成 Gemini 完整说明、Gemini 重绘条款、五官头发条款、GPT-image 八字段短版、身份保持强度、肖像/全身/环境场景配置、负面规则和证据摘要。
+7. **终审版本三路测试**：测试生图开关开启时，用第 6 步实际输出的最终 Prompt 包再运行 Gemini 直出、GPT 首图及 GPT→Gemini 重绘，产物写入 `test-generations/final/`。每轮图是在局部细化和终审之前生成的，不能代替最终版本测试。此步骤会额外调用三个生图工序，关闭测试时明确标为“未测试”。
 
 ## 结果 JSON
 
@@ -21,6 +34,7 @@
 
 - `iterations`：每一步的输入基线、差异、修订结果、置信度与模型。
 - `test_images`：每轮使用的画风母版、当轮模型专用 Prompt 包、固定主体 Prompt、测试画风参考图，以及 `gemini_direct` / `gpt_first_pass` / `gpt_repainted` 三组路径。状态重建会保留全部轮次，不再只剩最后一次。
+- `final_test_images`：终审后的实际母版及 Prompt 包、三路路径和 `channel_status`。总状态为 `success` / `partial` / `failed` / `not_run`，执行中为 `running`；空产物不能冒充成功。结果文本和界面状态显示终审测试摘要及路径，部分/全部失败时界面标错，已提取提示词仍保留。GPT 首图未出则重绘标为未运行；Gemini 失败不会阻止 GPT 对照。
 - `final_art_style_prompts`：最终完整母版。
 - `prompt_variants`：各模型与场景的派生版本。
 - `prompt_variants.style_entry`：可写入画风配置的明确映射：`prompt`、`prompt_gpt`、`repaint_clauses`、`face_hair_clauses`、可选 `motif_clauses` / `motif_enabled`、`enabled`。GPT 八字段短版校验失败时，`style_entry.prompt_gpt` 留空，并在 `gpt_image_prompt_errors` 中说明原因，避免把不合规短版送入首图链路。
@@ -40,3 +54,45 @@
 ## 已知限制
 
 固定比例裁剪默认假设主体大致位于画面中央；主体偏置、多人图或极端构图可能让局部裁剪错过目标。80% 阈值由提示词与多轮对账约束，当前没有计算机视觉层面的硬投票。最终 Prompt 包仍需在至少一个固定主体上跑三路测试，才能确认画风贴合、角色泄露和线条连续性。高完成度参考图不一定是最安全的参考图：强角色、服装或场景符号可能被 GPT 首图和完整参考图重绘复制，必须分别评价画风贴合与主体保持。
+
+## 界面比较、报告与指定版本续训（2026-10-04）
+
+深度指标现已接入：打开带候选图的训练结果，点击「计算深度指标」，在「深度指标」页查看 CSD、Gram、AdaIN、LPIPS，以及每项的有效参考配对数。「查看深度指标报告」展示源图、候选图、逐张数值、分层贡献、模型/权重 SHA-256、预处理、训练参数、设备和精度。不调用评分或生图 API，且不需要先生成视觉评分。
+
+设备默认「NPU 优先」（NPU → CUDA → CPU）；NPU 可用时不探测 CUDA，不为指标加载 CUDA 模型。希望完全避免 GPU 时选择「仅 Intel NPU」，不可用就报错。另可选择「CUDA 优先」及显式设备。计算在独立 Python 子进程，避免 GUI 内晚加载 torch 的 Windows DLL 冲突，结束即释放该进程的模型；取消停止子进程，原有结果保留，JSON 原子写入。
+
+固定聚合口径为每候选对全部源图逐张计算、参考图等权算术平均，并报告中位数/范围。任何配对缺失或同图自检失败，不产生可比较均值，不用零代替。各指标独立展示，CSD 越大越接近，其他三项越小越接近；不混入视觉总分，不换算百分比。NPU FP16 与 CUDA/CPU FP32 结果分文件保存。成功缓存按图片内容、实现代码、实际权重哈希、预处理、运行库版本和实际设备/精度校验；输入改变或失败结果重新计算。
+
+结果 JSON 增加 `deep_feature_comparison`，同目录保存 `deep-feature-comparison-<device>-<precision>.json` 和自包含 `deep-feature-comparison.html`。已有视觉比较报告会更新实际算法状态，并附深度指标表；两种报告仍清楚区分视觉判断与本地计算。CLI：`python tools/style_metrics_verify.py --comparison-state <训练结果.json> --device auto-npu`。
+
+真实 millon-knots 12 源图 × 16 候选图已在 CUDA 与 Intel NPU 各运行 192 组。NPU 三个编码模型执行记录均为 `NPU`，同图自检距离为 0、CSD 为 1。详细证据、归一化核查和内容混杂观察见 [集成验证记录](style-extraction/deep-metrics-integration-20261004.md)。
+
+当前新增评分使用 v2：12 项分成五个等权组，每项要求源图/候选/差异依据；旧 v1 仅为历史兼容。论文、LoRA loss 区别及计算状态见 `docs/style-extraction/scoring-research-20261004.md`，HTML 报告也包含来源及“未计算 / 不适用”状态。升级可重新比较原有测试图，无须重新生图；以下 v1 公式为原实现记录。
+
+「多图画风提取」在带测试生图的训练完成后，默认再调用一次当前文本视觉模型，统一比较各轮与终审测试图。也可「打开训练结果 / 继续训练」后点击「比较并选最佳」。未出图的版本不参与比较，不会以轮次最新作为最佳依据。
+
+评分版本 `style-comparison-v1`：线条、五官头发、明暗、配色逻辑、质感各 0–10 分，等权平均得到画法分 S；总分 = 0.85 × S + 0.15 × 主体符合度。抄入参考内容、严重结构缺陷、明确主体不符、证据不确定四项门禁任何一项为真，自动选择时排除。代码根据原始数值计算、按未舍入总分排序，同分按候选 ID；模型不能自行指定总分或最佳。分项仍是模型视觉判断，并非客观相似度百分比。完整原图与候选、主体、提示词包、模型/端点及评分模板的 hash 相同时复用评分，不再收费请求；变更后重新评分。
+
+「比较结果」页列出分项、总分和门禁，默认选中最佳，用户可手动改选其他行；双击查看测试图。「查看报告」打开自包含 `automatic-comparison.html`，包含全部参考图、候选图、评分和原因及本版本提示词包；原始评分与计算结果也写入 `automatic-comparison.json` 和训练 JSON 的 `automatic_comparison`。
+
+选中 GPT 包有效的候选后，「加入画风列表」按英文名保存完整 Gemini 描述、GPT 短版、重绘及可选母题条款，并复制原始画风参考图，刷新 App 各画风选择列表。未通过门禁的候选不自动入选，但允许观察报告后手动选用，此时按钮明确显示「手动选用（未过门禁）」并在画风配置中记录 `manual_override` 和原门禁。此操作选用提示词，不将该测试图判为合格或发布。已有名字不覆盖；母题默认关闭；压缩字段缺省使用已校验 GPT 短版。
+
+「从选中版本续训」允许输入新增 1–50 轮，以该版本的 `prompts_used` 为分析基线，沿用数据集、测试主体和参考图。新运行从 Round 1 计数，使用独立 `resume-时间戳` 目录，`resume_origin` 保留来源 JSON、候选 ID 和提示词包；原运行及其测试图不修改。当前选中的候选来源可以是任意轮次或终审版本，不限于自动最佳；续训不会复用其他轮次的最终提示词。
+
+修改 Python 模块后需重启 App。自动评分请求经 mock 验证，未用新评分模板在线重评旧数据；视觉评分准确性仍需观察报告核对。
+
+## 外部识图 Agent 筛图清单（2026-10-04）
+
+布局约定：图片与参数在 `controls_scroll` 中滚动，开始/取消按钮、状态和进度留在滚动区外。默认窗口下不需要滚动寻找开始按钮；回归见 `tests/test_style_analyzer_layout.py`。
+
+筛图 skill 为 `style-dataset-curator`，项目源文件在 `docs/skills/style-dataset-curator/`，已安装到 DeepSeek/DSH 的 `C:\Users\ashsu\.dsh\skills\style-dataset-curator/`。它可独立使用 Python 3.10+ 和 Pillow 生成完整文件清单、SHA-256、尺寸和分批联系表，然后由实际识图 agent 填写逐图判断。`SKILL.md`、模板、JSON Schema、字段说明与可独立运行的 inventory/validate 脚本均随 skill 提供；不依赖 App 的 Qt/OpenAI 包，也不自行训练或调用付费 API。
+
+固定产物为 `selection-manifest.json`，`schema_version=image-maker.style-dataset.v1`。包含源目录、英文画风名、目标数量、全部图片的真实元数据、查看状态、入选/排除理由、四项视觉评分、描述标签、重复关联、有序入选名单、推荐参考图及其风险说明。程序计算辅助加权分：完整度 30%、画法一致性 30%、细节可读性 25%、干扰洁净度 15%；选集还需考虑内容覆盖与去重，不能只机械取最高分。不能以哈希校验通过证明视觉判断客观正确，`inspected` 仍是 agent 的审查声明。
+
+App 入口：「多图画风提取 → 导入 Agent 筛图清单」。预览对话框展示全部图片的判断、分数、理由和缩略图；可以重新指定源目录以适配跨机器素材位置。实际校验目录覆盖、哈希、尺寸、读取状态、完整字段、分数范围、未审项、有序名单与参考图关系、完全重复内容、数量不足的原因。不符合契约时禁止导入；低于两张禁止训练；不足目标且有说明允许导入。
+
+确认后只复制入选图片到 `data/style-datasets/<画风名>-<唯一标识>/images/`，保留子目录结构与导入顺序，并保存原清单与 `import-audit.json`。复制后再次对比哈希，原始素材不移动、不覆盖既有数据集。清空旧训练基线、填入画风名与推荐参考图，用户再设置固定测试主体和轮次开始训练。训练 JSON 的 `dataset_selection` 保留筛图来源及复制目录；手动调整图片列表时记录 `manual_image_list_modified`，不会把调整后的列表冒充原始 agent 选集。
+
+无头入口：`python tools/style_dataset.py inventory <目录> --style-name <英文名> --count 12 --output <draft.json>`；agent 完成审查后使用 `validate <manifest.json>` 校验，或 `copy <manifest.json> --output-root data/style-datasets` 复制。跨机器可加 `--source-root <本机目录>`。
+
+skill 脚本 `scripts/manifest_core.py` 为同版本 App 校验模块的自包含副本，回归检查两者字节一致；更新契约时须同步 skill 副本并重新安装。现已用真实 142 张目录生成联系表和未完成 draft，验证其不能直接训练；没有对这 142 张重新做视觉筛选。

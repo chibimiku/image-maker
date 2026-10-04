@@ -595,7 +595,7 @@ def summarize(results: list[dict]) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="画风深度特征指标验证（Gram/AdaIN/LPIPS/CSD）")
-    ap.add_argument("--device", default="auto", choices=list(("auto", "cuda", "cpu", "npu")))
+    ap.add_argument("--device", default="auto", choices=list(("auto", "auto-npu", "cuda", "cpu", "npu")))
     ap.add_argument("--precision", default="fp32", choices=list(("fp32", "fp16")))
     ap.add_argument(
         "--metrics",
@@ -603,6 +603,7 @@ def main(argv=None) -> int:
         help="逗号分隔的子集，默认全跑",
     )
     ap.add_argument("--pair", nargs=2, action="append", metavar=("A", "B"), help="真实图片对")
+    ap.add_argument("--comparison-state", help="对画风提取结果的全部候选与全部源图计算本地指标并生成报告")
     ap.add_argument("--out", default=None, help="输出 JSON 路径（默认 data/test-result/…）")
     ap.add_argument("--no-compare-cpu", action="store_true", help="跳过 CPU 基准对比")
     ap.add_argument("--compare-cpu", action="store_true", default=True, help=argparse.SUPPRESS)
@@ -615,6 +616,19 @@ def main(argv=None) -> int:
     ap.add_argument("--no-probe", action="store_true", help="跳过 NPU 运行期探针")
     ap.add_argument("--inventory", action="store_true", help="只打印权重清单与依赖状态")
     args = ap.parse_args(argv)
+
+    if args.comparison_state:
+        from modules.image_analysis.style_deep_comparison import compute
+        try:
+            result = compute(args.comparison_state, args.device,
+                             progress=lambda message: print("PROGRESS " + message, flush=True))
+            print(f"{result['status']}: {result['report_path']}")
+            return 0
+        except Exception:
+            traceback.print_exc()
+            return 1
+    if args.device == "auto-npu":
+        ap.error("auto-npu 用于 --comparison-state；部署验证请明确选择 npu/cuda/cpu 或 auto")
 
     args.metrics = [m.strip() for m in args.metrics.split(",") if m.strip()]
     bad = [m for m in args.metrics if m not in runner.METRIC_KIND]

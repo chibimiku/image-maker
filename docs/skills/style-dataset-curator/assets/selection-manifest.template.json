@@ -1,0 +1,26 @@
+{
+  "schema_version": "image-maker.style-dataset.v1",
+  "style_name": "millon-knots",
+  "source_root": "C:\\path\\to\\artworks",
+  "recursive": false,
+  "requested_count": 12,
+  "agent": {"name": "执行 agent 名称", "model": "实际识图模型", "review_method": "先查看全部联系表，再查看入选和疑义原图的局部细节"},
+  "selection_summary": "填写画法一致性、内容变化覆盖和选集取舍",
+  "shortfall_reason": "不足 12 张时填写具体原因；达到数量则留空",
+  "selected_order": [],
+  "reference_image": "",
+  "reference_reason": "填写代表性、细节可读性及内容泄露风险",
+  "images": [{
+    "path": "example.jpg",
+    "sha256": "由 inventory 脚本计算，不手工猜测",
+    "width": 0,
+    "height": 0,
+    "readable": true,
+    "inspected": false,
+    "decision": "needs_review",
+    "reason": "待实际视觉审查",
+    "scores": {"completeness": 0, "style_consistency": 0, "detail_readability": 0, "artifact_cleanliness": 0},
+    "tags": [],
+    "duplicate_of": null
+  }]
+}

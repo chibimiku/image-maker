@@ -14,7 +14,14 @@ from modules.others.api_backend import (generate_image_aigc2d, generate_image_ai
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QTextEdit, QListWidget, QListWidgetItem, QFileDialog,
                              QMessageBox, QLabel, QAbstractItemView, QSpinBox, QGroupBox,
-                             QFormLayout, QCheckBox, QLineEdit)
+                             QFormLayout, QCheckBox, QLineEdit, QTabWidget,
+                             QTableWidget, QTableWidgetItem, QInputDialog, QScrollArea,
+                             QDialog, QDialogButtonBox, QComboBox)
+from modules.image_analysis.style_deep_comparison import create_worker, METRICS, LIMITS
+from modules.image_analysis.style_comparison import (StyleComparisonWorker, FORMULA,
+    DIMENSIONS, DIMENSION_LABELS, LEGACY_DIMENSIONS, candidates_from_state,
+    comparison_inputs, import_style_candidate, resume_seed)
+from modules.image_analysis.style_dataset import load_manifest, materialize_dataset
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
 from PyQt6.QtGui import QIcon, QPixmap
 
@@ -146,6 +153,26 @@ def normalize_style_prompt_package(package, master_prompt):
     return data
 
 
+def format_style_test_results(record):
+    """最终提示词旁显示实际测试结果，避免把未出图的版本当成已验证。"""
+    labels = {"gemini_direct": "Gemini 直出", "gpt_first_pass": "GPT 首图",
+              "gpt_repainted": "GPT→Gemini 重绘"}
+    statuses = {"success": "成功（出图状态）", "partial": "部分成功（出图状态）", "failed": "失败",
+                "not_run": "未测试", "running": "进行中"}
+    lines = ["=== FINAL VERSION TEST / 终审版本测试 ===",
+             statuses.get(record.get("status"), "未测试")]
+    if record.get("status") in ("success", "partial"):
+        lines.append("已出图不代表画风贴合或主体保持通过，需另行比较实际产物。")
+    for channel, label in labels.items():
+        files = (record.get("generated_files") or {}).get(channel) or []
+        detail = (record.get("channel_status") or {}).get(channel) or {}
+        lines.append(f"{label}: {len(files)} 张")
+        lines.extend(str(path) for path in files)
+        if detail.get("error"):
+            lines.append(str(detail["error"]))
+    return "\n".join(lines)
+
+
 class StyleIterCancelledError(Exception):
     pass
 
@@ -214,9 +241,11 @@ class StyleIterativeWorkerThread(QThread):
                  existing_state=None, output_dir="", timeout_seconds=120,
                  enable_test_gen=False, test_prompt="",
                  img_api_type="", img_instructions="", img_aspect_ratio="auto",
-                 img_model_name="", file_prefix="", seed_prompts="", test_style_ref_path=""):
+                 img_model_name="", file_prefix="", seed_prompts="", test_style_ref_path="",
+                 dataset_selection=None):
         super().__init__()
         self.image_paths = list(image_paths)
+        self.dataset_selection = dataset_selection
         self.api_key = api_key
         self.base_url = base_url
         self.model_name = model_name
@@ -293,9 +322,13 @@ class StyleIterativeWorkerThread(QThread):
             "file_prefix": self.file_prefix,
         }
         # 状态会在每一步重建；必须保留非迭代产物，否则下一轮会抹掉测试图和提示词包。
-        for key in ("test_images", "prompt_variants"):
+        for key in ("test_images", "prompt_variants", "final_test_images", "resume_origin"):
             if key in previous:
                 state[key] = previous[key]
+        if self.dataset_selection:
+            state["dataset_selection"] = self.dataset_selection
+        elif previous.get("dataset_selection"):
+            state["dataset_selection"] = previous["dataset_selection"]
         return state
 
     def _save_state(self, state, output_path=None):
@@ -351,11 +384,12 @@ class StyleIterativeWorkerThread(QThread):
                 return it.get("prompts_after", "")
             if it.get("type") == "commonality_extraction":
                 return it.get("art_style_prompts", "")
-            if it.get("type") == "imported_prompts":
+            if it.get("type") in ("imported_prompts", "selected_version_seed"):
                 return it.get("art_style_prompts", "")
         return ""
 
-    def _generate_test_image(self, current_prompts, round_num, output_path, prompt_variants=None):
+    def _generate_test_image(self, current_prompts, round_num, output_path, prompt_variants=None,
+                             stage="round"):
         """每轮固定输出 Gemini 直出、GPT 首图和 GPT→Gemini 完整画风重绘。"""
         self._check_cancel()
         variants = normalize_style_prompt_package(prompt_variants or {}, current_prompts)
@@ -365,22 +399,25 @@ class StyleIterativeWorkerThread(QThread):
         aspect_ratio = str(self.img_aspect_ratio or "").strip()
         if not aspect_ratio or aspect_ratio.lower() == "auto":
             aspect_ratio = _reference_aspect_ratio(style_ref)
-        round_dir = os.path.join(self.output_dir, "test-generations", f"round-{round_num:02d}")
+        test_id = "final" if stage == "final" else f"round-{round_num:02d}"
+        test_label = "终审版本" if stage == "final" else f"Round {round_num}"
+        round_dir = os.path.join(self.output_dir, "test-generations", test_id)
         os.makedirs(round_dir, exist_ok=True)
         self.log_signal.emit(
-            f"[Round {round_num}] 双通道测试：Gemini 直出 + GPT-image-2 首图 + Gemini 完整画风重绘")
+            f"[{test_label}] 三路测试：Gemini 直出 + GPT-image-2 首图 + Gemini 完整画风重绘")
         self.log_signal.emit(f"  测试画风参考图: {style_ref or '(无有效参考图)'}")
-        self.progress_signal.emit(f"Round {round_num}/{self.total_rounds} — 双通道测试生图中…")
+        self.progress_signal.emit(f"{test_label} — Gemini / GPT / 重绘测试生图中…")
         cancel_check = lambda: self._cancel_requested or self.isInterruptionRequested()
         outputs = {"gemini_direct": [], "gpt_first_pass": [], "gpt_repainted": []}
+        self._test_generation_errors = {}
+        from utils.styles import compose_style_prompt, motif_prompt_from_clauses
+        motif_prompt = motif_prompt_from_clauses(variants.get("optional_motifs") or [])
 
         try:
-            from utils.styles import compose_style_prompt, motif_prompt_from_clauses
             gemini_cfg = get_api_config(api_type="aigc2d")
             gemini_model = str(gemini_cfg.get("model") or "").strip()
             if not gemini_model:
                 raise RuntimeError("aigc2d 节点未配置 Gemini 图片模型")
-            motif_prompt = motif_prompt_from_clauses(variants.get("optional_motifs") or [])
             gemini_style = "\n\n".join(v for v in (
                 variants.get("gemini_full_prompt") or current_prompts, motif_prompt) if v)
             gemini_prompt = compose_style_prompt(
@@ -390,9 +427,10 @@ class StyleIterativeWorkerThread(QThread):
                 prompt=gemini_prompt, image_paths=[style_ref] if style_ref else None,
                 model=gemini_model, aspect_ratio=aspect_ratio, resolution="2K",
                 api_type="aigc2d", save_sub_dir=round_dir,
-                file_prefix=f"round-{round_num:02d}-gemini-direct", face_quality_boost=False,
+                file_prefix=f"{test_id}-gemini-direct", face_quality_boost=False,
                 cancel_check=cancel_check, log_callback=self.log_signal.emit) or []
         except Exception as exc:
+            self._test_generation_errors["gemini_direct"] = f"{type(exc).__name__}: {exc}"
             self.log_signal.emit(f"  Gemini 直出失败，继续 GPT 对照: {type(exc).__name__}: {exc}")
 
         self._check_cancel()
@@ -420,7 +458,7 @@ class StyleIterativeWorkerThread(QThread):
                 prompt=request_payload["prompt"], image_paths=request_payload["image_paths"],
                 model=gpt_model, aspect_ratio=aspect_ratio,
                 api_type="aigc-2d-gpt", save_sub_dir=round_dir,
-                file_prefix=f"round-{round_num:02d}-gpt-first", mode="generate",
+                file_prefix=f"{test_id}-gpt-first", mode="generate",
                 cancel_check=cancel_check, log_callback=self.log_signal.emit) or []
             outputs["gpt_first_pass"] = list(first)
             if first:
@@ -432,6 +470,8 @@ class StyleIterativeWorkerThread(QThread):
                     style_ref_path=style_ref, style_clauses=repaint_clauses,
                     log_callback=self.log_signal.emit) or []
         except Exception as exc:
+            failed_channel = "gpt_repainted" if outputs["gpt_first_pass"] else "gpt_first_pass"
+            self._test_generation_errors[failed_channel] = f"{type(exc).__name__}: {exc}"
             self.log_signal.emit(f"  GPT 首图/重绘失败，已保留其他通道结果: {type(exc).__name__}: {exc}")
 
         for channel, files in outputs.items():
@@ -439,6 +479,35 @@ class StyleIterativeWorkerThread(QThread):
             for path in files:
                 self.log_signal.emit(f"    {path}")
         return outputs
+
+    def _test_image_record(self, current_prompts, variants, outputs, round_num=None,
+                           enabled=True):
+        channel_status = {}
+        errors = getattr(self, "_test_generation_errors", {})
+        for channel in ("gemini_direct", "gpt_first_pass", "gpt_repainted"):
+            files = outputs.get(channel) or []
+            status = "success" if files else "failed"
+            error = "" if files else errors.get(channel, "接口未返回图片；此通道未通过测试")
+            if not enabled:
+                status, error = "not_run", "测试生图已关闭"
+            elif channel == "gpt_repainted" and not outputs.get("gpt_first_pass"):
+                status, error = "not_run", "GPT 首图未成功，无法进行重绘测试"
+            channel_status[channel] = {"status": status, "image_count": len(files), "error": error}
+        passed = sum(bool(outputs.get(channel)) for channel in channel_status)
+        status = "success" if passed == 3 else "partial" if passed else "failed"
+        if not enabled:
+            status = "not_run"
+        record = {
+            "prompts_used": current_prompts, "prompt_variants": variants,
+            "test_prompt": self.test_prompt,
+            "style_reference": self.test_style_ref_path or (
+                self.image_paths[0] if self.image_paths else ""),
+            "generated_files": outputs, "status": status, "channel_status": channel_status,
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        if round_num is not None:
+            record["round"] = round_num
+        return record
 
     def _step_commonality_extraction(self, client, iterations, current_round, current_prompts):
         self._check_cancel()
@@ -1024,16 +1093,8 @@ class StyleIterativeWorkerThread(QThread):
                         current_prompts, round_num, output_path, prompt_variants=round_variants)
                     if "test_images" not in state:
                         state["test_images"] = {}
-                    state["test_images"][f"round_{round_num}"] = {
-                        "round": round_num,
-                        "prompts_used": current_prompts,
-                        "prompt_variants": round_variants,
-                        "test_prompt": self.test_prompt,
-                        "style_reference": self.test_style_ref_path or (
-                            self.image_paths[0] if self.image_paths else ""),
-                        "generated_files": test_outputs,
-                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    }
+                    state["test_images"][f"round_{round_num}"] = self._test_image_record(
+                        current_prompts, round_variants, test_outputs, round_num)
                     self._save_state(state, output_path)
 
                 self.log_signal.emit(f"✅ Round {round_num} 完成。")
@@ -1060,7 +1121,24 @@ class StyleIterativeWorkerThread(QThread):
             prompt_variants = self._step_prompt_variants(client, current_prompts)
             state["prompt_variants"] = prompt_variants
             self._save_state(state, output_path)
+            # 每轮测试发生在局部细化/终审之前；必须另测真正输出的最终提示词包。
+            final_outputs = {"gemini_direct": [], "gpt_first_pass": [], "gpt_repainted": []}
+            test_enabled = bool(self.enable_test_gen and self.test_prompt)
+            if test_enabled:
+                state["final_test_images"] = self._test_image_record(
+                    current_prompts, prompt_variants, final_outputs)
+                state["final_test_images"]["status"] = "running"
+                self._save_state(state, output_path)
+                final_outputs = self._generate_test_image(
+                    current_prompts, self.total_rounds, output_path,
+                    prompt_variants=prompt_variants, stage="final")
+                self._check_cancel()
+            state["final_test_images"] = self._test_image_record(
+                current_prompts, prompt_variants, final_outputs, enabled=test_enabled)
+            self._save_state(state, output_path)
             display_text = format_style_prompt_package(current_prompts, prompt_variants)
+            display_text += "\n\n" + format_style_test_results(state["final_test_images"])
+            self.log_signal.emit(format_style_test_results(state["final_test_images"]))
 
             self.log_signal.emit("=" * 60)
             self.log_signal.emit(f"🎉 全部 {self.total_rounds} 轮迭代完成！")
@@ -1162,11 +1240,108 @@ class ImageDropListWidget(QListWidget):
                 self.add_image_item(p)
 
 
+class StyleDatasetImportDialog(QDialog):
+    """加载 agent 筛图清单并展示全量审查结果；确认后才复制图片。"""
+    def __init__(self, manifest_path, parent=None):
+        super().__init__(parent)
+        self.manifest_path = manifest_path
+        self.validated = None
+        self.setWindowTitle("导入识图 Agent 筛选结果")
+        self.resize(950, 640)
+        layout = QVBoxLayout(self)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("源图目录（跨机器可重新指定）："))
+        self.source_input = QLineEdit()
+        self.source_input.editingFinished.connect(self.validate)
+        row.addWidget(self.source_input, 1)
+        relocate = QPushButton("重新指定目录")
+        relocate.clicked.connect(self.relocate)
+        row.addWidget(relocate)
+        check = QPushButton("校验清单")
+        check.clicked.connect(self.validate)
+        row.addWidget(check)
+        layout.addLayout(row)
+        self.summary = QLabel()
+        self.summary.setWordWrap(True)
+        layout.addWidget(self.summary)
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(["文件", "决定", "成稿", "一致性", "细节", "洁净度", "加权分"])
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.itemSelectionChanged.connect(self.show_row)
+        layout.addWidget(self.table, 1)
+        details = QHBoxLayout()
+        self.preview = QLabel()
+        self.preview.setFixedSize(150, 150)
+        details.addWidget(self.preview)
+        self.reason = QTextEdit()
+        self.reason.setReadOnly(True)
+        self.reason.setMaximumHeight(155)
+        details.addWidget(self.reason, 1)
+        layout.addLayout(details)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.ok = buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.ok.setText("复制入选图片并导入训练")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self.validate()
+
+    def relocate(self):
+        root = QFileDialog.getExistingDirectory(self, "选择清单对应的源图目录", self.source_input.text())
+        if root:
+            self.source_input.setText(root)
+            self.validate()
+
+    def validate(self):
+        self.validated = None
+        self.ok.setEnabled(False)
+        self.table.setRowCount(0)
+        self.preview.clear()
+        self.reason.clear()
+        try:
+            validated = load_manifest(self.manifest_path, self.source_input.text().strip() or None)
+            self.validated = validated
+            self.source_input.setText(validated["source_root"])
+            document = validated["manifest"]
+            self.summary.setText(f"{validated['style_name']}：审查 {validated['reviewed_count']} 张，入选 {validated['selected_count']}/{document['requested_count']} 张。\n"
+                "分项由外部 agent 判断；加权分=成稿×30%+画风一致性×30%+细节×25%+洁净度×15%，选集还考虑多样性，不强制取最高分。\n"
+                + document["selection_summary"] + ("\n不足数量：" + document["shortfall_reason"] if document.get("shortfall_reason") else ""))
+            self.table.setRowCount(len(validated["rows"]))
+            for index, record in enumerate(validated["rows"]):
+                scores = record["scores"] or {}
+                values = [record["path"], "入选" if record["decision"] == "selected" else "排除",
+                          *[scores.get(k, "—") for k in ("completeness", "style_consistency", "detail_readability", "artifact_cleanliness")], record["selection_score"]]
+                for col, value in enumerate(values):
+                    item = QTableWidgetItem(str(value))
+                    item.setToolTip(record["reason"])
+                    self.table.setItem(index, col, item)
+            self.table.resizeColumnsToContents()
+            self.table.selectRow(next(i for i, r in enumerate(validated["rows"]) if r["path"] == document["reference_image"]))
+            self.ok.setEnabled(True)
+        except (ValueError, OSError, KeyError) as exc:
+            self.summary.setText("校验失败，不能导入：" + str(exc))
+
+    def show_row(self):
+        if not self.validated:
+            return
+        index = self.table.currentRow()
+        if not 0 <= index < len(self.validated["rows"]):
+            return
+        record = self.validated["rows"][index]
+        pixmap = QPixmap(os.path.join(self.validated["source_root"], record["path"]))
+        self.preview.setPixmap(pixmap.scaled(150, 150, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        self.reason.setPlainText(record["path"] + "\n" + record["reason"] + "\n标签：" + ", ".join(record["tags"])
+            + "\nSHA256：" + record["sha256"] + ("\n推荐参考图理由：" + self.validated["manifest"]["reference_reason"] if record["path"] == self.validated["manifest"]["reference_image"] else ""))
+
+
 class StyleAnalyzerWidget(QWidget):
     def __init__(self, config_getter_func, timeout_getter_func=None,
                  img_config_getter_func=None, styles_getter_func=None,
                  test_gen_default_getter_func=None, test_gen_changed_callback=None,
-                 test_prompt_getter_func=None, test_prompt_changed_callback=None):
+                 test_prompt_getter_func=None, test_prompt_changed_callback=None,
+                 styles_reload_callback=None):
         super().__init__()
         self.get_config = config_getter_func
         self.get_timeout = timeout_getter_func
@@ -1177,11 +1352,17 @@ class StyleAnalyzerWidget(QWidget):
         self.get_test_prompt_default = test_prompt_getter_func
         self.on_test_prompt_changed = test_prompt_changed_callback
         self.thread = None
+        self.comparison_thread = None
+        self.deep_thread = None
+        self._deep_result = {}
+        self.styles_reload_callback = styles_reload_callback
+        self._comparison_result = {}
         self._loaded_json_path = ""
         self._existing_state = None
         self._loaded_image_paths = []
         self._output_dir = ""
         self._imported_prompts = ""
+        self._dataset_selection = None
         self.initUI()
 
     def initUI(self):
@@ -1196,9 +1377,12 @@ class StyleAnalyzerWidget(QWidget):
         self.add_btn.clicked.connect(self.browse_images)
         self.clear_btn = QPushButton("清空列表")
         self.clear_btn.clicked.connect(self.clear_images)
+        self.import_selection_btn = QPushButton("导入 Agent 筛图清单")
+        self.import_selection_btn.clicked.connect(self.import_dataset_manifest)
 
         top_layout.addStretch()
         top_layout.addWidget(self.add_btn)
+        top_layout.addWidget(self.import_selection_btn)
         top_layout.addWidget(self.clear_btn)
         layout.addLayout(top_layout)
 
@@ -1219,7 +1403,7 @@ class StyleAnalyzerWidget(QWidget):
 
         self.images_per_round_spin = QSpinBox()
         self.images_per_round_spin.setRange(1, 100)
-        self.images_per_round_spin.setValue(2)
+        self.images_per_round_spin.setValue(4)
         self.images_per_round_spin.setToolTip("每轮随机抽取多少张图片进行差异检查和修正")
         params_layout.addRow("每轮检查图片数:", self.images_per_round_spin)
 
@@ -1237,10 +1421,11 @@ class StyleAnalyzerWidget(QWidget):
         test_gen_group = QGroupBox("测试生图")
         test_gen_layout = QFormLayout()
 
-        self.enable_test_gen_cb = QCheckBox("每轮同时生成 Gemini 直出、GPT 首图和 GPT→Gemini 完整重绘")
+        self.enable_test_gen_cb = QCheckBox("每轮及终审后测试：Gemini 直出 / GPT 首图 / GPT→Gemini 重绘")
         self.enable_test_gen_cb.setToolTip(
             "勾选后，每轮使用相同主体和同一画风参考图生成三份可比产物：Gemini 直接生成、"
             "GPT-image-2 首图，以及该首图经 Gemini 完整画风图重绘后的结果。"
+            "局部细化和终审后，再用最终提示词包额外测试这三路，结果单独保存，不覆盖每轮产物。"
         )
         self.enable_test_gen_cb.setChecked(
             bool(self.get_test_gen_default()) if self.get_test_gen_default else True
@@ -1277,7 +1462,7 @@ class StyleAnalyzerWidget(QWidget):
 
         # Import JSON
         import_layout = QHBoxLayout()
-        self.import_json_btn = QPushButton("📂 导入已有训练 JSON 继续训练")
+        self.import_json_btn = QPushButton("📂 打开训练结果 / 继续训练")
         self.import_json_btn.clicked.connect(self.import_existing_json)
         self.clear_import_btn = QPushButton("清除导入")
         self.clear_import_btn.setEnabled(False)
@@ -1336,6 +1521,28 @@ class StyleAnalyzerWidget(QWidget):
             "不同构图与身份约束强度的使用场景，以及负面规则和证据摘要。")
         result_header.addWidget(result_title)
         result_header.addStretch()
+        self.auto_compare_cb = QCheckBox("完成后自动比较")
+        self.auto_compare_cb.setChecked(True)
+        self.auto_compare_cb.setToolTip("额外调用一次当前文本视觉模型评分；相同图片、主体、模型和评分模板复用已保存结果。")
+        result_header.addWidget(self.auto_compare_cb)
+        self.compare_btn = QPushButton("比较并选最佳")
+        self.compare_btn.clicked.connect(self.start_comparison)
+        result_header.addWidget(self.compare_btn)
+        self.deep_btn = QPushButton("计算深度指标")
+        self.deep_btn.clicked.connect(self.start_deep_comparison)
+        result_header.addWidget(self.deep_btn)
+        self.deep_device_combo = QComboBox()
+        for label, value in (("NPU 优先", "auto-npu"), ("CUDA 优先", "auto"), ("仅 CUDA GPU", "cuda"), ("仅 Intel NPU", "npu"), ("仅 CPU", "cpu")):
+            self.deep_device_combo.addItem(label, value)
+        self.deep_device_combo.setToolTip("默认 NPU → CUDA → CPU；仅 Intel NPU 不回退到 GPU。显式指定不可用时报告错误。NPU 使用独立 FP16 口径。")
+        result_header.addWidget(self.deep_device_combo)
+        self.import_style_btn = QPushButton("加入画风列表")
+        self.import_style_btn.setEnabled(False)
+        self.import_style_btn.clicked.connect(self.import_selected_style)
+        self.report_btn = QPushButton("查看报告")
+        self.report_btn.clicked.connect(self.open_comparison_report)
+        self.resume_btn = QPushButton("从选中版本续训")
+        self.resume_btn.clicked.connect(self.resume_selected_version)
         self.open_output_dir_btn = QPushButton("打开输出目录")
         self.open_output_dir_btn.setEnabled(False)
         self.open_output_dir_btn.clicked.connect(self._open_output_dir)
@@ -1345,7 +1552,52 @@ class StyleAnalyzerWidget(QWidget):
         self.result_edit = QTextEdit()
         self.result_edit.setPlaceholderText(
             "迭代完成后，这里会显示完整母版及 Gemini / GPT-image / 专项修订等多用途版本…")
-        layout.addWidget(self.result_edit)
+        self.result_tabs = QTabWidget()
+        self.result_tabs.addTab(self.result_edit, "提示词包")
+        comparison_page = QWidget()
+        comparison_layout = QVBoxLayout(comparison_page)
+        comparison_actions = QHBoxLayout()
+        comparison_actions.addWidget(self.report_btn)
+        comparison_actions.addWidget(self.import_style_btn)
+        comparison_actions.addWidget(self.resume_btn)
+        comparison_actions.addStretch()
+        comparison_layout.addLayout(comparison_actions)
+        self.formula_label = QLabel(FORMULA + "\n视觉评分是模型判断，并非相似度百分比；门禁未通过或不确定不入选。同分按候选 ID 排序。")
+        self.formula_label.setWordWrap(True)
+        comparison_layout.addWidget(self.formula_label)
+        self.score_table = QTableWidget(0, len(DIMENSIONS) + 5)
+        self.score_table.setHorizontalHeaderLabels(["候选 / 通道", *[DIMENSION_LABELS[k] for k in DIMENSIONS], "画风相似评分", "主体", "总分", "门禁"])
+        self.score_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.score_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.score_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.score_table.itemSelectionChanged.connect(self.show_selected_comparison)
+        comparison_layout.addWidget(self.score_table, 1)
+        self.score_details = QTextEdit()
+        self.score_details.setReadOnly(True)
+        self.score_details.setMaximumHeight(110)
+        comparison_layout.addWidget(self.score_details)
+        self.score_table.itemDoubleClicked.connect(self.open_comparison_image)
+        self.result_tabs.addTab(comparison_page, "比较结果（双击查看图）")
+        deep_page = QWidget()
+        deep_layout = QVBoxLayout(deep_page)
+        self.deep_report_btn = QPushButton("查看深度指标报告")
+        self.deep_report_btn.clicked.connect(self.open_deep_report)
+        deep_layout.addWidget(self.deep_report_btn)
+        self.deep_table = QTableWidget(0, 6)
+        self.deep_table.setHorizontalHeaderLabels(["候选", "CSD ↑", "Gram ↓", "AdaIN ↓", "LPIPS ↓", "有效配对"])
+        self.deep_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.deep_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.deep_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.deep_table.itemSelectionChanged.connect(self.show_deep_details)
+        deep_layout.addWidget(self.deep_table, 1)
+        self.deep_details = QTextEdit()
+        self.deep_details.setReadOnly(True)
+        self.deep_details.setMinimumHeight(45)
+        self.deep_details.setMaximumHeight(75)
+        self.deep_details.setPlainText(LIMITS)
+        deep_layout.addWidget(self.deep_details)
+        self.result_tabs.addTab(deep_page, "深度指标")
+        layout.addWidget(self.result_tabs, 1)
 
         # Output info
         self.output_path_label = QLabel("")
@@ -1353,7 +1605,215 @@ class StyleAnalyzerWidget(QWidget):
         self.output_path_label.setWordWrap(True)
         layout.addWidget(self.output_path_label)
 
+        # 仅图片与参数滚动；开始/取消及状态必须留在固定区。
+        controls = QWidget()
+        controls_layout = QVBoxLayout(controls)
+        while layout.itemAt(0).layout() is not action_layout:
+            item = layout.takeAt(0)
+            if item.widget() is not None:
+                controls_layout.addWidget(item.widget())
+            elif item.layout() is not None:
+                controls_layout.addLayout(item.layout())
+        self.controls_scroll = QScrollArea()
+        self.controls_scroll.setWidgetResizable(True)
+        self.controls_scroll.setWidget(controls)
+        self.controls_scroll.setMaximumHeight(320)
+        self.controls_scroll.setMinimumHeight(120)
+        layout.insertWidget(0, self.controls_scroll)
         self.setLayout(layout)
+
+    def start_comparison(self):
+        if self.thread is not None or self.comparison_thread is not None or self.deep_thread is not None:
+            return
+        if not self._loaded_json_path:
+            QMessageBox.information(self, "需要结果", "请先打开已有训练结果，或完成一次带测试生图的提取。")
+            return
+        self._comparison_result = {}
+        self.import_style_btn.setEnabled(False)
+        self.score_table.setRowCount(0)
+        self.set_running_state(True)
+        self.compare_btn.setEnabled(False)
+        self.analyze_btn.setEnabled(False)
+        self.import_json_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(True)
+        self.score_details.setPlainText("正在对全部原图和各轮/终审测试图统一评分…")
+        self.result_tabs.setCurrentIndex(1)
+        self.log_msg("自动比较：" + FORMULA)
+        timeout = self.get_timeout() if self.get_timeout else 600
+        self.comparison_thread = StyleComparisonWorker(self._loaded_json_path, self.get_config(), timeout, self)
+        self.comparison_thread.completed.connect(self.on_comparison_completed)
+        self.comparison_thread.finished.connect(self._comparison_stopped)
+        self.comparison_thread.start()
+
+    def start_deep_comparison(self):
+        if self.thread or self.comparison_thread or self.deep_thread:
+            return
+        if not self._loaded_json_path:
+            QMessageBox.information(self, "需要结果", "请先打开包含测试图的训练结果。")
+            return
+        self.set_running_state(True)
+        self._deep_result = {}
+        self.deep_table.setRowCount(0)
+        self.result_tabs.setCurrentIndex(2)
+        self.deep_details.setPlainText("正在独立进程计算本地指标；不调用评分或生图 API。首次加载模型可能较慢。")
+        self.deep_thread = create_worker(self._loaded_json_path, self.deep_device_combo.currentData(), self)
+        self.deep_thread.progress.connect(self.progress_label.setText)
+        self.deep_thread.completed.connect(self.on_deep_completed)
+        self.deep_thread.finished.connect(self._deep_stopped)
+        self.deep_thread.start()
+
+    def _deep_stopped(self):
+        worker = self.deep_thread
+        self.deep_thread = None
+        self.set_running_state(False)
+        if worker:
+            worker.deleteLater()
+
+    def on_deep_completed(self, result, error):
+        if error:
+            self.deep_details.setPlainText(error)
+            self.log_msg("深度指标失败：" + error)
+            return
+        self._deep_result = result
+        self.deep_table.setRowCount(len(result["rows"]))
+        for index, row in enumerate(result["rows"]):
+            order = ("csd", "gram", "adain", "lpips")
+            values = [row["id"], *[format(row["summary"][m]["mean"], ".8g") if row["summary"][m]["mean"] is not None else "缺失" for m in order],
+                      " / ".join(f"{m}:{row['summary'][m]['count']}/{row['summary'][m]['expected']}" for m in order)]
+            for column, value in enumerate(values):
+                self.deep_table.setItem(index, column, QTableWidgetItem(value))
+        self.deep_table.resizeColumnsToContents()
+        self.deep_details.setPlainText(json.dumps(result["backend"], ensure_ascii=False, indent=2) + "\n" + LIMITS)
+        self.log_msg(f"深度指标 {result['status']}：{result['backend']['actual']} / {result['backend']['precision']}；报告 {result['report_path']}")
+
+    def show_deep_details(self):
+        index = self.deep_table.currentRow()
+        rows = self._deep_result.get("rows", [])
+        if 0 <= index < len(rows):
+            self.deep_details.setPlainText(json.dumps({"backend": self._deep_result["backend"], **rows[index]}, ensure_ascii=False, indent=2))
+
+    def open_deep_report(self):
+        path = self._deep_result.get("report_path", "")
+        if path and os.path.isfile(path):
+            os.startfile(path)
+        else:
+            QMessageBox.information(self, "报告", "请先计算深度指标。")
+
+    def open_comparison_report(self):
+        path = self._comparison_result.get("report_path", "")
+        if path and os.path.isfile(path):
+            os.startfile(os.path.abspath(path))
+        else:
+            QMessageBox.information(self, "报告", "请先执行比较生成报告。")
+
+    def resume_selected_version(self):
+        if self.thread or self.comparison_thread or self.deep_thread:
+            return
+        row = self.selected_comparison_row()
+        if not row:
+            QMessageBox.information(self, "选择版本", "请先在比较结果中选中一行。")
+            return
+        rounds, accepted = QInputDialog.getInt(self, "继续迭代", f"从 {row['id']} 再分析几轮？", 3, 1, 50)
+        if not accepted:
+            return
+        try:
+            with open(self._loaded_json_path, encoding="utf-8") as source:
+                state = json.load(source)
+            seed, record = resume_seed(state, row["id"], self._loaded_json_path)
+            self._existing_state = seed
+            self._imported_prompts = ""
+            self.image_list.set_image_paths(seed["dataset"]["images"])
+            self._loaded_image_paths = self._get_image_paths()
+            self.test_prompt_input.setText(record["test_prompt"])
+            self.test_ref_input.setText(record["style_reference"])
+            self.total_rounds_spin.setValue(rounds)
+            self.file_prefix_input.setText(seed["file_prefix"])
+            self._output_dir = os.path.join(os.path.dirname(self._loaded_json_path), "resume-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
+            self.log_msg(f"从 {row['id']} 的提示词开始新增 {rounds} 轮；新结果：{self._output_dir}")
+            self.start_analysis()
+        except Exception as exc:
+            QMessageBox.warning(self, "无法续训", str(exc))
+
+    def _comparison_stopped(self):
+        worker = self.comparison_thread
+        self.comparison_thread = None
+        self.set_running_state(False)
+        self.show_selected_comparison()
+        if worker:
+            worker.deleteLater()
+
+    def on_comparison_completed(self, result, error):
+        self._comparison_result = result
+        if error:
+            self.score_details.setPlainText("比较失败；未选择最佳版本：" + error)
+            self.log_msg("比较失败：" + error)
+            return
+        self.score_table.setRowCount(len(result["rows"]))
+        dimensions = result.get("dimensions") or (LEGACY_DIMENSIONS if result.get("version") == "style-comparison-v1" else DIMENSIONS)
+        self.score_table.setColumnCount(len(dimensions) + 5)
+        self.score_table.setHorizontalHeaderLabels(["候选 / 通道", *[DIMENSION_LABELS[k] for k in dimensions], "画风相似评分", "主体", "总分", "门禁"])
+        self.formula_label.setText(result.get("formula", FORMULA) + "\n视觉量表评分，非算法距离或相似百分比；论文和未计算指标的说明见报告。")
+        best_index = None
+        for index, row in enumerate(result["rows"]):
+            values = [row["id"], *[row[key] for key in dimensions], row["style_score"],
+                      row["subject_fidelity"], row["total"], "通过" if row["eligible"] else "排除"]
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setToolTip(row["reason"] + "\n" + row["path"])
+                if 1 <= col <= len(dimensions):
+                    evidence = row.get("dimension_evidence", {}).get(dimensions[col - 1])
+                    if evidence:
+                        item.setToolTip("源图：" + evidence["reference"] + "\n候选：" + evidence["candidate"] + "\n差异：" + evidence["difference"])
+                self.score_table.setItem(index, col, item)
+            if row["id"] == result["best_id"]:
+                best_index = index
+        self.score_table.resizeColumnsToContents()
+        if best_index is not None:
+            self.score_table.selectRow(best_index)
+        else:
+            self.score_details.setPlainText("全部候选被排除，没有可自动选用的版本。")
+        self.log_msg("比较完成，最佳：" + str(result["best_id"]) + ("（复用评分）" if result.get("cached") else ""))
+
+    def selected_comparison_row(self):
+        index = self.score_table.currentRow()
+        rows = self._comparison_result.get("rows", [])
+        return rows[index] if 0 <= index < len(rows) else None
+
+    def show_selected_comparison(self):
+        row = self.selected_comparison_row()
+        self.import_style_btn.setEnabled(bool(row and not self.thread and not self.comparison_thread and not self.deep_thread))
+        self.import_style_btn.setText("手动选用（未过门禁）" if row and not row["eligible"] else "加入画风列表")
+        if row:
+            self.score_details.setPlainText(f"{row['id']}\n0.85 × {row['style_score']} + 0.15 × {row['subject_fidelity']} = {row['total']}（按原始分项计算，显示保留三位小数）\n"
+                + row["reason"] + "\n门禁：" + json.dumps(row["gates"], ensure_ascii=False) + "\n" + row["path"])
+            self.score_details.append("分组分数：" + json.dumps(row.get("group_scores", {}), ensure_ascii=False) + "\n将鼠标放到分项分数上查看证据；完整论文依据见报告。")
+
+    def open_comparison_image(self, item):
+        row = self.selected_comparison_row()
+        if row and os.path.isfile(row["path"]):
+            os.startfile(row["path"])
+
+    def import_selected_style(self):
+        row = self.selected_comparison_row()
+        if not row:
+            return
+        name, accepted = QInputDialog.getText(self, "加入画风列表", "英文画风名（已有名字不会覆盖）：", text=self.file_prefix_input.text().strip())
+        if not accepted:
+            return
+        try:
+            with open(self._loaded_json_path, encoding="utf-8") as source:
+                state = json.load(source)
+            base_url, _, model = self.get_config()
+            if comparison_inputs(state, model, base_url)[3] != self._comparison_result["input_hash"]:
+                raise ValueError("图片或模型已改变，请重新比较")
+            state["automatic_comparison"] = self._comparison_result
+            import_style_candidate(state, row["id"], name.strip(), "conf/config-styles.json", "data/style-ref", allow_excluded=True)
+            if self.styles_reload_callback:
+                self.styles_reload_callback()
+            self.log_msg(f"已加入画风列表：{name}，来源 {row['id']}；完整描述、GPT 短版、重绘条款和原始画风参考图已保存。")
+            QMessageBox.information(self, "已加入", f"{name} 已加入画风选择，参考图已复制保存。")
+        except Exception as exc:
+            QMessageBox.warning(self, "无法导入", str(exc))
 
     def _get_image_paths(self):
         paths = []
@@ -1362,6 +1822,31 @@ class StyleAnalyzerWidget(QWidget):
             if path and os.path.isfile(path):
                 paths.append(path)
         return paths
+
+    def import_dataset_manifest(self):
+        path, _ = QFileDialog.getOpenFileName(self, "选择 agent 的 selection-manifest.json", "", "JSON Files (*.json)")
+        if not path:
+            return
+        dialog = StyleDatasetImportDialog(path, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted or not dialog.validated:
+            return
+        try:
+            imported = materialize_dataset(dialog.validated, "data/style-datasets")
+            self.apply_dataset_selection(imported, path)
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "筛图清单导入失败", str(exc))
+
+    def apply_dataset_selection(self, imported, source_manifest):
+        self.clear_imported_state()
+        self._dataset_selection = {**imported, "source_manifest": os.path.abspath(source_manifest)}
+        self.image_list.set_image_paths(imported["image_paths"])
+        self._loaded_image_paths = list(imported["image_paths"])
+        self.file_prefix_input.setText(imported["style_name"])
+        self.test_ref_input.setText(imported["reference_path"])
+        self._output_dir = ""  # 开始新的画风训练，不接续旧结果目录。
+        self.import_status_label.setText(f"Agent 筛图：{len(imported['image_paths'])} 张")
+        self.log_msg("已导入筛图清单并复制入选图片：" + imported["directory"])
+        self.log_msg("源图保留。请填写固定测试主体并设置轮次，再开始训练。")
 
     def browse_images(self):
         files, _ = QFileDialog.getOpenFileNames(
@@ -1437,7 +1922,19 @@ class StyleAnalyzerWidget(QWidget):
                 self._loaded_image_paths = existing_dataset
 
         self._existing_state = existing_state
+        self._dataset_selection = existing_state.get("dataset_selection")
         self._loaded_json_path = json_path
+        self._comparison_result = {}
+        self.import_style_btn.setEnabled(False)
+        self.score_table.setRowCount(0)
+        cached = existing_state.get("automatic_comparison")
+        if cached:
+            self.on_comparison_completed(cached, "")
+        self._deep_result = {}
+        self.deep_table.setRowCount(0)
+        self.deep_details.setPlainText(LIMITS)
+        if existing_state.get("deep_feature_comparison"):
+            self.on_deep_completed(existing_state["deep_feature_comparison"], "")
 
         # 从文件名或状态中提取画风前缀，自动填入输入框
         basename = os.path.basename(json_path)
@@ -1487,10 +1984,18 @@ class StyleAnalyzerWidget(QWidget):
                 self.log_msg(f"   ⚠️ {len(missing_images)} 张图片路径已失效，请手动添加。")
 
     def clear_imported_state(self):
+        self._deep_result = {}
+        self.deep_table.setRowCount(0)
+        self.deep_details.setPlainText(LIMITS)
         self._existing_state = None
         self._loaded_json_path = ""
         self._loaded_image_paths = []
         self._imported_prompts = ""
+        self._dataset_selection = None
+        self._comparison_result = {}
+        self.import_style_btn.setEnabled(False)
+        self.score_table.setRowCount(0)
+        self.score_details.clear()
         self.import_status_label.setText("")
         self.clear_import_btn.setEnabled(False)
         self.import_prompts_btn.setText("📝 导入已有 Prompts")
@@ -1522,8 +2027,14 @@ class StyleAnalyzerWidget(QWidget):
         set_task_status(self.status_label, state, detail)
 
     def set_running_state(self, running, cancelling=False):
+        self.deep_btn.setEnabled(not running)
+        self.deep_device_combo.setEnabled(not running)
+        self.compare_btn.setEnabled(not running)
+        self.resume_btn.setEnabled(not running)
+        self.import_style_btn.setEnabled(not running and bool(self.selected_comparison_row()))
         self.analyze_btn.setEnabled(not running)
         self.add_btn.setEnabled(not running)
+        self.import_selection_btn.setEnabled(not running)
         self.clear_btn.setEnabled(not running)
         self.cancel_btn.setEnabled(running and (not cancelling))
         self.import_json_btn.setEnabled(not running)
@@ -1640,6 +2151,9 @@ class StyleAnalyzerWidget(QWidget):
             file_prefix=file_prefix,
             seed_prompts=self._imported_prompts if not self._existing_state else "",
             test_style_ref_path=test_style_ref_path,
+            dataset_selection=({**self._dataset_selection,
+                "manual_image_list_modified": effective_paths != self._dataset_selection.get("image_paths")}
+                if self._dataset_selection else None),
         )
         self.thread.log_signal.connect(self.log_msg)
         self.thread.progress_signal.connect(self.progress_label.setText)
@@ -1648,6 +2162,15 @@ class StyleAnalyzerWidget(QWidget):
         self.thread.start()
 
     def cancel_analysis(self):
+        if self.deep_thread is not None:
+            self.deep_thread.requestInterruption()
+            self.set_running_state(True, cancelling=True)
+            self.log_msg("已请求停止本地深度指标进程。")
+            return
+        if self.comparison_thread is not None:
+            self.comparison_thread.requestInterruption()
+            self.log_msg("已请求取消比较，等待当前评分请求结束。")
+            return
         if self.thread is None:
             self.log_msg("当前没有正在运行的任务。")
             return
@@ -1663,6 +2186,9 @@ class StyleAnalyzerWidget(QWidget):
             self.result_edit.setPlainText(result_text)
 
     def on_analysis_finished(self, status, text, output_path):
+        self._deep_result = {}
+        self.deep_table.setRowCount(0)
+        self.deep_details.setPlainText(LIMITS)
         thread = self.thread
         self.thread = None
         self.set_running_state(False)
@@ -1671,13 +2197,29 @@ class StyleAnalyzerWidget(QWidget):
             thread.deleteLater()
 
         self._output_dir = os.path.dirname(output_path) if output_path else ""
+        self._loaded_json_path = output_path or ""
         self.output_path_label.setText(f"输出文件: {output_path}" if output_path else "")
         self.open_output_dir_btn.setEnabled(bool(output_path))
 
         if status == "success" and text:
             self.result_edit.setPlainText(text)
-            self.set_task_state("success", "多轮迭代完成")
+            final_status = "not_run"
+            if output_path:
+                try:
+                    with open(output_path, encoding="utf-8") as source:
+                        final_status = (json.load(source).get("final_test_images") or {}).get(
+                            "status", "not_run")
+                except (OSError, ValueError):
+                    final_status = "not_run"
+            labels = {"success": "三路已出图", "partial": "部分成功", "failed": "失败",
+                      "not_run": "未测试", "running": "未完成"}
+            summary = "提取完成；终审版本测试：" + labels.get(final_status, "未测试")
+            self.set_task_state("error" if final_status in ("partial", "failed", "running")
+                                else "success", summary)
+            self.progress_label.setText(summary)
             self.log_msg("多轮迭代画风提取完成。")
+            if getattr(self, "auto_compare_cb", None) is not None and self.auto_compare_cb.isChecked() and output_path and final_status != "not_run":
+                self.start_comparison()
         elif status == "cancelled":
             self.set_task_state("cancelled", "任务已取消")
             if text:

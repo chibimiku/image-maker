@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Image Maker style dataset selection v1",
+  "type": "object",
+  "required": ["schema_version", "style_name", "source_root", "recursive", "requested_count", "agent", "selection_summary", "shortfall_reason", "selected_order", "reference_image", "reference_reason", "images"],
+  "properties": {
+    "schema_version": {"const": "image-maker.style-dataset.v1"},
+    "style_name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$"},
+    "source_root": {"type": "string", "minLength": 1},
+    "recursive": {"type": "boolean"},
+    "requested_count": {"type": "integer", "minimum": 2, "maximum": 100},
+    "agent": {"type": "object", "required": ["name", "model", "review_method"], "properties": {"name": {"type": "string", "minLength": 1}, "model": {"type": "string", "minLength": 1}, "review_method": {"type": "string", "minLength": 1}}},
+    "selection_summary": {"type": "string", "minLength": 1},
+    "shortfall_reason": {"type": "string"},
+    "selected_order": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "reference_image": {"type": "string", "minLength": 1},
+    "reference_reason": {"type": "string", "minLength": 1},
+    "images": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/image"}}
+  },
+  "$defs": {
+    "score": {"type": "number", "minimum": 0, "maximum": 10},
+    "image": {
+      "type": "object",
+      "required": ["path", "sha256", "width", "height", "readable", "inspected", "decision", "reason", "scores", "tags", "duplicate_of"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "width": {"type": "integer", "minimum": 0},
+        "height": {"type": "integer", "minimum": 0},
+        "readable": {"type": "boolean"},
+        "inspected": {"type": "boolean"},
+        "decision": {"enum": ["selected", "rejected", "needs_review"]},
+        "reason": {"type": "string", "minLength": 1},
+        "scores": {"oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["completeness", "style_consistency", "detail_readability", "artifact_cleanliness"], "properties": {"completeness": {"$ref": "#/$defs/score"}, "style_consistency": {"$ref": "#/$defs/score"}, "detail_readability": {"$ref": "#/$defs/score"}, "artifact_cleanliness": {"$ref": "#/$defs/score"}}}]},
+        "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "duplicate_of": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
