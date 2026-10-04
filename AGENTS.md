@@ -160,6 +160,7 @@
   - **2026-09-24 修的 bug**：`single_analyzer._start_gpt_image_thread` 以前自己拼首图请求、**漏传 `extra_clauses`**，于是 GUI 首图永远没有 `RENDERING LANGUAGE` 段（CLI 有）→ 实测首图偏白偏灰、线条碎。现在改走 `build_first_pass_request`，`[gpt 通道]` 日志会打印 `渲染条款 N 条（画风自带 / 按 prompt_gpt 派生）`。回归用例：`tests/test_analysis_channel.py` 的 `test_gpt_first_pass_includes_derived_render_clauses` / `test_gpt_first_pass_prefers_handwritten_clauses`。
   - **当前工序契约（2026-09-24 用户指定，§二十六）**：① 内容锚与 **Gemini 通道同源**（分析产物里描述素材特征/构图/服装/道具的文本，`build_gpt_image_request(content_text=...)`），**已删除「重新构图」开关**与 `RECOMPOSE_CLAUSE`/`composition`/`content_tier`；② 首图走**「新建图片」**：`generate_image_aigc2d_gpt(mode="generate")` → `POST /v1/images/generations`，画风参考图放 JSON 的 `image` 字段（base64），不再走 `/images/edits`（edits 会把参考图当原图编辑）；③ 尺寸跟随输入比例；④ 局部重绘统一 **2K**（`detail_boost=False`，细节区不再升 4K）；⑤ **超时按工序计**：`timeout_budget = 每道工序秒数 × (首图 1 + 工序数)`，不再用 120s 掐整条链。仍未处理：无（2026-09-24 已修：GUI 重绘第二张参考改为**画风图**，`pipeline_steps_from_flags(repaint_ref_mode="style")` 默认，`single_analyzer` 把画风图 + `repaint_clauses` 传给 `run_pipeline`；线锚图要显式 `line_anchor`）。
 - `output_isolation.py`: **测试产出隔离**：`resolve_output_target(save_dir, base_filename)` 在 `IMAGE_MAKER_TEST_OUTPUT=1` 时把 `data/<日期>/…` 改道到 `data/test-result/<日期>/…` 并加 `test-` 前缀（未设该环境变量时行为与改动前一致）；`find_legacy_test_artifacts` / `relocate_legacy_test_artifacts` 负责搬迁历史污染（识别范围含分析落盘的 `…-hash_0-title_0.json` 一族与流水线产物 `img-233500-a35670-final-sline50.png` 这类，见 `PIPELINE_TEST_ARTIFACT_RE`），命令行入口 `python -m utils.output_isolation [--apply]`。接入点：`single_analyzer.on_process_finished`、`batch_analyzer.save_result`、`analysis_pipeline.save_result_to_source`、**`post_process.run_pipeline`（`final_output_path()`，2026-09-23 加，之前它不传 final_dir 时会往真实日期目录扔废文件）**；`tests/conftest.py` 自动开启并兜底搬迁
+- `style_metrics/`: **画风深度特征指标子包**（2026-10-04 新增，只做评价、不改 App 评分公式）：`config.py`（路径/权重清单/**全部固定预处理与输出层契约**）、`imaging.py`（三种预处理 + 确定性测试图）、`gram.py` / `adain.py`（Gatys Gram 距离 / AdaIN 通道 μ·σ 距离）、`vgg_encoder.py`（torchvision VGG-19 多层特征）、`lpips_metric.py`（官方 LPIPS 封装 + NPU 变体）、`csd_metric.py`（官方 CSD 复刻 + 权重加载 + NPU 变体）、`devices.py`（`auto/cuda/cpu/npu` 解析 + 运行期探针 + 硬件报告）、`openvino_backend.py`（ONNX 导出 + Intel NPU 编译/推理/执行证据）、`runner.py`（**容差表** / 计时 / 统一运行器）、`inventory.py`（权重 SHA-256）、`fetch.py`（下载）。**改口径只改 `config.py`**，并同步更新 `docs/style-extraction/style-metrics-setup.md`。CLI 见 `tools/style_metrics_verify.py`，回归见 `tests/test_style_metrics.py`（快测默认跑；慢测要 `STYLE_METRICS_SLOW=1`）。**App 不导入本包，改它不需要重启 app。**
 
 ### `tools/`（无头 CLI 工具）
 
@@ -180,6 +181,7 @@
 - `doujin_translator.py`: 同人本批量翻译 GUI（独立入口）
 - `translate_booru_tags.py`: booru tags 翻译 CLI
 - `web-probe.py`: 网页抓取 CLI（`utils/web_probe_cli.py` 的薄壳入口）
+- `style_metrics_verify.py`: **画风深度特征指标验证 CLI**（2026-10-04 新增）：`--device auto|cuda|cpu|npu` + `--precision fp32|fp16` + `--metrics gram,adain,lpips,csd` + `--pair A B`（真实图对）+ `--out`（默认 `data/test-result/style-metrics-<时间戳>.json`）；`--inventory` 只校验权重 SHA-256 不跑前向。四个指标 = Gram 风格距离 / AdaIN 特征统计距离 / LPIPS / CSD 相似度。**距离指标（Gram/AdaIN/LPIPS，越小越像）与相似度指标（CSD，越大越像）分别报告，不合成百分比**，也不参与 App 的 `style_score`。设备语义：显式 `npu` 不可用时报错，**绝不静默回落 CPU 再声称 NPU 成功**；`auto` 只取运行期探针验证过的后端。`npu` 走 OpenVINO 的 Intel NPU 插件（不是 ORT QNN / DirectML），特征编码器在 NPU、距离与余弦在 CPU，且 fp16 是**独立版本**（与 CPU fp32 不等价）。完整口径、来源、SHA-256、跨设备误差与性能见 `docs/style-extraction/style-metrics-setup.md`
 
 ### `tests/`（测试与对比脚本）
 
@@ -207,6 +209,7 @@
 - `models/upscaler/`: Upscaler 模型目录（`OmniSR`、`Real-CUGAN`、`SRFormer-Light`）
 - `models/ESRGAN/`: ESRGAN 模型目录
 - `models/segmentation/`: 分割相关模型目录（`GroundingDINO`、`sam2`、`hf-cache`）
+- `models/style-metrics/`: **画风深度特征指标的权重**（2026-10-04 新增，权重不入库）：`vgg19/vgg19-dcbb9e9d.pth`（Gram/AdaIN 共用）、`lpips/v0.1/alex.pth` + `lpips/trunk/alexnet-owt-7be5be79.pth`（LPIPS 官方校准权重 + 骨架）、`csd/CSD-ViT-L-pytorch_model.bin`（CSD 官方 ViT-L）、`onnx/`（派生与 NPU 编译缓存，可删重建）。来源/字节数/SHA-256 见 `models/style-metrics/README.md`；重建与验证见 `docs/style-extraction/style-metrics-setup.md`。
 
 ## 4. 配置文件索引（按实际读取路径）
 

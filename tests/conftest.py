@@ -32,6 +32,31 @@ smoke 测试里的 `sync_selected_style("测试共享风格")` 会把一个并�
 这里的做法：整场测试打开 `utils.output_isolation` 的隔离开关，所有落在
 `data/<日期>/` 的产出都会被改道到 `data/test-result/<日期>/` 并加 `test-` 前缀；
 会话结束时再做一次兜底扫描，把漏网写进日期目录的测试产物搬过去。
+
+## 守卫三：torch 的 DLL 必须先于 PyQt6/onnxruntime/cv2/openvino 加载
+
+真实事故（2026-10-04）：`python -m pytest -q` 在收集 `tests/test_style_metrics*.py` 时报
+
+    OSError: [WinError 1114] 动态链接库(DLL)初始化例程失败。
+    Error loading "...\\torch\\lib\\c10.dll" or one of its dependencies.
+
+stderr 里还跟着一条 first-chance `access violation`（栈顶就是 `torch/__init__.py::_load_dll_libraries`）。
+
+定位过程（都做过了，结论明确）：
+
+- 单独导入 `onnxruntime` / `cv2` / `openvino` / `numpy` / `PIL` 之后再 `import torch` —— **全部正常**，
+  所以不是某一个包之间的两两 DLL 冲突；
+- 只收集 2 个模块（`test_analysis_cli_unittest.py` + `test_style_metrics.py`）—— **正常**；
+- 收集**整套** `tests/`（PyQt6 + onnxruntime-directml + opencv + openvino 那批 DLL 都进过进程）
+  之后再加载 torch —— **必炸**；
+- 反过来，先 `import torch` 再让 pytest 收集同一套用例 —— **856 项全部收集成功、0 错误**。
+
+即：在这台 Windows 上，torch 的 DLL 需要一个尚未被其它大型原生库占满的加载环境；
+晚了（哪怕只晚到收集阶段）就 `DllMain` 失败。所以这里在会话最开始把 torch 顶上来。
+
+代价实测约 1.5 秒/会话；不这么做的话，任何后续新增的 torch 用例都会踩同一个坑。
+预加载失败也不拦测试（只打印一行）——真没装 torch 的环境，相关用例自己会失败/skip。
+需要跳过时设 `IMAGE_MAKER_TESTS_SKIP_TORCH_PRELOAD=1`。
 """
 
 from __future__ import annotations
@@ -47,6 +72,20 @@ CONF_DIR = REPO_ROOT / "conf"
 
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+
+def _preload_torch_before_dll_heavy_imports() -> None:
+    """见模块 docstring「守卫三」：把 torch 的 DLL 加载提前到所有重型原生库之前。"""
+    if os.environ.get("IMAGE_MAKER_TESTS_SKIP_TORCH_PRELOAD"):
+        return
+    try:
+        import torch  # noqa: F401
+    except Exception as exc:  # pragma: no cover - 取决于本机环境
+        print(f"[tests/conftest.py] torch 预加载失败（用到它的用例会失败）: {exc}")
+
+
+# 在 pytest 收集任何测试模块之前执行（conftest 比测试模块先导入）
+_preload_torch_before_dll_heavy_imports()
 
 
 
