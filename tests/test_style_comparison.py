@@ -100,6 +100,41 @@ class StyleComparisonTests(unittest.TestCase):
                 self.assertTrue(Path(results[1][0]["report_path"]).exists())
                 self.assertEqual(results[1][1], "")
 
+    def test_batched_comparison_recovers_completed_batches_and_exposes_ties(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "ref.png"
+            Image.new("RGB", (12, 12)).save(image)
+            records = {f"round_{i}": {"generated_files": {"gemini_direct": [str(image)]},
+                       "style_reference": str(image), "test_prompt": "girl", "prompts_used": f"ROUND {i}"} for i in range(5)}
+            path = root / "state.json"
+            path.write_text(json.dumps({"dataset": {"images": [str(image)]}, "test_images": records}), encoding="utf-8")
+            requests = []
+            def respond(**kwargs):
+                content = kwargs["messages"][0]["content"]
+                ids = [item["text"].splitlines()[0][10:] for item in content if item.get("text", "").startswith("CANDIDATE ")]
+                requests.append(ids)
+                self.assertLessEqual(len(ids), 4)
+                self.assertEqual(sum(item.get("text", "").startswith("STYLE DATASET REFERENCE") for item in content), 1)
+                if len(requests) == 2:
+                    raise RuntimeError("temporary provider error")
+                return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps({"assessments": [self.score(i) for i in ids]})))])
+            with patch("modules.image_analysis.style_comparison.OpenAI") as client:
+                create = client.return_value.chat.completions.create
+                create.side_effect = respond
+                worker = StyleComparisonWorker(str(path), ("endpoint", "key", "model"))
+                completed = []
+                worker.completed.connect(lambda result, error: completed.append((result, error)))
+                worker.run()
+                self.assertIn("temporary", completed[-1][1])
+                worker.run()
+                self.assertEqual(create.call_count, 3)
+                self.assertEqual(len(completed[-1][0]["rows"]), 5)
+                self.assertEqual(len(completed[-1][0]["tied_best_ids"]), 5)
+                self.assertEqual(completed[-1][0]["selection_status"], "manual_review_tie")
+                worker.run()
+                self.assertEqual(create.call_count, 3)
+
     def test_gui_selection_and_resume_keep_source(self):
         import os
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

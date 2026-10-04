@@ -4,9 +4,9 @@
 
 ## 多图画风提取、报告与续训
 
-「多图画风提取」默认新增 3 轮、每轮检查 4 张图，支持导入外部 Agent 的筛图清单、三路测试生图、十二维视觉比较、观察报告后手动选版本及从指定结果续训。打开已有 3 轮结果后填 3，表示继续第 4–6 轮。
+「多图画风提取」首次默认 5 轮、每轮检查 4 张图，支持导入外部 Agent 的筛图清单、三路测试生图、十二维视觉比较、观察报告后手动选版本及从指定结果续训。打开已有结果后默认新增 3 轮，例如已有 3 轮时继续第 4–6 轮。每次运行使用独立目录，并保留旧终审候选供比较。
 
-「计算深度指标」独立运行 Gram、AdaIN、LPIPS、CSD，默认 **NPU 优先**；选「仅 Intel NPU」可避免回退到 CUDA。报告包含逐张对照、覆盖率、模型参数和实际设备证据，指标不换算百分比、不自动覆盖画风。更新 Python 代码后须重启 app。
+默认勾选「自动比较」与「自动深度指标」：视觉比较每批最多 4 个候选，保留成功批次缓存；Gram、AdaIN、LPIPS、CSD 独立运行，默认 **NPU 优先**。选「仅 Intel NPU」可避免回退到 CUDA。报告包含逐张对照、覆盖率、模型参数和实际设备证据，指标不换算百分比、不自动覆盖画风。更新 Python 代码后须重启 app。
 
 详见 [操作与字段说明](docs/style-analyzer-workflow.md)、[深度指标验证记录](docs/style-extraction/deep-metrics-integration-20261004.md) 和 [DeepSeek 的 taya_oco 再识别 3 轮提示词](docs/style-extraction/deepseek-taya-oco-resume-3rounds.md)。
 

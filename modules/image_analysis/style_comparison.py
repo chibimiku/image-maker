@@ -16,6 +16,7 @@ from utils.image_encoding import compress_and_encode_image
 from utils.prompt_loader import read_prompt_file
 
 VERSION = "style-comparison-v2"
+COMPARISON_BATCH_SIZE = 4
 LEGACY_DIMENSIONS = ("linework", "face_hair", "shading", "color_logic", "texture_finish")
 STYLE_GROUPS = {
     "线条与边缘": ("linework", "edge_hierarchy"),
@@ -112,19 +113,23 @@ def calculate_ranking(candidates, assessments, version=VERSION):
         rows[-1].update(group_scores={key: rounded(value) for key, value in groups.items()}, dimension_evidence=evidence or {})
     rows.sort(key=lambda row: (-Decimal(row["sort_value"]), row["id"]))
     best = next((row["id"] for row in rows if row["eligible"]), None)
+    best_value = next((row["sort_value"] for row in rows if row["id"] == best), None)
+    tied = [row["id"] for row in rows if row["eligible"] and Decimal(row["sort_value"]) == Decimal(best_value)] if best_value is not None else []
     formula = FORMULA if version == VERSION else "v1：五项等权均分 S；总分=0.85×S+0.15×主体符合度（0–10）"
     return {"version": version, "formula": formula, "dimensions": list(dimensions),
             "groups": STYLE_GROUPS if version == VERSION else {},
-            "research_basis": research_basis(), "score_type": "vision_model_rubric", "rows": rows, "best_id": best}
+            "research_basis": research_basis(), "score_type": "vision_model_rubric", "rows": rows, "best_id": best,
+            "tied_best_ids": tied, "selection_status": "manual_review_tie" if len(tied) > 1 else ("ranked" if best else "no_eligible")}
 
 
-def comparison_inputs(state, model, base_url):
-    candidates = candidates_from_state(state)
+def comparison_inputs(state, model, base_url, candidates=None):
+    candidates = candidates_from_state(state) if candidates is None else candidates
     refs = state.get("dataset", {}).get("images") or []
     if not refs or not candidates:
         raise ValueError("需要原始画风图及已生成的测试图片，未测试的版本不能比较")
     prompt = read_prompt_file("style-comparison-v2.md")
     signature = {"version": VERSION, "model": model, "endpoint": base_url, "prompt": prompt,
+                 "evaluation_policy": {"batch_size": COMPARISON_BATCH_SIZE, "references": "all_per_batch"},
                  "references": [], "candidates": []}
     def fingerprint(path):
         with open(path, "rb") as source:
@@ -162,8 +167,11 @@ def write_comparison_report(state, result, directory):
                      ("评分模型", result["model"]), ("评分温度", 0),
                      ("评分图片最长边 / JPEG 质量", "1536 px / 90"),
                      ("评分版本", result["version"]),
+                     ("视觉比较批次", result.get("evaluation_policy", "历史整批评分；非当前小批次口径")),
                      ("评分缓存", "复用已保存评分" if result.get("cached") else "本次评分")]
     parameters_html = '<h2>运行参数</h2><table>' + ''.join('<tr><th>' + esc(label) + '</th><td>' + esc(value) + '</td></tr>' for label, value in training_rows) + '</table>'
+    if state.get("analysis_warnings"):
+        parameters_html += '<h3>需复核的分析记录</h3><pre>' + esc(json.dumps(state["analysis_warnings"], ensure_ascii=False, indent=2)) + '</pre>'
     dimensions = result.get("dimensions") or (LEGACY_DIMENSIONS if result["version"] == "style-comparison-v1" else DIMENSIONS)
     papers = [dict(p) for p in (result.get("research_basis") or research_basis())]
     deep = state.get("deep_feature_comparison") or {}
@@ -186,6 +194,7 @@ def write_comparison_report(state, result, directory):
                 research_html,
                 '<h2>原始画风图</h2>' + ''.join(picture(p) for p in state["dataset"]["images"]),
                 '<h2>最佳候选：' + esc(result["best_id"] or "无候选通过门禁") + '</h2>',
+                '<p>' + esc("并列候选（默认行仅按 ID 排序，需手动复核）：" + ", ".join(result.get("tied_best_ids", [])) if len(result.get("tied_best_ids", [])) > 1 else "") + '</p>',
                 '<table><tr><th>候选</th>' + ''.join('<th>' + esc(DIMENSION_LABELS.get(k, k)) + '</th>' for k in (*dimensions, "style_score", "subject_fidelity", "total", "eligible")) + '</tr>']
     for row in result["rows"]:
         sections.append('<tr><td><a href="#' + esc(row["id"]) + '">' + esc(row["id"]) + '</a></td>' + ''.join('<td>' + esc(row[k]) + '</td>' for k in (*dimensions, "style_score", "subject_fidelity", "total", "eligible")) + '</tr>')
@@ -235,27 +244,48 @@ class StyleComparisonWorker(QThread):
             if cached.get("input_hash") == digest:
                 result = calculate_ranking(candidates, cached["assessments"])
                 result.update(input_hash=digest, assessments=cached["assessments"], model=model, endpoint=base_url, cached=True)
+                result.update(evaluation_policy=cached.get("evaluation_policy"), batch_count=cached.get("batch_count"))
             else:
-                content = [{"type": "text", "text": prompt}]
-                def add_image(label, path):
+                assessments = []
+                batch_records = {}
+                batch_path = os.path.join(os.path.dirname(self.path), "automatic-comparison-batches.json")
+                if os.path.isfile(batch_path):
+                    with open(batch_path, encoding="utf-8") as source:
+                        batch_records = json.load(source)
+                client = OpenAI(base_url=base_url, api_key=api_key, timeout=self.timeout)
+                def add_image(content, label, path):
                     mime, encoded = compress_and_encode_image(path, max_dim=1536, quality=90)
                     if not encoded:
                         raise ValueError(f"无法读取图片: {path}")
                     content.extend([{"type": "text", "text": label},
                                     {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}", "detail": "high"}}])
-                for index, path in enumerate(refs):
-                    add_image(f"STYLE DATASET REFERENCE {index}", path)
-                for candidate in candidates:
-                    add_image("CANDIDATE " + candidate["id"] + "\nRequested subject: " + candidate["record"]["test_prompt"], candidate["path"])
-                if self.isInterruptionRequested():
-                    raise ValueError("比较已取消")
-                client = OpenAI(base_url=base_url, api_key=api_key, timeout=self.timeout)
-                response = client.chat.completions.create(model=model, temperature=0,
-                    response_format={"type": "json_object"}, max_completion_tokens=24000,
-                    messages=[{"role": "user", "content": content}], timeout=self.timeout)
-                assessments = json.loads(response.choices[0].message.content)["assessments"]
+                for offset in range(0, len(candidates), COMPARISON_BATCH_SIZE):
+                    if self.isInterruptionRequested():
+                        raise ValueError("比较已取消；已完成批次保留，重试可复用")
+                    batch = candidates[offset:offset + COMPARISON_BATCH_SIZE]
+                    batch_digest = comparison_inputs(state, model, base_url, candidates=batch)[3]
+                    if batch_digest in batch_records:
+                        scores = batch_records[batch_digest]
+                    else:
+                        content = [{"type": "text", "text": prompt}]
+                        for index, path in enumerate(refs):
+                            add_image(content, f"STYLE DATASET REFERENCE {index}", path)
+                        for candidate in batch:
+                            add_image(content, "CANDIDATE " + candidate["id"] + "\nRequested subject: " + candidate["record"]["test_prompt"], candidate["path"])
+                        response = client.chat.completions.create(model=model, temperature=0,
+                            response_format={"type": "json_object"}, max_completion_tokens=12000,
+                            messages=[{"role": "user", "content": content}], timeout=self.timeout)
+                        scores = json.loads(response.choices[0].message.content)["assessments"]
+                        calculate_ranking(batch, scores)
+                        batch_records[batch_digest] = scores
+                        from modules.image_analysis.style_deep_comparison import atomic_json
+                        atomic_json(batch_path, batch_records)
+                    calculate_ranking(batch, scores)
+                    assessments.extend(scores)
                 result = calculate_ranking(candidates, assessments)
-                result.update(input_hash=digest, assessments=assessments, model=model, endpoint=base_url, cached=False)
+                result.update(input_hash=digest, assessments=assessments, model=model, endpoint=base_url, cached=False,
+                              evaluation_policy={"batch_size": COMPARISON_BATCH_SIZE, "reference_count": len(refs)},
+                              batch_count=math.ceil(len(candidates) / COMPARISON_BATCH_SIZE))
             if self.isInterruptionRequested():
                 raise ValueError("比较已取消")
             # 保留请求执行期间其他工序已经保存的字段。
@@ -265,10 +295,9 @@ class StyleComparisonWorker(QThread):
                 raise ValueError("比较期间训练数据已变更，请重新比较")
             latest["automatic_comparison"] = result
             result["report_path"] = write_comparison_report(latest, result, os.path.dirname(self.path))
-            with open(self.path, "w", encoding="utf-8") as target:
-                json.dump(latest, target, ensure_ascii=False, indent=2)
-            with open(os.path.join(os.path.dirname(self.path), "automatic-comparison.json"), "w", encoding="utf-8") as target:
-                json.dump(result, target, ensure_ascii=False, indent=2)
+            from modules.image_analysis.style_deep_comparison import atomic_json
+            atomic_json(self.path, latest)
+            atomic_json(os.path.join(os.path.dirname(self.path), "automatic-comparison.json"), result)
             self.completed.emit(result, "")
         except Exception as exc:
             self.completed.emit({}, str(exc))

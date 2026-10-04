@@ -292,3 +292,85 @@ def test_gui_does_not_show_partial_final_test_as_full_success(tmp_path):
     assert "部分成功" in states[0][1]
     assert "终审版本测试" in widget.progress_label.text
     assert widget.result_edit.text == "PROMPT PACK"
+
+
+def test_full_resume_preserves_old_final_and_uses_round_six_labels(monkeypatch, tmp_path):
+    import copy
+    import json
+    from modules.image_analysis.style_analyzer import preserve_previous_final
+    old_final = {"generated_files": {"gemini_direct": ["old-final.png"]}, "test_prompt": "subject"}
+    original = {"iterations": [{"round": 3, "type": "final_review", "prompts_after": "OLD FINAL"}],
+                "test_images": {"round_3": {"generated_files": {"gemini_direct": ["old-round.png"]}}},
+                "final_test_images": old_final}
+    untouched = copy.deepcopy(original)
+    worker = StyleIterativeWorkerThread([], "key", "https://example.invalid/v1", "text",
+        total_rounds=3, images_per_round=0, existing_state=original, output_dir=str(tmp_path),
+        enable_test_gen=True, test_prompt="subject")
+    _stub_style_steps(monkeypatch, worker)
+    rounds, wrapup = [], []
+    def common(client, iterations, round_num, prompt):
+        rounds.append((round_num, prompt))
+        return iterations + [{"round": round_num, "type": "commonality_extraction", "art_style_prompts": "NEXT"}], "NEXT"
+    monkeypatch.setattr(worker, "_step_commonality_extraction", common)
+    def local(client, iterations, prompt, end_round):
+        wrapup.append(end_round)
+        return iterations + [{"round": f"round-{end_round}-local-merge", "type": "local_merge", "prompts_after": prompt}], prompt
+    monkeypatch.setattr(worker, "_step_local_refinement", local)
+    monkeypatch.setattr(worker, "_generate_test_image", lambda *args, **kwargs: {
+        "gemini_direct": ["new.png"], "gpt_first_pass": ["new-gpt.png"], "gpt_repainted": ["new-rp.png"]})
+    worker.run()
+    state = json.loads((tmp_path / "style_style_iter_result.json").read_text(encoding="utf-8"))
+    assert [r for r, _ in rounds] == [4, 5, 6]
+    assert rounds[0][1] == "OLD FINAL"
+    assert worker.end_round == 6 and wrapup == [6]
+    assert state["test_images"]["final_baseline_round_3"] == old_final
+    assert all(f"round_{n}" in state["test_images"] for n in (3, 4, 5, 6))
+    assert state["final_test_images"]["generated_files"]["gemini_direct"] == ["new.png"]
+    assert original == untouched
+    preserved = preserve_previous_final(original)
+    assert preserve_previous_final(preserved) == preserved
+
+
+def test_gui_restore_and_start_resume_has_isolated_absolute_output(monkeypatch, tmp_path):
+    import os
+    import json
+    from types import SimpleNamespace
+    from PyQt6.QtWidgets import QApplication
+    from PIL import Image
+    import modules.image_analysis.style_analyzer as sa
+    app = QApplication.instance() or QApplication([])
+    paths = []
+    for i in range(4):
+        path = tmp_path / f"ref-{i}.png"
+        Image.new("RGB", (12, 12), (i * 30, 0, 0)).save(path)
+        paths.append(str(path))
+    source = tmp_path / "demo_style_iter_result.json"
+    source.write_text(json.dumps({"dataset": {"images": paths}, "parameters": {"images_per_round": 4},
+        "iterations": [{"round": 3, "type": "commonality_extraction", "art_style_prompts": "BASE"}],
+        "final_test_images": {"test_prompt": "fixed subject", "style_reference": paths[1], "generated_files": {"gemini_direct": [paths[0]]}}}), encoding="utf-8")
+    before = source.read_bytes()
+    captured = {}
+    signal = SimpleNamespace(connect=lambda *args: None)
+    def fake_worker(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(log_signal=signal, progress_signal=signal, finish_signal=signal, save_signal=signal, start=lambda: None)
+    widget = sa.StyleAnalyzerWidget(lambda: ("endpoint", "key", "model"), lambda: 120)
+    try:
+        assert widget.total_rounds_spin.value() == 5
+        monkeypatch.setattr(sa.QFileDialog, "getOpenFileName", lambda *args: (str(source), ""))
+        widget.import_existing_json()
+        assert widget.total_rounds_spin.value() == 3
+        assert widget.test_prompt_input.text() == "fixed subject"
+        assert widget.test_ref_input.text() == paths[1]
+        monkeypatch.setattr(sa, "StyleIterativeWorkerThread", fake_worker)
+        widget.start_analysis()
+        assert captured["total_rounds"] == 3
+        assert captured["timeout_seconds"] >= 600
+        assert os.path.isabs(captured["output_dir"])
+        assert captured["output_dir"] != str(tmp_path)
+        assert "resume-" in captured["output_dir"]
+        assert source.read_bytes() == before
+        assert captured["existing_state"]["resume_origin"]["previous_completed_round"] == 3
+    finally:
+        widget.thread = None
+        widget.close()

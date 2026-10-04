@@ -3,6 +3,7 @@ import json
 import random
 import datetime
 import hashlib
+import copy
 from PIL import Image
 from openai import OpenAI
 from utils.task_runtime import append_log_line, set_task_status
@@ -33,6 +34,39 @@ STYLE_ITER_FINAL_REVIEW_PROMPT_FILE = "style-iter-final-review.md"
 STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE = "style-iter-local-extract.md"
 STYLE_ITER_LOCAL_MERGE_PROMPT_FILE = "style-iter-local-merge.md"
 STYLE_ITER_VARIANTS_PROMPT_FILE = "style-iter-variants.md"
+
+
+def last_completed_round(state):
+    return max((int(it["round"]) for it in (state or {}).get("iterations", [])
+                if type(it.get("round")) in (int, float)), default=0)
+
+
+def preserve_previous_final(state):
+    """完整续训保留旧终审测试，使用独立 stage 避免被新 final 覆盖。"""
+    state = copy.deepcopy(state or {})
+    previous = state.get("final_test_images") or {}
+    if any(previous.get("generated_files", {}).values()):
+        records = state.setdefault("test_images", {})
+        base = f"final_baseline_round_{last_completed_round(state)}"
+        stage, suffix = base, 1
+        while stage in records:
+            if records[stage] == previous:
+                return state
+            suffix += 1
+            stage = f"{base}_{suffix}"
+        records[stage] = copy.deepcopy(previous)
+        state.setdefault("baseline_final_stages", []).append(stage)
+    return state
+
+
+def new_style_run_directory(prefix, source_path=""):
+    if source_path:
+        parent = os.path.dirname(os.path.abspath(source_path))
+        label = "resume-"
+    else:
+        parent = os.path.join("data", datetime.datetime.now().strftime("%Y%m%d"), "style-extraction", prefix)
+        label = "run-"
+    return os.path.abspath(os.path.join(parent, label + datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")))
 
 
 def _reference_aspect_ratio(path):
@@ -322,13 +356,16 @@ class StyleIterativeWorkerThread(QThread):
             "file_prefix": self.file_prefix,
         }
         # 状态会在每一步重建；必须保留非迭代产物，否则下一轮会抹掉测试图和提示词包。
-        for key in ("test_images", "prompt_variants", "final_test_images", "resume_origin"):
+        for key in ("test_images", "prompt_variants", "final_test_images", "resume_origin", "baseline_final_stages"):
             if key in previous:
                 state[key] = previous[key]
         if self.dataset_selection:
             state["dataset_selection"] = self.dataset_selection
         elif previous.get("dataset_selection"):
             state["dataset_selection"] = previous["dataset_selection"]
+        state["analysis_warnings"] = [{"step": it.get("step"), "round": it.get("round"),
+            "type": it.get("type"), "confidence": it["confidence"], "reason": "分析自报置信度低于 0.8，请结合测试图复核"}
+            for it in iterations if type(it.get("confidence")) in (int, float) and it["confidence"] < 0.8]
         return state
 
     def _save_state(self, state, output_path=None):
@@ -521,12 +558,12 @@ class StyleIterativeWorkerThread(QThread):
             mode = "reconcile"
             prompt_file = STYLE_ITER_RECONCILE_PROMPT_FILE
             self.log_signal.emit(f"[Round {current_round}] Phase 1: 在对账基线上对照全部参考图精修画风 prompts...")
-            self.progress_signal.emit(f"Round {current_round}/{self.total_rounds} — 对账精修中…")
+            self.progress_signal.emit(f"Round {current_round}/{getattr(self, 'end_round', self.total_rounds)} — 对账精修中…")
         else:
             mode = "extract"
             prompt_file = STYLE_ITER_COMMON_PROMPT_FILE
             self.log_signal.emit(f"[Round {current_round}] Phase 1: 提取图片共性，生成艺术风格 prompts...")
-            self.progress_signal.emit(f"Round {current_round}/{self.total_rounds} — 共性提取中…")
+            self.progress_signal.emit(f"Round {current_round}/{getattr(self, 'end_round', self.total_rounds)} — 共性提取中…")
 
         prompt_text = read_prompt_file(prompt_file).strip()
 
@@ -597,7 +634,7 @@ class StyleIterativeWorkerThread(QThread):
         self._check_cancel()
         basename = os.path.basename(image_path)
         self.log_signal.emit(f"[Round {current_round}] Phase 2 [{check_index}/{self.images_per_round}]: 检查图片 \"{basename}\"...")
-        self.progress_signal.emit(f"Round {current_round}/{self.total_rounds} — 图片检查 {check_index}/{self.images_per_round}")
+        self.progress_signal.emit(f"Round {current_round}/{getattr(self, 'end_round', self.total_rounds)} — 图片检查 {check_index}/{self.images_per_round}")
 
         history_text = self._build_iteration_history_text(iterations)
 
@@ -995,12 +1032,13 @@ class StyleIterativeWorkerThread(QThread):
 
         # Determine output directory
         if not self.output_dir:
-            date_str = datetime.datetime.now().strftime("%Y%m%d")
-            self.output_dir = os.path.join("data", date_str)
+            self.output_dir = new_style_run_directory(self.file_prefix or "style")
+        self.output_dir = os.path.abspath(self.output_dir)
         os.makedirs(self.output_dir, exist_ok=True)
 
         # Initialize or load existing state
         if self.existing_state and isinstance(self.existing_state, dict):
+            self.existing_state = preserve_previous_final(self.existing_state)
             iterations = self.existing_state.get("iterations", [])
             self.log_signal.emit(f"📂 已加载已有训练状态，包含 {len(iterations)} 个迭代步骤。")
             # Determine starting round from existing iterations
@@ -1017,7 +1055,8 @@ class StyleIterativeWorkerThread(QThread):
             iterations = []
             start_round = 1
 
-        self.log_signal.emit(f"🚀 开始多轮迭代画风提取：共 {self.total_rounds} 轮，每轮检查 {self.images_per_round} 张图片。")
+        self.end_round = start_round + self.total_rounds - 1
+        self.log_signal.emit(f"🚀 新增 {self.total_rounds} 轮（Round {start_round}–{self.end_round}），每轮检查 {self.images_per_round} 张图片。")
         self.log_signal.emit(f"📁 数据集共 {len(self.image_paths)} 张图片。")
         self.log_signal.emit(f"💾 输出目录: {self.output_dir}")
 
@@ -1101,7 +1140,7 @@ class StyleIterativeWorkerThread(QThread):
 
             # Local refinement: crop all images into regions, batch-analyze, merge into prompts
             iterations, current_prompts = self._step_local_refinement(
-                client, iterations, current_prompts, self.total_rounds
+                client, iterations, current_prompts, self.end_round
             )
             state = self._build_state(len(iterations), iterations, state)
             state["final_art_style_prompts"] = current_prompts
@@ -1110,7 +1149,7 @@ class StyleIterativeWorkerThread(QThread):
 
             # Final comprehensive review: send all images + final prompts to LLM
             iterations, current_prompts = self._step_final_review(
-                client, iterations, current_prompts, self.total_rounds
+                client, iterations, current_prompts, self.end_round
             )
             state = self._build_state(len(iterations), iterations, state)
             state["final_art_style_prompts"] = current_prompts
@@ -1130,7 +1169,7 @@ class StyleIterativeWorkerThread(QThread):
                 state["final_test_images"]["status"] = "running"
                 self._save_state(state, output_path)
                 final_outputs = self._generate_test_image(
-                    current_prompts, self.total_rounds, output_path,
+                    current_prompts, self.end_round, output_path,
                     prompt_variants=prompt_variants, stage="final")
                 self._check_cancel()
             state["final_test_images"] = self._test_image_record(
@@ -1363,6 +1402,7 @@ class StyleAnalyzerWidget(QWidget):
         self._output_dir = ""
         self._imported_prompts = ""
         self._dataset_selection = None
+        self._run_deep_after_comparison = False
         self.initUI()
 
     def initUI(self):
@@ -1397,9 +1437,9 @@ class StyleAnalyzerWidget(QWidget):
 
         self.total_rounds_spin = QSpinBox()
         self.total_rounds_spin.setRange(1, 50)
-        self.total_rounds_spin.setValue(3)
-        self.total_rounds_spin.setToolTip("总共执行多少轮迭代训练")
-        params_layout.addRow("训练轮次:", self.total_rounds_spin)
+        self.total_rounds_spin.setValue(5)
+        self.total_rounds_spin.setToolTip("首次默认 5 轮；打开旧结果后表示本次新增轮数，默认 3 轮")
+        params_layout.addRow("本次新增轮数:", self.total_rounds_spin)
 
         self.images_per_round_spin = QSpinBox()
         self.images_per_round_spin.setRange(1, 100)
@@ -1528,6 +1568,10 @@ class StyleAnalyzerWidget(QWidget):
         self.compare_btn = QPushButton("比较并选最佳")
         self.compare_btn.clicked.connect(self.start_comparison)
         result_header.addWidget(self.compare_btn)
+        self.auto_deep_cb = QCheckBox("自动深度指标")
+        self.auto_deep_cb.setChecked(True)
+        self.auto_deep_cb.setToolTip("分析和视觉比较结束后自动计算本地指标，按旁边设备选择执行，不调用额外生图 API")
+        result_header.addWidget(self.auto_deep_cb)
         self.deep_btn = QPushButton("计算深度指标")
         self.deep_btn.clicked.connect(self.start_deep_comparison)
         result_header.addWidget(self.deep_btn)
@@ -1641,6 +1685,7 @@ class StyleAnalyzerWidget(QWidget):
         self.log_msg("自动比较：" + FORMULA)
         timeout = self.get_timeout() if self.get_timeout else 600
         self.comparison_thread = StyleComparisonWorker(self._loaded_json_path, self.get_config(), timeout, self)
+        self._run_deep_after_comparison = self.auto_deep_cb.isChecked()
         self.comparison_thread.completed.connect(self.on_comparison_completed)
         self.comparison_thread.finished.connect(self._comparison_stopped)
         self.comparison_thread.start()
@@ -1741,6 +1786,10 @@ class StyleAnalyzerWidget(QWidget):
         self.show_selected_comparison()
         if worker:
             worker.deleteLater()
+        run_deep = self._run_deep_after_comparison
+        self._run_deep_after_comparison = False
+        if run_deep and self._loaded_json_path:
+            self.start_deep_comparison()
 
     def on_comparison_completed(self, result, error):
         self._comparison_result = result
@@ -1772,7 +1821,10 @@ class StyleAnalyzerWidget(QWidget):
             self.score_table.selectRow(best_index)
         else:
             self.score_details.setPlainText("全部候选被排除，没有可自动选用的版本。")
-        self.log_msg("比较完成，最佳：" + str(result["best_id"]) + ("（复用评分）" if result.get("cached") else ""))
+        tied = result.get("tied_best_ids", [])
+        if len(tied) > 1:
+            self.formula_label.setText(self.formula_label.text() + f"\n{len(tied)} 个候选并列；默认行仅按 ID 排序，请结合图片与深度报告手动选用。")
+        self.log_msg("比较完成，" + (f"{len(tied)} 个并列候选，待人工选择：" if len(tied) > 1 else "最佳：") + str(result["best_id"]) + ("（复用评分）" if result.get("cached") else ""))
 
     def selected_comparison_row(self):
         index = self.score_table.currentRow()
@@ -1922,6 +1974,12 @@ class StyleAnalyzerWidget(QWidget):
                 self._loaded_image_paths = existing_dataset
 
         self._existing_state = existing_state
+        self.total_rounds_spin.setValue(3)
+        self.images_per_round_spin.setValue(int((existing_state.get("parameters") or {}).get("images_per_round", 4)))
+        test_record = existing_state.get("final_test_images") or next(iter((existing_state.get("test_images") or {}).values()), {})
+        self.test_prompt_input.setText(test_record.get("test_prompt", ""))
+        self.test_ref_input.setText(test_record.get("style_reference", ""))
+        self.enable_test_gen_cb.setChecked(any((test_record.get("generated_files") or {}).values()))
         self._dataset_selection = existing_state.get("dataset_selection")
         self._loaded_json_path = json_path
         self._comparison_result = {}
@@ -1948,12 +2006,7 @@ class StyleAnalyzerWidget(QWidget):
         state_prefix = existing_state.get("file_prefix", "")
         if not state_prefix and filename_prefix:
             existing_state["file_prefix"] = filename_prefix
-            try:
-                with open(json_path, "w", encoding="utf-8") as f:
-                    json.dump(existing_state, f, ensure_ascii=False, indent=2)
-                self.log_msg(f"  已自动补写 file_prefix: \"{filename_prefix}\"")
-            except Exception:
-                pass
+            self.log_msg(f"  已从文件名恢复 file_prefix: \"{filename_prefix}\"（原文件保留）")
 
         # 自动填入前缀输入框
         prefix_to_fill = state_prefix or filename_prefix
@@ -1988,6 +2041,8 @@ class StyleAnalyzerWidget(QWidget):
         self.deep_table.setRowCount(0)
         self.deep_details.setPlainText(LIMITS)
         self._existing_state = None
+        self._output_dir = ""
+        self.total_rounds_spin.setValue(5)
         self._loaded_json_path = ""
         self._loaded_image_paths = []
         self._imported_prompts = ""
@@ -2123,6 +2178,13 @@ class StyleAnalyzerWidget(QWidget):
         img_aspect_ratio = "auto"
 
         timeout_seconds = int(self.get_timeout()) if self.get_timeout else 120
+        timeout_seconds = max(600, timeout_seconds)
+        self._output_dir = new_style_run_directory(file_prefix, self._loaded_json_path if self._existing_state else "")
+        if self._existing_state:
+            self._existing_state = copy.deepcopy(self._existing_state)
+            self._existing_state.setdefault("resume_origin", {}).update(
+                source_json=os.path.abspath(self._loaded_json_path),
+                previous_completed_round=last_completed_round(self._existing_state))
 
         self.set_running_state(True)
         self.set_task_state("running", f"准备迭代 {total_rounds} 轮")
@@ -2168,6 +2230,7 @@ class StyleAnalyzerWidget(QWidget):
             self.log_msg("已请求停止本地深度指标进程。")
             return
         if self.comparison_thread is not None:
+            self._run_deep_after_comparison = False
             self.comparison_thread.requestInterruption()
             self.log_msg("已请求取消比较，等待当前评分请求结束。")
             return
@@ -2198,6 +2261,17 @@ class StyleAnalyzerWidget(QWidget):
 
         self._output_dir = os.path.dirname(output_path) if output_path else ""
         self._loaded_json_path = output_path or ""
+        if output_path and os.path.isfile(output_path):
+            try:
+                with open(output_path, encoding="utf-8") as source:
+                    latest = json.load(source)
+                if latest.get("iterations"):
+                    self._existing_state = latest
+                    self.total_rounds_spin.setValue(3)
+                    if latest.get("analysis_warnings"):
+                        self.log_msg("分析包含低置信记录，详见报告：" + json.dumps(latest["analysis_warnings"], ensure_ascii=False))
+            except (OSError, ValueError):
+                pass
         self.output_path_label.setText(f"输出文件: {output_path}" if output_path else "")
         self.open_output_dir_btn.setEnabled(bool(output_path))
 
@@ -2220,6 +2294,8 @@ class StyleAnalyzerWidget(QWidget):
             self.log_msg("多轮迭代画风提取完成。")
             if getattr(self, "auto_compare_cb", None) is not None and self.auto_compare_cb.isChecked() and output_path and final_status != "not_run":
                 self.start_comparison()
+            elif getattr(self, "auto_deep_cb", None) is not None and self.auto_deep_cb.isChecked() and output_path and final_status in ("success", "partial"):
+                self.start_deep_comparison()
         elif status == "cancelled":
             self.set_task_state("cancelled", "任务已取消")
             if text:

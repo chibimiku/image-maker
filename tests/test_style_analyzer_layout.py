@@ -11,7 +11,7 @@ class StyleAnalyzerLayoutTests(unittest.TestCase):
     def test_start_cancel_and_status_stay_visible_when_options_scroll(self):
         app = QApplication.instance() or QApplication([])
         widget = StyleAnalyzerWidget(lambda: ("", "", ""))
-        self.assertEqual(widget.total_rounds_spin.value(), 3)
+        self.assertEqual(widget.total_rounds_spin.value(), 5)
         self.assertEqual(widget.images_per_round_spin.value(), 4)
         widget.resize(1100, 650)
         widget.show()
