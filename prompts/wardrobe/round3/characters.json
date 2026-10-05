@@ -1,0 +1,57 @@
+{
+  "schema_version":"image-maker.wardrobe-character-test.v1",
+  "status":"prepared_not_executed",
+  "rendering":"Clean anime illustration with controlled linework and soft cel shading.",
+  "source_images":[],
+  "characters":[
+    {
+      "id":"P01","case_id":"T01","label":"棕长发绿眼：桥接保留用例",
+      "policy":"reinterpret","gold_action":"preserve","framing":"full","repeats":2,
+      "identity":"Exactly one 24-year-old adult woman with long straight dark-brown hair, green eyes and a medium build.",
+      "source_clothing":"Her existing outfit consists of a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to the left blazer lapel.",
+      "request":"Keep these garments, their categories, colours and described construction; do not redesign or replace them. Keep the brooch on the left blazer lapel. She stands in a quiet park. Full-body view including both feet.",
+      "protected":["one adult woman, age 24","long straight dark-brown hair","green eyes","medium build","red blazer with gold piping","white collared blouse","solid-red pleated skirt","black knee-high socks","gold star brooch on left blazer lapel","park, standing, both feet visible"]
+    },
+    {
+      "id":"P02","case_id":"T02","label":"短银发眼镜：只补全不改工装",
+      "policy":"fill_missing","gold_action":"preserve","framing":"full","repeats":1,
+      "identity":"Exactly one 29-year-old adult woman with a short silver-grey bob, dark-brown eyes, warm tan skin, rectangular black glasses and a sturdy medium build.",
+      "source_clothing":"Her existing outfit is a navy utility jacket with patch pockets, an ochre T-shirt, straight grey trousers and dark lace-up shoes. A small copper leaf pin is attached to the jacket chest pocket.",
+      "request":"She stands in a city library courtyard. Full-body view including both feet. Keep the copper leaf pin on the jacket chest pocket.",
+      "protected":["one adult woman, age 29","short silver-grey bob","dark-brown eyes","warm tan skin","rectangular black glasses","sturdy medium build","navy utility jacket with patch pockets","ochre T-shirt","straight grey trousers","dark lace-up shoes","copper leaf pin on jacket chest pocket","library courtyard, full body"]
+    },
+    {
+      "id":"P03","case_id":"T03","label":"深肤卷发：未写衣服的补全",
+      "policy":"fill_missing","gold_action":"fill","framing":"full","repeats":1,
+      "identity":"Exactly one 30-year-old adult woman with deep brown skin, shoulder-length curly auburn hair, amber eyes and a broad-shouldered curvy build.",
+      "source_clothing":"No source image or clothing description is supplied.",
+      "request":"She stands on a stone path in a botanical garden. Full-body view including both feet. Preserve her skin colour, curly hair and body build.",
+      "protected":["one adult woman, age 30","deep brown skin","shoulder-length curly auburn hair","amber eyes","broad-shouldered curvy build","botanical garden, full body including feet"]
+    },
+    {
+      "id":"P04","case_id":"T04","label":"成熟黑发：Gothic改款",
+      "policy":"replace","gold_action":"redesign","framing":"full","repeats":1,
+      "identity":"Exactly one 38-year-old adult woman with long wavy black hair, blue eyes, a mature face and a tall medium build.",
+      "source_clothing":"Her original outfit is a black trouser suit. A silver crescent brooch is attached at the upper centre of the jacket.",
+      "request":"Use a Gothic clothing direction. Keep black as the main clothing colour and the crescent brooch at the upper centre of the new garment. Keep her mature face. She stands in a stone courtyard holding one closed burgundy book in her right hand. Full-body view including both feet.",
+      "protected":["one adult woman, age 38, mature face","long wavy black hair","blue eyes","tall medium build","black main clothing colour","silver crescent brooch at upper centre","one closed burgundy book in right hand","stone courtyard, full body including feet"]
+    },
+    {
+      "id":"P05","case_id":"T05","label":"蓝短发眼镜：严格近景补全",
+      "policy":"fill_missing","gold_action":"fill","framing":"upper_chest","repeats":2,
+      "identity":"Exactly one 26-year-old adult woman with a chin-length teal-blue bob, grey eyes, round bronze glasses and a medium build.",
+      "source_clothing":"No source image or clothing description is supplied.",
+      "request":"A close portrait from the upper chest upward on a plain grey background. The lower frame edge cuts across the upper chest, above the bust midpoint. Keep the short bob and round bronze glasses. Do not widen the view to show more of the outfit.",
+      "protected":["one adult woman, age 26","chin-length teal-blue bob","grey eyes","round bronze glasses","medium build where visible","plain grey background","lower frame edge at upper chest, above bust midpoint"]
+    },
+    {
+      "id":"P06","case_id":"T06","label":"紫束发：近景原卫衣改款",
+      "policy":"reinterpret","gold_action":"redesign","framing":"upper_chest","repeats":1,
+      "identity":"Exactly one 28-year-old adult woman with dark-purple hair tied in a high ponytail, violet eyes and a medium build.",
+      "source_clothing":"Her original outfit is an orange hooded sweatshirt with a small blue bird pin on the left upper chest.",
+      "request":"Keep orange as the main clothing colour and the small blue bird pin on the left upper chest. A close portrait from the upper chest upward on a plain pale-blue background. The lower frame edge cuts across the upper chest, above the bust midpoint. Do not widen the view to show more of the outfit.",
+      "protected":["one adult woman, age 28","dark-purple high ponytail","violet eyes","medium build where visible","orange main clothing colour","blue bird pin on left upper chest","plain pale-blue background","lower frame edge at upper chest, above bust midpoint"]
+    }
+  ],
+  "scope_note":"Original fictional adults. Profile bundles are exploratory, not isolated tests of age, skin, hair or body. Exact identity and source-garment preservation cannot be verified without source images."
+}

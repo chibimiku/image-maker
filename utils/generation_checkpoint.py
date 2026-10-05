@@ -96,7 +96,8 @@ def import_generation_checkpoint(path, styles=None, analysis_result=None):
     from utils.analysis_gen import build_first_pass_request
     result = dict(analysis_result or {})
     request = build_first_pass_request(styles or {}, data.get("style_name", ""), result,
-                                       content_text=data.get("prompt", ""), tier="short")
+                                       content_text=data.get("prompt", ""), tier="short",
+                                       wardrobe=data.get("wardrobe") or {})
     request["prompt"] = data.get("prompt", "")
     request["image_paths"] = [r["path"] for r in data.get("references", []) if r.get("path")]
     ref = request.get("style_ref_path") or next(iter(request["image_paths"]), "")

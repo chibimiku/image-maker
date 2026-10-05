@@ -1,0 +1,49 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "F4-R-gothic-gpt-r1",
+  "kind": "conversion",
+  "case_id": "R",
+  "family": "gothic",
+  "channel": "gpt",
+  "repeat": 1,
+  "wave": 1,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "wardrobe_block_provenance": {
+    "source": "prompts/wardrobe/reference-study/gothic.md",
+    "kind": "hand_written_draft",
+    "warning": "hand-written draft（人写草稿）：**不是**联网提取产物，不得称 extracted / trained / 已验证。待提取完成后再替换为候选包并重新冻结。"
+  },
+  "prompt": "AUTHORIZED WARDROBE TRANSFORMATION: COMPLETE OUTFIT.\nWhen the requested transformation permits redesign, rebuild the source outfit into a coherent outfit of the selected Lolita wardrobe family. You may change garment category, cut, neckline, sleeves and skirt structure; do not merely place lace and a bow on the original hoodie, suit or uniform. When clothing is unspecified, design the complete outfit directly.\n\nKeep the requested person, facial and hair attributes, skin tone, apparent age, body build, pose, scene and camera framing. Preserve explicitly protected clothing colours, signature accessories and held objects in their requested roles and positions, integrating them into the new garment structure. An explicit instruction to retain a garment or its category takes precedence: route that request to preservation rather than complete transformation.\n\nEstablish a connected bodice or upper garment, a plausible waist or sash transition, and a deliberately shaped skirt with coordinated trims and visible accessories. The selected family determines the construction; Chinese- or Japanese-inspired hybrids may use a different upper garment from an OP or JSK. Change clothing silhouette without changing the wearer's anatomy. Use only the portions visible in the requested crop; a close portrait does not authorize zooming out or claiming that the unseen full outfit is verified.\n\nWARDROBE FAMILY: GOTHIC LOLITA.\nCreate a structured bodice, an organized waist and a voluminous skirt with deliberate panel, lace and border placement. Use a coherent ornamental scheme such as vertical pintucks or decorative lacing, a capelet or upper overlay, shaped lace edges and a repeated rose, architectural or ornamental motif. These are alternatives, not a requirement to stack every feature.\n\nBlack, wine, deep blue or contrasting ivory can support the scheme; light-coloured Gothic outfits are also possible. Explicit colour locks take priority. Coordinate visible socks, tights and footwear with the garment. Preserve named accessories rather than replacing them with mandatory crosses or roses. The result should read through clothing construction and ornament, not through a graveyard, gloomy lighting, pale skin or a generic black dress alone.\n\nAUTHORIZED WARDROBE TRANSFORMATION: COMPLETE OUTFIT — target family gothic.\n\nWARDROBE FAMILY: GOTHIC LOLITA.\nCreate a structured bodice, an organized waist and a voluminous skirt with deliberate panel, lace and border placement. Use a coherent ornamental scheme such as vertical pintucks or decorative lacing, a capelet or upper overlay, shaped lace edges and a repeated rose, architectural or ornamental motif. These are alternatives, not a requirement to stack every feature.\n\nBlack, wine, deep blue or contrasting ivory can support the scheme; light-coloured Gothic outfits are also possible. Explicit colour locks take priority. Coordinate visible socks, tights and footwear with the garment. Preserve named accessories rather than replacing them with mandatory crosses or roses. The result should read through clothing construction and ornament, not through a graveyard, gloomy lighting, pale skin or a generic black dress alone.\n\n\nSOURCE OUTFIT (clothing content; it may be fully redesigned in this request):\nHer original outfit is a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to her left blazer lapel.\n\nPROTECTED COLOURS (keep as stated):\n- red remains the main garment colour\n\nPROTECTED ACCESSORIES AND POSITIONS (keep as stated):\n- gold star brooch integrated at the wearer's left upper chest\n\nIDENTITY AND SCENE (unchanged; do not redesign):\nExactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.\nShe stands naturally with both arms relaxed and no held objects, against a plain grey background. Full-body view with both feet entirely visible. No additional people.\n\nRENDERING LANGUAGE (unchanged; the family block describes garments only):\nClean anime illustration with controlled linework and soft cel shading.\n\nCOMPLETE TRANSFORMATION CHECK: rebuild the garment category and construction where the source outfit differs. Adding lace, a bow or a frill to the original hoodie, utility outfit or uniform is not a complete transformation.",
+  "prompt_sha256": "dbc7127f363632e2211c1a800e26dd8d670e9369ace1c749db9b39df1461e157",
+  "prompt_chars": 4408,
+  "assembled_from": [
+    {
+      "role": "common",
+      "path": "prompts/wardrobe/reference-study/full-transformation.md",
+      "sha256": "a2fc40d81203de3c9542fd95872cfa754ed44965251313a96dcdc5e6b1f71c31"
+    },
+    {
+      "role": "family",
+      "path": "prompts/wardrobe/reference-study/gothic.md",
+      "sha256": "f15333f82435a53cc2686312547883298a438ce2933f2bd574c1f5791dc2b42f"
+    }
+  ],
+  "generation_params_source": "prompts/wardrobe/round3/spec/plan.json#generation_params",
+  "generation_references": 0,
+  "content_exclusions": [
+    "evidence IDs",
+    "image labels",
+    "validation expectations",
+    "scoring fields",
+    "target answer keys",
+    "reference-character traits",
+    "reference-study image instructions"
+  ],
+  "expected_scope": "unknown until the online phase; not described as a success",
+  "notes": [
+    "草案：未发送。人写草稿只能称 draft。",
+    "不含参考素材图；参考图只用于研究。"
+  ]
+}

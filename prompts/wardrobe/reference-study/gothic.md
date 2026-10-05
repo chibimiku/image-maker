@@ -1,0 +1,4 @@
+WARDROBE FAMILY: GOTHIC LOLITA.
+Create a structured bodice, an organized waist and a voluminous skirt with deliberate panel, lace and border placement. Use a coherent ornamental scheme such as vertical pintucks or decorative lacing, a capelet or upper overlay, shaped lace edges and a repeated rose, architectural or ornamental motif. These are alternatives, not a requirement to stack every feature.
+
+Black, wine, deep blue or contrasting ivory can support the scheme; light-coloured Gothic outfits are also possible. Explicit colour locks take priority. Coordinate visible socks, tights and footwear with the garment. Preserve named accessories rather than replacing them with mandatory crosses or roses. The result should read through clothing construction and ornament, not through a graveyard, gloomy lighting, pale skin or a generic black dress alone.

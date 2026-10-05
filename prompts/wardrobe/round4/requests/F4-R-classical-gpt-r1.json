@@ -1,0 +1,49 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "F4-R-classical-gpt-r1",
+  "kind": "conversion",
+  "case_id": "R",
+  "family": "classical",
+  "channel": "gpt",
+  "repeat": 1,
+  "wave": 1,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "wardrobe_block_provenance": {
+    "source": "prompts/wardrobe/reference-study/classical.md",
+    "kind": "hand_written_draft",
+    "warning": "hand-written draft（人写草稿）：**不是**联网提取产物，不得称 extracted / trained / 已验证。待提取完成后再替换为候选包并重新冻结。"
+  },
+  "prompt": "AUTHORIZED WARDROBE TRANSFORMATION: COMPLETE OUTFIT.\nWhen the requested transformation permits redesign, rebuild the source outfit into a coherent outfit of the selected Lolita wardrobe family. You may change garment category, cut, neckline, sleeves and skirt structure; do not merely place lace and a bow on the original hoodie, suit or uniform. When clothing is unspecified, design the complete outfit directly.\n\nKeep the requested person, facial and hair attributes, skin tone, apparent age, body build, pose, scene and camera framing. Preserve explicitly protected clothing colours, signature accessories and held objects in their requested roles and positions, integrating them into the new garment structure. An explicit instruction to retain a garment or its category takes precedence: route that request to preservation rather than complete transformation.\n\nEstablish a connected bodice or upper garment, a plausible waist or sash transition, and a deliberately shaped skirt with coordinated trims and visible accessories. The selected family determines the construction; Chinese- or Japanese-inspired hybrids may use a different upper garment from an OP or JSK. Change clothing silhouette without changing the wearer's anatomy. Use only the portions visible in the requested crop; a close portrait does not authorize zooming out or claiming that the unseen full outfit is verified.\n\nWARDROBE FAMILY: CLASSICAL LOLITA.\nBuild a coherent dress or jumper-skirt and blouse ensemble with a clear fitted garment waist and a controlled bell or A-line skirt. Organize the design through collars, a buttoned or pintucked front, gathered or gently puffed sleeves, cuffs, borders and lace placed along actual garment edges. Leave substantial calm fabric areas between decorative bands.\n\nUse a restrained arrangement of bows, floral ornament, checks or other chosen fabric motifs; coordinate visible headwear and footwear with that arrangement. Burgundy, forest green, navy, brown, cream and other harmonized colours are options, not mandatory recolouring. Respect explicitly requested colours. The defining effect is the garment's ordered construction and restrained ornament, not a sepia painting, antique room, particular face or mandatory long hair.\n\nAUTHORIZED WARDROBE TRANSFORMATION: COMPLETE OUTFIT — target family classical.\n\nWARDROBE FAMILY: CLASSICAL LOLITA.\nBuild a coherent dress or jumper-skirt and blouse ensemble with a clear fitted garment waist and a controlled bell or A-line skirt. Organize the design through collars, a buttoned or pintucked front, gathered or gently puffed sleeves, cuffs, borders and lace placed along actual garment edges. Leave substantial calm fabric areas between decorative bands.\n\nUse a restrained arrangement of bows, floral ornament, checks or other chosen fabric motifs; coordinate visible headwear and footwear with that arrangement. Burgundy, forest green, navy, brown, cream and other harmonized colours are options, not mandatory recolouring. Respect explicitly requested colours. The defining effect is the garment's ordered construction and restrained ornament, not a sepia painting, antique room, particular face or mandatory long hair.\n\n\nSOURCE OUTFIT (clothing content; it may be fully redesigned in this request):\nHer original outfit is a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to her left blazer lapel.\n\nPROTECTED COLOURS (keep as stated):\n- red remains the main garment colour\n\nPROTECTED ACCESSORIES AND POSITIONS (keep as stated):\n- gold star brooch integrated at the wearer's left upper chest\n\nIDENTITY AND SCENE (unchanged; do not redesign):\nExactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.\nShe stands naturally with both arms relaxed and no held objects, against a plain grey background. Full-body view with both feet entirely visible. No additional people.\n\nRENDERING LANGUAGE (unchanged; the family block describes garments only):\nClean anime illustration with controlled linework and soft cel shading.\n\nCOMPLETE TRANSFORMATION CHECK: rebuild the garment category and construction where the source outfit differs. Adding lace, a bow or a frill to the original hoodie, utility outfit or uniform is not a complete transformation.",
+  "prompt_sha256": "d3cdeff984c9396ae4f79026735db13d9ab2ef71dba920b45ebc4f4503cb61b8",
+  "prompt_chars": 4411,
+  "assembled_from": [
+    {
+      "role": "common",
+      "path": "prompts/wardrobe/reference-study/full-transformation.md",
+      "sha256": "a2fc40d81203de3c9542fd95872cfa754ed44965251313a96dcdc5e6b1f71c31"
+    },
+    {
+      "role": "family",
+      "path": "prompts/wardrobe/reference-study/classical.md",
+      "sha256": "00d27b7e4f8c747dba464fadd8136343d3561be064de6f56b291556bc5cabf82"
+    }
+  ],
+  "generation_params_source": "prompts/wardrobe/round3/spec/plan.json#generation_params",
+  "generation_references": 0,
+  "content_exclusions": [
+    "evidence IDs",
+    "image labels",
+    "validation expectations",
+    "scoring fields",
+    "target answer keys",
+    "reference-character traits",
+    "reference-study image instructions"
+  ],
+  "expected_scope": "unknown until the online phase; not described as a success",
+  "notes": [
+    "草案：未发送。人写草稿只能称 draft。",
+    "不含参考素材图；参考图只用于研究。"
+  ]
+}

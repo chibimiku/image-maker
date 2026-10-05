@@ -1,0 +1,1 @@
+FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view.

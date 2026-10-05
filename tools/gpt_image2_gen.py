@@ -101,6 +101,12 @@ def build_parser() -> argparse.ArgumentParser:
                                         "并把画风的参考图自动挂上；仍可与 --prompt 叠加主体描述")
     parser.add_argument("--styles-file", default=STYLES_FILE, help="画风预设文件，默认 conf/config-styles.json")
     parser.add_argument("--list-styles", action="store_true", help="列出画风预设（含是否有 prompt_gpt / 参考图）后退出")
+    from utils.wardrobe import wardrobe_presets, POLICIES
+    parser.add_argument("--wardrobe", default="off", choices=["off", *wardrobe_presets()],
+                        help="独立穿衣风格；默认关闭，不自动附加画风图")
+    parser.add_argument("--wardrobe-policy", default="replace", choices=list(dict(POLICIES)),
+                        help="replace 完整转化（默认） / reinterpret 改款 / fill_missing 只补全")
+    parser.add_argument("--list-wardrobes", action="store_true", help="离线列出衣装预设后退出")
     parser.add_argument("--size", help="尺寸；aigc2d 仅 3 档(1024x1024/1536x1024/1024x1536)，autodl 另含 auto/1792x1024")
     parser.add_argument("--quality", choices=GPT_IMAGE2_QUALITIES, help="画质，默认取配置或 high")
     parser.add_argument("--output-format", choices=GPT_IMAGE2_OUTPUT_FORMATS, help="输出格式，默认取配置或 png")
@@ -457,6 +463,17 @@ def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    from utils.wardrobe import (wardrobe_presets, build_wardrobe_spec, apply_wardrobe,
+                                validate_wardrobe_style, record_wardrobe_outputs)
+    if args.list_wardrobes:
+        for name, entry in wardrobe_presets().items():
+            _emit(f"{name}: {entry['label']}")
+        return EXIT_OK
+    wardrobe = build_wardrobe_spec("" if args.wardrobe == "off" else args.wardrobe, args.wardrobe_policy)
+    if wardrobe and (args.repaint or args.repaint_show_prompt):
+        _emit("[错误] 独立重绘不重新改衣装，请关闭 --wardrobe；已有产物的衣装由重绘固件保留")
+        return EXIT_USAGE
+
     if not os.path.isfile(args.config):
         _emit(f"[错误] 找不到配置文件: {args.config}")
         return EXIT_USAGE
@@ -483,7 +500,12 @@ def main(argv=None) -> int:
         _emit("[错误] 需要 --prompt / --prompt-file / --style 提供提示词")
         return EXIT_USAGE
     # --style：把画风短版说明与主体拼成单条，并自动挂上画风参考图
-    prompts = [(_apply_style(args, text), size_override) for text, size_override in prompts]
+    try:
+        validate_wardrobe_style(load_styles(args.styles_file), args.style, wardrobe)
+        prompts = [(apply_wardrobe(_apply_style(args, text), wardrobe), size_override) for text, size_override in prompts]
+    except ValueError as exc:
+        _emit(f"[错误] {exc}")
+        return EXIT_USAGE
 
     images = list(args.image or [])
     missing = [p for p in images if not os.path.isfile(p)]
@@ -525,6 +547,7 @@ def main(argv=None) -> int:
         _emit(f"{label} 生成中: 站点={site} 尺寸={size} 参考图={len(images)} prompt={prompt[:60]}")
         try:
             saved = _run_one(args, site, api_type, prompt, size)
+            record_wardrobe_outputs(saved, wardrobe, prompt)
         except Exception as exc:  # noqa: BLE001 - CLI 需要把异常转成退出码
             failures += 1
             _emit(f"{label} 失败: {type(exc).__name__}: {exc}")

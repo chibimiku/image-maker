@@ -1,0 +1,921 @@
+{
+  "run_dir": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1",
+  "written_at": "2026-10-05T12:10:25.747898",
+  "condition_source": "prompts/wardrobe/test-plan.json",
+  "spec_condition_count": 6,
+  "covered_cases": [
+    "C01",
+    "C02",
+    "C03",
+    "C04",
+    "C06"
+  ],
+  "uncovered_cases": [
+    "C05"
+  ],
+  "expected_pair_slots": 10,
+  "case_conditions": {
+    "C01": {
+      "role": "No clothing supplied",
+      "policy": "reinterpret",
+      "gold_action": "redesign",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "off",
+        "lolita"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": null,
+      "source_clothing": null,
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ]
+    },
+    "C02": {
+      "role": "Red school uniform changed toward Lolita",
+      "policy": "reinterpret",
+      "gold_action": "redesign",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "off",
+        "lolita"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": null,
+      "source_clothing": null,
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "red clothing",
+        "gold star brooch",
+        "standing",
+        "park",
+        "full body and feet"
+      ]
+    },
+    "C03": {
+      "role": "Explicit keep-original overrides wardrobe",
+      "policy": "reinterpret",
+      "gold_action": "preserve",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "off",
+        "lolita"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": null,
+      "source_clothing": null,
+      "protected": [
+        "original red school uniform and cut",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ]
+    },
+    "C04": {
+      "role": "Fill-missing preserves existing clothing",
+      "policy": "fill_missing",
+      "gold_action": "preserve",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "off",
+        "lolita"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": null,
+      "source_clothing": null,
+      "protected": [
+        "red school uniform",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ]
+    },
+    "C05": {
+      "role": "Replacement preserves dark colours and signature accessory",
+      "policy": "replace",
+      "gold_action": "redesign",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "off",
+        "lolita"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": null,
+      "source_clothing": null,
+      "protected": [
+        "one young adult woman",
+        "black long hair",
+        "blue eyes",
+        "black clothing",
+        "silver crescent brooch",
+        "standing",
+        "stone courtyard",
+        "full body and feet"
+      ]
+    },
+    "C06": {
+      "role": "Bust crop and visible-only evaluation",
+      "policy": "fill_missing",
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "repeats": 1,
+      "variants": [
+        "off",
+        "lolita"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": null,
+      "source_clothing": null,
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "bust crop",
+        "plain grey background"
+      ]
+    }
+  },
+  "generation": {
+    "total": 32,
+    "success": 32,
+    "per_case": {
+      "C01": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 4,
+        "success": 4,
+        "by_variant": {
+          "off": 0,
+          "lolita": 0
+        }
+      },
+      "C02": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 4,
+        "success": 4,
+        "by_variant": {
+          "off": 0,
+          "lolita": 0
+        }
+      },
+      "C03": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 8,
+        "success": 8,
+        "by_variant": {
+          "off": 0,
+          "lolita": 0
+        }
+      },
+      "C04": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 8,
+        "success": 8,
+        "by_variant": {
+          "off": 0,
+          "lolita": 0
+        }
+      },
+      "C05": {
+        "covered_this_run": false,
+        "expected_generation_slots": 4,
+        "attempted_slots": 0,
+        "success": 0,
+        "by_variant": {
+          "off": 0,
+          "lolita": 0
+        }
+      },
+      "C06": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 8,
+        "success": 8,
+        "by_variant": {
+          "off": 0,
+          "lolita": 0
+        }
+      }
+    }
+  },
+  "pairs": {
+    "total": 16,
+    "ready": 16,
+    "balance": null
+  },
+  "scoring": {
+    "records": 16,
+    "scored": 16,
+    "not_scored": 0
+  },
+  "judgements": [
+    {
+      "pair_id": "C04-gpt-r2",
+      "case_id": "C04",
+      "channel": "gpt",
+      "repeat": 2,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "fail",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B preserves a recognizable coordinated red school-uniform structure and shows the complete figure including both feet. A has complete framing and retained visible character anchors but replaces the uniform with a decorative gothic dress.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C06-gemini-r1",
+      "case_id": "C06",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B satisfies the strict close-portrait framing while showing filled clothing; A has clear clothing but fails because the crop extends through the lower torso and skirt.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C03-gemini-r2",
+      "case_id": "C03",
+      "channel": "gemini",
+      "repeat": 2,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "A",
+      "reason": "Both images preserve the recognizable uniform and show the full body with both feet. A is preferred because its red tie is more consistent with the otherwise red uniform structure; this is a minor difference, not a framing or protected-anchor failure.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_routed",
+        "B": "v2_frozen"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C01-gemini-r1",
+      "case_id": "C01",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "full",
+      "outcome": "unproven",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "uncertain",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [
+        "protected_anchors"
+      ],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "uncertain",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images show complete coordinated clothing and satisfy the full-body requirement with both feet visible. Protected anchors cannot be verified without a source image.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C06-gemini-r2",
+      "case_id": "C06",
+      "channel": "gemini",
+      "repeat": 2,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "Both images visibly satisfy the fill action and preserve the facial and hair anchors, but both fail the strict upper-chest-upward crop. B is preferred because its lower edge stops higher, around the lower torso, while A extends to the waist.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C01-gpt-r1",
+      "case_id": "C01",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images show a complete filled outfit and satisfy the full-body framing requirement with both feet visible. Neither presents a clear protected-anchor failure.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_routed",
+        "B": "v2_frozen"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C04-gemini-r2",
+      "case_id": "C04",
+      "channel": "gemini",
+      "repeat": 2,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "fail",
+        "protected_anchors": "fail",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "clothing_action",
+        "protected_anchors"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B preserves the recognizable uniform structure and its key clothing anchors while also showing both feet. A has full-body framing but changes the uniform into a mostly solid-red outfit, losing the white blouse and plaid-skirt anchors.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_routed",
+        "B": "v2_frozen"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C03-gpt-r1",
+      "case_id": "C03",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "fail",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "A",
+      "reason": "Both images satisfy the full-body framing requirement and show both feet. A preserves the visible school-uniform structure, while B replaces it with a substantially different decorative lolita dress; the attractive styling does not compensate for that clothing-action failure.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_routed",
+        "B": "v2_frozen"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C06-gpt-r2",
+      "case_id": "C06",
+      "channel": "gpt",
+      "repeat": 2,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B satisfies the strict close-portrait crop while showing filled, coordinated clothing and preserved visible anchors. A has suitable clothing but extends well below the upper chest into the torso.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C02-gpt-r1",
+      "case_id": "C02",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images satisfy the redesign requirement and show the complete outfit including both feet. Their visible character anchors are consistent, and neither has a clear framing or clothing advantage.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C03-gpt-r2",
+      "case_id": "C03",
+      "channel": "gpt",
+      "repeat": 2,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "unproven",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "uncertain",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [
+        "protected_anchors"
+      ],
+      "control_fields": {
+        "clothing_action": "fail",
+        "protected_anchors": "uncertain",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B satisfies the preserved uniform requirement and shows the complete figure with both feet. A has complete framing but replaces the uniform with a decorative dress.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C03-gemini-r1",
+      "case_id": "C03",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "A",
+      "reason": "Both images pass the preservation and full-body framing requirements. A is preferred because its cream blouse with red bow more directly preserves the visible coordinated uniform styling, while B introduces more prominent gold star embellishments.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C04-gemini-r1",
+      "case_id": "C04",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "fail",
+        "protected_anchors": "fail",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "A",
+      "reason": "A preserves the visible uniform structure, including the black pleated skirt and coordinated school-uniform anchors, while B changes the skirt to red. Both images satisfy the full-body framing requirement.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_routed",
+        "B": "v2_frozen"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C04-gpt-r1",
+      "case_id": "C04",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "fail",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B preserves the recognizable school uniform while also showing the complete figure and both feet. A satisfies the framing but replaces the uniform with an ornate decorative dress.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C02-gemini-r1",
+      "case_id": "C02",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "Both images provide coherent coordinated redesigns and preserve the visible character anchors, but B satisfies the full-body requirement by showing both feet; A leaves one foot obscured or unobservable.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "C06-gpt-r1",
+      "case_id": "C06",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "protected_anchors": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B satisfies both the clothing fill and strict close-portrait crop. A has coherent clothing but fails the framing requirement by showing the waist and lower torso.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v2_frozen",
+        "B": "v3_routed"
+      },
+      "full_outfit_verifiable": null
+    }
+  ],
+  "counts": {
+    "pass": 12,
+    "failed": 2,
+    "unproven": 2,
+    "missing": 0
+  },
+  "candidate_verdict": "failed",
+  "review": {
+    "candidate_ready": null,
+    "blocking_count": 0,
+    "control_defects_reported": null
+  },
+  "candidate_gate": {},
+  "control_defects": {},
+  "budget": {
+    "budgets": {
+      "text_http_attempts": 2,
+      "generation_http_attempts": 32,
+      "vision_http_attempts": 20,
+      "model_list_http_attempts": 1
+    },
+    "attempts_by_kind": {
+      "model_list": {
+        "total": 1,
+        "success": 0,
+        "failed": 1
+      },
+      "text": {
+        "total": 2,
+        "success": 2,
+        "failed": 0
+      },
+      "vision": {
+        "total": 18,
+        "success": 18,
+        "failed": 0
+      },
+      "generation": {
+        "total": 32,
+        "success": 32,
+        "failed": 0
+      }
+    }
+  }
+}

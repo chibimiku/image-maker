@@ -1,0 +1,14 @@
+Clean anime illustration with controlled linework and soft cel shading.
+
+Exactly one 24-year-old adult woman with long straight dark-brown hair, green eyes and a medium build.
+
+Her existing outfit consists of a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to the left blazer lapel.
+
+Keep these garments, their categories, colours and described construction; do not redesign or replace them. Keep the brooch on the left blazer lapel. She stands in a quiet park. Full-body view including both feet.
+
+AUTHORIZED CLOTHING ACTION: PRESERVE.
+Keep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.
+
+T01 tailoring (bridge preservation). The outfit must read as the same clothing set that the character description already lists: a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks, with the gold star brooch on the left blazer lapel. Keep the blazer single-breasted and its piping gold; keep the skirt solid red and pleated; keep the socks black and knee-high. Do not introduce garments that the description does not list, and do not borrow any garment, colour or accessory from another image.
+
+FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count, and keep every named garment and accessory in the exact position given in the character description. Clothing changes do not authorize new objects or a different camera view.

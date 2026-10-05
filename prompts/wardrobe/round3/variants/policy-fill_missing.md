@@ -1,0 +1,1 @@
+When clothing is unspecified, supply a complete outfit in the target wardrobe. When clothing is explicitly specified in the text or the source image, keep that clothing; do not replace existing garments merely to match this preset.

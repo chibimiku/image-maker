@@ -1,0 +1,15 @@
+Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.
+
+One long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.
+
+AUTHORIZED CLOTHING ACTION: FILL.
+When clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.
+Preserve explicitly requested clothing colours and named accessories in their described role. Source outfit facts alone are not an instruction to preserve the old category or cut. Change clothing only, keeping the requested person count, age, hair and eye colours, body, pose and scene.
+
+Japanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.
+
+Organize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.
+
+Do not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.
+
+FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view.

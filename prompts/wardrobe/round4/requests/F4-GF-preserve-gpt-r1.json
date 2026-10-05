@@ -1,0 +1,42 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "F4-GF-preserve-gpt-r1",
+  "kind": "preservation",
+  "case_id": "GF",
+  "family": null,
+  "channel": "gpt",
+  "repeat": 1,
+  "wave": 1,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "wardrobe_block_provenance": null,
+  "prompt": "AUTHORIZED CLOTHING ACTION: PRESERVE.\nKeep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.\n\nSOURCE OUTFIT (already complete; see the preservation request below):\nHer existing outfit is a navy utility jacket with patch pockets, an ochre T-shirt, straight grey trousers and dark lace-up shoes. A copper leaf pin is attached to her left jacket chest pocket.\n\nUSER REQUEST (takes precedence):\nOnly fill missing clothing information. Keep the copper leaf pin on the left jacket chest pocket.\n\nPROTECTED COLOURS:\n- navy stays the main garment colour\n- the ochre T-shirt stays ochre\n\nPROTECTED ACCESSORIES AND POSITIONS:\n- copper leaf pin stays on the left jacket chest pocket\n\nIDENTITY AND SCENE (unchanged):\nExactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.\nShe stands naturally with both arms relaxed and no held objects, against a plain grey background. Full-body view with both feet entirely visible. No additional people.\n\nRENDERING LANGUAGE (unchanged):\nClean anime illustration with controlled linework and soft cel shading.\n\nROUTE: preservation. No wardrobe family garment design block and no complete transformation authorization are included in this request; keep the named garments instead of rebuilding them.",
+  "prompt_sha256": "60ee32789a0c5b1330647fdc7c0036f7c6c709e448ab1490bf869fb9a6e6f16f",
+  "prompt_chars": 1597,
+  "assembled_from": [
+    {
+      "role": "preserve_route",
+      "kind": "derived_hand_written_draft",
+      "source": "prompts/wardrobe/round3/variants/preserve.md",
+      "sha256": "fd848901b7fc7df760ab3a7a001c421a2019a0d709197c1ce804046cf1d7bd1d",
+      "note": "保留路径不发送任何目标衣装设计块：common 与 family 条款都不发"
+    }
+  ],
+  "generation_params_source": "prompts/wardrobe/round3/spec/plan.json#generation_params",
+  "generation_references": 0,
+  "content_exclusions": [
+    "evidence IDs",
+    "image labels",
+    "validation expectations",
+    "scoring fields",
+    "target answer keys",
+    "reference-character traits",
+    "reference-study image instructions"
+  ],
+  "expected_scope": "unknown until the online phase; not described as a success",
+  "notes": [
+    "草案：未发送。人写草稿只能称 draft。",
+    "不含参考素材图；参考图只用于研究。"
+  ]
+}

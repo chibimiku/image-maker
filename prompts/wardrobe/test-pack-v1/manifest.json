@@ -1,0 +1,171 @@
+{
+  "status": "prepared_not_executed",
+  "schema_version": "image-maker.wardrobe-test.v1",
+  "plan_sha256": "85ef2e037bd78c5597c12c6e39bfb26895102a21360137180cecdabe53a2cdf4",
+  "source_templates": {
+    "application.md": "8ef7f7f9fde628811abe1a497baf4e039288d77cc93ccffff5d24d60f3d819ca",
+    "audit.md": "4cfff0b61aa714705fd64b50ec9761aeb7e05af21112bf54d97c5f5e3529ae29",
+    "continuity.md": "dce4ffaa85671eaef25ef6db2040de396db0ed5871f5bffdc42f4778f1f78554",
+    "deepseek-review.md": "73573c5cc8cee13600c5fe12b2feb5512f7619dbcd1be9314984cec83e0fc06c",
+    "identity-audit.md": "81904f2239fc43099bc31d18216ddd989bf37afe3c731ad98428f988bee5f717",
+    "lolita.md": "069d945e23d933859b947725117e0467e2674975a75a90e79a3c4db70279d3b8",
+    "policy-fill_missing.md": "5c93ac6c8e0a7064ea82f163e36797fb33acb677cf060ff4d55ca876d605185f",
+    "policy-reinterpret.md": "bb1c29f1ac26e32d26c56615289b9fb828ef0a62c5b069cb3810d727145a7f1e",
+    "policy-replace.md": "01f81fe90fde38b27f04ee1b949cdc0c1d4a9db9e20de0dadbfe2c34f4ecb8e5",
+    "test-score.md": "bce5431db5e88dce59b1d274b70e9eff806cead7d17d70201c3fc20c71a7055b"
+  },
+  "rows": [
+    {
+      "case_id": "C01",
+      "arm": "off",
+      "policy": "reinterpret",
+      "prompt_file": "C01-off.txt",
+      "characters": 285,
+      "prompt_sha256": "6a941823dcbe30662564566229d0f5f781e6966883929d244c364ca49ce7046b",
+      "wardrobe": {}
+    },
+    {
+      "case_id": "C01",
+      "arm": "lolita",
+      "policy": "reinterpret",
+      "prompt_file": "C01-lolita.txt",
+      "characters": 2134,
+      "prompt_sha256": "bb06b6688e32536696be7f4b903f50b996a61dba29a6eab1bdf730af8e62562d",
+      "wardrobe": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original requirement, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested colours and signature elements where compatible. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only. Within the authorized scope, it overrides generic source-outfit preservation locks. Explicit keep-original, garment, colour and signature-accessory requirements take precedence. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nRepaint/repair must preserve the NEW outfit. Preserve identity, age, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e"
+      }
+    },
+    {
+      "case_id": "C02",
+      "arm": "off",
+      "policy": "reinterpret",
+      "prompt_file": "C02-off.txt",
+      "characters": 405,
+      "prompt_sha256": "f74983cf05164dc003d44f5de93deaa97f0b247b12ce292bf7e9997bd12e02a1",
+      "wardrobe": {}
+    },
+    {
+      "case_id": "C02",
+      "arm": "lolita",
+      "policy": "reinterpret",
+      "prompt_file": "C02-lolita.txt",
+      "characters": 2254,
+      "prompt_sha256": "64d8366f80467f92d3151804fb32839ed5f3d17328ed1f5908c13590b0c60229",
+      "wardrobe": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original requirement, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested colours and signature elements where compatible. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only. Within the authorized scope, it overrides generic source-outfit preservation locks. Explicit keep-original, garment, colour and signature-accessory requirements take precedence. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nRepaint/repair must preserve the NEW outfit. Preserve identity, age, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e"
+      }
+    },
+    {
+      "case_id": "C03",
+      "arm": "off",
+      "policy": "reinterpret",
+      "prompt_file": "C03-off.txt",
+      "characters": 423,
+      "prompt_sha256": "7185d7c8be098aa671b7c32065fefa590ad2a853211494b3ef6be3ac8c49cb16",
+      "wardrobe": {}
+    },
+    {
+      "case_id": "C03",
+      "arm": "lolita",
+      "policy": "reinterpret",
+      "prompt_file": "C03-lolita.txt",
+      "characters": 2272,
+      "prompt_sha256": "295b9346593ca9419778b888d8b42b54b7ef68e663b5bebe3dff935d962b4459",
+      "wardrobe": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original requirement, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested colours and signature elements where compatible. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only. Within the authorized scope, it overrides generic source-outfit preservation locks. Explicit keep-original, garment, colour and signature-accessory requirements take precedence. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nRepaint/repair must preserve the NEW outfit. Preserve identity, age, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e"
+      }
+    },
+    {
+      "case_id": "C04",
+      "arm": "off",
+      "policy": "fill_missing",
+      "prompt_file": "C04-off.txt",
+      "characters": 339,
+      "prompt_sha256": "c77ffef8778e3b0ebec3f90daa47ca3ad8a6990d234be429dbbaed27e704f6ee",
+      "wardrobe": {}
+    },
+    {
+      "case_id": "C04",
+      "arm": "lolita",
+      "policy": "fill_missing",
+      "prompt_file": "C04-lolita.txt",
+      "characters": 2047,
+      "prompt_sha256": "3e0be992658576cdb1ee7c7ef4660bc549f944a503465b0bc7f22352a0489ab6",
+      "wardrobe": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "fill_missing",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only. Within the authorized scope, it overrides generic source-outfit preservation locks. Explicit keep-original, garment, colour and signature-accessory requirements take precedence. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nRepaint/repair must preserve the NEW outfit. Preserve identity, age, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "0732723bb87a9d1f77a9130edb9f0d3c7d47aa851197da30123056d317ece349"
+      }
+    },
+    {
+      "case_id": "C05",
+      "arm": "off",
+      "policy": "replace",
+      "prompt_file": "C05-off.txt",
+      "characters": 451,
+      "prompt_sha256": "6085be16d0d23f429dae30c705697398ca73b9323321353f39eea2949900e2ae",
+      "wardrobe": {}
+    },
+    {
+      "case_id": "C05",
+      "arm": "lolita",
+      "policy": "replace",
+      "prompt_file": "C05-lolita.txt",
+      "characters": 2254,
+      "prompt_sha256": "d69e5e869cb403c156e8aa2ee408d2fb144b4be10acf056d0a64afffb36192f4",
+      "wardrobe": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "replace",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: replace\nWhen clothing is unspecified, supply a complete target outfit. Otherwise replace source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit user instruction to keep the original clothing or a particular garment takes precedence over this preset.\n\nThis preset controls clothing design only. Within the authorized scope, it overrides generic source-outfit preservation locks. Explicit keep-original, garment, colour and signature-accessory requirements take precedence. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nRepaint/repair must preserve the NEW outfit. Preserve identity, age, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "a500937220178d2c82c70667e5f4d4eed2f8d5f73d9125e4b2411827416ae3a3"
+      }
+    },
+    {
+      "case_id": "C06",
+      "arm": "off",
+      "policy": "fill_missing",
+      "prompt_file": "C06-off.txt",
+      "characters": 324,
+      "prompt_sha256": "10ade0b8c4e4f3629983414b67982b876ccc8220bbaec1e803adf6d0c9e6a74c",
+      "wardrobe": {}
+    },
+    {
+      "case_id": "C06",
+      "arm": "lolita",
+      "policy": "fill_missing",
+      "prompt_file": "C06-lolita.txt",
+      "characters": 2032,
+      "prompt_sha256": "e07594c8c6e65fd5ae0f1c25d234bd63d20954a7f9bd859548902574efc52a59",
+      "wardrobe": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "fill_missing",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only. Within the authorized scope, it overrides generic source-outfit preservation locks. Explicit keep-original, garment, colour and signature-accessory requirements take precedence. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nRepaint/repair must preserve the NEW outfit. Preserve identity, age, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "0732723bb87a9d1f77a9130edb9f0d3c7d47aa851197da30123056d317ece349"
+      }
+    }
+  ],
+  "intended_generation_requests": 24,
+  "live_requests_sent": 0
+}

@@ -1,0 +1,2 @@
+AUTHORIZED CLOTHING ACTION: FILL VISIBLE UNSPECIFIED CLOTHING.
+Supply only the clothing that falls inside the requested crop: a coherent collar, connected lace or ruffle edging, a modest bow and plausible garment seams where the crop shows them. Do not add skirt, waist, hem, shoe or sleeve instructions that the crop cannot show, and do not expand the view to demonstrate the outfit. The clothing style does not authorize a change to age, face, hair, eyes, glasses, body or scene.

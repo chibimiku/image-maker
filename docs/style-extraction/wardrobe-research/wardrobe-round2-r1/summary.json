@@ -1,0 +1,1626 @@
+{
+  "run_dir": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1",
+  "written_at": "2026-10-05T10:56:44.823725",
+  "models": {
+    "generation": {
+      "gpt": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "gemini": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "source": "prior_run_manifest:data/test-result/20261005/wardrobe-pilot-v1/run-manifest.json"
+    },
+    "vision": "gpt-5.6-luna"
+  },
+  "budget": {
+    "budgets": {
+      "text_http_attempts": 2,
+      "generation_http_attempts": 32,
+      "vision_http_attempts": 20,
+      "model_list_http_attempts": 1
+    },
+    "attempts": [
+      {
+        "attempt_index": 1,
+        "kind": "model_list",
+        "slot": "model-list",
+        "label": "list-models",
+        "slot_attempt": 1,
+        "status": "unknown",
+        "planned_at": "2026-10-05T10:08:50",
+        "budget_after_plan": 0,
+        "recovered_at": "2026-10-05T10:09:05",
+        "recover_reason": "previous process ended before a result was recorded"
+      },
+      {
+        "attempt_index": 2,
+        "kind": "text",
+        "slot": "resolver-batch",
+        "label": "resolver",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:09:28",
+        "budget_after_plan": 1,
+        "finished_at": "2026-10-05T10:09:37",
+        "http_status": 200,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 8423
+      },
+      {
+        "attempt_index": 3,
+        "kind": "text",
+        "slot": "review",
+        "label": "review",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:09:45",
+        "budget_after_plan": 0,
+        "finished_at": "2026-10-05T10:09:53",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 8039
+      },
+      {
+        "attempt_index": 4,
+        "kind": "vision",
+        "slot": "calibration:CAL-C03",
+        "label": "calibration",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:10:11",
+        "budget_after_plan": 19,
+        "finished_at": "2026-10-05T10:10:23",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 11100
+      },
+      {
+        "attempt_index": 5,
+        "kind": "vision",
+        "slot": "calibration:CAL-C06",
+        "label": "calibration",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:10:23",
+        "budget_after_plan": 18,
+        "finished_at": "2026-10-05T10:11:04",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 41011
+      },
+      {
+        "attempt_index": 6,
+        "kind": "generation",
+        "slot": "C04-gpt-r2-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:11:21",
+        "budget_after_plan": 31,
+        "finished_at": "2026-10-05T10:13:07",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 105851,
+        "prompt_sha256": "10bfc792f9c485f71e4d96926704e594be56d7d324f8b9a6c885cd995a709ff0"
+      },
+      {
+        "attempt_index": 7,
+        "kind": "generation",
+        "slot": "C04-gpt-r2-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:13:07",
+        "budget_after_plan": 30,
+        "finished_at": "2026-10-05T10:14:30",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 82598,
+        "prompt_sha256": "55fe306d18285f23b78b16c1508f597f5d2eca6774d0777afa975a7696677f3f"
+      },
+      {
+        "attempt_index": 8,
+        "kind": "generation",
+        "slot": "C06-gemini-r1-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:14:30",
+        "budget_after_plan": 29,
+        "finished_at": "2026-10-05T10:15:42",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 72273,
+        "prompt_sha256": "2b6430d39e6b7bf4861f628e8ad1d13ef5f0bb1c53e101b9186d02c7ddce5fd3"
+      },
+      {
+        "attempt_index": 9,
+        "kind": "generation",
+        "slot": "C06-gemini-r1-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:15:42",
+        "budget_after_plan": 28,
+        "finished_at": "2026-10-05T10:16:24",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 41858,
+        "prompt_sha256": "585c1ba5935b6c8df98d648dbab1281b3f6f780193d72729e316fdab9dc578f1"
+      },
+      {
+        "attempt_index": 10,
+        "kind": "generation",
+        "slot": "C03-gemini-r2-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:16:24",
+        "budget_after_plan": 27,
+        "finished_at": "2026-10-05T10:17:10",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 45775,
+        "prompt_sha256": "879dc111068ba2dddf68734e11d8c56feebebbba70949fd28395b50fa6e666b6"
+      },
+      {
+        "attempt_index": 11,
+        "kind": "generation",
+        "slot": "C03-gemini-r2-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:17:10",
+        "budget_after_plan": 26,
+        "finished_at": "2026-10-05T10:17:56",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 45795,
+        "prompt_sha256": "090ccb3d8a02a69f2ee6f2c28e2b25d8849a2583a22441d234ca5b0efe5e5cf1"
+      },
+      {
+        "attempt_index": 12,
+        "kind": "generation",
+        "slot": "C01-gemini-r1-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:17:56",
+        "budget_after_plan": 25,
+        "finished_at": "2026-10-05T10:19:14",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 77966,
+        "prompt_sha256": "7ceaf3a7827db37b7e33449a6fd3c92ddce03e934f140ff8720d6c25f6f0da09"
+      },
+      {
+        "attempt_index": 13,
+        "kind": "generation",
+        "slot": "C01-gemini-r1-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:19:14",
+        "budget_after_plan": 24,
+        "finished_at": "2026-10-05T10:20:12",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 57756,
+        "prompt_sha256": "0e38f30a5b1d2ec916e2d6c129e6bfd22e068984d31ebfb6d3ec554dfaefab8e"
+      },
+      {
+        "attempt_index": 14,
+        "kind": "generation",
+        "slot": "C06-gemini-r2-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:20:12",
+        "budget_after_plan": 23,
+        "finished_at": "2026-10-05T10:20:58",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 46676,
+        "prompt_sha256": "585c1ba5935b6c8df98d648dbab1281b3f6f780193d72729e316fdab9dc578f1"
+      },
+      {
+        "attempt_index": 15,
+        "kind": "generation",
+        "slot": "C06-gemini-r2-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:20:58",
+        "budget_after_plan": 22,
+        "finished_at": "2026-10-05T10:21:46",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 47595,
+        "prompt_sha256": "2b6430d39e6b7bf4861f628e8ad1d13ef5f0bb1c53e101b9186d02c7ddce5fd3"
+      },
+      {
+        "attempt_index": 16,
+        "kind": "generation",
+        "slot": "C01-gpt-r1-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:21:46",
+        "budget_after_plan": 21,
+        "finished_at": "2026-10-05T10:23:37",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 111396,
+        "prompt_sha256": "0e38f30a5b1d2ec916e2d6c129e6bfd22e068984d31ebfb6d3ec554dfaefab8e"
+      },
+      {
+        "attempt_index": 17,
+        "kind": "generation",
+        "slot": "C01-gpt-r1-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:23:37",
+        "budget_after_plan": 20,
+        "finished_at": "2026-10-05T10:25:24",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 106370,
+        "prompt_sha256": "7ceaf3a7827db37b7e33449a6fd3c92ddce03e934f140ff8720d6c25f6f0da09"
+      },
+      {
+        "attempt_index": 18,
+        "kind": "generation",
+        "slot": "C04-gemini-r2-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:25:24",
+        "budget_after_plan": 19,
+        "finished_at": "2026-10-05T10:26:12",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 48295,
+        "prompt_sha256": "10bfc792f9c485f71e4d96926704e594be56d7d324f8b9a6c885cd995a709ff0"
+      },
+      {
+        "attempt_index": 19,
+        "kind": "generation",
+        "slot": "C04-gemini-r2-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:26:12",
+        "budget_after_plan": 18,
+        "finished_at": "2026-10-05T10:27:10",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 57629,
+        "prompt_sha256": "55fe306d18285f23b78b16c1508f597f5d2eca6774d0777afa975a7696677f3f"
+      },
+      {
+        "attempt_index": 20,
+        "kind": "generation",
+        "slot": "C03-gpt-r1-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:27:10",
+        "budget_after_plan": 17,
+        "finished_at": "2026-10-05T10:28:57",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 107244,
+        "prompt_sha256": "090ccb3d8a02a69f2ee6f2c28e2b25d8849a2583a22441d234ca5b0efe5e5cf1"
+      },
+      {
+        "attempt_index": 21,
+        "kind": "generation",
+        "slot": "C03-gpt-r1-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:28:57",
+        "budget_after_plan": 16,
+        "finished_at": "2026-10-05T10:30:36",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 99573,
+        "prompt_sha256": "879dc111068ba2dddf68734e11d8c56feebebbba70949fd28395b50fa6e666b6"
+      },
+      {
+        "attempt_index": 22,
+        "kind": "generation",
+        "slot": "C06-gpt-r2-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:30:36",
+        "budget_after_plan": 15,
+        "finished_at": "2026-10-05T10:32:13",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 96122,
+        "prompt_sha256": "2b6430d39e6b7bf4861f628e8ad1d13ef5f0bb1c53e101b9186d02c7ddce5fd3"
+      },
+      {
+        "attempt_index": 23,
+        "kind": "generation",
+        "slot": "C06-gpt-r2-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:32:13",
+        "budget_after_plan": 14,
+        "finished_at": "2026-10-05T10:33:41",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 88447,
+        "prompt_sha256": "585c1ba5935b6c8df98d648dbab1281b3f6f780193d72729e316fdab9dc578f1"
+      },
+      {
+        "attempt_index": 24,
+        "kind": "generation",
+        "slot": "C02-gpt-r1-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:33:41",
+        "budget_after_plan": 13,
+        "finished_at": "2026-10-05T10:35:15",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 93352,
+        "prompt_sha256": "9deda5fa03f53b17346bb9edeb6f241e09646217616d4408dc0effde44464165"
+      },
+      {
+        "attempt_index": 25,
+        "kind": "generation",
+        "slot": "C02-gpt-r1-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:35:15",
+        "budget_after_plan": 12,
+        "finished_at": "2026-10-05T10:37:04",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 109314,
+        "prompt_sha256": "8d7f991e0269b9b110ae012ba8122a92c094e5a645650270ea5bc74abcacafe3"
+      },
+      {
+        "attempt_index": 26,
+        "kind": "generation",
+        "slot": "C03-gpt-r2-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:37:04",
+        "budget_after_plan": 11,
+        "finished_at": "2026-10-05T10:38:59",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 114784,
+        "prompt_sha256": "090ccb3d8a02a69f2ee6f2c28e2b25d8849a2583a22441d234ca5b0efe5e5cf1"
+      },
+      {
+        "attempt_index": 27,
+        "kind": "generation",
+        "slot": "C03-gpt-r2-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:38:59",
+        "budget_after_plan": 10,
+        "finished_at": "2026-10-05T10:40:43",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 104042,
+        "prompt_sha256": "879dc111068ba2dddf68734e11d8c56feebebbba70949fd28395b50fa6e666b6"
+      },
+      {
+        "attempt_index": 28,
+        "kind": "generation",
+        "slot": "C03-gemini-r1-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:40:43",
+        "budget_after_plan": 9,
+        "finished_at": "2026-10-05T10:41:04",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 20804,
+        "prompt_sha256": "090ccb3d8a02a69f2ee6f2c28e2b25d8849a2583a22441d234ca5b0efe5e5cf1"
+      },
+      {
+        "attempt_index": 29,
+        "kind": "generation",
+        "slot": "C03-gemini-r1-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:41:04",
+        "budget_after_plan": 8,
+        "finished_at": "2026-10-05T10:41:36",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 31694,
+        "prompt_sha256": "879dc111068ba2dddf68734e11d8c56feebebbba70949fd28395b50fa6e666b6"
+      },
+      {
+        "attempt_index": 30,
+        "kind": "generation",
+        "slot": "C04-gemini-r1-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:41:36",
+        "budget_after_plan": 7,
+        "finished_at": "2026-10-05T10:41:58",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 22840,
+        "prompt_sha256": "55fe306d18285f23b78b16c1508f597f5d2eca6774d0777afa975a7696677f3f"
+      },
+      {
+        "attempt_index": 31,
+        "kind": "generation",
+        "slot": "C04-gemini-r1-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:41:58",
+        "budget_after_plan": 6,
+        "finished_at": "2026-10-05T10:43:03",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 64966,
+        "prompt_sha256": "10bfc792f9c485f71e4d96926704e594be56d7d324f8b9a6c885cd995a709ff0"
+      },
+      {
+        "attempt_index": 32,
+        "kind": "generation",
+        "slot": "C04-gpt-r1-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:43:03",
+        "budget_after_plan": 5,
+        "finished_at": "2026-10-05T10:44:30",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 86281,
+        "prompt_sha256": "55fe306d18285f23b78b16c1508f597f5d2eca6774d0777afa975a7696677f3f"
+      },
+      {
+        "attempt_index": 33,
+        "kind": "generation",
+        "slot": "C04-gpt-r1-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:44:30",
+        "budget_after_plan": 4,
+        "finished_at": "2026-10-05T10:46:22",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 111709,
+        "prompt_sha256": "10bfc792f9c485f71e4d96926704e594be56d7d324f8b9a6c885cd995a709ff0"
+      },
+      {
+        "attempt_index": 34,
+        "kind": "generation",
+        "slot": "C02-gemini-r1-v3_routed",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:46:22",
+        "budget_after_plan": 3,
+        "finished_at": "2026-10-05T10:46:47",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 24994,
+        "prompt_sha256": "8d7f991e0269b9b110ae012ba8122a92c094e5a645650270ea5bc74abcacafe3"
+      },
+      {
+        "attempt_index": 35,
+        "kind": "generation",
+        "slot": "C02-gemini-r1-v2_frozen",
+        "label": "generate:gemini",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:46:47",
+        "budget_after_plan": 2,
+        "finished_at": "2026-10-05T10:47:38",
+        "http_status": null,
+        "model": "gemini-3-pro-image-preview",
+        "error": "",
+        "elapsed_ms": 50723,
+        "prompt_sha256": "9deda5fa03f53b17346bb9edeb6f241e09646217616d4408dc0effde44464165"
+      },
+      {
+        "attempt_index": 36,
+        "kind": "generation",
+        "slot": "C06-gpt-r1-v3_routed",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:47:38",
+        "budget_after_plan": 1,
+        "finished_at": "2026-10-05T10:49:15",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 97236,
+        "prompt_sha256": "585c1ba5935b6c8df98d648dbab1281b3f6f780193d72729e316fdab9dc578f1"
+      },
+      {
+        "attempt_index": 37,
+        "kind": "generation",
+        "slot": "C06-gpt-r1-v2_frozen",
+        "label": "generate:gpt",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:49:15",
+        "budget_after_plan": 0,
+        "finished_at": "2026-10-05T10:50:54",
+        "http_status": null,
+        "model": "gpt-image-2",
+        "error": "",
+        "elapsed_ms": 98924,
+        "prompt_sha256": "2b6430d39e6b7bf4861f628e8ad1d13ef5f0bb1c53e101b9186d02c7ddce5fd3"
+      },
+      {
+        "attempt_index": 38,
+        "kind": "vision",
+        "slot": "score:C04-gpt-r2",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:51:02",
+        "budget_after_plan": 17,
+        "finished_at": "2026-10-05T10:51:25",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 22813
+      },
+      {
+        "attempt_index": 39,
+        "kind": "vision",
+        "slot": "score:C06-gemini-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:51:25",
+        "budget_after_plan": 16,
+        "finished_at": "2026-10-05T10:51:39",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 13858
+      },
+      {
+        "attempt_index": 40,
+        "kind": "vision",
+        "slot": "score:C03-gemini-r2",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:51:39",
+        "budget_after_plan": 15,
+        "finished_at": "2026-10-05T10:51:55",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 15401
+      },
+      {
+        "attempt_index": 41,
+        "kind": "vision",
+        "slot": "score:C01-gemini-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:51:55",
+        "budget_after_plan": 14,
+        "finished_at": "2026-10-05T10:52:09",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 14508
+      },
+      {
+        "attempt_index": 42,
+        "kind": "vision",
+        "slot": "score:C06-gemini-r2",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:52:09",
+        "budget_after_plan": 13,
+        "finished_at": "2026-10-05T10:52:25",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 15251
+      },
+      {
+        "attempt_index": 43,
+        "kind": "vision",
+        "slot": "score:C01-gpt-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:52:25",
+        "budget_after_plan": 12,
+        "finished_at": "2026-10-05T10:52:39",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 14507
+      },
+      {
+        "attempt_index": 44,
+        "kind": "vision",
+        "slot": "score:C04-gemini-r2",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:52:39",
+        "budget_after_plan": 11,
+        "finished_at": "2026-10-05T10:52:52",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 12404
+      },
+      {
+        "attempt_index": 45,
+        "kind": "vision",
+        "slot": "score:C03-gpt-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:52:52",
+        "budget_after_plan": 10,
+        "finished_at": "2026-10-05T10:53:05",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 12677
+      },
+      {
+        "attempt_index": 46,
+        "kind": "vision",
+        "slot": "score:C06-gpt-r2",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:53:05",
+        "budget_after_plan": 9,
+        "finished_at": "2026-10-05T10:53:17",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 12799
+      },
+      {
+        "attempt_index": 47,
+        "kind": "vision",
+        "slot": "score:C02-gpt-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:53:18",
+        "budget_after_plan": 8,
+        "finished_at": "2026-10-05T10:53:34",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 16896
+      },
+      {
+        "attempt_index": 48,
+        "kind": "vision",
+        "slot": "score:C03-gpt-r2",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:53:35",
+        "budget_after_plan": 7,
+        "finished_at": "2026-10-05T10:53:52",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 17625
+      },
+      {
+        "attempt_index": 49,
+        "kind": "vision",
+        "slot": "score:C03-gemini-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:53:52",
+        "budget_after_plan": 6,
+        "finished_at": "2026-10-05T10:54:08",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 15895
+      },
+      {
+        "attempt_index": 50,
+        "kind": "vision",
+        "slot": "score:C04-gemini-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:54:08",
+        "budget_after_plan": 5,
+        "finished_at": "2026-10-05T10:54:23",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 14266
+      },
+      {
+        "attempt_index": 51,
+        "kind": "vision",
+        "slot": "score:C04-gpt-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:54:23",
+        "budget_after_plan": 4,
+        "finished_at": "2026-10-05T10:54:37",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 14806
+      },
+      {
+        "attempt_index": 52,
+        "kind": "vision",
+        "slot": "score:C02-gemini-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:54:38",
+        "budget_after_plan": 3,
+        "finished_at": "2026-10-05T10:54:53",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 15653
+      },
+      {
+        "attempt_index": 53,
+        "kind": "vision",
+        "slot": "score:C06-gpt-r1",
+        "label": "score",
+        "slot_attempt": 1,
+        "status": "success",
+        "planned_at": "2026-10-05T10:54:53",
+        "budget_after_plan": 2,
+        "finished_at": "2026-10-05T10:55:05",
+        "http_status": null,
+        "model": "gpt-5.6-luna",
+        "error": "",
+        "elapsed_ms": 11921
+      }
+    ],
+    "recovered": [
+      {
+        "attempt_index": 1,
+        "kind": "model_list",
+        "slot": "model-list",
+        "reason": "previous process ended before a result was recorded"
+      }
+    ]
+  },
+  "prepare_ok": false,
+  "resolver": {
+    "valid": true,
+    "matched": 12,
+    "total": 12
+  },
+  "review": {
+    "ready": false,
+    "parsed_ready": false,
+    "blocking": [
+      {
+        "file": "C03-v2_frozen.txt",
+        "evidence": "\"WARDROBE DESIGN AUTHORITY — Lolita 衣装\"; \"Design an OP dress or JSK\"",
+        "reason": "The explicit-preservation request contains a target-style design block, violating preservation controls."
+      },
+      {
+        "file": "C04-v2_frozen.txt",
+        "evidence": "\"Application policy: fill_missing\"; \"Design an OP dress or JSK\"",
+        "reason": "The fill_missing preservation request still contains target wardrobe design instructions, so preservation and target design authority are not cleanly separated."
+      },
+      {
+        "file": "C06-v2_frozen.txt",
+        "evidence": "\"Coordinate visible optional headwear, socks/tights and shoes\"; \"layered skirt volume\"",
+        "reason": "The close-portrait request includes clothing rules for regions outside the visible crop."
+      },
+      {
+        "file": "C06-v2_frozen.txt",
+        "evidence": "\"缺少明确的裁剪下缘约束\"",
+        "reason": "The close-portrait request lacks an explicit crop-boundary rule; the framing clause is also not last."
+      },
+      {
+        "file": "prompts/wardrobe/round2/plan.json",
+        "evidence": "\"variants\": [\"v2_frozen\", \"v3_routed\"]",
+        "reason": "Two competing candidates are prepared and unresolved; generation must stop until one compliant candidate is selected."
+      },
+      {
+        "file": "data/test-result/20261005/wardrobe-pilot-v1/phase0-candidate-v2/policy-reinterpret.md",
+        "evidence": "\"保留分支的追加块里出现了目标衣装设计指令\"",
+        "reason": "The frozen v2 control is identical to the prior record but the prior control itself fails the preservation gate; matching the prior hash does not make it compliant."
+      }
+    ]
+  },
+  "calibration": {
+    "ok": true,
+    "cases": {
+      "CAL-C03": {
+        "ok": true,
+        "issues": [],
+        "parsed": {
+          "observations": [
+            {
+              "label": "A",
+              "clothing": "Red school-uniform blazer and pleated skirt with gold piping, white blouse, red bow with star ornament, black knee-high socks, and brown loafers",
+              "lower_frame_edge": "Below the shoes; full body and footwear are visible",
+              "confidence": "high"
+            },
+            {
+              "label": "B",
+              "clothing": "Burgundy Victorian-style dress with cream blouse sleeves, extensive cream lace trim, gold embroidery, bows, white patterned tights, and burgundy Mary Jane shoes",
+              "lower_frame_edge": "Below the shoes; full body and footwear are visible",
+              "confidence": "high"
+            }
+          ]
+        },
+        "observations": {
+          "A": {
+            "label": "A",
+            "clothing": "Red school-uniform blazer and pleated skirt with gold piping, white blouse, red bow with star ornament, black knee-high socks, and brown loafers",
+            "lower_frame_edge": "Below the shoes; full body and footwear are visible",
+            "confidence": "high"
+          },
+          "B": {
+            "label": "B",
+            "clothing": "Burgundy Victorian-style dress with cream blouse sleeves, extensive cream lace trim, gold embroidery, bows, white patterned tights, and burgundy Mary Jane shoes",
+            "lower_frame_edge": "Below the shoes; full body and footwear are visible",
+            "confidence": "high"
+          }
+        }
+      },
+      "CAL-C06": {
+        "ok": true,
+        "issues": [],
+        "parsed": {
+          "observations": [
+            {
+              "label": "A",
+              "clothing": "No clearly visible upper garment; bare shoulders and upper torso, with a thin dark strap visible near the left shoulder",
+              "lower_frame_edge": "Image crops across the upper torso/chest area; no lower garment is visible",
+              "confidence": "high"
+            },
+            {
+              "label": "B",
+              "clothing": "Dark brown/black gothic-style dress with cream ruffled bib and lace trim, large bows, gold detailing, and a green brooch",
+              "lower_frame_edge": "Image crops across the lower part of the dress/skirt",
+              "confidence": "high"
+            }
+          ]
+        },
+        "observations": {
+          "A": {
+            "label": "A",
+            "clothing": "No clearly visible upper garment; bare shoulders and upper torso, with a thin dark strap visible near the left shoulder",
+            "lower_frame_edge": "Image crops across the upper torso/chest area; no lower garment is visible",
+            "confidence": "high"
+          },
+          "B": {
+            "label": "B",
+            "clothing": "Dark brown/black gothic-style dress with cream ruffled bib and lace trim, large bows, gold detailing, and a green brooch",
+            "lower_frame_edge": "Image crops across the lower part of the dress/skirt",
+            "confidence": "high"
+          }
+        }
+      }
+    }
+  },
+  "generation": {
+    "per_channel": {
+      "gpt": {
+        "attempted": 16,
+        "success": 16,
+        "failed": 0
+      },
+      "gemini": {
+        "attempted": 16,
+        "success": 16,
+        "failed": 0
+      }
+    },
+    "per_case_variant": {
+      "C04-v2_frozen": {
+        "attempted": 4,
+        "success": 4,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gpt-r2-v2_frozen-_output_101307_0_d6de8d.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gemini-r2-v2_frozen-_102612-4a650e.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gemini-r1-v2_frozen-_104303-ffbaa2.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gpt-r1-v2_frozen-_output_104621_0_b70dad.png"
+        ]
+      },
+      "C04-v3_routed": {
+        "attempted": 4,
+        "success": 4,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gpt-r2-v3_routed-_output_101430_0_7da878.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gemini-r2-v3_routed-_102710-04a4c1.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gemini-r1-v3_routed-_104158-b021dc.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C04-gpt-r1-v3_routed-_output_104430_0_325b54.png"
+        ]
+      },
+      "C06-v2_frozen": {
+        "attempted": 4,
+        "success": 4,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gemini-r1-v2_frozen-_101542-d09963.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gemini-r2-v2_frozen-_102146-43a799.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gpt-r2-v2_frozen-_output_103213_0_bc6b28.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gpt-r1-v2_frozen-_output_105054_0_ee9aa1.png"
+        ]
+      },
+      "C06-v3_routed": {
+        "attempted": 4,
+        "success": 4,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gemini-r1-v3_routed-_101624-0b3edd.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gemini-r2-v3_routed-_102058-408f42.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gpt-r2-v3_routed-_output_103341_0_2d71fa.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C06-gpt-r1-v3_routed-_output_104915_0_34244d.png"
+        ]
+      },
+      "C03-v3_routed": {
+        "attempted": 4,
+        "success": 4,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gemini-r2-v3_routed-_101710-02eb0c.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gpt-r1-v3_routed-_output_103036_0_a03888.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gpt-r2-v3_routed-_output_104043_0_13814a.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gemini-r1-v3_routed-_104136-ef966c.jpg"
+        ]
+      },
+      "C03-v2_frozen": {
+        "attempted": 4,
+        "success": 4,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gemini-r2-v2_frozen-_101756-5eb05a.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gpt-r1-v2_frozen-_output_102857_0_0e89db.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gpt-r2-v2_frozen-_output_103859_0_cbe8ee.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C03-gemini-r1-v2_frozen-_104104-56d07b.jpg"
+        ]
+      },
+      "C01-v3_routed": {
+        "attempted": 2,
+        "success": 2,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C01-gemini-r1-v3_routed-_101914-808a82.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C01-gpt-r1-v3_routed-_output_102524_0_25e8f5.png"
+        ]
+      },
+      "C01-v2_frozen": {
+        "attempted": 2,
+        "success": 2,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C01-gemini-r1-v2_frozen-_102011-8be477.jpg",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C01-gpt-r1-v2_frozen-_output_102337_0_146686.png"
+        ]
+      },
+      "C02-v2_frozen": {
+        "attempted": 2,
+        "success": 2,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C02-gpt-r1-v2_frozen-_output_103515_0_7efe53.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C02-gemini-r1-v2_frozen-_104738-fc9ebb.png"
+        ]
+      },
+      "C02-v3_routed": {
+        "attempted": 2,
+        "success": 2,
+        "files": [
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C02-gpt-r1-v3_routed-_output_103704_0_d831c8.png",
+          "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round2-r1\\C02-gemini-r1-v3_routed-_104647-9283a7.jpg"
+        ]
+      }
+    },
+    "total": 32,
+    "success": 32
+  },
+  "pairs": {
+    "total": 16,
+    "ready": 16,
+    "a_v2": 11
+  },
+  "scoring": {
+    "records": 16,
+    "scored": 16,
+    "unscored": 0
+  },
+  "scoreboard": {
+    "v3_all_hard_pass": false,
+    "v3_hard": [
+      {
+        "pair_id": "C04-gpt-r2",
+        "case_id": "C04",
+        "channel": "gpt",
+        "repeat": 2,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "fail",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Burgundy decorative gothic-style dress with a large bow, white ruffled blouse sleeves, layered lace-trimmed skirt, white patterned tights, and burgundy Mary Jane shoes.",
+          "observed_lower_frame_edge": "The image ends below both shoes, with the entire figure visible from head to feet.",
+          "evidence": [
+            "The full body and both feet are clearly visible.",
+            "The visible clothing is an ornate dress rather than the preserved school-uniform structure.",
+            "The same long dark hair and green-eyed facial appearance are visibly retained."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C06-gemini-r1",
+        "case_id": "C06",
+        "channel": "gemini",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "fail",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": false,
+          "observed_clothing": "Dark green dress with cream puff sleeves, lace trim, large dark bow, buttons, and a full skirt.",
+          "observed_lower_frame_edge": "The image extends down to the lower torso and broad skirt, well below the chest.",
+          "evidence": [
+            "Clothing is clearly present and fully rendered.",
+            "The crop shows the waist/lower torso and much of the skirt, exceeding an upper-chest-upward portrait.",
+            "The face and hairstyle are clearly visible without an obvious anchor failure."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C03-gemini-r2",
+        "case_id": "C03",
+        "channel": "gemini",
+        "repeat": 2,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Red blazer with gold star badge, white shirt collar, dark gray tie, pleated red skirt, black knee-high socks, and brown loafers.",
+          "observed_lower_frame_edge": "The image extends below both shoes, with both feet fully visible and ground beneath them.",
+          "evidence": [
+            "The coordinated red blazer-and-pleated-skirt uniform is preserved.",
+            "White collar, dark tie, gold star badge, knee-high socks, and brown loafers are all visible.",
+            "The entire figure, including both feet, is inside the frame."
+          ]
+        },
+        "preferred": "A",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v3_routed",
+          "B": "v2_frozen"
+        }
+      },
+      {
+        "pair_id": "C06-gemini-r2",
+        "case_id": "C06",
+        "channel": "gemini",
+        "repeat": 2,
+        "outcome": "failed",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "fail",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "fail",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": false,
+          "observed_clothing": "Cream blouse with ruffled high collar and sleeves, green-and-cream checked bodice with lace trim, multiple cream bows, pendant, and a dark green waist cincher.",
+          "observed_lower_frame_edge": "The image continues down to the waist, showing the broad waist cincher and a small portion of the checked garment below it.",
+          "evidence": [
+            "Clothing is visibly filled in with a complete, detailed upper-body outfit.",
+            "The crop extends well below the upper chest into the waist area.",
+            "The face, hair, and facial features remain clearly preserved."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C04-gemini-r2",
+        "case_id": "C04",
+        "channel": "gemini",
+        "repeat": 2,
+        "outcome": "failed",
+        "v3": {
+          "clothing_action": "fail",
+          "framing": "pass",
+          "protected_anchors": "fail"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Red blazer with a gold star badge over a white collared button-up shirt, red plaid pleated skirt, black knee-high socks, brown loafers, and a shoulder satchel.",
+          "observed_lower_frame_edge": "The image extends below both shoes, showing the complete figure from head to feet.",
+          "evidence": [
+            "The red blazer, white collared shirt, plaid skirt, star badge, socks, and loafers form a coherent preserved uniform.",
+            "Both feet and shoes are fully visible.",
+            "The full figure is contained within the frame."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v3_routed",
+          "B": "v2_frozen"
+        }
+      },
+      {
+        "pair_id": "C03-gpt-r1",
+        "case_id": "C03",
+        "channel": "gpt",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "fail",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Highly decorative red-and-cream lolita dress with puffed sleeves, lace trim, large waist bow, multiple skirt ruffles, bonnet, cream patterned stockings, and red Mary Jane shoes.",
+          "observed_lower_frame_edge": "Image ends below both shoes, with the entire figure and both feet visible.",
+          "evidence": [
+            "The clothing is a newly designed decorative lolita dress, not preservation of the school-style uniform.",
+            "Both feet and shoes are fully shown.",
+            "The brown long hair, green eyes, and park setting remain visibly consistent, although a bonnet and additional accessories were added."
+          ]
+        },
+        "preferred": "A",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v3_routed",
+          "B": "v2_frozen"
+        }
+      },
+      {
+        "pair_id": "C06-gpt-r2",
+        "case_id": "C06",
+        "channel": "gpt",
+        "repeat": 2,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "fail",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": false,
+          "observed_clothing": "Cream puff-sleeved blouse with lace trim, dark burgundy-black corset-style bodice, multiple bows, a ruffled collar, and decorative headband.",
+          "observed_lower_frame_edge": "The image extends down past the upper chest into the waist and lower torso, with the corset continuing to the bottom edge.",
+          "evidence": [
+            "The clothing is visibly filled in with a complete coordinated outfit.",
+            "The crop includes substantial lower torso below the required upper-chest boundary.",
+            "The visible facial features and long dark hair remain coherent."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C03-gpt-r2",
+        "case_id": "C03",
+        "channel": "gpt",
+        "repeat": 2,
+        "outcome": "unproven",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "uncertain"
+        },
+        "v2": {
+          "clothing_action": "fail",
+          "framing": "pass",
+          "protected_anchors": "uncertain",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Burgundy decorative dress with white ruffled blouse sleeves, large bows, ornate gold trim, patterned tights, and burgundy heeled shoes.",
+          "observed_lower_frame_edge": "The image ends below both shoes, with pavement visible beneath them.",
+          "evidence": [
+            "The visible outfit is a highly decorative dress rather than the preserved school-style uniform shown in B.",
+            "Both feet and shoes are fully visible.",
+            "No explicit protected-anchor specification or source image is provided for definitive anchor verification."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C03-gemini-r1",
+        "case_id": "C03",
+        "channel": "gemini",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Red blazer with lapels and pockets over a cream collared button-up blouse with a red bow, matching pleated red skirt, dark knee-high socks, and brown loafers.",
+          "observed_lower_frame_edge": "Image ends below both shoes, with the entire figure from head through both feet visible.",
+          "evidence": [
+            "The outfit retains a coordinated blazer-and-pleated-skirt uniform structure.",
+            "Both feet and shoes are fully visible.",
+            "The visible uniform elements are consistent in color and structure rather than being merely red clothing."
+          ]
+        },
+        "preferred": "A",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C04-gemini-r1",
+        "case_id": "C04",
+        "channel": "gemini",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "fail",
+          "framing": "pass",
+          "protected_anchors": "fail",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Red blazer with star badge, white collared shirt with dark bow, red pleated skirt, black knee socks, and brown loafers.",
+          "observed_lower_frame_edge": "The image ends below both shoes, with both feet fully visible.",
+          "evidence": [
+            "Although the blazer, shirt, socks, and loafers remain uniform-like, the skirt has been changed to a prominent red pleated skirt rather than the black skirt seen in A.",
+            "Both feet and shoes are fully visible, satisfying the full-body framing requirement."
+          ]
+        },
+        "preferred": "A",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v3_routed",
+          "B": "v2_frozen"
+        }
+      },
+      {
+        "pair_id": "C04-gpt-r1",
+        "case_id": "C04",
+        "channel": "gpt",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "fail",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Ornate burgundy decorative dress with a fitted bodice, large bow, cream puff sleeves, patterned lace-trimmed skirt, cream tights, and burgundy platform shoes.",
+          "observed_lower_frame_edge": "Image ends below both shoes, with the full figure and ground visible.",
+          "evidence": [
+            "The image shows a newly styled decorative dress rather than the preserved school-uniform structure.",
+            "Both feet and shoes are fully visible.",
+            "The visible hair and facial appearance remain consistent with the subject."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C06-gpt-r1",
+        "case_id": "C06",
+        "channel": "gpt",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "fail",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": false,
+          "observed_clothing": "Dark gothic outfit with a cream ruffled blouse, black corset bodice, burgundy bows, lace trim, and jeweled accents; the outfit is visible down to the waist area.",
+          "observed_lower_frame_edge": "The image ends across the lower torso/waist, below the corset and waist bow.",
+          "evidence": [
+            "The coordinated filled-in gothic clothing is clearly visible and coherent.",
+            "The crop extends well below the upper chest into the waist and lower torso, violating the close-portrait requirement.",
+            "The face, long dark hair, green eyes, and facial features remain visibly consistent."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      }
+    ],
+    "v3_regression": [
+      {
+        "pair_id": "C01-gemini-r1",
+        "case_id": "C01",
+        "channel": "gemini",
+        "repeat": 1,
+        "outcome": "unproven",
+        "v3": {
+          "clothing_action": "pass",
+          "protected_anchors": "uncertain"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "uncertain",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Dark olive and brown striped dress with a white blouse, large collar, multiple bows and ruffled skirt layers; white knee-high socks and brown Mary Jane shoes.",
+          "observed_lower_frame_edge": "The image ends below both shoes, with the full legs and both feet visible.",
+          "evidence": [
+            "Clothing visibly fills the figure from blouse through shoes.",
+            "Both feet and the complete lower body are inside the frame.",
+            "No source image is provided to verify protected visual anchors."
+          ]
+        },
+        "preferred": "tie",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C01-gpt-r1",
+        "case_id": "C01",
+        "channel": "gpt",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Dark green Victorian/Lolita-style dress with a white ruffled blouse and bonnet, cream lace panels and bows, patterned white tights, and black Mary Jane platform shoes.",
+          "observed_lower_frame_edge": "The image ends below both shoes, with the full figure and both feet visible.",
+          "evidence": [
+            "Clothing is visibly filled in as a complete coordinated outfit.",
+            "Both legs and both shoes are fully visible with ground beneath them.",
+            "The face, long dark hair, and overall character presentation appear coherent."
+          ]
+        },
+        "preferred": "tie",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v3_routed",
+          "B": "v2_frozen"
+        }
+      },
+      {
+        "pair_id": "C02-gpt-r1",
+        "case_id": "C02",
+        "channel": "gpt",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "pass",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": true,
+          "observed_clothing": "Coordinated burgundy-red lolita-style dress with a wide pleated skirt, white ruffled blouse sleeves and collar, gold star embellishments, bows, white tights, and burgundy Mary Jane platform shoes.",
+          "observed_lower_frame_edge": "The image ends below both shoes, with pavement visible beneath the feet.",
+          "evidence": [
+            "The clothing is a complete, deliberately coordinated redesign rather than merely added red accents.",
+            "Both feet and the shoes are fully visible.",
+            "The visible brown hair, green eyes, facial features, and overall character presentation remain consistent."
+          ]
+        },
+        "preferred": "tie",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      },
+      {
+        "pair_id": "C02-gemini-r1",
+        "case_id": "C02",
+        "channel": "gemini",
+        "repeat": 1,
+        "outcome": "pass",
+        "v3": {
+          "clothing_action": "pass",
+          "protected_anchors": "pass"
+        },
+        "v2": {
+          "clothing_action": "pass",
+          "framing": "fail",
+          "protected_anchors": "pass",
+          "full_outfit_verifiable": false,
+          "observed_clothing": "Red-and-cream gothic dress with a fitted bodice, multiple bows, lace-trimmed collar and skirt, patterned cream stockings, and a brown Mary Jane shoe visible on the forward foot.",
+          "observed_lower_frame_edge": "The image ends below the visible shoe, but only one foot/shoe is clearly visible; the other leg appears crossed or obscured.",
+          "evidence": [
+            "The clothing is a coherent coordinated redesign rather than merely added red accents.",
+            "The face, long dark hair, and green eyes remain visibly consistent.",
+            "Both feet are not visible; only one shoe can be clearly inspected."
+          ]
+        },
+        "preferred": "B",
+        "status": "scored",
+        "error": "",
+        "assignment": {
+          "A": "v2_frozen",
+          "B": "v3_routed"
+        }
+      }
+    ],
+    "counts": {
+      "pass": 12,
+      "failed": 2,
+      "unproven": 2
+    }
+  }
+}

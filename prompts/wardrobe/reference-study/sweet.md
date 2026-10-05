@@ -1,0 +1,4 @@
+WARDROBE FAMILY: SWEET LOLITA.
+Design an integrated bodice and rounded, deliberately full skirt with connected tiers or gathered panels. Repeat a chosen bow shape, lace border or ruffle rhythm at a few coordinated garment locations, retaining readable seams and calm areas. A rounded collar, puffed sleeves, a matching head accessory, socks and rounded strap shoes may form a coherent ensemble where visible.
+
+Choose at most one coordinated motif family, such as fruit, confectionery, hearts, toys or small flowers, and place it as fabric print or attached clothing ornament. Motifs do not authorize additional held toys or scene objects. Pastel colours are optional; burgundy, green or explicitly requested colours can still express this family through garment structure and decoration. Do not change the character into a child, chibi figure, pink-haired character or a tea-party scene.

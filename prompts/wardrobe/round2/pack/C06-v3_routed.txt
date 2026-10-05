@@ -1,0 +1,8 @@
+Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.
+
+One long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.
+
+AUTHORIZED CLOTHING ACTION: FILL VISIBLE UNSPECIFIED CLOTHING.
+Supply Japanese Lolita-compatible visible neckline and upper garment details within the requested close portrait. Use a coherent collar, connected lace or ruffle edging, a modest bow and plausible garment seams only where the crop shows them. Do not expand the view to demonstrate an outfit or its construction. The clothing style does not authorize a change to age, face, hair, eyes, body or scene.
+
+FINAL FRAMING REQUIREMENT: a close portrait from the upper chest upward on the requested plain grey background. The lower frame edge cuts across the upper chest, above the bust midpoint. Do not show the lower bodice, waist, elbows, hands, skirt or feet; do not zoom out to display clothing details. Only draw clothing details that fall inside this crop.

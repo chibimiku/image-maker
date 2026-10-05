@@ -1,0 +1,158 @@
+{
+  "schema_version": "image-maker.wardrobe-character-test.v1",
+  "shared_identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+  "shared_scene_and_rendering": "She stands naturally with both arms relaxed and no held objects, against a plain grey background. Full-body view with both feet entirely visible. No additional people. Clean anime illustration with controlled linework and soft cel shading.",
+  "characters": [
+    {
+      "id": "P01",
+      "case_id": "U",
+      "label": "unspecified_complete_fill",
+      "policy": "fill_missing",
+      "gold_action": "fill",
+      "framing": "full",
+      "repeats": 1,
+      "identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+      "source_clothing": "No clothing description is supplied.",
+      "request": "Complete wardrobe transformation toward the requested Lolita family (fill_complete).",
+      "protected": [
+        "adult identity attributes stay unchanged",
+        "plain grey background and full-body framing stay unchanged",
+        "no held objects and no additional people"
+      ],
+      "identity_fields": {
+        "adult_age_expression": true,
+        "hair": "short wavy dark-brown",
+        "eyes": "grey-green",
+        "skin": "warm brown",
+        "glasses": "rectangular black",
+        "build": "medium adult"
+      }
+    },
+    {
+      "id": "P02",
+      "case_id": "H",
+      "label": "hoodie_complete_transformation",
+      "policy": "replace",
+      "gold_action": "redesign",
+      "framing": "full",
+      "repeats": 1,
+      "identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+      "source_clothing": "Her original outfit is an orange hooded sweatshirt and straight blue jeans. A small blue bird pin is attached to her left upper chest.",
+      "request": "Complete wardrobe transformation toward the requested Lolita family (transform_complete).",
+      "protected": [
+        "orange remains the main garment colour",
+        "small blue bird pin on the wearer's left upper chest",
+        "adult identity attributes stay unchanged"
+      ],
+      "identity_fields": {
+        "adult_age_expression": true,
+        "hair": "short wavy dark-brown",
+        "eyes": "grey-green",
+        "skin": "warm brown",
+        "glasses": "rectangular black",
+        "build": "medium adult"
+      }
+    },
+    {
+      "id": "P03",
+      "case_id": "W",
+      "label": "utility_complete_transformation",
+      "policy": "replace",
+      "gold_action": "redesign",
+      "framing": "full",
+      "repeats": 1,
+      "identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+      "source_clothing": "Her original outfit is a navy utility jacket with patch pockets, an ochre T-shirt and straight grey trousers. A copper leaf pin is attached to her left jacket chest pocket.",
+      "request": "Complete wardrobe transformation toward the requested Lolita family (transform_complete).",
+      "protected": [
+        "navy remains the main garment colour",
+        "copper leaf pin integrated at the wearer's left upper chest",
+        "adult identity attributes stay unchanged"
+      ],
+      "identity_fields": {
+        "adult_age_expression": true,
+        "hair": "short wavy dark-brown",
+        "eyes": "grey-green",
+        "skin": "warm brown",
+        "glasses": "rectangular black",
+        "build": "medium adult"
+      }
+    },
+    {
+      "id": "P04",
+      "case_id": "R",
+      "label": "uniform_complete_transformation",
+      "policy": "replace",
+      "gold_action": "redesign",
+      "framing": "full",
+      "repeats": 1,
+      "identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+      "source_clothing": "Her original outfit is a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to her left blazer lapel.",
+      "request": "Complete wardrobe transformation toward the requested Lolita family (transform_complete).",
+      "protected": [
+        "red remains the main garment colour",
+        "gold star brooch integrated at the wearer's left upper chest",
+        "adult identity attributes stay unchanged"
+      ],
+      "identity_fields": {
+        "adult_age_expression": true,
+        "hair": "short wavy dark-brown",
+        "eyes": "grey-green",
+        "skin": "warm brown",
+        "glasses": "rectangular black",
+        "build": "medium adult"
+      }
+    },
+    {
+      "id": "P05",
+      "case_id": "GP",
+      "label": "explicit_preservation_guard",
+      "policy": "reinterpret",
+      "gold_action": "preserve",
+      "framing": "full",
+      "repeats": 1,
+      "identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+      "source_clothing": "Her original outfit is a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to her left blazer lapel.",
+      "request": "Keep every named garment, its category and described construction. Do not redesign or replace the outfit. Keep the star brooch on the left blazer lapel.",
+      "protected": [
+        "the red blazer, white blouse, red pleated skirt and black knee-high socks stay as described",
+        "gold piping stays on the blazer",
+        "gold star brooch stays on the left blazer lapel"
+      ],
+      "identity_fields": {
+        "adult_age_expression": true,
+        "hair": "short wavy dark-brown",
+        "eyes": "grey-green",
+        "skin": "warm brown",
+        "glasses": "rectangular black",
+        "build": "medium adult"
+      }
+    },
+    {
+      "id": "P06",
+      "case_id": "GF",
+      "label": "fill_missing_guard",
+      "policy": "fill_missing",
+      "gold_action": "preserve",
+      "framing": "full",
+      "repeats": 1,
+      "identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+      "source_clothing": "Her existing outfit is a navy utility jacket with patch pockets, an ochre T-shirt, straight grey trousers and dark lace-up shoes. A copper leaf pin is attached to her left jacket chest pocket.",
+      "request": "Only fill missing clothing information. Keep the copper leaf pin on the left jacket chest pocket.",
+      "protected": [
+        "the navy utility jacket, ochre T-shirt, grey trousers and dark shoes stay as described",
+        "the jacket patch pockets stay",
+        "copper leaf pin stays on the left jacket chest pocket"
+      ],
+      "identity_fields": {
+        "adult_age_expression": true,
+        "hair": "short wavy dark-brown",
+        "eyes": "grey-green",
+        "skin": "warm brown",
+        "glasses": "rectangular black",
+        "build": "medium adult"
+      }
+    }
+  ],
+  "note": "Single fixed fictional adult character reused across all six cases; the round4 plan uses 14 direct-sampling slots rather than control/candidate arms."
+}

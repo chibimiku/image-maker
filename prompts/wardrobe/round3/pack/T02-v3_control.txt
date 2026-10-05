@@ -1,0 +1,12 @@
+Clean anime illustration with controlled linework and soft cel shading.
+
+Exactly one 29-year-old adult woman with a short silver-grey bob, dark-brown eyes, warm tan skin, rectangular black glasses and a sturdy medium build.
+
+Her existing outfit is a navy utility jacket with patch pockets, an ochre T-shirt, straight grey trousers and dark lace-up shoes. A small copper leaf pin is attached to the jacket chest pocket.
+
+She stands in a city library courtyard. Full-body view including both feet. Keep the copper leaf pin on the jacket chest pocket.
+
+AUTHORIZED CLOTHING ACTION: PRESERVE.
+Keep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.
+
+FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view.

@@ -1,0 +1,52 @@
+{
+  "status": "prepared_not_executed",
+  "not_complete_generation_requests": true,
+  "profiles_sha256": "748218055b1ba5987d4ff698f695c13787baa2dce4eda9274ab42e72a65df45b",
+  "proposed_generation_slots": 32,
+  "proposed_pair_slots": 16,
+  "actual_network_attempts": 0,
+  "rows": [
+    {
+      "case_id": "T01",
+      "character_id": "P01",
+      "file": "T01-base.txt",
+      "sha256": "5a1e359167590e359996fc24561d2a232e1fad063b178975ac8d27074dc2e1d8",
+      "characters": 605
+    },
+    {
+      "case_id": "T02",
+      "character_id": "P02",
+      "file": "T02-base.txt",
+      "sha256": "4db8e4546a2284460fb31da2a7cd1d3119f057c7f5d959e7ebab40d70c89faf3",
+      "characters": 548
+    },
+    {
+      "case_id": "T03",
+      "character_id": "P03",
+      "file": "T03-base.txt",
+      "sha256": "59141e73450b1598457afbc9dec24a1510090c55474f9b5a5aa0f773890abf99",
+      "characters": 406
+    },
+    {
+      "case_id": "T04",
+      "character_id": "P04",
+      "file": "T04-base.txt",
+      "sha256": "4cd056cc31794ab500702f0a9e00ff73d0cb054b3390e9e3158b77a4b786a9ba",
+      "characters": 582
+    },
+    {
+      "case_id": "T05",
+      "character_id": "P05",
+      "file": "T05-base.txt",
+      "sha256": "21fee5af4e15b817f36f1f79108250667ead89de1e45adf202e8557f2071b2ec",
+      "characters": 492
+    },
+    {
+      "case_id": "T06",
+      "character_id": "P06",
+      "file": "T06-base.txt",
+      "sha256": "e68f173a4322720ccabf44fc1a7fd6b5ccd835ca2b552c5853f9e98dda9af604",
+      "characters": 588
+    }
+  ]
+}

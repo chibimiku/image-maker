@@ -1,0 +1,1654 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.selection.v1",
+  "status": "manually_corrected_not_ground_truth",
+  "source_inventory": "data/test-result/20261005/wardrobe-reference-study/inventory.json",
+  "candidate_pool": "data/test-result/20261005/wardrobe-round4-prep/candidates.json",
+  "contact_sheets": "data/test-result/20261005/wardrobe-round4-prep/sheets/index.json",
+  "review_method": "42 contact-sheet images visually reviewed; corrected observations; old split names retained for traceability only.",
+  "reviewed_candidate_counts": {
+    "classical": 150,
+    "sweet": 150,
+    "gothic": 150
+  },
+  "provisional": true,
+  "not_ground_truth": true,
+  "criteria_note": "目录标签与 caption 只作线索；没有用颜色、发色、脸、画法或背景批准任何样本；看不见的结构写 unknown，不做补全。",
+  "shortage_note": "Original eight-per-family extraction target is not a validated result. Rules use only manually checked structural evidence; no automatic extraction or independent heldout evaluation was performed.",
+  "counts": {
+    "classical": {
+      "extraction": {
+        "selected": 8,
+        "target": 8,
+        "quota_met": true,
+        "aspect_folders": [
+          "long_portrait",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 7,
+        "design_groups": [
+          "CLA-G1",
+          "CLA-G2",
+          "CLA-G3",
+          "CLA-G4",
+          "CLA-G5",
+          "CLA-G6",
+          "CLA-G7"
+        ],
+        "design_group_count": 7
+      },
+      "heldout": {
+        "selected": 3,
+        "target": 3,
+        "quota_met": true,
+        "aspect_folders": [
+          "long_portrait",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 2,
+        "design_groups": [
+          "CLA-G8",
+          "CLA-G9"
+        ],
+        "design_group_count": 2
+      },
+      "boundary": {
+        "selected": 3,
+        "target": 3,
+        "quota_met": true,
+        "aspect_folders": [
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 3,
+        "design_groups": [
+          "CLA-B1",
+          "CLA-B2",
+          "CLA-B3"
+        ],
+        "design_group_count": 3
+      }
+    },
+    "sweet": {
+      "extraction": {
+        "selected": 8,
+        "target": 8,
+        "quota_met": true,
+        "aspect_folders": [
+          "long_portrait",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 6,
+        "design_groups": [
+          "SWE-G1",
+          "SWE-G2",
+          "SWE-G3",
+          "SWE-G4",
+          "SWE-G5",
+          "SWE-G7",
+          "SWE-G8"
+        ],
+        "design_group_count": 7
+      },
+      "heldout": {
+        "selected": 3,
+        "target": 3,
+        "quota_met": true,
+        "aspect_folders": [
+          "landscape",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 2,
+        "design_groups": [
+          "SWE-G10",
+          "SWE-G11"
+        ],
+        "design_group_count": 2
+      },
+      "boundary": {
+        "selected": 3,
+        "target": 3,
+        "quota_met": true,
+        "aspect_folders": [
+          "long_landscape",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 2,
+        "design_groups": [
+          "SWE-B1",
+          "SWE-B2",
+          "SWE-B3"
+        ],
+        "design_group_count": 3
+      }
+    },
+    "gothic": {
+      "extraction": {
+        "selected": 8,
+        "target": 8,
+        "quota_met": true,
+        "aspect_folders": [
+          "long_portrait",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 5,
+        "design_groups": [
+          "GTX-G1",
+          "GTX-G2",
+          "GTX-G3",
+          "GTX-G4",
+          "GTX-G5",
+          "GTX-G6",
+          "GTX-G7",
+          "GTX-G9"
+        ],
+        "design_group_count": 8
+      },
+      "heldout": {
+        "selected": 3,
+        "target": 3,
+        "quota_met": true,
+        "aspect_folders": [
+          "long_portrait",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 2,
+        "design_groups": [
+          "GTX-G10",
+          "GTX-G11",
+          "GTX-G12"
+        ],
+        "design_group_count": 3
+      },
+      "boundary": {
+        "selected": 3,
+        "target": 3,
+        "quota_met": true,
+        "aspect_folders": [
+          "landscape",
+          "portrait"
+        ],
+        "max_images_in_one_aspect_folder": 2,
+        "design_groups": [
+          "GTX-B1",
+          "GTX-B2",
+          "GTX-B3"
+        ],
+        "design_group_count": 3
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "CLX015",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-01.jpg",
+      "design_group": "visual-design-CLX015",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_classical\\62239028_p12.jpg",
+      "source_sha256": "ccbb15849f1024dee2c38016fcc1fcd5b21cb87a7503c0ce939aa807160e1fdb",
+      "dimensions": [
+        601,
+        1500
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "pink jacket over brown bodice",
+        "neckline": "high front with bow",
+        "sleeve": "long jacket sleeves",
+        "waist": "fitted bodice waist",
+        "skirt": "short brown flared skirt",
+        "trims": "gold borders and repeated ribbon panels"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pink jacket over brown bodice|high front with bow|long jacket sleeves|fitted bodice waist|short brown flared skirt|gold borders and repeated ribbon panels"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX076",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-06.jpg",
+      "design_group": "visual-design-CLX076",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\60799987_p0.png",
+      "source_sha256": "101fa461ad9ccfe83e6d60b68c8e921414a1959b4f3d4078134cb141666b79d3",
+      "dimensions": [
+        696,
+        1000
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "dark red and black dress with capelet",
+        "neckline": "capelet and front bow",
+        "sleeve": "covered shoulders",
+        "waist": "fitted waist",
+        "skirt": "knee-area rounded layered skirt",
+        "trims": "white lace bands and patterned red panels"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: dark red and black dress with capelet|capelet and front bow|covered shoulders|fitted waist|knee-area rounded layered skirt|white lace bands and patterned red panels"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX080",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-06.jpg",
+      "design_group": "visual-design-CLX080",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\61970019_p0.jpg",
+      "source_sha256": "b430e4b9ad5484b5224483aafe8d75af95160b38593dd07644908b7fca78a06a",
+      "dimensions": [
+        971,
+        1202
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "pale blue pastel decorated dress",
+        "neckline": "partly obscured high neck",
+        "sleeve": "puffed layers, partly hidden",
+        "waist": "obscured by ornament",
+        "skirt": "short rounded layered skirt",
+        "trims": "dense hearts stars ribbons and lace"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pale blue pastel decorated dress|partly obscured high neck|puffed layers, partly hidden|obscured by ornament|short rounded layered skirt|dense hearts stars ribbons and lace"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX082",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-06.jpg",
+      "design_group": "visual-design-CLX082",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\62767096_p2.jpg",
+      "source_sha256": "6d833f2794405d03f0dbfa3c6f81ea73412243598f92af61fd93404f0e6a3e03",
+      "dimensions": [
+        1200,
+        1697
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "taupe buttoned dress",
+        "neckline": "rounded collar and neck ribbon",
+        "sleeve": "gathered shoulder and long sleeves",
+        "waist": "fitted waist",
+        "skirt": "knee-area controlled A-line skirt",
+        "trims": "horizontal lace borders and restrained bows"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: taupe buttoned dress|rounded collar and neck ribbon|gathered shoulder and long sleeves|fitted waist|knee-area controlled A-line skirt|horizontal lace borders and restrained bows"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX094",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-07.jpg",
+      "design_group": "visual-design-CLX094",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\728d542af31ce2687acff8fa755d501a.png",
+      "source_sha256": "6d339fc88d117a2724502c1efc18e447da81b5f0592834ba6811267c5799ebfb",
+      "dimensions": [
+        710,
+        904
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "pink princess gown",
+        "neckline": "bare/off-shoulder upper edge",
+        "sleeve": "long gloves rather than dress sleeves",
+        "waist": "fitted bodice waist",
+        "skirt": "floor-length large tiered gown",
+        "trims": "large cascading pale bow and scalloped tiers"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pink princess gown|bare/off-shoulder upper edge|long gloves rather than dress sleeves|fitted bodice waist|floor-length large tiered gown|large cascading pale bow and scalloped tiers"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX102",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-07.jpg",
+      "design_group": "visual-design-CLX102",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\89910967_p0.jpg",
+      "source_sha256": "028839d3f526c3af2a63f6565e3e186088c64af1a8fe4836e2f9006b7b036e43",
+      "dimensions": [
+        2480,
+        3508
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "red floral dress and draped outer layer",
+        "neckline": "neck area partly covered",
+        "sleeve": "covered long sleeves",
+        "waist": "waist partly hidden",
+        "skirt": "long vertical skirt panels",
+        "trims": "floral fabric and white ruffled borders"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: red floral dress and draped outer layer|neck area partly covered|covered long sleeves|waist partly hidden|long vertical skirt panels|floral fabric and white ruffled borders"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX127",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-09.jpg",
+      "design_group": "visual-design-CLX127",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\twitter_urimichiru (みちる)(@urimcr)_20220812-075636_1557999476622516225_photo-0.jpg",
+      "source_sha256": "4bbbfbf70f7045ba17d79d41d8ea10b710fd1cd738b5d048f8190bc3de4303fb",
+      "dimensions": [
+        2079,
+        2953
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "mint floral jumper skirt over pink blouse",
+        "neckline": "small collar and ribbon",
+        "sleeve": "long pale pink sleeves",
+        "waist": "wide gathered waist band",
+        "skirt": "rounded knee-area bell skirt",
+        "trims": "repeated roses hem lace and waist bow"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: mint floral jumper skirt over pink blouse|small collar and ribbon|long pale pink sleeves|wide gathered waist band|rounded knee-area bell skirt|repeated roses hem lace and waist bow"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX131",
+      "family": "classical",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-09.jpg",
+      "design_group": "visual-design-CLX131",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\提琴lo.png",
+      "source_sha256": "92c6fcf8a77626910e2875433c39a4e982c82f2de16a39212983ad43375cec13",
+      "dimensions": [
+        1762,
+        2624
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "brown jumper dress over pale blouse",
+        "neckline": "high collar and bow",
+        "sleeve": "long pale sleeves",
+        "waist": "fitted dark waist",
+        "skirt": "knee-area flared skirt",
+        "trims": "printed musical ornament and pleated borders"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: brown jumper dress over pale blouse|high collar and bow|long pale sleeves|fitted dark waist|knee-area flared skirt|printed musical ornament and pleated borders"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX014",
+      "family": "classical",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-01.jpg",
+      "design_group": "visual-design-CLX014",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_classical\\62239028_p10.jpg",
+      "source_sha256": "384eed1299139d12d6a71a5a71422cdfcbc53c5cac38be3a0d051e103ae38fcc",
+      "dimensions": [
+        679,
+        1500
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "blue key-pattern dress under red cape",
+        "neckline": "covered by cape/scarf",
+        "sleeve": "partly hidden by cape",
+        "waist": "fitted dress waist",
+        "skirt": "knee-area expanded printed skirt",
+        "trims": "gold keys hem lace and cape fur edge"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: blue key-pattern dress under red cape|covered by cape/scarf|partly hidden by cape|fitted dress waist|knee-area expanded printed skirt|gold keys hem lace and cape fur edge"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX044",
+      "family": "classical",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-03.jpg",
+      "design_group": "visual-design-CLX044",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\103666813_p0.png",
+      "source_sha256": "00a46a8ca5e7f9a97af0a21ad31e7999a47a0fe8b181de7df4608d103af59659",
+      "dimensions": [
+        1748,
+        2480
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "light blue and white dress",
+        "neckline": "high neck partly decorated",
+        "sleeve": "rounded shoulders and long lower sleeves",
+        "waist": "gold-lined fitted waist",
+        "skirt": "rounded illustrated-medallion skirt",
+        "trims": "gold stars and circular print; wings are external imagery"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: light blue and white dress|high neck partly decorated|rounded shoulders and long lower sleeves|gold-lined fitted waist|rounded illustrated-medallion skirt|gold stars and circular print; wings are external imagery"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX129",
+      "family": "classical",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-09.jpg",
+      "design_group": "visual-design-CLX129",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\x1-58831bdcda27308cc5d0f1fe635e03bc.png",
+      "source_sha256": "c6e15d1dd4f5f09b2f4b3e7788fd45d567400f154eaae4f741bcc9688f69932b",
+      "dimensions": [
+        750,
+        1061
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "green and ivory layered floral dress",
+        "neckline": "neck ribbon",
+        "sleeve": "long sleeves",
+        "waist": "defined waist",
+        "skirt": "knee-area full layered skirt",
+        "trims": "floral print lace tiers and bows"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: green and ivory layered floral dress|neck ribbon|long sleeves|defined waist|knee-area full layered skirt|floral print lace tiers and bows"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX098",
+      "family": "classical",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-07.jpg",
+      "design_group": "visual-design-CLX098",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\77233564_p1.jpg",
+      "source_sha256": "e9a6adf0def38231b4baa2840f00de8f20cf4d8bc69e6577547e592aced176e6",
+      "dimensions": [
+        1000,
+        1518
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "blue and black fantasy costume",
+        "neckline": "off-shoulder bodice",
+        "sleeve": "detached arm covering",
+        "waist": "fitted waist",
+        "skirt": "short asymmetrical skirt/outer panels",
+        "trims": "gold star trim and fantasy cape"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: blue and black fantasy costume|off-shoulder bodice|detached arm covering|fitted waist|short asymmetrical skirt/outer panels|gold star trim and fantasy cape"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX113",
+      "family": "classical",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-08.jpg",
+      "design_group": "visual-design-CLX113",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\__akiyama_mizuki_project_sekai_drawn_by_waka_wk4444__acc4d4b14e3f78427ccd85ebff37f283.jpg",
+      "source_sha256": "98dc4069318e05415d795a60de0beea79660598633a73411ac4664f49beb6c4d",
+      "dimensions": [
+        1300,
+        1650
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "blue sailor-like blouse and short skirt",
+        "neckline": "wide collar and neck tie",
+        "sleeve": "long sleeves",
+        "waist": "waist partly hidden by seated pose",
+        "skirt": "short spread skirt, volume uncertain",
+        "trims": "white cuffs and simple hem borders"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: blue sailor-like blouse and short skirt|wide collar and neck tie|long sleeves|waist partly hidden by seated pose|short spread skirt, volume uncertain|white cuffs and simple hem borders"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "CLX120",
+      "family": "classical",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/classical-08.jpg",
+      "design_group": "visual-design-CLX120",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_classical\\classical04.jpg",
+      "source_sha256": "ef26237b5fd48f166127206b1770e1b2413711dc8b41e84a817db2dfea58871a",
+      "dimensions": [
+        1024,
+        1466
+      ],
+      "source_style_label": "lo_classical",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "red black and ivory decorated dress",
+        "neckline": "high ruffled collar",
+        "sleeve": "puffed short sleeves with arm accessories",
+        "waist": "fitted corset-like front",
+        "skirt": "short full tiered skirt",
+        "trims": "lace scallops bows and skull motifs"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: red black and ivory decorated dress|high ruffled collar|puffed short sleeves with arm accessories|fitted corset-like front|short full tiered skirt|lace scallops bows and skull motifs"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX019",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-02.jpg",
+      "design_group": "visual-design-SWX019",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_sweet\\51431744_p0.jpg",
+      "source_sha256": "b6245b27308acf6ab2c86ae584b17bc50d86ef2e1c83ce9f8b76f410eaeebaa0",
+      "dimensions": [
+        721,
+        1386
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "pink structured dress",
+        "neckline": "high decorated neck",
+        "sleeve": "puffed sleeve area",
+        "waist": "fitted waist with bow",
+        "skirt": "short rounded tiered skirt",
+        "trims": "white lace repeated ribbons and ruffles"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pink structured dress|high decorated neck|puffed sleeve area|fitted waist with bow|short rounded tiered skirt|white lace repeated ribbons and ruffles"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX021",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-02.jpg",
+      "design_group": "visual-design-SWX021",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_sweet\\Lolita设计稿 (526)-mask-transparent.png",
+      "source_sha256": "0a4f6dae40f2072d33502de87b5e7360df896ab38ce68793601be65d804e268f",
+      "dimensions": [
+        439,
+        855
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "dusty pink patterned dress",
+        "neckline": "white collar and dark neck bow",
+        "sleeve": "puffed sleeves and long lower layers",
+        "waist": "fitted bodice waist",
+        "skirt": "knee-area gathered skirt",
+        "trims": "patterned panels hem ruffles and dark bows"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: dusty pink patterned dress|white collar and dark neck bow|puffed sleeves and long lower layers|fitted bodice waist|knee-area gathered skirt|patterned panels hem ruffles and dark bows"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX025",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-02.jpg",
+      "design_group": "visual-design-SWX025",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\01884-795775363-a girl with long hair and a pink dress is standing in front of a white background with a pink background, Alice Prin, pastel col.png",
+      "source_sha256": "da4ba9c2d317446c22c119feb3d741e205d130fd69a17ba8d6a184ab5fe37a25",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "pink jumper dress and pale blouse",
+        "neckline": "rounded pale collar",
+        "sleeve": "short puffed sleeves",
+        "waist": "fitted waist",
+        "skirt": "short rounded flared skirt",
+        "trims": "large bows pale hem bands and matching head bow"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pink jumper dress and pale blouse|rounded pale collar|short puffed sleeves|fitted waist|short rounded flared skirt|large bows pale hem bands and matching head bow"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX035",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-03.jpg",
+      "design_group": "visual-design-SWX035",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\104751444_p0.jpg",
+      "source_sha256": "aa1508bc4998c90cabbbd23b6478ee201b77b51d025bf69d852642d09ca8b8e0",
+      "dimensions": [
+        1536,
+        2048
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "pink dress viewed from side/back",
+        "neckline": "front neckline not visible",
+        "sleeve": "short puffed sleeves",
+        "waist": "large back waist bow",
+        "skirt": "short layered rounded skirt",
+        "trims": "wide back ribbons and white hem ruffles"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pink dress viewed from side/back|front neckline not visible|short puffed sleeves|large back waist bow|short layered rounded skirt|wide back ribbons and white hem ruffles"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX062",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-05.jpg",
+      "design_group": "visual-design-SWX062",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\51055752_p0.jpg",
+      "source_sha256": "b8619af2c6d4f77fec04a05b919caeb8c7b567305c8d5b7adb406d1ae4b20dad",
+      "dimensions": [
+        963,
+        1443
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "white long dress with apron and orange-brown bands",
+        "neckline": "small collar and buttoned front",
+        "sleeve": "puffed shoulders and long sleeves",
+        "waist": "wide golden waist band",
+        "skirt": "long full draped skirt",
+        "trims": "country floral accents apron drape and striped hem"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: white long dress with apron and orange-brown bands|small collar and buttoned front|puffed shoulders and long sleeves|wide golden waist band|long full draped skirt|country floral accents apron drape and striped hem"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX068",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-05.jpg",
+      "design_group": "visual-design-SWX068",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\58531594_p1.jpg",
+      "source_sha256": "cca317566047e8dfdae076f689c5b1fb38b7a96c97bd9bc5da0fb9a3af4de7bb",
+      "dimensions": [
+        1000,
+        1414
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "cream floral jumper dress and pink blouse",
+        "neckline": "small collar",
+        "sleeve": "long puffed sleeves",
+        "waist": "decorative laced bodice",
+        "skirt": "knee-area bell skirt",
+        "trims": "floral arch print and dark red bows"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: cream floral jumper dress and pink blouse|small collar|long puffed sleeves|decorative laced bodice|knee-area bell skirt|floral arch print and dark red bows"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX077",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-06.jpg",
+      "design_group": "visual-design-SWX077",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\64810850_p0.jpg",
+      "source_sha256": "af035296bda2e7d9c8216fe0ceab64d0f43fd20cd850b457cdc3276d6d803d15",
+      "dimensions": [
+        2480,
+        3508
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "dusty pink coat-like outer dress over pale skirt",
+        "neckline": "pale collar with neck bow",
+        "sleeve": "long sleeves",
+        "waist": "defined waist",
+        "skirt": "knee-area full pale skirt",
+        "trims": "vertical front ruffles and restrained bows"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: dusty pink coat-like outer dress over pale skirt|pale collar with neck bow|long sleeves|defined waist|knee-area full pale skirt|vertical front ruffles and restrained bows"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX079",
+      "family": "sweet",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-06.jpg",
+      "design_group": "visual-design-SWX079",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\66739057_p0.jpg",
+      "source_sha256": "6676209d82142ce9eef704f89ea425c7c1517ac9867bf36364c7163c43466c7b",
+      "dimensions": [
+        1748,
+        2480
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "purple-blue fantasy costume",
+        "neckline": "neckline partly hidden",
+        "sleeve": "asymmetrical arm coverage",
+        "waist": "shaped fitted waist",
+        "skirt": "short irregular layered skirt",
+        "trims": "stars translucent layers and fantasy wings/weapon"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: purple-blue fantasy costume|neckline partly hidden|asymmetrical arm coverage|shaped fitted waist|short irregular layered skirt|stars translucent layers and fantasy wings/weapon"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX028",
+      "family": "sweet",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-02.jpg",
+      "design_group": "visual-design-SWX028",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\01920-1671567284-a girl in a dress and hat with a flower on her head and a pink background with roses and a pink rose, Bourgeois, pastel color pa.png",
+      "source_sha256": "7b45645c9debb160417e8a5578567cd04ada2475a652fd7f567f9ebd75b2423e",
+      "dimensions": [
+        960,
+        1536
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "grey-ivory layered dress",
+        "neckline": "high ruffled neckline",
+        "sleeve": "long sleeves",
+        "waist": "fitted waist",
+        "skirt": "knee-area rounded layered skirt",
+        "trims": "bonnet pale lace and pink trailing ribbons"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: grey-ivory layered dress|high ruffled neckline|long sleeves|fitted waist|knee-area rounded layered skirt|bonnet pale lace and pink trailing ribbons"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX040",
+      "family": "sweet",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-03.jpg",
+      "design_group": "visual-design-SWX040",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\107869749_p3.png",
+      "source_sha256": "e0f25f141abe2834f65d76f2a04f28530b88fcfbe964ed70bfb7276a19b29823",
+      "dimensions": [
+        1512,
+        2000
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "peach confectionery dress",
+        "neckline": "decorated collar and bow",
+        "sleeve": "puffed sleeves",
+        "waist": "laced bodice waist",
+        "skirt": "short rounded tiered skirt",
+        "trims": "coordinated pale ribbons and confectionery-like trim"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: peach confectionery dress|decorated collar and bow|puffed sleeves|laced bodice waist|short rounded tiered skirt|coordinated pale ribbons and confectionery-like trim"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX124",
+      "family": "sweet",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-09.jpg",
+      "design_group": "visual-design-SWX124",
+      "aspect_folder": "landscape",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\landscape\\lo_sweet\\67897877_p0.png",
+      "source_sha256": "3f5e45771046a08f4154c29676b990d9b37ca8f71b4fba8c83ce7de20b61d2f8",
+      "dimensions": [
+        1412,
+        993
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "dress_other",
+      "visible_structure": {
+        "upper_garment": "pale long dress in seated scene",
+        "neckline": "collar partly hidden",
+        "sleeve": "long sleeves",
+        "waist": "waist hidden by arms/table",
+        "skirt": "draped skirt partly occluded; full volume not verifiable",
+        "trims": "pink lace and fine floral trim"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pale long dress in seated scene|collar partly hidden|long sleeves|waist hidden by arms/table|draped skirt partly occluded; full volume not verifiable|pink lace and fine floral trim"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX054",
+      "family": "sweet",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-04.jpg",
+      "design_group": "visual-design-SWX054",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\49847654_p0.jpg",
+      "source_sha256": "e66509501980fb885cee7c79299a9f3c77df8bee848482dc46414f6ad61b4699",
+      "dimensions": [
+        1068,
+        1400
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "turquoise pink theatrical apron costume",
+        "neckline": "decorated neckline",
+        "sleeve": "short sleeves with accessories",
+        "waist": "wide sash/belt",
+        "skirt": "asymmetrical split patterned skirt",
+        "trims": "large bows apron appliques and stage props"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: turquoise pink theatrical apron costume|decorated neckline|short sleeves with accessories|wide sash/belt|asymmetrical split patterned skirt|large bows apron appliques and stage props"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX086",
+      "family": "sweet",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-06.jpg",
+      "design_group": "visual-design-SWX086",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_sweet\\96228270_p0.jpg",
+      "source_sha256": "d8151077fd400c21aca75b961121f04545334cbdfac4c01806db09192476c473",
+      "dimensions": [
+        1300,
+        2026
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "red white elaborate sweet dress",
+        "neckline": "high decorated neck",
+        "sleeve": "arms partly hidden by accessories",
+        "waist": "fitted central bodice",
+        "skirt": "short rounded dense tiered skirt",
+        "trims": "bonnet repeated bows hearts and confectionery ornament"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: red white elaborate sweet dress|high decorated neck|arms partly hidden by accessories|fitted central bodice|short rounded dense tiered skirt|bonnet repeated bows hearts and confectionery ornament"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "SWX145",
+      "family": "sweet",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/sweet-10.jpg",
+      "design_group": "visual-design-SWX145",
+      "aspect_folder": "long_landscape",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_landscape\\lo_sweet\\651c88b0e310cab6a9469a4a99e8d034.jpg",
+      "source_sha256": "895b93106838da6ddbd83db224b3996ad45345b81082dcee6f3e8f8993bd2c5e",
+      "dimensions": [
+        1281,
+        720
+      ],
+      "source_style_label": "lo_sweet",
+      "candidate_bucket": "dress_other",
+      "visible_structure": {
+        "upper_garment": "pink and white short dress in seated crop",
+        "neckline": "collared pale blouse area",
+        "sleeve": "puffed pale sleeves",
+        "waist": "pink waist bow",
+        "skirt": "short spread skirt; full silhouette uncertain",
+        "trims": "white hem ruffles and pink ribbon"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pink and white short dress in seated crop|collared pale blouse area|puffed pale sleeves|pink waist bow|short spread skirt; full silhouette uncertain|white hem ruffles and pink ribbon"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX004",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-01.jpg",
+      "design_group": "visual-design-GTX004",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_gothic\\102882781_p0.jpg",
+      "source_sha256": "c4624ed53251822e7614dbb72417c183ea772bade5001a4b9045dc5673b96d56",
+      "dimensions": [
+        1400,
+        2340
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "black dress with long draped patterned overlay",
+        "neckline": "dark high neck area",
+        "sleeve": "sleeves partly hidden",
+        "waist": "fitted waist",
+        "skirt": "short full skirt beneath long outer drape",
+        "trims": "metallic-looking ornament and purple patterned overlay"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: black dress with long draped patterned overlay|dark high neck area|sleeves partly hidden|fitted waist|short full skirt beneath long outer drape|metallic-looking ornament and purple patterned overlay"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX011",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-01.jpg",
+      "design_group": "visual-design-GTX011",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_gothic\\62254385_p3.png",
+      "source_sha256": "a806f023d8ad872d6948617d07d7b3e48805f34d86714422f134fb1b80a0ea71",
+      "dimensions": [
+        1725,
+        2805
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "white navy gold military/fantasy dress",
+        "neckline": "high front collar",
+        "sleeve": "long striped sleeves",
+        "waist": "fitted uniform-like bodice",
+        "skirt": "short white flared tiered skirt",
+        "trims": "gold heraldic trim crown and staff; not core Gothic evidence"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: white navy gold military/fantasy dress|high front collar|long striped sleeves|fitted uniform-like bodice|short white flared tiered skirt|gold heraldic trim crown and staff; not core Gothic evidence"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX014",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-01.jpg",
+      "design_group": "visual-design-GTX014",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_gothic\\62254385_p9.png",
+      "source_sha256": "0db48a70576656ac0ddf1ae12752873be19f7c5bbdd3ae7ae4f638b1e94b7995",
+      "dimensions": [
+        1734,
+        2806
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "dark check jumper skirt over pale blouse",
+        "neckline": "decorated pale collar",
+        "sleeve": "long puffed pale sleeves",
+        "waist": "fitted laced bodice",
+        "skirt": "short bell skirt",
+        "trims": "check fabric lace hem chains and bows"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: dark check jumper skirt over pale blouse|decorated pale collar|long puffed pale sleeves|fitted laced bodice|short bell skirt|check fabric lace hem chains and bows"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX021",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-02.jpg",
+      "design_group": "visual-design-GTX021",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_gothic\\lo11.png",
+      "source_sha256": "823a922522535090a1813bfb9615a4d37838385b912c9b293c526c130dce20cd",
+      "dimensions": [
+        602,
+        1145
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "white rose-accented frilled dress",
+        "neckline": "high ruffled neck",
+        "sleeve": "long frilled sleeves",
+        "waist": "fitted button/pintuck front",
+        "skirt": "broad white tiered skirt",
+        "trims": "white lace layers with red rose accents"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: white rose-accented frilled dress|high ruffled neck|long frilled sleeves|fitted button/pintuck front|broad white tiered skirt|white lace layers with red rose accents"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX024",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-02.jpg",
+      "design_group": "visual-design-GTX024",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_gothic\\lo16.png",
+      "source_sha256": "e95f80b0aaf1dd7b1ced2d39ff12f70f84a6a48d5bd4a3d9839db3ef1f7e173e",
+      "dimensions": [
+        422,
+        807
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "black white dress with white upper overlay",
+        "neckline": "white collar with black bow",
+        "sleeve": "long pale draped sleeves",
+        "waist": "defined dark waist",
+        "skirt": "knee-area dark expanded skirt",
+        "trims": "white overlay tiers and pale hem border"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: black white dress with white upper overlay|white collar with black bow|long pale draped sleeves|defined dark waist|knee-area dark expanded skirt|white overlay tiers and pale hem border"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX068",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-05.jpg",
+      "design_group": "visual-design-GTX068",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_gothic\\64028042_p1.jpg",
+      "source_sha256": "413c8a0c8e341ed0b22271d2c5a8a242fd7c98c12c16cd82704c67a9abf824b9",
+      "dimensions": [
+        768,
+        1200
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "black printed jumper dress over white blouse",
+        "neckline": "collar and narrow neck ribbon",
+        "sleeve": "long white puffed sleeves",
+        "waist": "fitted dark bodice",
+        "skirt": "knee-area black bell skirt",
+        "trims": "star/text-like print and lace hem"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: black printed jumper dress over white blouse|collar and narrow neck ribbon|long white puffed sleeves|fitted dark bodice|knee-area black bell skirt|star/text-like print and lace hem"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX077",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-06.jpg",
+      "design_group": "visual-design-GTX077",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_gothic\\79932638_p0.png",
+      "source_sha256": "e4c8b8cfc7772bbe832aaa3b69e4882dfe4e3f74bea035751a4174c5938b2676",
+      "dimensions": [
+        1562,
+        2195
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "deep red decorated dress",
+        "neckline": "high pale frilled neckline",
+        "sleeve": "puffed sleeves and arm decoration",
+        "waist": "fitted red waist",
+        "skirt": "short full red skirt",
+        "trims": "black/pale lace scallops repeated bows and bonnet"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: deep red decorated dress|high pale frilled neckline|puffed sleeves and arm decoration|fitted red waist|short full red skirt|black/pale lace scallops repeated bows and bonnet"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX098",
+      "family": "gothic",
+      "split": "extraction",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-07.jpg",
+      "design_group": "visual-design-GTX098",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_gothic\\goth01.jpg",
+      "source_sha256": "e7fee108d1693d44d65970ebb5e1044ea1a54ff8eea39af0880ce391878875c5",
+      "dimensions": [
+        768,
+        1024
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "brown gold elaborate layered dress",
+        "neckline": "high decorated neck",
+        "sleeve": "long fitted sleeves",
+        "waist": "fitted dark waist",
+        "skirt": "short expanded layered skirt with sheer lower ruffles",
+        "trims": "bonnet repeated gold borders and flowers"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: brown gold elaborate layered dress|high decorated neck|long fitted sleeves|fitted dark waist|short expanded layered skirt with sheer lower ruffles|bonnet repeated gold borders and flowers"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX015",
+      "family": "gothic",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-01.jpg",
+      "design_group": "visual-design-GTX015",
+      "aspect_folder": "long_portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\long_portrait\\lo_gothic\\87798482_p0.jpg",
+      "source_sha256": "b12f257b988a5e729800e6a719bda2321023d99e165dbe089617f69d1bb98fab",
+      "dimensions": [
+        2269,
+        4717
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "black white red dress",
+        "neckline": "bare upper chest with ruffled edge",
+        "sleeve": "arm covering partly visible",
+        "waist": "large red waist bow",
+        "skirt": "knee-area expanded layered skirt",
+        "trims": "white lace bands red roses and dark panels"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: black white red dress|bare upper chest with ruffled edge|arm covering partly visible|large red waist bow|knee-area expanded layered skirt|white lace bands red roses and dark panels"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX047",
+      "family": "gothic",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-04.jpg",
+      "design_group": "visual-design-GTX047",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_gothic\\53546416_p0.jpg",
+      "source_sha256": "d4cbff34eb2dbac64d2db2eb947573a47d26b5514edcca744d8c90bd3a4534ea",
+      "dimensions": [
+        720,
+        960
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "pale lavender black highly layered dress",
+        "neckline": "high decorated collar",
+        "sleeve": "long puffed/layered sleeves",
+        "waist": "shaped waist",
+        "skirt": "short rounded dense tiered skirt",
+        "trims": "large pale ruffles dark stripe/border rhythm"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pale lavender black highly layered dress|high decorated collar|long puffed/layered sleeves|shaped waist|short rounded dense tiered skirt|large pale ruffles dark stripe/border rhythm"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX094",
+      "family": "gothic",
+      "split": "heldout",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-07.jpg",
+      "design_group": "visual-design-GTX094",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_gothic\\d79ee0c7gw1f962hvnzbfj21kw28gdvx.jpg",
+      "source_sha256": "af93e74e15997411e22196df7aec5d50a01b0317e8459f774cd33c7e21810abf",
+      "dimensions": [
+        720,
+        1018
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "light blue gold printed jumper dress over pale blouse",
+        "neckline": "rounded blouse collar",
+        "sleeve": "puffed shoulders and long sleeves",
+        "waist": "gold-trimmed fitted waist",
+        "skirt": "knee-area bell skirt",
+        "trims": "figure/architectural print and gold hem border; not dark star bib"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: light blue gold printed jumper dress over pale blouse|rounded blouse collar|puffed shoulders and long sleeves|gold-trimmed fitted waist|knee-area bell skirt|figure/architectural print and gold hem border; not dark star bib"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX048",
+      "family": "gothic",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-04.jpg",
+      "design_group": "visual-design-GTX048",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_gothic\\54053725_p10.jpg",
+      "source_sha256": "10c75740fa4b90b2777a45165aebd561efb6cb589d542060559fbd75c6035e43",
+      "dimensions": [
+        1748,
+        2480
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "black dress with red cape-like upper layer",
+        "neckline": "neck covered by dark high front",
+        "sleeve": "partly obscured",
+        "waist": "defined waist",
+        "skirt": "knee-area black rounded skirt",
+        "trims": "red accents lace hem and striped stockings"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: black dress with red cape-like upper layer|neck covered by dark high front|partly obscured|defined waist|knee-area black rounded skirt|red accents lace hem and striped stockings"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX079",
+      "family": "gothic",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-06.jpg",
+      "design_group": "visual-design-GTX079",
+      "aspect_folder": "portrait",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\portrait\\lo_gothic\\87840837_p0.png",
+      "source_sha256": "122c2b9753da5450846dc70abedb6a2b1af4d8d07f7009162a806db92f6addc4",
+      "dimensions": [
+        2646,
+        4033
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "full_body",
+      "visible_structure": {
+        "upper_garment": "black blue structured dress",
+        "neckline": "high dark neck",
+        "sleeve": "long dark sleeve/arm panels",
+        "waist": "laced corset-like front",
+        "skirt": "short layered expanded skirt",
+        "trims": "pale blue ruffles bows and dark shaped panels"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: black blue structured dress|high dark neck|long dark sleeve/arm panels|laced corset-like front|short layered expanded skirt|pale blue ruffles bows and dark shaped panels"
+      ],
+      "ambiguity": "Family membership remains provisional; use only observable construction.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": true,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    },
+    {
+      "id": "GTX107",
+      "family": "gothic",
+      "split": "boundary",
+      "review_status": "manually_corrected_from_pixels",
+      "contact_sheet": "data/test-result/20261005/wardrobe-round4-prep/sheets/gothic-08.jpg",
+      "design_group": "visual-design-GTX107",
+      "aspect_folder": "landscape",
+      "source_path": "C:\\data\\train\\train\\lo_v2_train\\train\\source\\img\\landscape\\lo_gothic\\24594280_p0.jpg",
+      "source_sha256": "05addadde5ee68e2ea44f0a65202bffa447d3d26c7ead592ae12edaf6967d6f6",
+      "dimensions": [
+        1200,
+        959
+      ],
+      "source_style_label": "lo_gothic",
+      "candidate_bucket": "dress_other",
+      "visible_structure": {
+        "upper_garment": "pale gown in rotated reclining composition",
+        "neckline": "obscured",
+        "sleeve": "obscured",
+        "waist": "obscured",
+        "skirt": "large draped skirt with overlap, structure uncertain",
+        "trims": "pale layered fabric; birds/background are not garment evidence"
+      },
+      "reason": [
+        "Use corrected visible structure, not the original generated annotation.",
+        "Observed clothing construction: pale gown in rotated reclining composition|obscured|obscured|obscured|large draped skirt with overlap, structure uncertain|pale layered fabric; birds/background are not garment evidence"
+      ],
+      "ambiguity": "Mixed family, non-default silhouette or incomplete visibility; exclude from core-rule evidence.",
+      "design_group_note": "Visually distinct candidate; near-duplicate independence has not been measured.",
+      "label_use": "Source folder is provisional; never treat it as ground truth.",
+      "core_rule_evidence": false,
+      "heldout_status": "Already viewed during correction; not an independent heldout validation."
+    }
+  ],
+  "reviewed_but_not_selected": [
+    {
+      "id": "SWX121",
+      "aspect_folder": "landscape",
+      "note": "双人并排画面，衣装结构清楚但同画面有两个人；本轮不作为提取正例，登记为已复核未入选。"
+    },
+    {
+      "id": "CLX132",
+      "aspect_folder": "portrait",
+      "note": "钟形袖 + 满裙结构清楚；为了让每类提取正好 8 张、且与 CLA-G3 蓝白钟形裙族不过近，让位并登记为已复核未入选。"
+    },
+    {
+      "id": "SWX071",
+      "aspect_folder": "portrait",
+      "note": "围裙式叠层结构清楚；因同类叠层已由 SWE-G2/SWE-G8 覆盖而让位。"
+    },
+    {
+      "id": "SWX081",
+      "aspect_folder": "portrait",
+      "note": "完整甜系构造（上身饰＋腰＋分层裙＋配套帽子）；本轮未进入 8 张提取，但保留为在线阶段的替补候选。"
+    },
+    {
+      "id": "SWX090",
+      "aspect_folder": "portrait",
+      "note": "腰间荷叶边结构清楚；同上让位。"
+    },
+    {
+      "id": "SWX109",
+      "aspect_folder": "portrait",
+      "note": "上下配套（衬衫＋裙）结构清楚；同上让位。"
+    },
+    {
+      "id": "GTX091",
+      "aspect_folder": "portrait",
+      "note": "图案系统跨整件组织，结构清楚；为把每类压到 8 张而让位。"
+    }
+  ],
+  "unreviewed_pool": {
+    "note": "候选池之外的图片未进入本轮视觉复核，因此不构成「被拒绝」的结论，只登记为未复核。",
+    "unreviewed_pool_size": {
+      "classical": 251,
+      "sweet": 283,
+      "gothic": 262
+    }
+  }
+}

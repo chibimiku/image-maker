@@ -83,7 +83,7 @@ def normalize_audit(value: dict) -> dict:
 
 
 def audit_image_identity(image_path: str, analysis_result: dict, text_cfg: dict = None,
-                         timeout: int = 180, expected_prompt: str = "") -> dict:
+                         timeout: int = 180, expected_prompt: str = "", wardrobe=None) -> dict:
     if not os.path.isfile(image_path):
         raise FileNotFoundError(image_path)
     expected = str(expected_prompt or "").strip() or expected_character_text(analysis_result)
@@ -91,6 +91,11 @@ def audit_image_identity(image_path: str, analysis_result: dict, text_cfg: dict 
         raise ValueError("分析产物缺少角色描述")
     cfg = text_cfg or load_text_api_config()
     user = "ACTUAL GPT FIRST-PASS PROMPT:\n" + expected
+    if wardrobe:
+        from utils.wardrobe import wardrobe_prompt
+        from utils.prompt_loader import render_prompt_file
+        user += "\n\n" + render_prompt_file("wardrobe/identity-audit.md", {
+            "wardrobe": wardrobe_prompt(wardrobe)})
     audit_image = image_path
     proxy_path = ""
     try:

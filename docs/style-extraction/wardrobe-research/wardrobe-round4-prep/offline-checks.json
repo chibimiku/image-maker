@@ -1,0 +1,362 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.offline-checks.v1",
+  "generated_at": "2026-10-05T20:22:45",
+  "status": "offline_prep_only_no_requests_sent",
+  "real_http_requests": 0,
+  "run_dir_planned": "data/test-result/20261005/wardrobe-round4-r1",
+  "run_dir_created": false,
+  "round3_ledger": {
+    "path": "data/test-result/20261005/wardrobe-round3-prep/ledger.json",
+    "budgets": {
+      "text_http_attempts": 3,
+      "generation_http_attempts": 32,
+      "vision_http_attempts": 31,
+      "model_list_http_attempts": 1
+    },
+    "attempts": 65,
+    "sha256": "edbf407b0353c64bd28c922367ab1d197f12ec6276eb62f0cdf26f4849bb1b9c",
+    "run_id": "wardrobe-round3-prep"
+  },
+  "checks": [
+    {
+      "check": "extraction_request_count_is_6",
+      "ok": true,
+      "evidence": 6
+    },
+    {
+      "check": "heldout_request_count_is_3",
+      "ok": true,
+      "evidence": 3
+    },
+    {
+      "check": "conversion_draft_count_is_12",
+      "ok": true,
+      "evidence": 12
+    },
+    {
+      "check": "preservation_draft_count_is_2",
+      "ok": true,
+      "evidence": 2
+    },
+    {
+      "check": "every_extraction_request_at_most_4_images",
+      "ok": true,
+      "evidence": {
+        "X1-classical-a": 4,
+        "X2-classical-b": 4,
+        "X3-sweet-a": 4,
+        "X4-sweet-b": 4,
+        "X5-gothic-a": 4,
+        "X6-gothic-b": 4
+      }
+    },
+    {
+      "check": "extraction_attachments_cover_all_extraction_ids",
+      "ok": true,
+      "evidence": {
+        "covered": 24,
+        "declared": 24
+      }
+    },
+    {
+      "check": "no_heldout_image_in_extraction_attachments",
+      "ok": true,
+      "evidence": []
+    },
+    {
+      "check": "no_heldout_id_in_extraction_body",
+      "ok": true,
+      "evidence": []
+    },
+    {
+      "check": "no_extraction_image_in_heldout_attachments",
+      "ok": true,
+      "evidence": "ok"
+    },
+    {
+      "check": "heldout_requests_cover_all_heldout_ids",
+      "ok": true,
+      "evidence": [
+        "CLX014",
+        "CLX044",
+        "CLX129",
+        "GTX015",
+        "GTX047",
+        "GTX094",
+        "SWX028",
+        "SWX040",
+        "SWX124"
+      ]
+    },
+    {
+      "check": "no_design_group_spans_extraction_and_heldout",
+      "ok": true,
+      "evidence": []
+    },
+    {
+      "check": "three_boundary_examples_per_family",
+      "ok": true,
+      "evidence": "ok"
+    },
+    {
+      "check": "attachment_sha256_matches_selection",
+      "ok": true,
+      "evidence": []
+    },
+    {
+      "check": "no_request_is_marked_sent",
+      "ok": true,
+      "evidence": []
+    },
+    {
+      "check": "vision_model_left_unset_until_online",
+      "ok": true,
+      "evidence": "ok"
+    },
+    {
+      "check": "conversion_drafts_have_no_expectation_leak_in_body",
+      "ok": true,
+      "evidence": {}
+    },
+    {
+      "check": "conversion_drafts_carry_no_round3_case_tokens",
+      "ok": true,
+      "evidence": {}
+    },
+    {
+      "check": "draft_provenance_is_labelled",
+      "ok": true,
+      "evidence": []
+    },
+    {
+      "check": "evaluation_template_covers_every_required_field",
+      "ok": true,
+      "evidence": []
+    },
+    {
+      "check": "evaluation_template_forbids_dropping_person_or_scene_from_overall",
+      "ok": true,
+      "evidence": "aggregation rules 1-2 present"
+    },
+    {
+      "check": "new_run_dir_is_distinct_and_not_created_yet",
+      "ok": true,
+      "evidence": "data/test-result/20261005/wardrobe-round4-r1"
+    },
+    {
+      "check": "round4_budget_keys_are_its_own_set_not_round3_ledger_keys",
+      "ok": true,
+      "evidence": {
+        "round3": [
+          "count_rule",
+          "generation_http_attempts",
+          "generation_slots",
+          "model_list_http_attempts",
+          "text_http_attempts",
+          "text_review_slots",
+          "vision_calibration_slots",
+          "vision_http_attempts",
+          "vision_pair_slots",
+          "vision_retry_reserve"
+        ],
+        "round4": [
+          "online_scoring_attempts",
+          "optional_wave1_single_image_scoring_attempts",
+          "reference_vision_attempts",
+          "retry_reserve",
+          "text_synthesis_and_review_attempts",
+          "wave1_generation_attempts",
+          "wave2_generation_attempts"
+        ]
+      }
+    },
+    {
+      "check": "round3_ledger_untouched_by_this_prep_task",
+      "ok": true,
+      "evidence": {
+        "path": "data/test-result/20261005/wardrobe-round3-prep/ledger.json",
+        "budgets": {
+          "text_http_attempts": 3,
+          "generation_http_attempts": 32,
+          "vision_http_attempts": 31,
+          "model_list_http_attempts": 1
+        },
+        "attempts": 65,
+        "sha256": "edbf407b0353c64bd28c922367ab1d197f12ec6276eb62f0cdf26f4849bb1b9c",
+        "run_id": "wardrobe-round3-prep"
+      }
+    }
+  ],
+  "failures": [],
+  "verdict": "pass",
+  "counts": {
+    "selection_records": 42,
+    "extraction": 24,
+    "heldout": 9,
+    "boundary": 9,
+    "extraction_requests": 6,
+    "heldout_requests": 3,
+    "conversion_drafts": 12,
+    "preservation_drafts": 2
+  },
+  "wave1_call_list": [
+    {
+      "slot": "F4-GF-preserve-gpt-r1",
+      "case_id": "GF",
+      "family": null,
+      "channel": "gpt",
+      "prompt_chars": 1597,
+      "prompt_sha256": "60ee32789a0c5b1330647fdc7c0036f7c6c709e448ab1490bf869fb9a6e6f16f",
+      "request_file": "prompts/wardrobe/round4/requests/F4-GF-preserve-gpt-r1.json"
+    },
+    {
+      "slot": "F4-GP-preserve-gpt-r1",
+      "case_id": "GP",
+      "family": null,
+      "channel": "gpt",
+      "prompt_chars": 1625,
+      "prompt_sha256": "1c03dd3eb11e6976ec6c7d914e9ce35bed98ecdf006bfbd317f8b2cd6919b715",
+      "request_file": "prompts/wardrobe/round4/requests/F4-GP-preserve-gpt-r1.json"
+    },
+    {
+      "slot": "F4-H-classical-gpt-r1",
+      "case_id": "H",
+      "family": "classical",
+      "channel": "gpt",
+      "prompt_chars": 4336,
+      "prompt_sha256": "1a6f071d12b1b6714483c96267f6562d4fe11159633bc28e6d84defc2fe7946a",
+      "request_file": "prompts/wardrobe/round4/requests/F4-H-classical-gpt-r1.json"
+    },
+    {
+      "slot": "F4-H-gothic-gpt-r1",
+      "case_id": "H",
+      "family": "gothic",
+      "channel": "gpt",
+      "prompt_chars": 4333,
+      "prompt_sha256": "037158c6f8b3e475f875cad33eb389be6e8f0365a5b7c511fdd5981350525dd3",
+      "request_file": "prompts/wardrobe/round4/requests/F4-H-gothic-gpt-r1.json"
+    },
+    {
+      "slot": "F4-H-sweet-gpt-r1",
+      "case_id": "H",
+      "family": "sweet",
+      "channel": "gpt",
+      "prompt_chars": 4392,
+      "prompt_sha256": "2e5b66382d2074e64cb8ec9d0a417af1f90ade191b65e2defe3307e0d09df5e4",
+      "request_file": "prompts/wardrobe/round4/requests/F4-H-sweet-gpt-r1.json"
+    },
+    {
+      "slot": "F4-R-classical-gpt-r1",
+      "case_id": "R",
+      "family": "classical",
+      "channel": "gpt",
+      "prompt_chars": 4411,
+      "prompt_sha256": "d3cdeff984c9396ae4f79026735db13d9ab2ef71dba920b45ebc4f4503cb61b8",
+      "request_file": "prompts/wardrobe/round4/requests/F4-R-classical-gpt-r1.json"
+    },
+    {
+      "slot": "F4-R-gothic-gpt-r1",
+      "case_id": "R",
+      "family": "gothic",
+      "channel": "gpt",
+      "prompt_chars": 4408,
+      "prompt_sha256": "dbc7127f363632e2211c1a800e26dd8d670e9369ace1c749db9b39df1461e157",
+      "request_file": "prompts/wardrobe/round4/requests/F4-R-gothic-gpt-r1.json"
+    },
+    {
+      "slot": "F4-R-sweet-gpt-r1",
+      "case_id": "R",
+      "family": "sweet",
+      "channel": "gpt",
+      "prompt_chars": 4467,
+      "prompt_sha256": "44d68336ab52c39dbeb3dc7edbb2da3ab90df32bedd297cf9e3b46ee0bf0333c",
+      "request_file": "prompts/wardrobe/round4/requests/F4-R-sweet-gpt-r1.json"
+    },
+    {
+      "slot": "F4-U-classical-gpt-r1",
+      "case_id": "U",
+      "family": "classical",
+      "channel": "gpt",
+      "prompt_chars": 4098,
+      "prompt_sha256": "2a048cd1df3d25163cb1f5538b3ac2593403ef1ccbbe5c0888283cf1b05b8ff6",
+      "request_file": "prompts/wardrobe/round4/requests/F4-U-classical-gpt-r1.json"
+    },
+    {
+      "slot": "F4-U-gothic-gpt-r1",
+      "case_id": "U",
+      "family": "gothic",
+      "channel": "gpt",
+      "prompt_chars": 4095,
+      "prompt_sha256": "15e101d0b1debf1c9259b9069749fb966560b2dbf20eca4d7c279d4893874229",
+      "request_file": "prompts/wardrobe/round4/requests/F4-U-gothic-gpt-r1.json"
+    },
+    {
+      "slot": "F4-U-sweet-gpt-r1",
+      "case_id": "U",
+      "family": "sweet",
+      "channel": "gpt",
+      "prompt_chars": 4154,
+      "prompt_sha256": "658605177da27eeefe6a15edf2a053dbff5ae669a5954ec07a17bb0a460587c0",
+      "request_file": "prompts/wardrobe/round4/requests/F4-U-sweet-gpt-r1.json"
+    },
+    {
+      "slot": "F4-W-classical-gpt-r1",
+      "case_id": "W",
+      "family": "classical",
+      "channel": "gpt",
+      "prompt_chars": 4379,
+      "prompt_sha256": "35ec9c04983c7ad06fc29e48f676f927f0d3c41f3bac3b18ba565a4128aaf8ee",
+      "request_file": "prompts/wardrobe/round4/requests/F4-W-classical-gpt-r1.json"
+    },
+    {
+      "slot": "F4-W-gothic-gpt-r1",
+      "case_id": "W",
+      "family": "gothic",
+      "channel": "gpt",
+      "prompt_chars": 4376,
+      "prompt_sha256": "cb4f926782a8d48aa3301a5075fb781404a442b9d3cd024ecb84c4908a5795d2",
+      "request_file": "prompts/wardrobe/round4/requests/F4-W-gothic-gpt-r1.json"
+    },
+    {
+      "slot": "F4-W-sweet-gpt-r1",
+      "case_id": "W",
+      "family": "sweet",
+      "channel": "gpt",
+      "prompt_chars": 4435,
+      "prompt_sha256": "315635a3c632fb86b43ea4620b22e222b5ac79e74fa86dbad370350fc765ee8f",
+      "request_file": "prompts/wardrobe/round4/requests/F4-W-sweet-gpt-r1.json"
+    }
+  ],
+  "budget_recommendation_not_granted": {
+    "wave1_generation_attempts": 14,
+    "wave2_generation_attempts": 14,
+    "reference_vision_attempts": 9,
+    "text_synthesis_and_review_attempts": 2,
+    "online_scoring_attempts": 0,
+    "note": "全部为**建议值**，不代表用户授权；本轮准备任务未发送任何收费请求。失败与未知结果都算一次尝试。",
+    "params_source": "prompts/wardrobe/round3/spec/plan.json#generation_params (read frozen values at actual prepare time; do not alter production configuration)",
+    "frozen_params": {
+      "gpt": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "gemini": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "source": "data/test-result/20261005/wardrobe-pilot-v1/run-manifest.json#frozen_generation_params（与 round2 冻结值一致）"
+    }
+  }
+}

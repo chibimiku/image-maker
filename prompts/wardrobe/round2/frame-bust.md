@@ -1,0 +1,1 @@
+FINAL FRAMING REQUIREMENT: a close portrait from the upper chest upward on the requested plain grey background. The lower frame edge cuts across the upper chest, above the bust midpoint. Do not show the lower bodice, waist, elbows, hands, skirt or feet; do not zoom out to display clothing details. Only draw clothing details that fall inside this crop.

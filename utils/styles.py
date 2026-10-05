@@ -135,7 +135,13 @@ def style_enabled(styles, name) -> bool:
 
 def enabled_style_names(styles) -> list[str]:
     """按配置原顺序返回启用的画风名。管理界面仍应展示全部条目。"""
-    return [str(name) for name in (styles or {}) if style_enabled(styles, name)]
+    return [str(name) for name in (styles or {}) if style_enabled(styles, name)
+            and not is_wardrobe_style(name, styles[name])]
+
+
+def is_wardrobe_style(name, entry=None) -> bool:
+    return (name == "cute-lingerie-wardrobe"
+            or isinstance(entry, dict) and entry.get("kind") == "wardrobe")
 
 
 def style_prompt(styles, name):

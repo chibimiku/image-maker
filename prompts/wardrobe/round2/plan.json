@@ -1,0 +1,33 @@
+{
+  "schema_version": "image-maker.wardrobe-round2.v1",
+  "status": "prepared_not_executed",
+  "prior_plan": "prompts/wardrobe/test-plan.json",
+  "prior_run": "data/test-result/20261005/wardrobe-pilot-v1",
+  "variants": ["v2_frozen", "v3_routed"],
+  "channels": ["gpt", "gemini"],
+  "cases": [
+    {"case_id":"C03","role":"explicit_preservation","repeats":2,"gold_action":"preserve","gold_presence":"provided","framing":"full"},
+    {"case_id":"C04","role":"fill_missing_preservation","repeats":2,"gold_action":"preserve","gold_presence":"provided","framing":"full"},
+    {"case_id":"C06","role":"strict_crop","repeats":2,"gold_action":"fill","gold_presence":"unspecified","framing":"upper_chest"},
+    {"case_id":"C01","role":"positive_fill_regression","repeats":1,"gold_action":"fill","gold_presence":"unspecified","framing":"full"},
+    {"case_id":"C02","role":"positive_redesign_regression","repeats":1,"gold_action":"redesign","gold_presence":"provided","framing":"full"}
+  ],
+  "budgets": {
+    "generation_http_attempts":32,
+    "vision_http_attempts":20,
+    "text_http_attempts":2,
+    "generation_slots":32,
+    "vision_calibration_slots":2,
+    "vision_pair_slots":16,
+    "vision_retry_reserve":2,
+    "text_resolver_batch_slots":1,
+    "text_review_slots":1,
+    "model_list_http_attempts":1,
+    "count_rule":"Count before every actual HTTP attempt, including refused, timeout, fallback, retry and probes. Unknown dispatched outcomes remain consumed. No hidden retries. Never exceed the applicable cap; stop or leave pending."
+  },
+  "generation_params_from":"prior run-manifest frozen_generation_params; verify availability and freeze unchanged models/settings",
+  "generation_is_oracle_routed":true,
+  "resolver_test":"prompts/wardrobe/round2/resolver-cases.json",
+  "deployment_authorized":false,
+  "excluded":["production template changes","GUI changes","source-image edits","reference-style compatibility","repaint/correction chain","automatic wardrobe extraction","additional images","publication"]
+}

@@ -1,0 +1,108 @@
+{
+  "status": "prepared_not_executed",
+  "purpose": "verify actual image reading, garment and accessory reading, crop evidence and label mapping before any generation",
+  "budget": {
+    "vision_calibration_slots": 3,
+    "budget_key": "vision_http_attempts",
+    "counts_failures": true
+  },
+  "gold_must_not_be_sent_to_model": true,
+  "tests": [
+    {
+      "id": "CAL-CAT",
+      "kind": "garment_category",
+      "images": [
+        {
+          "label": "A",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-round2-r1/C03-gpt-r1-v3_routed-_output_103036_0_a03888.png",
+          "sha256": "a133c151d158b5077e0d691e6aa933ec01c9d5d5af7e5cd3a78c41daebb7daf2"
+        },
+        {
+          "label": "B",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C03-lolita-gpt-_output_012656_0_9716f2.png",
+          "sha256": "e5beef55d6adff47e2d60d7e11ad6fc8ba12cc01d13a57790bed5caf2b90591e"
+        }
+      ],
+      "expected_observations_local_only": {
+        "A": "red school uniform: blazer with lapels and a pleated skirt",
+        "B": "burgundy decorative dress with lace, bows and an expanded skirt"
+      },
+      "validation": {
+        "A_terms": [
+          "uniform",
+          "blazer",
+          "skirt"
+        ],
+        "A_forbidden": [
+          "lolita",
+          "lace dress"
+        ],
+        "B_terms": [
+          "dress"
+        ],
+        "B_forbidden_minimum": true
+      }
+    },
+    {
+      "id": "CAL-CROP",
+      "kind": "framing_width",
+      "images": [
+        {
+          "label": "A",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C06-lolita-gpt-_output_013604_0_1e0cf7.png",
+          "sha256": "2d689b936571918123795a8cefb2853687efaee663c1efad4355df69fd100950"
+        },
+        {
+          "label": "B",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-round2-r1/C06-gpt-r1-v3_routed-_output_104915_0_34244d.png",
+          "sha256": "9b27142f31d6621f17318e464ff35d57c84a2dcf774a70a1d0e38213efb60e27"
+        }
+      ],
+      "expected_observations_local_only": {
+        "A": "wider upper-body portrait showing a long structured bodice extending toward the waist",
+        "B": "tighter upper-chest portrait with the lower edge above the bust midpoint; independently generated character"
+      },
+      "validation": {
+        "must_use_terms": [
+          "chest",
+          "shoulder",
+          "bust",
+          "upper"
+        ],
+        "require_distinct_edges": true
+      }
+    },
+    {
+      "id": "CAL-ACC",
+      "kind": "colour_and_accessory",
+      "images": [
+        {
+          "label": "A",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C05-off-gpt-_output_013113_0_0b8b7b.png",
+          "sha256": "2253324df2e70603be5d9cbf930e3a2fefdfc5f41989c6dabe921c04d7bcb16d"
+        },
+        {
+          "label": "B",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C05-lolita-gpt-_output_013326_0_be0142.png",
+          "sha256": "27fee7bee753676cfbf08b8bb757e8e16566aa60f6b260dd3583e370d253f2a0"
+        }
+      ],
+      "expected_observations_local_only": {
+        "A": "black trouser suit",
+        "B": "black gothic dress with a silver crescent brooch at the collar"
+      },
+      "validation": {
+        "both_contain": [
+          "black"
+        ],
+        "B_terms": [
+          "crescent"
+        ],
+        "both_forbidden": [
+          "red",
+          "pink"
+        ]
+      }
+    }
+  ]
+}

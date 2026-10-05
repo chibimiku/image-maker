@@ -1,0 +1,7 @@
+Read the original wardrobe images using the supplied inventory. Select evidence for classical, sweet and gothic garment construction, in that priority group, without modifying the source files.
+
+For each family aim for 8 extraction examples, 3 held-out examples and 3 boundary examples. A quota is not permission to misclassify an image. Record shortages. Inspect original-resolution clothing when a contact sheet hides structure. Record source SHA256, visible upper garment, neckline, sleeve, waist, skirt, trims, reason for category, ambiguities and a design-group ID. Treat similar designs as one group even when file hashes differ; keep entire design groups in one split.
+
+Extraction examples should span at least three aspect folders where defensible; prefer no more than four from one folder. Directory labels and caption tags are selection hints only. Held-out images must not enter extraction requests. Boundary examples can include generic dresses, colour-only matches, mixed families and hidden structure; explain each rather than assigning every file a firm label.
+
+Do not select using face, age, hair, drawing medium, background or colours alone. Do not turn missing or occluded parts into visible observations. Report a selection.json and an ID-labelled gallery with actual source mapping. All selections remain provisional until their image evidence is checked; do not claim automatic extraction or full-dataset visual review from this selection step.

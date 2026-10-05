@@ -1,0 +1,169 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "H2-sweet",
+  "kind": "heldout_check",
+  "family": "sweet",
+  "wave": null,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "model": "UNSET_AT_PREP_TIME",
+  "model_note": "UNSET_AT_PREP_TIME：真实模型只在在线阶段运行期登记，这里不写死任何端点或模型名",
+  "max_completion_tokens": 3000,
+  "system_prompt": "Cross-check the supplied wardrobe rule package against the attached images. The images in this request are held-out references: they were kept out of every extraction request and must not be used to enlarge the extraction evidence set.\n\nFor each attached image, report independently:\n1. Which of the supplied core_construction rules the image actually supports or contradicts, with the visible garment evidence (upper garment, neckline, sleeve, waist or sash, skirt silhouette and layers, trim placement, fabric motif).\n2. Which rules the image cannot test at all, and why (crop, pose, occlusion, garment type absent from this image).\n3. Any visible construction the package does not mention, and whether it looks like a design-specific variation rather than a family rule.\n4. The family you would assign from garment construction alone, before comparing with the supplied label, and the family you assign after comparing. State explicitly when the two differ.\n5. Any structure you had to guess. Never promote a guess into evidence.\n\nRules: color, face, age, hairstyle, background, painting medium or fashionability cannot establish a family. A single attached image cannot confirm a rule; three independent design groups are required for a core rule, so state how many independent groups this check can actually add. Do not treat these held-out images as new extraction evidence, and do not rewrite the rule package silently: propose changes as separate suggestions with the image ID that motivated each one. If the check motivates a change, say in `held_out_role` that the held-out set has now been used for revision and can no longer be called an independent hold-out.\n\nReturn JSON only: {\"case_id\":\"...\",\"family\":\"...\",\"images\":[{\"id\":\"...\",\"visible_construction\":\"...\",\"rules_supported\":[{\"rule_id\":\"...\",\"verdict\":\"supported|contradicted|untestable\",\"evidence\":\"...\"}],\"rules_unmentioned\":[\"...\"],\"family_before_comparison\":\"classical|sweet|gothic|mixed|uncertain\",\"family_after_comparison\":\"...\",\"mismatch_reason\":\"...\",\"hidden_structure_speculation\":[\"...\"],\"evidence\":[\"...\"]}],\"independent_design_groups_added\":0,\"suggested_changes\":[{\"rule_id\":\"...\",\"suggestion\":\"...\",\"motivated_by\":\"...\"}],\"held_out_role\":\"independent_check|used_for_revision\",\"unverified\":[\"...\"]}. Include exactly the supplied IDs, one record each.\n",
+  "system_sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3",
+  "user_text": "HELD-OUT_IDS (use these exact IDs in your images output):\n- SWX028 (aspect folder: portrait; size: 960x1536)\n- SWX040 (aspect folder: portrait; size: 1512x2000)\n- SWX124 (aspect folder: landscape; size: 1412x993)\n\nFamily under check: sweet.\nThese images were kept out of every extraction request. They are for independent checking of the supplied rule package only; do not use them to enlarge extraction evidence.\nThe images follow in the same order as HELD-OUT_IDS; each image is preceded by its own IMAGE LABEL line. Answer with JSON only, per the rules in the system message.",
+  "user_sha256": "f6ad4f131c89dfc9dc0dc9b64e771a0ba1710f292ebe69b785dc2f21402f7b15",
+  "content_order": [
+    {
+      "role": "system",
+      "type": "text",
+      "sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3",
+      "preview": "Cross-check the supplied wardrobe rule package against the attached images. The "
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "",
+      "sha256": "f6ad4f131c89dfc9dc0dc9b64e771a0ba1710f292ebe69b785dc2f21402f7b15",
+      "preview": "HELD-OUT_IDS (use these exact IDs in your images output):\n- SWX028 (aspect folde"
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "SWX028",
+      "sha256": "95f54f49fce7505180fd79ab7b0157457b43fb4bf866cb454a24d79719c64c55",
+      "preview": "IMAGE LABEL: [SWX028] (H2-sweet)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "0af5db674aef402e3abfe659e20c096345c42107f67165a40fc4467dc1934b6f",
+      "bytes_estimate": 2278906
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "SWX040",
+      "sha256": "69b3968da6c95f35a5452ed5a79fcd0599698cb56811601a207f28560386d9c4",
+      "preview": "IMAGE LABEL: [SWX040] (H2-sweet)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "2bc52f827568c790e34d476ebcde96bc3483e449f41ebb83fa90ed34e93ca92a",
+      "bytes_estimate": 2458234
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "SWX124",
+      "sha256": "44146ee1359c3c672d0d098a76fb63cd19a9ff9425fced18bd6b94613714427d",
+      "preview": "IMAGE LABEL: [SWX124] (H2-sweet)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "30ac535d4ea43c0e92a724f2ebebbe74384df492e5afb631d56be76368319946",
+      "bytes_estimate": 2575202
+    }
+  ],
+  "content_blocks": [
+    {
+      "type": "text",
+      "label": "Cross-check the supplied wardrobe rule package against the a",
+      "sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3"
+    },
+    {
+      "type": "text",
+      "label": "HELD-OUT_IDS (use these exact IDs in your images output):\n- ",
+      "sha256": "f6ad4f131c89dfc9dc0dc9b64e771a0ba1710f292ebe69b785dc2f21402f7b15"
+    },
+    {
+      "type": "text",
+      "label": "SWX028",
+      "sha256": "95f54f49fce7505180fd79ab7b0157457b43fb4bf866cb454a24d79719c64c55"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "0af5db674aef402e3abfe659e20c096345c42107f67165a40fc4467dc1934b6f"
+    },
+    {
+      "type": "text",
+      "label": "SWX040",
+      "sha256": "69b3968da6c95f35a5452ed5a79fcd0599698cb56811601a207f28560386d9c4"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "2bc52f827568c790e34d476ebcde96bc3483e449f41ebb83fa90ed34e93ca92a"
+    },
+    {
+      "type": "text",
+      "label": "SWX124",
+      "sha256": "44146ee1359c3c672d0d098a76fb63cd19a9ff9425fced18bd6b94613714427d"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "30ac535d4ea43c0e92a724f2ebebbe74384df492e5afb631d56be76368319946"
+    }
+  ],
+  "message_roles": [
+    {
+      "role": "system",
+      "content_type": "text"
+    },
+    {
+      "role": "user",
+      "content_type": "blocks"
+    }
+  ],
+  "user_message_block_types": [
+    "text",
+    "text",
+    "image_url",
+    "text",
+    "image_url",
+    "text",
+    "image_url"
+  ],
+  "attachments": [
+    {
+      "label": "SWX028",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_sweet/01920-1671567284-a girl in a dress and hat with a flower on her head and a pink background with roses and a pink rose, Bourgeois, pastel color pa.png",
+      "source_sha256": "7b45645c9debb160417e8a5578567cd04ada2475a652fd7f567f9ebd75b2423e",
+      "bytes": 1709161,
+      "data_url_sha256": "0af5db674aef402e3abfe659e20c096345c42107f67165a40fc4467dc1934b6f"
+    },
+    {
+      "label": "SWX040",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_sweet/107869749_p3.png",
+      "source_sha256": "e0f25f141abe2834f65d76f2a04f28530b88fcfbe964ed70bfb7276a19b29823",
+      "bytes": 1843659,
+      "data_url_sha256": "2bc52f827568c790e34d476ebcde96bc3483e449f41ebb83fa90ed34e93ca92a"
+    },
+    {
+      "label": "SWX124",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/landscape/lo_sweet/67897877_p0.png",
+      "source_sha256": "3f5e45771046a08f4154c29676b990d9b37ca8f71b4fba8c83ce7de20b61d2f8",
+      "bytes": 1931383,
+      "data_url_sha256": "30ac535d4ea43c0e92a724f2ebebbe74384df492e5afb631d56be76368319946"
+    }
+  ],
+  "attachment_order": [
+    "SWX028",
+    "SWX040",
+    "SWX124"
+  ],
+  "templates": [
+    "prompts/wardrobe/round4/templates/heldout-check-round4.md"
+  ],
+  "no_held_out_images_in_attachments": false,
+  "notes": [
+    "草案：本文件由离线准备任务生成，未发送、未计费。",
+    "附件顺序 = BATCH_IDS 顺序；labels 与正文里的 ID 一一对应。",
+    "请求正文不含留出图；留出核对是另外三个独立请求。"
+  ]
+}

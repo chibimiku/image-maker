@@ -1,0 +1,4 @@
+{
+  "round3_spec_lf_sha256": "fb3285e8de7f3542d59ac92c06216af274c5db83eaac9faa76bba1d01cfda625",
+  "note": "LF-normalized projection for portable artifact regression; original byte-based runtime/hash and historical reports unchanged"
+}

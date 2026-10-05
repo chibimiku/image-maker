@@ -1,0 +1,281 @@
+{
+  "scope": "sanitized metadata and visual review sheets; original datasets and full outputs remain local",
+  "records": [
+    {
+      "original": "data/test-result/20261005/wardrobe-pilot-v1/results.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-pilot-v1/results.json",
+      "original_sha256": "408f2e912f6db235911fe317bee90eaabb5dc8122c8d6d70208f27b25feede60",
+      "archive_sha256": "17de55e2f5d982e5ae07584e8f0620169eec41d5ad5390b06ebad617f4a8e43e",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-pilot-v1/run-manifest.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-pilot-v1/run-manifest.json",
+      "original_sha256": "705a47752c1f00c5a7483efaac0be48b27041b5934a2337fc4ac10d40d0ce049",
+      "archive_sha256": "8996f00213390da6fac6833cbaeb7a5a1891478bff086057164ff06abdd05382",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-pilot-v1/scores.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-pilot-v1/scores.json",
+      "original_sha256": "7198bd5fef5d7f460f3fbf8c43ef625074f972a1dcc5080ffdec2baa3d19f3e9",
+      "archive_sha256": "223a9e47af23ed2877c55dbd6048553c04019b14b818fd7c27b296fa38cef247",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round2-r1/samples.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-r1/samples.json",
+      "original_sha256": "980e1a38800686ac4ee120677740035a93e9a8acb5d9f6e52df151bb24f34153",
+      "archive_sha256": "253f226aea13d6f352fac1d5a2e84f1af5127a03586eb837b1caf16406436df6",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round2-r1/scores.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-r1/scores.json",
+      "original_sha256": "dd1a0527bd4bf076779726d4fc1209093a9ccbba20725b7d1407bee2d2aa5a35",
+      "archive_sha256": "e9ac040912b3279669c8e1def17d5454bb9b85612eb2fe68655838988a1c445b",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round2-r1/summary.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-r1/summary.json",
+      "original_sha256": "545105dec41ccd704aa4c87ccee3d125186325e1bdc93ecbc646d4bed8b8c84b",
+      "archive_sha256": "47e2ed6a471f8db14eeafeb4aa5e7094ba56799e2a8e7fa3be479d6a89c05af1",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round2-r1/summary-v2.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-r1/summary-v2.json",
+      "original_sha256": "692bae41fbf30e085c17bea03d9a0a1d2f7f110f52ba3949b11f88be02b32059",
+      "archive_sha256": "7253a8bff80a1f9f8dd018f472404277524987f5734004141b04d48e0d59c9fd",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round2-r1/prepare-report.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-r1/prepare-report.json",
+      "original_sha256": "81d554c8a788f7aa63cbea21e01b585d53511ebe439f6b68d60bdff0bd6336fa",
+      "archive_sha256": "cfbec1244a61fe0940db1c2980f68f6999b915d10a5f1d5807b9443f86d37de0",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round2-r1/ledger.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-r1/ledger.json",
+      "original_sha256": "5b613e5f8524c621f3646fbcbf605e1b8c3e4c195de80a090a61f1f333ba7427",
+      "archive_sha256": "4c36d15f99c9cf4243237cb9d0dd13db44cc916f8f9fff403b495e1b9ad7d0fb",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round3-prep/samples.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round3-prep/samples.json",
+      "original_sha256": "56edf73f9edd335092b36f2249e45090001281585bdfb37acee6371f3feac024",
+      "archive_sha256": "8b46d78530cbcf65fa5278232b32d53d491cefe6a7b64ac3a4dfe90ad5858fc2",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round3-prep/scores.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round3-prep/scores.json",
+      "original_sha256": "9c8ece15c5b9d82b9dff62139c980e781400cfefa626e6f18eb45ac9342c5f95",
+      "archive_sha256": "f64927c2bc979ffd112cb612ed445b57f81aae223fae4b1b577ad339d411b005",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round3-prep/summary-v2.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round3-prep/summary-v2.json",
+      "original_sha256": "46794862bb3a6afd2ae26e7461ce75a8ab9ccce2146895e31dd71c27e196f748",
+      "archive_sha256": "5da574e7d716a5319cd991459dc8bb1155995344582818cff8b7007257f73700",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round3-prep/prepare-report.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round3-prep/prepare-report.json",
+      "original_sha256": "629e5e06b17e9fbb7b7bdcfcdd58812dc51b99985ba18f8e886d69ea49a864b4",
+      "archive_sha256": "a8a856922bd1acfefe65fdfedd7ca2cd918f2a8502dfc83c00bdbfbeb5ca8e92",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round3-prep/ledger.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round3-prep/ledger.json",
+      "original_sha256": "edbf407b0353c64bd28c922367ab1d197f12ec6276eb62f0cdf26f4849bb1b9c",
+      "archive_sha256": "bbcf20cc3a426e885c7aa47b71fa85ec162ac2b6894e35bf10d7aaf125a77312",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-prep/offline-checks.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-prep/offline-checks.json",
+      "original_sha256": "0df4fb5742f4145a9fe9ba1df41c040f80c8f665895c7863bf17bf9d3f341124",
+      "archive_sha256": "df74aa39e9c0d51b5f32ae18280d4390153511623baa6456e5ab8746622bc30c",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-prep/selection.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-prep/selection.json",
+      "original_sha256": "fd8590366df424eb99f71c39e46ab17f55732a78ec78b5c181d14eb9007531e2",
+      "archive_sha256": "fd8590366df424eb99f71c39e46ab17f55732a78ec78b5c181d14eb9007531e2",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/samples.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/samples.json",
+      "original_sha256": "0c1eac35eecd9ef547490d798bd3dc63bbc562f57b8fe1835f5abbaae1f731aa",
+      "archive_sha256": "62ab6740b2c6142458e98b976f528fb3aa1df211a98a7f4d6d52c67efd95250d",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/ledger.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/ledger.json",
+      "original_sha256": "44e86798a409cb6db54b6deb8b7206669469f9baf805bf5b0e049e43448563ac",
+      "archive_sha256": "e8844c704167b8c4b64c7c818b69c2826c5738c22aae23a01196c0dfa759554e",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/index.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/review/index.json",
+      "original_sha256": "4002cb5c345a7d88a37c1f3ca45998be608744b2de6b26a9b4be6b07808445d1",
+      "archive_sha256": "8ec3fc77d85e0f53539fa9089ff579bd8ccd1600aacd193e75cc481f169703d6",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/manual-review.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/review/manual-review.json",
+      "original_sha256": "9b756d2040d920ea33ebb5bd05dbc536e6db5332e3ed6b3df4fc22e10b9f5073",
+      "archive_sha256": "3a1cf7299198c3bc5419bd6193306628be7a0bf0facfe3338865f9ae30a6b41a",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/send-budget/images.jsonl",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/send-budget/images.jsonl",
+      "original_sha256": "140c99b265974152113aefc62e0127198db909799a84e2811e5d1fdd27a4ae08",
+      "archive_sha256": "140c99b265974152113aefc62e0127198db909799a84e2811e5d1fdd27a4ae08",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/compatibility.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/compatibility.jpg",
+      "sha256": "8eb9e5b5a45c61ad05eea8157da726b32d66ac1a887e79a6d48b7ea95e84714a",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/cultural.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/cultural.jpg",
+      "sha256": "3f952c8c05be193f5a95852d7a55183bdb2d68588862271367bfe6c7713eaf45",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/guards.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/guards.jpg",
+      "sha256": "3d4500ed95cd1fc6cb749ed465dc37ce898e6811afb5d9c2e17181c9a2f4b8f8",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/H.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/H.jpg",
+      "sha256": "27bdc5e8bc1542ca50cc6420df175f66b094f550966f1d064703d7a54bb8f5c4",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/R.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/R.jpg",
+      "sha256": "dfe1eb6ca197dfcbc46f774bd4c01b2bb610fa8d9e29e6774de2aaa92a0784bb",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/U.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/U.jpg",
+      "sha256": "d3b3dba863ed506ad7ad711f91a62c214c3a8649d424b824fbbbe6e6a5f2d1a8",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round4-r1/review/W.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round4-r1/W.jpg",
+      "sha256": "2faed6122f63839629331c987b982ecb5929945c5c247bf3e111858f384b1101",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round5-r1/samples.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round5-r1/samples.json",
+      "original_sha256": "0c87b658fc42087765a5ac19655396db59b6ff4035b1948b677de35fbda96aed",
+      "archive_sha256": "65d586c2b32efd4511bdafa02f4e29bd7fadb2c6e4911e578af961e963a3f2d3",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round5-r1/review/index.json",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round5-r1/review/index.json",
+      "original_sha256": "a3d668c3a54d16b4af899bc6da902265d371e71651ed6b7e1c80d8a49f5618c7",
+      "archive_sha256": "342c2252dcce76490529c7eacae51e7d0432845cf166ce64aca68b37820a1ffb",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round5-r1/send-budget/images.jsonl",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round5-r1/send-budget/images.jsonl",
+      "original_sha256": "f9b8bfd0ee5706e0295218d2b2f5961bc69b0e35ac00dff2a3ffe814366c70ab",
+      "archive_sha256": "f9b8bfd0ee5706e0295218d2b2f5961bc69b0e35ac00dff2a3ffe814366c70ab",
+      "sanitized": true
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round5-r1/review/adapt.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round5-r1/adapt.jpg",
+      "sha256": "5ef4e4f37b61ba8a26127293933de322020a5e27a27d68b28bbd35df2627ff87",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round5-r1/review/compatibility.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round5-r1/compatibility.jpg",
+      "sha256": "b0bb1a5bf4bd92daba5b0a6f0c836701721d88014318723790dea0d36d5227d0",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round5-r1/review/complete.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round5-r1/complete.jpg",
+      "sha256": "19d2747e8ae49cc80c82714d325af96b575ee1be71fb1856f27fcc5b33371620",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "data/test-result/20261005/wardrobe-round5-r1/review/guards.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round5-r1/guards.jpg",
+      "sha256": "12de54d930805b2bac4f6ceb4818ff19d3f12779802bbd864be4e266170ec680",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "cache/temp/wardrobe-round2-review-20261005/C01-C02.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-review-20261005/C01-C02.jpg",
+      "sha256": "4a572ffff9465c64759a7caacd6ebafd18c5d09a9ad647ef030eded06de41bed",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "cache/temp/wardrobe-round2-review-20261005/C03.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-review-20261005/C03.jpg",
+      "sha256": "56400206e73b18fd80ba718bcbdb65d44162c348bc281d684292961a36546c23",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "cache/temp/wardrobe-round2-review-20261005/C04.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-review-20261005/C04.jpg",
+      "sha256": "da52ca0d3e1c53641ee7f7f7662974f400c861f4c35deefa732b57c9927b6e36",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "cache/temp/wardrobe-round2-review-20261005/C06.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-round2-review-20261005/C06.jpg",
+      "sha256": "3e0433e7283cc1d0dc3c77f300b18e2f4c2e52f780430f92382fd01cb053e5ac",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "cache/temp/wardrobe-review-20261005/cases-1-2.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-review-20261005/cases-1-2.jpg",
+      "sha256": "5c0116d031be05c2d5d3aa72bd965f46eb1dad3237c7ee2900fc4b0580cb824e",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "cache/temp/wardrobe-review-20261005/cases-3-4.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-review-20261005/cases-3-4.jpg",
+      "sha256": "a5e8fb4ef7aab2b6ce01ebec9b5e3708857448fe35d695a1a0ffa1f8ae557cc8",
+      "kind": "review_contact_sheet"
+    },
+    {
+      "original": "cache/temp/wardrobe-review-20261005/cases-5-6.jpg",
+      "archive": "docs/style-extraction/wardrobe-research/wardrobe-review-20261005/cases-5-6.jpg",
+      "sha256": "bda28e0ffb4c684a0290ecff2fc5234c3532f7e92d924169eae68a28a4b205bf",
+      "kind": "review_contact_sheet"
+    }
+  ]
+}

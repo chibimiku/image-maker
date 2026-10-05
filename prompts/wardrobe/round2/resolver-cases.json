@@ -1,0 +1,18 @@
+{
+  "schema_version": "image-maker.wardrobe-authorization-test.v1",
+  "cases": [
+    {"id":"R01","policy":"reinterpret","source_facts":"Red school uniform and gold star brooch.","user_request":"Keep the original uniform including its cut. Full-body view.","expected":{"action":"preserve","clothing_presence":"provided","explicit_keep_original":true,"framing":"full"}},
+    {"id":"R02","policy":"reinterpret","source_facts":"红色校服、金色星形胸针。","user_request":"衣服原样保留，不要改款，画全身。","expected":{"action":"preserve","clothing_presence":"provided","explicit_keep_original":true,"framing":"full"}},
+    {"id":"R03","policy":"reinterpret","source_facts":"Red school uniform and gold star brooch.","user_request":"Keep the red colour and gold star brooch. Full-body view.","expected":{"action":"redesign","clothing_presence":"provided","explicit_keep_original":false,"framing":"full"}},
+    {"id":"R04","policy":"reinterpret","source_facts":"红色校服、金色星形胸针。","user_request":"可以改款，但红色和星形胸针别变，画全身。","expected":{"action":"redesign","clothing_presence":"provided","explicit_keep_original":false,"framing":"full"}},
+    {"id":"R05","policy":"fill_missing","source_facts":"Red school uniform.","user_request":"A woman in a park, full body.","expected":{"action":"preserve","clothing_presence":"provided","explicit_keep_original":false,"framing":"full"}},
+    {"id":"R06","policy":"fill_missing","source_facts":"红色校服。","user_request":"长发女子在公园，画全身。","expected":{"action":"preserve","clothing_presence":"provided","explicit_keep_original":false,"framing":"full"}},
+    {"id":"R07","policy":"fill_missing","source_facts":"No source image; no clothing supplied.","user_request":"A long-haired woman, full body.","expected":{"action":"fill","clothing_presence":"unspecified","explicit_keep_original":false,"framing":"full"}},
+    {"id":"R08","policy":"fill_missing","source_facts":"没有源图，也没有衣服描述。","user_request":"长发女子，只画上胸以上的近景。","expected":{"action":"fill","clothing_presence":"unspecified","explicit_keep_original":false,"framing":"upper_chest"}},
+    {"id":"R09","policy":"replace","source_facts":"Black trouser suit with a silver crescent brooch.","user_request":"Keep the black clothing colour and silver crescent brooch, full body.","expected":{"action":"redesign","clothing_presence":"provided","explicit_keep_original":false,"framing":"full"}},
+    {"id":"R10","policy":"replace","source_facts":"红色校服。","user_request":"不要更换校服，但也把全部衣服换成另一种设计，画全身。","expected":{"action":"review_required","clothing_presence":"provided","explicit_keep_original":true,"framing":"full"}},
+    {"id":"R11","policy":"fill_missing","source_facts":"Source image analysis missing; clothing presence unknown.","user_request":"A long-haired woman, full body.","expected":{"action":"review_required","clothing_presence":"unknown","explicit_keep_original":false,"framing":"full"}},
+    {"id":"R12","policy":"reinterpret","source_facts":"红色校服。","user_request":"上衣必须原样保留，只换下装，画全身。","expected":{"action":"review_required","clothing_presence":"provided","explicit_keep_original":true,"framing":"full"}}
+  ],
+  "evaluation": "Expected fields are local oracles, never sent to the model. Missing/duplicate IDs or wrong types fail. All 12 decisions must match before live generation; this small fixture does not prove production parsing reliability."
+}

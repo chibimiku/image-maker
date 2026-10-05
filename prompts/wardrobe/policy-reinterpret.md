@@ -1,0 +1,4 @@
+Select one branch before considering the target design:
+PRESERVE: explicit keep-original requirements take precedence. Keep every protected garment's described cut and decoration, including plain fabric. Do not add target-family garments or trim to protected parts.
+ADAPT: when clothing is specified and redesign is allowed, retain every source garment category and layer. Adapt compatible cut or trim on those garments only. A hoodie with trousers remains a hoodie with trousers; no added skirt or apron. Ordinary outerwear does not become underwear. Retain explicitly requested colours and signature elements. Complete-ensemble examples below are inactive in this branch. If the retained category prevents a complete target silhouette, do not claim complete conversion.
+COMPLETE: When clothing is unspecified, supply a complete outfit from the conditional design vocabulary.

@@ -1,0 +1,1103 @@
+{
+  "run_id": "wardrobe-pilot-v1",
+  "created_at": "2026-10-05T01:15:45.823524",
+  "samples": [
+    {
+      "sample_id": "C01-off-gpt",
+      "case_id": "C01",
+      "case_name": "No clothing supplied",
+      "arm": "off",
+      "channel": "gpt",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 285,
+      "prompt_sha256": "6a941823dcbe30662564566229d0f5f781e6966883929d244c364ca49ce7046b",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:15:45.823524",
+      "logical_call": 1,
+      "elapsed_s": 31.3,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-off-gpt-_output_011617_0_c7291e.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:16:17.167079"
+    },
+    {
+      "sample_id": "C01-off-gemini",
+      "case_id": "C01",
+      "case_name": "No clothing supplied",
+      "arm": "off",
+      "channel": "gemini",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 285,
+      "prompt_sha256": "6a941823dcbe30662564566229d0f5f781e6966883929d244c364ca49ce7046b",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:16:17.167589",
+      "logical_call": 1,
+      "elapsed_s": 34.1,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-off-gemini-_011651-aa7d0a.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:16:51.244087"
+    },
+    {
+      "sample_id": "C01-lolita-gpt",
+      "case_id": "C01",
+      "case_name": "No clothing supplied",
+      "arm": "lolita",
+      "channel": "gpt",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 3099,
+      "prompt_sha256": "0e38f30a5b1d2ec916e2d6c129e6bfd22e068984d31ebfb6d3ec554dfaefab8e",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "c239f180b1839b7c26ad9c7184c449ab023d2d5a36a8b30ee4691cbc94ece0c4"
+      },
+      "wardrobe_original_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:16:51.244631",
+      "logical_call": 1,
+      "elapsed_s": 111.1,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-lolita-gpt-_output_011842_0_d35812.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:18:42.341609"
+    },
+    {
+      "sample_id": "C01-lolita-gemini",
+      "case_id": "C01",
+      "case_name": "No clothing supplied",
+      "arm": "lolita",
+      "channel": "gemini",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 3099,
+      "prompt_sha256": "0e38f30a5b1d2ec916e2d6c129e6bfd22e068984d31ebfb6d3ec554dfaefab8e",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "c239f180b1839b7c26ad9c7184c449ab023d2d5a36a8b30ee4691cbc94ece0c4"
+      },
+      "wardrobe_original_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:18:42.342415",
+      "logical_call": 1,
+      "elapsed_s": 51.1,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-lolita-gemini-_011933-9672cc.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:19:33.487135"
+    },
+    {
+      "sample_id": "C02-off-gpt",
+      "case_id": "C02",
+      "case_name": "Red school uniform changed toward Lolita",
+      "arm": "off",
+      "channel": "gpt",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 405,
+      "prompt_sha256": "f74983cf05164dc003d44f5de93deaa97f0b247b12ce292bf7e9997bd12e02a1",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "red clothing",
+        "gold star brooch",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:19:33.488232",
+      "logical_call": 1,
+      "elapsed_s": 23.5,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-off-gpt-_output_011956_0_56acdb.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:19:56.962404"
+    },
+    {
+      "sample_id": "C02-off-gemini",
+      "case_id": "C02",
+      "case_name": "Red school uniform changed toward Lolita",
+      "arm": "off",
+      "channel": "gemini",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 405,
+      "prompt_sha256": "f74983cf05164dc003d44f5de93deaa97f0b247b12ce292bf7e9997bd12e02a1",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "red clothing",
+        "gold star brooch",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:19:56.963419",
+      "logical_call": 1,
+      "elapsed_s": 28.5,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-off-gemini-_012025-01cf50.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:20:25.498214"
+    },
+    {
+      "sample_id": "C02-lolita-gpt",
+      "case_id": "C02",
+      "case_name": "Red school uniform changed toward Lolita",
+      "arm": "lolita",
+      "channel": "gpt",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 3219,
+      "prompt_sha256": "9deda5fa03f53b17346bb9edeb6f241e09646217616d4408dc0effde44464165",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "red clothing",
+        "gold star brooch",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "c239f180b1839b7c26ad9c7184c449ab023d2d5a36a8b30ee4691cbc94ece0c4"
+      },
+      "wardrobe_original_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:20:25.499698",
+      "logical_call": 1,
+      "elapsed_s": 107.6,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-lolita-gpt-_output_012213_0_26679e.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:22:13.060181"
+    },
+    {
+      "sample_id": "C02-lolita-gemini",
+      "case_id": "C02",
+      "case_name": "Red school uniform changed toward Lolita",
+      "arm": "lolita",
+      "channel": "gemini",
+      "policy": "reinterpret",
+      "target_type": "lolita",
+      "prompt_chars": 3219,
+      "prompt_sha256": "9deda5fa03f53b17346bb9edeb6f241e09646217616d4408dc0effde44464165",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "red clothing",
+        "gold star brooch",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "c239f180b1839b7c26ad9c7184c449ab023d2d5a36a8b30ee4691cbc94ece0c4"
+      },
+      "wardrobe_original_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:22:13.060684",
+      "logical_call": 1,
+      "elapsed_s": 37.2,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-lolita-gemini-_012250-fec3e6.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:22:50.269909"
+    },
+    {
+      "sample_id": "C03-off-gpt",
+      "case_id": "C03",
+      "case_name": "Explicit keep-original overrides wardrobe",
+      "arm": "off",
+      "channel": "gpt",
+      "policy": "reinterpret",
+      "target_type": "preserve",
+      "prompt_chars": 423,
+      "prompt_sha256": "7185d7c8be098aa671b7c32065fefa590ad2a853211494b3ef6be3ac8c49cb16",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "original red school uniform and cut",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:22:50.271402",
+      "logical_call": 1,
+      "elapsed_s": 106.4,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-off-gpt-_output_012436_0_2f0af2.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:24:36.719207"
+    },
+    {
+      "sample_id": "C03-off-gemini",
+      "case_id": "C03",
+      "case_name": "Explicit keep-original overrides wardrobe",
+      "arm": "off",
+      "channel": "gemini",
+      "policy": "reinterpret",
+      "target_type": "preserve",
+      "prompt_chars": 423,
+      "prompt_sha256": "7185d7c8be098aa671b7c32065fefa590ad2a853211494b3ef6be3ac8c49cb16",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "original red school uniform and cut",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:24:36.720210",
+      "logical_call": 1,
+      "elapsed_s": 23.8,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-off-gemini-_012500-3a36ad.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:25:00.561797"
+    },
+    {
+      "sample_id": "C03-lolita-gpt",
+      "case_id": "C03",
+      "case_name": "Explicit keep-original overrides wardrobe",
+      "arm": "lolita",
+      "channel": "gpt",
+      "policy": "reinterpret",
+      "target_type": "preserve",
+      "prompt_chars": 3237,
+      "prompt_sha256": "090ccb3d8a02a69f2ee6f2c28e2b25d8849a2583a22441d234ca5b0efe5e5cf1",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "original red school uniform and cut",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "c239f180b1839b7c26ad9c7184c449ab023d2d5a36a8b30ee4691cbc94ece0c4"
+      },
+      "wardrobe_original_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:25:00.563813",
+      "logical_call": 1,
+      "elapsed_s": 115.9,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-lolita-gpt-_output_012656_0_9716f2.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:26:56.461631"
+    },
+    {
+      "sample_id": "C03-lolita-gemini",
+      "case_id": "C03",
+      "case_name": "Explicit keep-original overrides wardrobe",
+      "arm": "lolita",
+      "channel": "gemini",
+      "policy": "reinterpret",
+      "target_type": "preserve",
+      "prompt_chars": 3237,
+      "prompt_sha256": "090ccb3d8a02a69f2ee6f2c28e2b25d8849a2583a22441d234ca5b0efe5e5cf1",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "original red school uniform and cut",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "reinterpret",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "c239f180b1839b7c26ad9c7184c449ab023d2d5a36a8b30ee4691cbc94ece0c4"
+      },
+      "wardrobe_original_sha256": "408b7dc5fb184c29eeb2270287e4a19f6d7b1284138e1250440309a23c70a27e",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: reinterpret\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original instruction, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested garment colours and named signature accessories; unrequested original category and cut are not preserved. This is an intentional clothing change, not an identity mismatch.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:26:56.462635",
+      "logical_call": 1,
+      "elapsed_s": 27.9,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-lolita-gemini-_012724-108501.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:27:24.363177"
+    },
+    {
+      "sample_id": "C04-off-gpt",
+      "case_id": "C04",
+      "case_name": "Fill-missing preserves existing clothing",
+      "arm": "off",
+      "channel": "gpt",
+      "policy": "fill_missing",
+      "target_type": "preserve",
+      "prompt_chars": 339,
+      "prompt_sha256": "c77ffef8778e3b0ebec3f90daa47ca3ad8a6990d234be429dbbaed27e704f6ee",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "red school uniform",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:27:24.364942",
+      "logical_call": 1,
+      "elapsed_s": 21.9,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-off-gpt-_output_012746_0_92cab5.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:27:46.260231"
+    },
+    {
+      "sample_id": "C04-off-gemini",
+      "case_id": "C04",
+      "case_name": "Fill-missing preserves existing clothing",
+      "arm": "off",
+      "channel": "gemini",
+      "policy": "fill_missing",
+      "target_type": "preserve",
+      "prompt_chars": 339,
+      "prompt_sha256": "c77ffef8778e3b0ebec3f90daa47ca3ad8a6990d234be429dbbaed27e704f6ee",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "red school uniform",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:27:46.261562",
+      "logical_call": 1,
+      "elapsed_s": 32.7,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-off-gemini-_012818-493143.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:28:18.985738"
+    },
+    {
+      "sample_id": "C04-lolita-gpt",
+      "case_id": "C04",
+      "case_name": "Fill-missing preserves existing clothing",
+      "arm": "lolita",
+      "channel": "gpt",
+      "policy": "fill_missing",
+      "target_type": "preserve",
+      "prompt_chars": 2955,
+      "prompt_sha256": "10bfc792f9c485f71e4d96926704e594be56d7d324f8b9a6c885cd995a709ff0",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "red school uniform",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "fill_missing",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "d7fe16de8ec14e41c1f1e115820fe2a4d56c78234258baa2db3f65e163745861"
+      },
+      "wardrobe_original_sha256": "0732723bb87a9d1f77a9130edb9f0d3c7d47aa851197da30123056d317ece349",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:28:18.989437",
+      "logical_call": 1,
+      "elapsed_s": 114.0,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-lolita-gpt-_output_013013_0_3236ed.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:30:13.006867"
+    },
+    {
+      "sample_id": "C04-lolita-gemini",
+      "case_id": "C04",
+      "case_name": "Fill-missing preserves existing clothing",
+      "arm": "lolita",
+      "channel": "gemini",
+      "policy": "fill_missing",
+      "target_type": "preserve",
+      "prompt_chars": 2955,
+      "prompt_sha256": "10bfc792f9c485f71e4d96926704e594be56d7d324f8b9a6c885cd995a709ff0",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "protected": [
+        "red school uniform",
+        "gold star brooch",
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "standing",
+        "park",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "fill_missing",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "d7fe16de8ec14e41c1f1e115820fe2a4d56c78234258baa2db3f65e163745861"
+      },
+      "wardrobe_original_sha256": "0732723bb87a9d1f77a9130edb9f0d3c7d47aa851197da30123056d317ece349",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:30:13.008847",
+      "logical_call": 1,
+      "elapsed_s": 32.0,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-lolita-gemini-_013045-17ba5e.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:30:45.038607"
+    },
+    {
+      "sample_id": "C05-off-gpt",
+      "case_id": "C05",
+      "case_name": "Replacement preserves dark colours and signature accessory",
+      "arm": "off",
+      "channel": "gpt",
+      "policy": "replace",
+      "target_type": "lolita",
+      "prompt_chars": 451,
+      "prompt_sha256": "6085be16d0d23f429dae30c705697398ca73b9323321353f39eea2949900e2ae",
+      "content": "One long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "black long hair",
+        "blue eyes",
+        "black clothing",
+        "silver crescent brooch",
+        "standing",
+        "stone courtyard",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:30:45.039578",
+      "logical_call": 1,
+      "elapsed_s": 28.3,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-off-gpt-_output_013113_0_0b8b7b.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:31:13.310381"
+    },
+    {
+      "sample_id": "C05-off-gemini",
+      "case_id": "C05",
+      "case_name": "Replacement preserves dark colours and signature accessory",
+      "arm": "off",
+      "channel": "gemini",
+      "policy": "replace",
+      "target_type": "lolita",
+      "prompt_chars": 451,
+      "prompt_sha256": "6085be16d0d23f429dae30c705697398ca73b9323321353f39eea2949900e2ae",
+      "content": "One long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "black long hair",
+        "blue eyes",
+        "black clothing",
+        "silver crescent brooch",
+        "standing",
+        "stone courtyard",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.",
+      "attempted_at": "2026-10-05T01:31:13.312894",
+      "logical_call": 1,
+      "elapsed_s": 29.5,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-off-gemini-_013142-366e5b.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:31:42.846863"
+    },
+    {
+      "sample_id": "C05-lolita-gpt",
+      "case_id": "C05",
+      "case_name": "Replacement preserves dark colours and signature accessory",
+      "arm": "lolita",
+      "channel": "gpt",
+      "policy": "replace",
+      "target_type": "lolita",
+      "prompt_chars": 3157,
+      "prompt_sha256": "0ee90b838039d0a298fce2dd93e74b6222ae82a73c0856bc1219d31ac8c11603",
+      "content": "One long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "black long hair",
+        "blue eyes",
+        "black clothing",
+        "silver crescent brooch",
+        "standing",
+        "stone courtyard",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "replace",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: replace\nWhen clothing is unspecified, supply a complete target outfit. Otherwise replace source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit instruction to keep the original clothing or a particular garment takes precedence over this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "757ee763274d05b9072d7aa6ebda58ea13f8e3d0cdd12e16fa586a15685a8b3f"
+      },
+      "wardrobe_original_sha256": "a500937220178d2c82c70667e5f4d4eed2f8d5f73d9125e4b2411827416ae3a3",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: replace\nWhen clothing is unspecified, supply a complete target outfit. Otherwise replace source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit instruction to keep the original clothing or a particular garment takes precedence over this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:31:42.849317",
+      "logical_call": 1,
+      "elapsed_s": 103.7,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-lolita-gpt-_output_013326_0_be0142.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:33:26.582196"
+    },
+    {
+      "sample_id": "C05-lolita-gemini",
+      "case_id": "C05",
+      "case_name": "Replacement preserves dark colours and signature accessory",
+      "arm": "lolita",
+      "channel": "gemini",
+      "policy": "replace",
+      "target_type": "lolita",
+      "prompt_chars": 3157,
+      "prompt_sha256": "0ee90b838039d0a298fce2dd93e74b6222ae82a73c0856bc1219d31ac8c11603",
+      "content": "One long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.",
+      "protected": [
+        "one young adult woman",
+        "black long hair",
+        "blue eyes",
+        "black clothing",
+        "silver crescent brooch",
+        "standing",
+        "stone courtyard",
+        "full body and feet"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "replace",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: replace\nWhen clothing is unspecified, supply a complete target outfit. Otherwise replace source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit instruction to keep the original clothing or a particular garment takes precedence over this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "757ee763274d05b9072d7aa6ebda58ea13f8e3d0cdd12e16fa586a15685a8b3f"
+      },
+      "wardrobe_original_sha256": "a500937220178d2c82c70667e5f4d4eed2f8d5f73d9125e4b2411827416ae3a3",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: replace\nWhen clothing is unspecified, supply a complete target outfit. Otherwise replace source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit instruction to keep the original clothing or a particular garment takes precedence over this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:33:26.584174",
+      "logical_call": 1,
+      "elapsed_s": 23.3,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-lolita-gemini-_013349-022b5a.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:33:49.885577"
+    },
+    {
+      "sample_id": "C06-off-gpt",
+      "case_id": "C06",
+      "case_name": "Bust crop and visible-only evaluation",
+      "arm": "off",
+      "channel": "gpt",
+      "policy": "fill_missing",
+      "target_type": "visible_detail",
+      "prompt_chars": 324,
+      "prompt_sha256": "10ade0b8c4e4f3629983414b67982b876ccc8220bbaec1e803adf6d0c9e6a74c",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "bust crop",
+        "plain grey background"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.",
+      "attempted_at": "2026-10-05T01:33:49.888614",
+      "logical_call": 1,
+      "elapsed_s": 25.0,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-off-gpt-_output_013414_0_c9af79.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:34:14.920357"
+    },
+    {
+      "sample_id": "C06-off-gemini",
+      "case_id": "C06",
+      "case_name": "Bust crop and visible-only evaluation",
+      "arm": "off",
+      "channel": "gemini",
+      "policy": "fill_missing",
+      "target_type": "visible_detail",
+      "prompt_chars": 324,
+      "prompt_sha256": "10ade0b8c4e4f3629983414b67982b876ccc8220bbaec1e803adf6d0c9e6a74c",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "bust crop",
+        "plain grey background"
+      ],
+      "wardrobe_spec": {},
+      "wardrobe_original_sha256": "",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.",
+      "attempted_at": "2026-10-05T01:34:14.922327",
+      "logical_call": 1,
+      "elapsed_s": 28.4,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-off-gemini-_013443-6337ed.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:34:43.325253"
+    },
+    {
+      "sample_id": "C06-lolita-gpt",
+      "case_id": "C06",
+      "case_name": "Bust crop and visible-only evaluation",
+      "arm": "lolita",
+      "channel": "gpt",
+      "policy": "fill_missing",
+      "target_type": "visible_detail",
+      "prompt_chars": 2940,
+      "prompt_sha256": "2b6430d39e6b7bf4861f628e8ad1d13ef5f0bb1c53e101b9186d02c7ddce5fd3",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "bust crop",
+        "plain grey background"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "fill_missing",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "d7fe16de8ec14e41c1f1e115820fe2a4d56c78234258baa2db3f65e163745861"
+      },
+      "wardrobe_original_sha256": "0732723bb87a9d1f77a9130edb9f0d3c7d47aa851197da30123056d317ece349",
+      "frozen": {
+        "channel": "gpt-image",
+        "api_type": "aigc-2d-gpt",
+        "model": "gpt-image-2",
+        "size": "1024x1536",
+        "n": 1,
+        "quality": "high",
+        "output_format": "png",
+        "mode": "generate",
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:34:43.327747",
+      "logical_call": 1,
+      "elapsed_s": 81.7,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-lolita-gpt-_output_013604_0_1e0cf7.png"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:36:04.997488"
+    },
+    {
+      "sample_id": "C06-lolita-gemini",
+      "case_id": "C06",
+      "case_name": "Bust crop and visible-only evaluation",
+      "arm": "lolita",
+      "channel": "gemini",
+      "policy": "fill_missing",
+      "target_type": "visible_detail",
+      "prompt_chars": 2940,
+      "prompt_sha256": "2b6430d39e6b7bf4861f628e8ad1d13ef5f0bb1c53e101b9186d02c7ddce5fd3",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.",
+      "protected": [
+        "one young adult woman",
+        "dark brown long hair",
+        "green eyes",
+        "bust crop",
+        "plain grey background"
+      ],
+      "wardrobe_spec": {
+        "schema_version": "image-maker.wardrobe.v1",
+        "name": "lolita",
+        "label": "Lolita 衣装",
+        "policy": "fill_missing",
+        "prompt": "WARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+        "prompt_sha256": "d7fe16de8ec14e41c1f1e115820fe2a4d56c78234258baa2db3f65e163745861"
+      },
+      "wardrobe_original_sha256": "0732723bb87a9d1f77a9130edb9f0d3c7d47aa851197da30123056d317ece349",
+      "frozen": {
+        "channel": "gemini",
+        "api_type": "aigc2d",
+        "model": "gemini-3-pro-image-preview",
+        "aspect_ratio": "2:3",
+        "resolution": "2K",
+        "face_quality_boost": false,
+        "reference_images": 0
+      },
+      "prompt": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.\n\nOne long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.\n\nWARDROBE DESIGN AUTHORITY — Lolita 衣装\nApplication policy: fill_missing\nSupply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.\n\nThis preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.\n\nJapanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.\n\nOrganize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.\n\nDo not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.\n\nThe design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.\n\nRepaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.",
+      "attempted_at": "2026-10-05T01:36:04.998489",
+      "logical_call": 1,
+      "elapsed_s": 20.8,
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-lolita-gemini-_013625-f5a7b9.jpg"
+      ],
+      "status": "success",
+      "finished_at": "2026-10-05T01:36:25.759224"
+    }
+  ],
+  "updated_at": "2026-10-05T01:36:25.759224"
+}

@@ -1,0 +1,1 @@
+When clothing is unspecified, supply a complete target outfit. Otherwise replace the source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit instruction to keep the original clothing or a particular garment takes precedence over this preset.

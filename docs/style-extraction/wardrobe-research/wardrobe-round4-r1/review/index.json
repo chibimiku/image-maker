@@ -1,0 +1,553 @@
+[
+  {
+    "sample_id": "F4-U-classical-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-classical-gpt_output_214842_0_5ede5b.png",
+        "sha256": "baa1bace41b19e1cfcd8a46f10876921277bdcb935edc71bd0016647927e1916",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-sweet-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-sweet-gpt_output_215017_0_e5df02.png",
+        "sha256": "a992b0f8457ab87f13cb9c82456c6ad9ce42ae4014cd677b4678a1a673982fbb",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-gothic-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-gothic-gpt_output_215141_0_f8e8ae.png",
+        "sha256": "f8c53439a27a6fc881a22e20a5fd3173daeb96dcb858444ecbad2754efbf56b7",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-classical-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-classical-gpt_output_215325_0_fbcc5f.png",
+        "sha256": "70c8c3c7502ae8e885c5ed6cf862948b211173b078164650779cc6279d70a40c",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-sweet-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gpt_output_215507_0_399625.png",
+        "sha256": "a74c4f3769ec21f2faaa013598ee4b084adec580929998c1dedb5bb2778db855",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-gothic-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-gothic-gpt_output_215647_0_3dc370.png",
+        "sha256": "491e80bbc99662ef2757a590eb50155132eeacf444215aed735c59a9d2a546d8",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-W-classical-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-classical-gpt_output_215736_0_2a0aef.png",
+        "sha256": "4393905420bc7fca79a18e65d6dc3bc939c7834389edaaf72ca005a1df9b19e6",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-W-sweet-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-sweet-gpt_output_215935_0_9bffb6.png",
+        "sha256": "3915365ab8c5475288881f3b12571555f0d6ff9a034442fe02d79551145fa933",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-W-gothic-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-gothic-gpt_output_220111_0_5ec3bb.png",
+        "sha256": "7025b572bb3134bd03661dd5f620990bb2a832cba2c4efb5d1ecb7ab3d21a584",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-classical-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-classical-gpt_output_220251_0_a449b1.png",
+        "sha256": "89deef8d711e48aeac0c6ca9e326028ad7fe3cca55951ac4aeb1152c07f7a5be",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-sweet-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-sweet-gpt_output_220513_0_471d4f.png",
+        "sha256": "340c442d68937039cca24513f96c23240000a3b47d285280f1adae2de3ea311f",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-gothic-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-gothic-gpt_output_220651_0_e1cc2f.png",
+        "sha256": "f2e67710cd71627299c124cd93f61e911b4af2e36e8ebcc8101b6dc65e51957d",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-GP-classical-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GP-classical-gpt_output_220833_0_b32838.png",
+        "sha256": "ca45f40c663b2e06ce079a258a7343091806d1b976d5e5e86a08d93f8049d29f",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-GF-gothic-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GF-gothic-gpt_output_221018_0_f7ef27.png",
+        "sha256": "3653914153359445270171dc185a8a58142e323f97eaa51c343cbcdb40cd8cde",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-chinese-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-chinese-gpt_output_221152_0_c8a997.png",
+        "sha256": "93e8e05f55bd9c3ef1cc9fda8e3092eeec3c6e7a2aeeafe6b4508d432e4fb01e",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-japanese-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-japanese-gpt_output_221331_0_557ae0.png",
+        "sha256": "6712f57e28edca0578ada8b8b4f6b032104c82de5531ba2ac4b60bcdb285615e",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-chinese-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-chinese-gpt_output_221530_0_aab38a.png",
+        "sha256": "aa6a14a52e52436099a1838150f3ff42d4a349d3d490fdc81f74f1b6951ed5f6",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-japanese-gpt",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-japanese-gpt_output_221707_0_097347.png",
+        "sha256": "1a79b92b359239fbae42cfe1f3a86521c363404e307705af3ecfccd35f71952b",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-sweet-gpt-waterink-style",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gpt-waterink-style_output_221824_0_5f7c10.png",
+        "sha256": "af2a513c00e61e4cf160aa93f0eab92500629ecdeaeae96f27e4ab316dcc5ff9",
+        "dimensions": [
+          1024,
+          1536
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-gothic-gpt-kishida-mel-style",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-gothic-gpt-kishida-mel-style_output_221855_0_c62af4.png",
+        "sha256": "1a4d80f7902251e7fc3315376e1a5d44f5bb2598704665c1b2d1d4bb9263d03b",
+        "dimensions": [
+          1025,
+          1535
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-classical-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-classical-gemini_221927-0108e0.jpg",
+        "sha256": "499fbcf85a1999c90ef8dd68b8f08321341e03368dfa7f207dc30f1f8b4dbdbb",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-sweet-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-sweet-gemini_221948-880191.jpg",
+        "sha256": "fbb94c1e0937c938152d1fb963642aae3036ec661f85a5bcd8a78fc68bc81a43",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-gothic-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-gothic-gemini_222021-1ac985.jpg",
+        "sha256": "599be49bb1800392bd84a4045830c590a29cb77afb424d28d95d4062aed44b99",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-classical-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-classical-gemini_222046-757bca.jpg",
+        "sha256": "d8eea04896f0cce352826a1b6718e820ee64dc2a3685e1a24e37166545cbdece",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-sweet-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gemini_222112-2b600d.jpg",
+        "sha256": "d001894442686ef7f1a262d58f1dcb989cd17d6f89baa7c34b3b8264a349e204",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-gothic-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-gothic-gemini_222146-7a4421.jpg",
+        "sha256": "655d51944e0c352e270355549184f53836f123238db509e86b04c55d758eb2e4",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-W-classical-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-classical-gemini_222214-de367c.jpg",
+        "sha256": "d69a4fc5efaad083304ab5bbf46ab9f5f8a06267d8ca212f155e3b35aed47878",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-W-sweet-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-sweet-gemini_222238-baf6a8.jpg",
+        "sha256": "6ed02902eaa577e62b4db48db0d12f38a58ebb7d43a0c9f95d68e2402e107ad4",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-W-gothic-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-gothic-gemini_222301-fbde53.jpg",
+        "sha256": "bba7c29244cd715cc52ca2f55eb828c021521934faf50c258bb35e93eed5b22a",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-classical-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-classical-gemini_222323-115c4a.jpg",
+        "sha256": "5f50bcbb5407977f54563ea7b33b3d9bb42bd37e7982ef7e07a59944fac571c7",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-sweet-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-sweet-gemini_222346-ded769.jpg",
+        "sha256": "12cd28d907b9b98b54dffdfb4d4bcc0e38136e9b66c9b73fe40bb1841cb71f9b",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-gothic-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-gothic-gemini_222417-5142dd.jpg",
+        "sha256": "dfb41f183f702f82cf14f59760036ed3cca1fce4604e253e91b89ed6c33efa4e",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-GP-classical-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GP-classical-gemini_222438-1ec175.jpg",
+        "sha256": "ec0e255592d30eb46f1f218c74b8deefc73d1ee5bd071a0732f550c257df4b96",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-GF-gothic-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GF-gothic-gemini_222515-e76481.jpg",
+        "sha256": "dbcda4f8908108193f953e5b279d50794078b55d85a4ce08f4fb8313196b72d0",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-chinese-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-chinese-gemini_222542-84f37c.jpg",
+        "sha256": "b6ff3cfa2a98ad69ec3712c0e8bf1a25d64e0b63053a7f52b72b10ab0b56fe42",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-U-japanese-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-japanese-gemini_222613-a8fd4a.jpg",
+        "sha256": "533d4a2802381428fe42aa7d5447db43c3b60f34d3bf4bfaade5262708f5703c",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-chinese-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-chinese-gemini_222649-0adc06.jpg",
+        "sha256": "078f0594bc105ee7ebcc88051f5e7281d62faf55efe27f640ee0962a5bca83d7",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-japanese-gemini",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-japanese-gemini_222718-8dbfc7.jpg",
+        "sha256": "942c17c3c06c7a6888add425ddbcb05d66a39301838b9db19deb20bca1cfc9a4",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-H-sweet-gemini-waterink-style",
+    "status": "success",
+    "files": [
+      {
+        "path": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gemini-waterink-style_223555-d8c967.jpg",
+        "sha256": "9ae8eaff04c79830e7302419c0882e9204b4f71fd8d3cff469eb78065c287227",
+        "dimensions": [
+          1696,
+          2528
+        ]
+      }
+    ]
+  },
+  {
+    "sample_id": "F4-R-gothic-gemini-kishida-mel-style",
+    "status": "failed_no_image",
+    "files": []
+  }
+]

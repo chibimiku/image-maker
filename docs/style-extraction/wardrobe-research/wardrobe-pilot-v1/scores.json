@@ -1,0 +1,535 @@
+{
+  "run_id": "wardrobe-pilot-v1",
+  "created_at": "2026-10-05T01:36:31.855344",
+  "visual_calls": 22,
+  "pairs": [
+    {
+      "pair_id": "C02-gpt",
+      "kind": "primary",
+      "case_id": "C02",
+      "channel": "gpt",
+      "target_type": "lolita",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:37:42.711087",
+      "prompt_sha256": "0c096f69954080ba687d009d29f210380480b998b18f5476bb47d2eaf34c86cd",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-off-gpt-_output_011956_0_56acdb.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-lolita-gpt-_output_012213_0_26679e.png"
+      },
+      "elapsed_s": 15.9,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C02\",\"target_type\":\"lolita\",\"images\":[{\"label\":\"A\",\"target_score\":1,\"confidence\":\"high\",\"target_evidence\":[\"红色制服外套、白色领口和领结仍构成明显的校服套装\",\"短款普通百褶裙仅有少量金色滚边，缺少Lolita典型的蓬度、层叠裙摆和连续装饰结构\",\"金色星形胸针清晰可见，配色统一但整体仍偏校服而非Lolita\"],\"dimensions\":{\"silhouette\":1,\"construction\":1,\"trim\":1,\"coordination\":2},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中只有一名女性，呈年轻成人外观\",\"深棕色长发和绿色眼睛可见\",\"服装主体为红色，胸前保留金色星形胸针\",\"人物站立于公园环境中，双脚均在画面内\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法从单张匿名图像核实与原始主体的逐像素身份一致性\",\"无法核实原始服装细节是否完全保留\"]},{\"label\":\"B\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"整体为明确的Lolita钟形裙 silhouette，裙摆宽大并有多层褶边和蕾丝层次\",\"上身、袖口、领口、腰部蝴蝶结与裙摆装饰形成连续且结构化的连接\",\"红色主色贯穿连衣裙、头饰和鞋履，金色星形胸针保留在领口中心\",\"头饰、蕾丝袜、绑带鞋和多处蝴蝶结与整体风格协调\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中只有一名女性，呈年轻成人外观\",\"深棕色长发和绿色眼睛可见\",\"服装保持红色，领口中心可见金色星形胸针\",\"人物站立于公园环境中，双脚均在画面内\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法从单张匿名图像核实与原始主体的逐像素身份一致性\",\"无法核实原始服装细节是否完全保留\"]}],\"preference\":\"B\",\"reason\":\"B将原有红色校服明确重构为具有钟形裙、多层蕾丝、结构化装饰和协调配饰的Lolita造型，同时保留红色和金色星形胸针；A主要仍是普通红色校服，仅增加领结和滚边。两图的站立、公园、人物数量、发眼颜色及全身裁剪均符合可见保护要求。\",\"full_outfit_verifiable\":true}",
+      "ok": true,
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C02-gpt",
+      "kind": "reverse",
+      "case_id": "C02",
+      "channel": "gpt",
+      "target_type": "lolita",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:37:58.620452",
+      "prompt_sha256": "0c096f69954080ba687d009d29f210380480b998b18f5476bb47d2eaf34c86cd",
+      "assignment": {
+        "A": "on",
+        "B": "off"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-lolita-gpt-_output_012213_0_26679e.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-off-gpt-_output_011956_0_56acdb.png"
+      },
+      "elapsed_s": 14.1,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C02\",\"target_type\":\"lolita\",\"images\":[{\"label\":\"A\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"整体为明显的Lolita钟形裙摆，具有充分蓬度和多层下摆组织\",\"上身、腰部与裙身通过褶饰、垂直装饰带和大蝴蝶结连贯衔接\",\"领口、袖口和下摆均有明显蕾丝与褶边；裙摆还有多道装饰带和蝴蝶结\",\"红色主色、金色星形胸针、头饰、袜子和鞋履之间协调统一\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中为一名长深棕发女性，眼睛呈绿色\",\"服装保持红色，领口处可见金色星形胸针\",\"人物站立于公园步道，画面包含全身及双脚\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法仅凭图像确定其实际年龄，只能观察到年轻成人般的外观\"]},{\"label\":\"B\",\"target_score\":1,\"confidence\":\"high\",\"target_evidence\":[\"服装清楚保持为红色学校制服，短款A字裙和制服夹克的类别特征明显\",\"仅有领口蝴蝶结和金色星形胸针等少量装饰，缺乏Lolita所需的钟形裙型、层次和整体蕾丝组织\",\"袖口、裙摆和衣片连接基本为普通制服结构，没有明显的Lolita式褶边或多层装饰\",\"配色协调，但整体仍是学校制服而非向Lolita重构\"],\"dimensions\":{\"silhouette\":1,\"construction\":1,\"trim\":1,\"coordination\":2},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中为一名长深棕发女性，眼睛呈绿色\",\"服装保持红色，胸前可见金色星形胸针\",\"人物站立于公园环境，画面包含全身及双脚\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法仅凭图像确定其实际年龄，只能观察到年轻成人般的外观\"]}],\"preference\":\"A\",\"reason\":\"A在保持红色和金色星形胸针的同时，已将学校制服类别重构为具有明确钟形裙、层次、蕾丝、褶边和配饰协调的Lolita服装；B虽然保护事实保持良好且画面质量尚可，但基本仍是普通红色学校制服，仅加入少量蝴蝶结元素。\",\"full_outfit_verifiable\":true}",
+      "ok": true,
+      "blind": {
+        "A": "on",
+        "B": "off"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C02-gemini",
+      "kind": "primary",
+      "case_id": "C02",
+      "channel": "gemini",
+      "target_type": "lolita",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:38:12.768821",
+      "prompt_sha256": "0c096f69954080ba687d009d29f210380480b998b18f5476bb47d2eaf34c86cd",
+      "assignment": {
+        "A": "on",
+        "B": "off"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-lolita-gemini-_012250-fec3e6.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-off-gemini-_012025-01cf50.jpg"
+      },
+      "elapsed_s": 12.4,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C02\",\"target_type\":\"lolita\",\"images\":[{\"label\":\"A\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"整体为明显的膨 объем长裙轮廓，裙摆有多层奶油色荷叶边和装饰边\",\"领口、袖口、下摆均有连续蕾丝组织，胸前褶饰与蝴蝶结、裙摆蝴蝶结连接协调\",\"红色主体与奶油色饰边、深色鞋袜及头饰形成统一配色，金色星形胸针位于领口中央\",\"配有带蕾丝的头部大蝴蝶结、厚底玛丽珍鞋和袜饰，整体已脱离普通校服类别并明确趋向Lolita\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中可见一名年轻女性，站立于公园\",\"长深棕色头发和绿色眼睛清晰可见\",\"服装保持红色，领口中央保留金色星形胸针\",\"全身构图包含双脚\"],\"visual_quality\":\"good\",\"unobservable\":[]},{\"label\":\"B\",\"target_score\":0,\"confidence\":\"high\",\"target_evidence\":[\"服装仍是典型红色西式校服套装：修身西装外套、衬衫和短款百褶裙\",\"裙长和轮廓较窄且缺少Lolita所需的蓬度、层次与下摆装饰\",\"领口、袖口和裙摆基本为校服式简洁处理，没有连续蕾丝、褶饰或结构化装饰连接\",\"仅保留金色星形胸针，不能使普通校服类别转化为Lolita\"],\"dimensions\":{\"silhouette\":0,\"construction\":1,\"trim\":0,\"coordination\":1},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中可见一名年轻女性，站立于公园\",\"长深棕色头发和绿色眼睛清晰可见\",\"服装保持红色，左胸保留金色星形胸针\",\"全身构图包含双脚\"],\"visual_quality\":\"acceptable\",\"unobservable\":[]}],\"preference\":\"A\",\"reason\":\"A在保留红色和金色星形胸针的同时，具备明确的Lolita裙型、分层荷叶边、蕾丝组织和协调配饰；B基本保持普通红色校服结构，仅保留胸针，未形成目标风格。两张图的受保护事实均可见且未发现明显漂移。\",\"full_outfit_verifiable\":true}",
+      "ok": true,
+      "blind": {
+        "A": "on",
+        "B": "off"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C02-gemini",
+      "kind": "reverse",
+      "case_id": "C02",
+      "channel": "gemini",
+      "target_type": "lolita",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:38:25.163944",
+      "prompt_sha256": "0c096f69954080ba687d009d29f210380480b998b18f5476bb47d2eaf34c86cd",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-off-gemini-_012025-01cf50.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C02-lolita-gemini-_012250-fec3e6.jpg"
+      },
+      "elapsed_s": 11.7,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C02\",\"target_type\":\"lolita\",\"images\":[{\"label\":\"A\",\"target_score\":1,\"confidence\":\"high\",\"target_evidence\":[\"整体仍是红色学校制服：修身西装外套、白色衬衫领和短款百褶裙；裙摆没有明显的蓬度、分层或下摆装饰。\",\"金色星形胸针被保留，但衣片与装饰连接仍以制服翻领和纽扣为主，没有形成完整的 Lolita 结构。\"],\"dimensions\":{\"silhouette\":1,\"construction\":1,\"trim\":0,\"coordination\":1},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中为一名年轻成年女性，长直深棕色头发和绿色眼睛可见。\",\"红色服装和金色星形胸针均保留。\",\"人物站立于公园步道，双脚和全身均在画面内。\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法从单张图确认与源图的逐像素身份一致性。\"]},{\"label\":\"B\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"红色连衣裙采用明显的 Lolita 轮廓：腰线明确、裙身宽阔外扩，并有充分的裙摆体积感。\",\"领口、胸前、袖口和下摆均有连续的米白色蕾丝与褶边，裙摆形成多层分层结构。\",\"蝴蝶结、头饰、袖部装饰、下摆蝴蝶结和鞋面蝴蝶结相互呼应，装饰与衣片连接完整且协调。\",\"金色星形胸针被置于领口中央，并与红色蝴蝶结和米白色饰边结合。\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中为一名年轻成年女性，长直深棕色头发和绿色眼睛可见。\",\"红色服装和金色星形胸针均保留。\",\"人物站立于公园中，双脚和全身均在画面内。\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法从单张图确认与源图的逐像素身份一致性。\"]}],\"preference\":\"B\",\"reason\":\"B 将原有红色制服类别明确重设计为具有宽阔裙型、胸衣结构、连续蕾丝、褶边和协调蝴蝶结的 Lolita 服装，同时保留红色和金色星形胸针。A 虽保留保护事实，但基本仍是普通红色学校制服，仅有少量可被识别的装饰元素。\",\"full_outfit_verifiable\":false}",
+      "ok": true,
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C03-gpt",
+      "kind": "primary",
+      "case_id": "C03",
+      "channel": "gpt",
+      "target_type": "preserve",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:38:36.881707",
+      "prompt_sha256": "5b93cdcde2793c8ed12867822b269176899a626ce82b8327073a6ce936835c78",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-off-gpt-_output_012436_0_2f0af2.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-lolita-gpt-_output_012656_0_9716f2.png"
+      },
+      "elapsed_s": 13.3,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C03\",\"target_type\":\"preserve\",\"images\":[{\"label\":\"A\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"可见红色学校制服及其原有的合身外套、白色衬衫、百褶短裙剪裁；胸前有金色星形胸针；整体没有改造成其他服装类别。\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"pass\",\"protected_findings\":[\"单一年轻女性，深棕色长发和绿色眼睛可见。\",\"红色学校制服及其制服剪裁保留，金色星形胸针可见。\",\"人物站立于公园中，画面为全身构图且双脚可见。\"],\"visual_quality\":\"good\",\"unobservable\":[]},{\"label\":\"B\",\"target_score\":1,\"confidence\":\"high\",\"target_evidence\":[\"服装仍为红色系并保留金色星形胸针，但主体已改为带大面积蕾丝、荷叶边、束腰裙和头饰的洛丽塔风连衣裙，不再保留原学校制服的剪裁和类别。\"],\"dimensions\":{\"silhouette\":1,\"construction\":0,\"trim\":1,\"coordination\":2},\"protected_status\":\"fail\",\"protected_findings\":[\"单一年轻女性，深棕色长发和绿色眼睛可见。\",\"红色服装和金色星形装饰部分保留，但原学校制服类别及剪裁被替换。\",\"人物站立于公园中，画面为全身构图且双脚可见。\"],\"visual_quality\":\"good\",\"unobservable\":[]}],\"preference\":\"A\",\"reason\":\"按 preserve 目标，A 清楚保留了红色学校制服的类别、剪裁和金色星形胸针；B 虽保留红色与星形装饰，但将制服整体重设计为洛丽塔风连衣裙，明确违背保留原制服及其剪裁的要求。\",\"full_outfit_verifiable\":true}",
+      "ok": true,
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C03-gemini",
+      "kind": "primary",
+      "case_id": "C03",
+      "channel": "gemini",
+      "target_type": "preserve",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:38:50.144285",
+      "prompt_sha256": "5b93cdcde2793c8ed12867822b269176899a626ce82b8327073a6ce936835c78",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-off-gemini-_012500-3a36ad.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C03-lolita-gemini-_012724-108501.jpg"
+      },
+      "elapsed_s": 15.2,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C03\",\"target_type\":\"preserve\",\"images\":[{\"label\":\"A\",\"target_score\":2,\"confidence\":\"high\",\"target_evidence\":[\"可见一名长发女性穿着校服样式服装，裙子为红色并带有金色星形胸针；但上身为明显的深蓝色水手服样式，未保住“原红色校服”的整体颜色要求。\",\"全身和双脚均可见，服装类别仍可识别为学校制服。\"],\"dimensions\":{\"silhouette\":2,\"construction\":2,\"trim\":3,\"coordination\":2},\"protected_status\":\"uncertain\",\"protected_findings\":[\"画面中仅有一名女性，站立于公园，且为全身构图、双脚可见。\",\"头发呈深棕色，眼睛呈绿色，符合文字锚点。\",\"红色裙子和金色星形胸针可见，但上衣为深蓝色，因此固定衣色要求部分不符。\",\"没有原始参考图，无法核验是否保留了原校服的具体剪裁；年龄表达和脸部身份保持不可由文字及当前图像单独证明。\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法与缺失的原始服装图比较具体剪裁是否保持。\"]},{\"label\":\"B\",\"target_score\":3,\"confidence\":\"high\",\"target_evidence\":[\"可见完整的红色校服套装，包括红色西装式上衣和红色百褶裙，整体学校制服类别和红色要求清楚保留。\",\"胸前可见金色星形胸针，且校服的领口、金色滚边、纽扣和袖口结构清晰。\",\"全身和双脚均在画面内，未出现明显服装替换或非校服化改造。\"],\"dimensions\":{\"silhouette\":3,\"construction\":3,\"trim\":4,\"coordination\":4},\"protected_status\":\"uncertain\",\"protected_findings\":[\"画面中仅有一名女性，站立于公园，且为全身构图、双脚可见。\",\"头发呈深棕色，眼睛呈绿色，符合文字锚点。\",\"整体服装为红色并保留金色星形胸针，固定衣色和配饰符合。\",\"没有原始参考图，无法核验是否保留了原校服的具体剪裁；年龄表达和脸部身份保持不可由文字及当前图像单独证明。\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法与缺失的原始服装图比较具体剪裁是否保持。\"]}],\"preference\":\"B\",\"reason\":\"按保留原红色校服、原衣物类别和金色星形胸针的目标比较，B的整体校服为红色且结构与配饰更完整；A虽保留校服类别、红色裙子和胸针，但深蓝色上衣使整体红色校服要求明显混杂。两图均无法仅凭当前输入证明原始具体剪裁保持。\",\"full_outfit_verifiable\":true}",
+      "ok": true,
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C04-gpt",
+      "kind": "primary",
+      "case_id": "C04",
+      "channel": "gpt",
+      "target_type": "preserve",
+      "policy": "fill_missing",
+      "called_at": "2026-10-05T01:39:05.336511",
+      "prompt_sha256": "86f4c2ba631d7306bc37aeefd3b59f63eaca2b1a77c642027790ef00e4559df3",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-off-gpt-_output_012746_0_92cab5.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-lolita-gpt-_output_013013_0_3236ed.png"
+      },
+      "elapsed_s": 17.4,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C04\",\"target_type\":\"preserve\",\"images\":[{\"label\":\"A\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"主体穿着清晰可见的红色学校制服，包括带金色滚边的外套、白色衬衫和制服裙；胸前金色星形胸针明确可见。\",\"服装类别、主色和指定配饰均保持一致，未明显改造成其他服装风格。\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":3,\"coordination\":4},\"protected_status\":\"pass\",\"protected_findings\":[\"画面中只有一名女性主体，外观呈年轻成人。\",\"深棕色长发和绿色眼睛清晰可见。\",\"红色学校制服及胸前金色星形胸针均保留。\",\"主体站立于公园步道，环境符合安静公园要求。\",\"全身构图包含双脚。\"],\"visual_quality\":\"good\",\"unobservable\":[\"仅有文字要求而无源图，无法证明与源主体的脸部身份逐项保持。\"]},{\"label\":\"B\",\"target_score\":1,\"confidence\":\"high\",\"target_evidence\":[\"保留了深红/酒红色系服装和星形元素，但整体被改造成带多层荷叶边、蓬裙、发饰和大量装饰的 Lolita 风格连衣裙。\",\"原有学校制服的类别和结构不再清晰可辨；颜色也由明确的红色偏向酒红色。\",\"颈部附近可见金色星形装饰，但不能抵消制服类别被重设计的变化。\"],\"dimensions\":{\"silhouette\":1,\"construction\":1,\"trim\":2,\"coordination\":2},\"protected_status\":\"fail\",\"protected_findings\":[\"画面中只有一名女性主体，外观呈年轻成人。\",\"深棕色长发和绿色眼睛可见。\",\"仍有红/酒红色服装和星形装饰，但服装不再是要求的红色学校制服，属于明显重设计。\",\"主体站立于公园环境，姿势和场景基本符合。\",\"全身构图包含双脚。\"],\"visual_quality\":\"good\",\"unobservable\":[\"仅有文字要求而无源图，无法证明与源主体的脸部身份逐项保持。\"]}],\"preference\":\"A\",\"reason\":\"按 preserve 目标，A 保留了红色学校制服的类别、颜色和金色星形胸针；B 虽保留部分颜色和星形元素，但将制服明显改造成酒红色 Lolita 风格服装，因此不能视为成功保留原衣物。\",\"full_outfit_verifiable\":true}",
+      "ok": true,
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C04-gemini",
+      "kind": "primary",
+      "case_id": "C04",
+      "channel": "gemini",
+      "target_type": "preserve",
+      "policy": "fill_missing",
+      "called_at": "2026-10-05T01:39:22.776431",
+      "prompt_sha256": "86f4c2ba631d7306bc37aeefd3b59f63eaca2b1a77c642027790ef00e4559df3",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-off-gemini-_012818-493143.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C04-lolita-gemini-_013045-17ba5e.jpg"
+      },
+      "elapsed_s": 13.8,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C04\",\"target_type\":\"preserve\",\"images\":[{\"label\":\"A\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"单一女性主体，穿红色西装式学校制服与红色百褶裙；领口处有清晰的金色星形胸针；制服类别、主色和配饰均与文字要求相符。\",\"可见深棕色长发和绿色眼睛，人物站立于公园小径上，双脚完整入画。\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"uncertain\",\"protected_findings\":[\"可见人数、发色、眼色、红色制服、金色星形胸针、站立姿势、公园场景及全身双脚均符合。\",\"没有源图，无法验证脸部身份是否保持；“young adult”只能依据可见的成年化外观作有限判断。\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法从当前图像验证与源图的身份连续性\"]},{\"label\":\"B\",\"target_score\":3,\"confidence\":\"high\",\"target_evidence\":[\"单一女性主体，穿红色学校制服上装，带明显的金色星形胸针；深棕色长发、绿色眼睛、公园环境、站立姿势和双脚均可见。\",\"但下装为白色百褶裙，使整体制服不再保持要求的红色衣物主色；图中还出现红色发饰，但这不抵消下装颜色漂移。\"],\"dimensions\":{\"silhouette\":4,\"construction\":4,\"trim\":4,\"coordination\":3},\"protected_status\":\"fail\",\"protected_findings\":[\"人数、发色、眼色、金色星形胸针、站立姿势、公园场景及全身双脚可见。\",\"红色学校制服的固定颜色未完整保留：上装为红色，但裙子明显为白色。\",\"没有源图，无法验证脸部身份是否保持；“young adult”只能依据可见的成年化外观作有限判断。\"],\"visual_quality\":\"good\",\"unobservable\":[\"无法从当前图像验证与源图的身份连续性\"]}],\"preference\":\"A\",\"reason\":\"A完整保留了红色学校制服和金色星形胸针，且所有主要场景与画幅要求均满足；B虽然保留制服类别、红色上装和胸针，但将裙子改为白色，违反了保住原衣物颜色的 preserve 要求。\",\"full_outfit_verifiable\":false}",
+      "ok": true,
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C06-gpt",
+      "kind": "primary",
+      "case_id": "C06",
+      "channel": "gpt",
+      "target_type": "visible_detail",
+      "policy": "fill_missing",
+      "called_at": "2026-10-05T01:42:39.915501",
+      "prompt_sha256": "44ae4a3a0009a5598bb34fdd1e9a9b7f2d71e5420b23e459c08a7bc77b9b6b4f",
+      "assignment": {
+        "A": "on",
+        "B": "off"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-lolita-gpt-_output_013604_0_1e0cf7.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-off-gpt-_output_013414_0_c9af79.png"
+      },
+      "elapsed_s": 13.9,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C06\",\"target_type\":\"visible_detail\",\"images\":[{\"label\":\"A\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"裁剪区域内可见高领、褶边领口、蕾丝饰边、胸前蝴蝶结和结构明确的紧身胸衣式上身，整体与 Lolita 服装的可见领口/上身相容。\"],\"dimensions\":{\"silhouette\":null,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"fail\",\"protected_findings\":[\"单一女性主体、深棕长发、绿色眼睛和灰色背景可见。\",\"画面向下延伸至腰部附近，超出要求的上胸以上 bust crop；但未出现鞋或脚。\"],\"visual_quality\":\"good\",\"unobservable\":[\"裙型、鞋子及完整服装下装不可据此图验证。\"]},{\"label\":\"B\",\"target_score\":0,\"confidence\":\"high\",\"target_evidence\":[\"可见肩部和上胸皮肤，未见可评价的领口、衣身、胸衣结构、蕾丝或其他 Lolita 兼容服装细节。\"],\"dimensions\":{\"silhouette\":null,\"construction\":0,\"trim\":0,\"coordination\":null},\"protected_status\":\"pass\",\"protected_findings\":[\"单一女性主体、深棕长发、绿色眼睛和灰色背景可见。\",\"画面保持上胸向上的裁剪，未出现裙型、鞋或脚。\"],\"visual_quality\":\"good\",\"unobservable\":[\"因未见服装，无法评价衣物结构、装饰协调或完整服装符合度。\"]}],\"preference\":\"A\",\"reason\":\"A 在可见领口和上身区域提供了结构清楚、装饰完整且与 Lolita 相容的服装证据；B 未显示任何可评价的服装领口或上身。A 虽然超出预设 bust crop，保护检查单独判为失败，不改变其在 visible_detail 目标上的较高分。\",\"full_outfit_verifiable\":false}",
+      "ok": true,
+      "blind": {
+        "A": "on",
+        "B": "off"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C06-gemini",
+      "kind": "primary",
+      "case_id": "C06",
+      "channel": "gemini",
+      "target_type": "visible_detail",
+      "policy": "fill_missing",
+      "called_at": "2026-10-05T01:42:53.843615",
+      "prompt_sha256": "44ae4a3a0009a5598bb34fdd1e9a9b7f2d71e5420b23e459c08a7bc77b9b6b4f",
+      "assignment": {
+        "A": "on",
+        "B": "off"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-lolita-gemini-_013625-f5a7b9.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C06-off-gemini-_013443-6337ed.jpg"
+      },
+      "elapsed_s": 12.1,
+      "served_model": "gpt-5.6-luna",
+      "raw": "{\"case_id\":\"C06\",\"target_type\":\"visible_detail\",\"images\":[{\"label\":\"A\",\"target_score\":4,\"confidence\":\"high\",\"target_evidence\":[\"可见高立领褶边领口、方形胸前衣片、连续的蕾丝滚边、排扣和蝴蝶结装饰，组成清晰且协调的 Lolita-compatible 上身细节。\"],\"dimensions\":{\"silhouette\":null,\"construction\":4,\"trim\":4,\"coordination\":4},\"protected_status\":\"fail\",\"protected_findings\":[\"单人、年轻成人外观、深棕长发、绿色眼睛和灰色背景均可见且相符。\",\"画面裁剪明显延伸至胸部以下并显示较多袖部和衣身，超出严格的‘上胸部向上’裁剪要求；未见足部。\"],\"visual_quality\":\"good\",\"unobservable\":[\"完整裙型、鞋子及全套服装协调性不可见。\"]},{\"label\":\"B\",\"target_score\":0,\"confidence\":\"high\",\"target_evidence\":[\"可见服装为普通的深蓝色圆领上衣，缺少 Lolita-compatible 的领口、胸衣结构和装饰细节。\"],\"dimensions\":{\"silhouette\":null,\"construction\":0,\"trim\":0,\"coordination\":1},\"protected_status\":\"fail\",\"protected_findings\":[\"单人、年轻成人外观、深棕长发、绿色眼睛和灰色背景均可见且相符。\",\"画面裁剪延伸至胸部以下，未严格限定在上胸部向上；未见足部。\"],\"visual_quality\":\"acceptable\",\"unobservable\":[\"完整裙型、鞋子及全套服装协调性不可见。\"]}],\"preference\":\"A\",\"reason\":\"仅按可见领口和上身判断，A具有明确的褶边领口、胸衣面板、蕾丝、排扣与蝴蝶结结构，明显比B的普通圆领上衣更符合预登记的 Lolita-compatible visible neckline/bodice目标；两图的完整套装符合度均无法验证。\",\"full_outfit_verifiable\":false}",
+      "ok": true,
+      "blind": {
+        "A": "on",
+        "B": "off"
+      },
+      "model": "gpt-5.6-luna",
+      "model_inferred": "vision-probe.json selected（该轮脚本尚未记录 model）"
+    },
+    {
+      "pair_id": "C01-gpt",
+      "kind": "primary",
+      "case_id": "C01",
+      "channel": "gpt",
+      "target_type": "lolita",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:45:13.360331",
+      "prompt_sha256": "352a781ade0feb19b24e635e709fbb38534438d55c0d8ec58f225576c9080fff",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-off-gpt-_output_011617_0_c7291e.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-lolita-gpt-_output_011842_0_d35812.png"
+      },
+      "attempt_pass": 2,
+      "ok": false,
+      "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005014514716763990PftEjnlM)\",\"type\":\"\",\"param\":\"prompt\",\"code\":\"content_filter\"}}",
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-4o",
+      "attempts": [
+        {
+          "pass": 1,
+          "model": "gpt-5.6-luna",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400 upstream_error content_filter（第一轮主端点被内容过滤）"
+        },
+        {
+          "pass": 2,
+          "model": "gpt-4o",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005013633157420884VJonUQaD)\",\"type\":\"upstream_error\",\"param\":\"prompt\",\"code\":\"content_filter\"}}"
+        }
+      ]
+    },
+    {
+      "pair_id": "C01-gemini",
+      "kind": "primary",
+      "case_id": "C01",
+      "channel": "gemini",
+      "target_type": "lolita",
+      "policy": "reinterpret",
+      "called_at": "2026-10-05T01:45:47.899267",
+      "prompt_sha256": "352a781ade0feb19b24e635e709fbb38534438d55c0d8ec58f225576c9080fff",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-off-gemini-_011651-aa7d0a.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C01-lolita-gemini-_011933-9672cc.jpg"
+      },
+      "attempt_pass": 2,
+      "ok": false,
+      "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005014549176602477sFOfRl2m)\",\"type\":\"\",\"param\":\"prompt\",\"code\":\"content_filter\"}}",
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-4o",
+      "attempts": [
+        {
+          "pass": 1,
+          "model": "gpt-5.6-luna",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400 upstream_error content_filter（第一轮主端点被内容过滤）"
+        },
+        {
+          "pass": 2,
+          "model": "gpt-4o",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005013710506380851CqZh4VG0)\",\"type\":\"upstream_error\",\"param\":\"prompt\",\"code\":\"content_filter\"}}"
+        }
+      ]
+    },
+    {
+      "pair_id": "C05-gpt",
+      "kind": "primary",
+      "case_id": "C05",
+      "channel": "gpt",
+      "target_type": "lolita",
+      "policy": "replace",
+      "called_at": "2026-10-05T01:46:22.008820",
+      "prompt_sha256": "4f2e7f1f41f63dcf48c611dcd188ef2791438fd7caafe01d9e5443aba7f25e4e",
+      "assignment": {
+        "A": "on",
+        "B": "off"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-lolita-gpt-_output_013326_0_be0142.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-off-gpt-_output_013113_0_0b8b7b.png"
+      },
+      "attempt_pass": 2,
+      "ok": false,
+      "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005014623393435048ICeK1gpP)\",\"type\":\"\",\"param\":\"prompt\",\"code\":\"content_filter\"}}",
+      "blind": {
+        "A": "on",
+        "B": "off"
+      },
+      "model": "gpt-4o",
+      "attempts": [
+        {
+          "pass": 1,
+          "model": "gpt-5.6-luna",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400 upstream_error content_filter（第一轮主端点被内容过滤）"
+        },
+        {
+          "pass": 2,
+          "model": "gpt-4o",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005013937819304619BKq4Ufhc)\",\"type\":\"upstream_error\",\"param\":\"prompt\",\"code\":\"content_filter\"}}"
+        }
+      ]
+    },
+    {
+      "pair_id": "C05-gpt",
+      "kind": "reverse",
+      "case_id": "C05",
+      "channel": "gpt",
+      "target_type": "lolita",
+      "policy": "replace",
+      "called_at": "2026-10-05T01:46:56.012304",
+      "prompt_sha256": "4f2e7f1f41f63dcf48c611dcd188ef2791438fd7caafe01d9e5443aba7f25e4e",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-off-gpt-_output_013113_0_0b8b7b.png",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-lolita-gpt-_output_013326_0_be0142.png"
+      },
+      "attempt_pass": 2,
+      "elapsed_s": 31.9,
+      "served_model": "gpt-4o-2024-11-20",
+      "raw": "```json\n{\n  \"case_id\": \"C05\",\n  \"target_type\": \"lolita\",\n  \"images\": [\n    {\n      \"label\": \"A\",\n      \"target_score\": 0,\n      \"confidence\": \"high\",\n      \"target_evidence\": [\"Outfit is a black trouser suit, not Gothic Lolita.\", \"Silver crescent brooch is present.\", \"No Lolita-style elements visible such as structured skirt or layered trims.\"],\n      \"dimensions\": {\n        \"silhouette\": null,\n        \"construction\": null,\n        \"trim\": null,\n        \"coordination\": null\n      },\n      \"protected_status\": \"pass\",\n      \"protected_findings\": [\n        \"One young adult woman is depicted.\",\n        \"Black long hair and blue eyes are preserved.\",\n        \"Clothing remains black, and silver crescent brooch is present.\",\n        \"Standing in a stone courtyard with feet visible.\"\n      ],\n      \"visual_quality\": \"good\",\n      \"unobservable\": []\n    },\n    {\n      \"label\": \"B\",\n      \"target_score\": 4,\n      \"confidence\": \"high\",\n      \"target_evidence\": [\n        \"Outfit is Gothic Lolita with structured skirt, layered trims, and additional decorative elements such as bows and lace.\",\n        \"Clothing retains black color and includes the silver crescent brooch.\",\n        \"Overall outfit is coherent and well composed in Gothic styling.\"\n      ],\n      \"dimensions\": {\n        \"silhouette\": \"clear and consistent with Lolita style (knee-length skirt, structured volume).\",\n        \"construction\": \"No visible inconsistencies. High quality lace and ruffled structure apparent.\",\n        \"trim\": \"Decorative elements such as lace, bows, and patterns align with Lolita aesthetics.\",\n        \"coordination\": \"Clothing, accessories, and context harmonize well; overall Gothic theme is consistent.\"\n      },\n      \"protected_status\": \"pass\",\n      \"protected_findings\": [\n        \"One young adult woman is depicted.\",\n        \"Black long hair and blue eyes are preserved.\",\n        \"Clothing retains black color, and silver crescent brooch is present.\",\n        \"Standing in a stone courtyard with feet visible.\"\n      ],\n      \"visual_quality\": \"good\",\n      \"unobservable\": []\n    }\n  ],\n  \"preference\": \"B\",\n  \"reason\": \"Image B successfully achieves the lolita target type with high confidence while keeping all protected features intact, including the black color and silver crescent brooch. Image A, although visually appealing, does not meet the Lolita target as it retains the original suit without adapting to the Lolita style.\",\n  \"full_outfit_verifiable\": false\n}\n```",
+      "ok": true,
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-4o",
+      "attempts": [
+        {
+          "pass": 1,
+          "model": "gpt-5.6-luna",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400 upstream_error content_filter（第一轮主端点被内容过滤）"
+        },
+        {
+          "pass": 2,
+          "model": "gpt-4o",
+          "ok": true,
+          "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 2026100501401598504681l7oyUhcJ)\",\"type\":\"upstream_error\",\"param\":\"prompt\",\"code\":\"content_filter\"}}"
+        }
+      ]
+    },
+    {
+      "pair_id": "C05-gemini",
+      "kind": "primary",
+      "case_id": "C05",
+      "channel": "gemini",
+      "target_type": "lolita",
+      "policy": "replace",
+      "called_at": "2026-10-05T01:47:27.899206",
+      "prompt_sha256": "4f2e7f1f41f63dcf48c611dcd188ef2791438fd7caafe01d9e5443aba7f25e4e",
+      "assignment": {
+        "A": "on",
+        "B": "off"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-lolita-gemini-_013349-022b5a.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-off-gemini-_013142-366e5b.jpg"
+      },
+      "attempt_pass": 2,
+      "ok": false,
+      "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 202610050147291876406763in1LEh7)\",\"type\":\"\",\"param\":\"prompt\",\"code\":\"content_filter\"}}",
+      "blind": {
+        "A": "on",
+        "B": "off"
+      },
+      "model": "gpt-4o",
+      "attempts": [
+        {
+          "pass": 1,
+          "model": "gpt-5.6-luna",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400 upstream_error content_filter（第一轮主端点被内容过滤）"
+        },
+        {
+          "pass": 2,
+          "model": "gpt-4o",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 202610050140523508886140kMch7q)\",\"type\":\"upstream_error\",\"param\":\"prompt\",\"code\":\"content_filter\"}}"
+        }
+      ]
+    },
+    {
+      "pair_id": "C05-gemini",
+      "kind": "reverse",
+      "case_id": "C05",
+      "channel": "gemini",
+      "target_type": "lolita",
+      "policy": "replace",
+      "called_at": "2026-10-05T01:47:54.199625",
+      "prompt_sha256": "4f2e7f1f41f63dcf48c611dcd188ef2791438fd7caafe01d9e5443aba7f25e4e",
+      "assignment": {
+        "A": "off",
+        "B": "on"
+      },
+      "images": {
+        "A": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-off-gemini-_013142-366e5b.jpg",
+        "B": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-pilot-v1\\C05-lolita-gemini-_013349-022b5a.jpg"
+      },
+      "attempt_pass": 2,
+      "ok": false,
+      "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005014755542302040rtDNdQ7O)\",\"type\":\"\",\"param\":\"prompt\",\"code\":\"content_filter\"}}",
+      "blind": {
+        "A": "off",
+        "B": "on"
+      },
+      "model": "gpt-4o",
+      "attempts": [
+        {
+          "pass": 1,
+          "model": "gpt-5.6-luna",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400 upstream_error content_filter（第一轮主端点被内容过滤）"
+        },
+        {
+          "pass": 2,
+          "model": "gpt-4o",
+          "ok": false,
+          "error": "RuntimeError: HTTP 400: {\"error\":{\"message\":\"The response was filtered due to the prompt triggering content management policy. Please modify your prompt and retry. To learn more about our content filtering policies please read our documentation: *** (request id: 20261005014159253959207GQGlv1tc)\",\"type\":\"upstream_error\",\"param\":\"prompt\",\"code\":\"content_filter\"}}"
+        }
+      ]
+    }
+  ],
+  "model": "gpt-4o",
+  "updated_at": "2026-10-05T01:48:40.828843",
+  "model_usage": {
+    "gpt-5.6-luna": 10,
+    "gpt-4o": 6
+  }
+}

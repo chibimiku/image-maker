@@ -1,0 +1,17 @@
+Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.
+
+One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.
+
+WARDROBE DESIGN AUTHORITY — Lolita 衣装
+Application policy: reinterpret
+When clothing is unspecified, supply a complete outfit in the target wardrobe. When source clothing is specified without an explicit keep-original requirement, redesign its cut and garment category toward the target wardrobe, retaining explicitly requested colours and signature elements where compatible. This is an intentional clothing change, not an identity mismatch.
+
+This preset controls clothing design only. Within the authorized scope, it overrides generic source-outfit preservation locks. Explicit keep-original, garment, colour and signature-accessory requirements take precedence. Art-style references supply painting technique only, never clothing or character content.
+
+Japanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.
+
+Organize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.
+
+Do not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.
+
+Repaint/repair must preserve the NEW outfit. Preserve identity, age, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.

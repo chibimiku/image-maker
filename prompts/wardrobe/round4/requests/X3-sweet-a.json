@@ -1,0 +1,202 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "X3-sweet-a",
+  "kind": "extraction",
+  "family": "sweet",
+  "wave": 1,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "model": "UNSET_AT_PREP_TIME",
+  "model_note": "UNSET_AT_PREP_TIME：真实模型只在在线阶段运行期登记，这里不写死任何端点或模型名",
+  "max_completion_tokens": 3000,
+  "system_prompt": "Analyze the attached images as evidence for garment construction and wardrobe design. The supplied directory labels are provisional annotations, not ground truth. Do not extract painting style, character identity or composition as wardrobe rules.\n\nFor each image, use its supplied ID and describe only visible clothing evidence: upper-garment category and cut, collar or neckline, sleeve construction, waist or sash transition, skirt silhouette and layers, trim placement, fabric motifs, garment colour relationships, and visible coordinated accessories. Distinguish attached clothing ornaments from held objects and background objects. Mark hidden or ambiguous structures as unknown. Do not reconstruct an unseen skirt from a portrait.\n\nCompare the requested families classical, sweet, gothic, Chinese-inspired and Japanese-inspired. Keep aesthetic direction separate from cultural construction: a Chinese- or Japanese-inspired hybrid can also be sweet or gothic. Assign uncertain or mixed examples explicitly; never force every image into its source directory label. A colour, hairstyle, ethnicity, childlike face or background alone cannot establish a clothing family.\n\nAggregate only supported rules. Each proposed shared rule must cite image IDs, supporting visible observations, counterexamples, coverage and confidence. Avoid treating variations of the same design or heavily occluded garments as independent strong support. Report whether the main Lolita garment silhouette is actually visible. Do not claim to have inspected files that were not attached.\n\nReturn JSON with per_image observations, cross_family_features, family_profiles, ambiguous_examples, unsuitable_examples and generation_candidates. Each family profile separates core_construction, optional_variations, colour_options, motif_options, exclusions and evidence. Generation candidates describe a complete clothing transformation while preserving the requested person, protected colours/accessories and camera framing. They must contain no reference-character traits, source composition, painterly style or evaluation instructions.\n\nROUND 4 BATCH RULES (this request is one of six extraction batches for the three priority families):\n1. Address every supplied ID. The batch IDs are listed in BATCH_IDS below; if any supplied ID is absent from your per_image output, list it under missing_ids instead of silently skipping it. Never invent observations for an ID you were not given.\n2. Report every place where your visual reading disagrees with the supplied directory label under label_mismatches: id, supplied label, your reading, and the visible evidence. A colour, hairstyle, ethnicity, childlike face, background or painting medium is never sufficient grounds for a family label.\n3. Report every structure you had to guess (layer count, hidden hem, unseen back fastening, whether an ornament is attached or held) under hidden_structure_speculation with id, the structure, and why it is not visible. Do not promote a guess into a core rule.\n4. Rules you propose as core_construction must cite at least three supporting image IDs, and you must state how many independent design groups those IDs represent. Variants of one design (same print system, same coord, same character sheet, recolours, crops of one picture) count as ONE design group. If you cannot establish three independent groups, put the observation under optional_variations or uncertain instead of core_construction.\n5. Do not use held-out images as evidence: only the images attached to this request exist for you. If a rule cannot be supported by the attached images, say so.\n6. Return JSON only. Do not include evaluation expectations, scoring fields, target-family answer keys, or instructions for judging generated images.\n",
+  "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96",
+  "user_text": "BATCH_IDS (use these exact IDs in your per_image output):\n- SWX019 (provisional directory label: lo_sweet; aspect folder: long_portrait; size: 721x1386)\n- SWX021 (provisional directory label: lo_sweet; aspect folder: long_portrait; size: 439x855)\n- SWX025 (provisional directory label: lo_sweet; aspect folder: portrait; size: 1024x1536)\n- SWX035 (provisional directory label: lo_sweet; aspect folder: portrait; size: 1536x2048)\n\nThis batch is extraction batch 3 of 6 for the priority families classical, sweet and gothic. Requested family focus for this batch: sweet.\nEvery supplied directory label is a provisional annotation and not ground truth: report any disagreement under label_mismatches rather than adopting the label.\nThe images follow in the same order as BATCH_IDS above; each image is preceded by its own IMAGE LABEL line. Answer with JSON only, per the rules in the system message.",
+  "user_sha256": "e5958be5e72ef2ba543126872af22ce0fa7f8b0ac6d5a41e4b33a9283d289056",
+  "content_order": [
+    {
+      "role": "system",
+      "type": "text",
+      "sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96",
+      "preview": "Analyze the attached images as evidence for garment construction and wardrobe de"
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "",
+      "sha256": "e5958be5e72ef2ba543126872af22ce0fa7f8b0ac6d5a41e4b33a9283d289056",
+      "preview": "BATCH_IDS (use these exact IDs in your per_image output):\n- SWX019 (provisional "
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "SWX019",
+      "sha256": "5fb0037f21e293250c10fcbc93b6466eb507a4bee1710b9160909987b9a414d9",
+      "preview": "IMAGE LABEL: [SWX019] (X3-sweet-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "689ce31fe8fcb5501aa50ec3d3c9f4e60aeae5727bdd0812f4814f4c09f534fc",
+      "bytes_estimate": 800579
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "SWX021",
+      "sha256": "41510b812403124d8db460bb3479d04bc811cddfb166d79c9f6a704d34bccbb2",
+      "preview": "IMAGE LABEL: [SWX021] (X3-sweet-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "9f66ba6a30665dda32a51d6a2f446f84c37f38fb654c6cdc3855a60be036d21a",
+      "bytes_estimate": 449166
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "SWX025",
+      "sha256": "9f27a53a450bb3ad744690f32f77e204bfde2640d8fd90c5094a983d2cb0916d",
+      "preview": "IMAGE LABEL: [SWX025] (X3-sweet-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "61475fa1534eabbbd25fc5c2f095dccab715748d0b63a3ea4bf577dd529f0545",
+      "bytes_estimate": 2056374
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "SWX035",
+      "sha256": "2e5ff0abc371f7842c2c78b80de89046232f6497c0bf00c53f06514fe1064594",
+      "preview": "IMAGE LABEL: [SWX035] (X3-sweet-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "f07a9458e9a5c5d1d53707fb416fe52a2c65f9886ce80199835739a9dad4f86d",
+      "bytes_estimate": 1848703
+    }
+  ],
+  "content_blocks": [
+    {
+      "type": "text",
+      "label": "Analyze the attached images as evidence for garment construc",
+      "sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "type": "text",
+      "label": "BATCH_IDS (use these exact IDs in your per_image output):\n- ",
+      "sha256": "e5958be5e72ef2ba543126872af22ce0fa7f8b0ac6d5a41e4b33a9283d289056"
+    },
+    {
+      "type": "text",
+      "label": "SWX019",
+      "sha256": "5fb0037f21e293250c10fcbc93b6466eb507a4bee1710b9160909987b9a414d9"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "689ce31fe8fcb5501aa50ec3d3c9f4e60aeae5727bdd0812f4814f4c09f534fc"
+    },
+    {
+      "type": "text",
+      "label": "SWX021",
+      "sha256": "41510b812403124d8db460bb3479d04bc811cddfb166d79c9f6a704d34bccbb2"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "9f66ba6a30665dda32a51d6a2f446f84c37f38fb654c6cdc3855a60be036d21a"
+    },
+    {
+      "type": "text",
+      "label": "SWX025",
+      "sha256": "9f27a53a450bb3ad744690f32f77e204bfde2640d8fd90c5094a983d2cb0916d"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "61475fa1534eabbbd25fc5c2f095dccab715748d0b63a3ea4bf577dd529f0545"
+    },
+    {
+      "type": "text",
+      "label": "SWX035",
+      "sha256": "2e5ff0abc371f7842c2c78b80de89046232f6497c0bf00c53f06514fe1064594"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "f07a9458e9a5c5d1d53707fb416fe52a2c65f9886ce80199835739a9dad4f86d"
+    }
+  ],
+  "message_roles": [
+    {
+      "role": "system",
+      "content_type": "text"
+    },
+    {
+      "role": "user",
+      "content_type": "blocks"
+    }
+  ],
+  "user_message_block_types": [
+    "text",
+    "text",
+    "image_url",
+    "text",
+    "image_url",
+    "text",
+    "image_url",
+    "text",
+    "image_url"
+  ],
+  "attachments": [
+    {
+      "label": "SWX019",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_sweet/51431744_p0.jpg",
+      "source_sha256": "b6245b27308acf6ab2c86ae584b17bc50d86ef2e1c83ce9f8b76f410eaeebaa0",
+      "bytes": 600415,
+      "data_url_sha256": "689ce31fe8fcb5501aa50ec3d3c9f4e60aeae5727bdd0812f4814f4c09f534fc"
+    },
+    {
+      "label": "SWX021",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_sweet/Lolita设计稿 (526)-mask-transparent.png",
+      "source_sha256": "0a4f6dae40f2072d33502de87b5e7360df896ab38ce68793601be65d804e268f",
+      "bytes": 336857,
+      "data_url_sha256": "9f66ba6a30665dda32a51d6a2f446f84c37f38fb654c6cdc3855a60be036d21a"
+    },
+    {
+      "label": "SWX025",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_sweet/01884-795775363-a girl with long hair and a pink dress is standing in front of a white background with a pink background, Alice Prin, pastel col.png",
+      "source_sha256": "da4ba9c2d317446c22c119feb3d741e205d130fd69a17ba8d6a184ab5fe37a25",
+      "bytes": 1542263,
+      "data_url_sha256": "61475fa1534eabbbd25fc5c2f095dccab715748d0b63a3ea4bf577dd529f0545"
+    },
+    {
+      "label": "SWX035",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_sweet/104751444_p0.jpg",
+      "source_sha256": "aa1508bc4998c90cabbbd23b6478ee201b77b51d025bf69d852642d09ca8b8e0",
+      "bytes": 1386508,
+      "data_url_sha256": "f07a9458e9a5c5d1d53707fb416fe52a2c65f9886ce80199835739a9dad4f86d"
+    }
+  ],
+  "attachment_order": [
+    "SWX019",
+    "SWX021",
+    "SWX025",
+    "SWX035"
+  ],
+  "templates": [
+    "prompts/wardrobe/round4/templates/extract-wardrobe-round4.md"
+  ],
+  "no_held_out_images_in_attachments": true,
+  "notes": [
+    "草案：本文件由离线准备任务生成，未发送、未计费。",
+    "附件顺序 = BATCH_IDS 顺序；labels 与正文里的 ID 一一对应。",
+    "请求正文不含留出图；留出核对是另外三个独立请求。"
+  ]
+}

@@ -1,0 +1,270 @@
+[
+  {
+    "sample_id": "F5-GP-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-GP-gpt_output_000030_0_45ca0b.png"
+    ],
+    "sha256": [
+      "5964658bb1e791a921654bb4435a3ca0164c3d4914269538e2840e567c408f75"
+    ]
+  },
+  {
+    "sample_id": "F5-GF-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-GF-gpt_output_000145_0_207ee9.png"
+    ],
+    "sha256": [
+      "2f2f363d8617e468e8950f657df57521097dc776c8a41db1f2c88ad94f2da4db"
+    ]
+  },
+  {
+    "sample_id": "F5-LP-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LP-gpt_output_000303_0_973f79.png"
+    ],
+    "sha256": [
+      "c9ffe2907f0d2a284f8c481c125f8237f53225912ae0a84f47b743ba6a5a88ff"
+    ]
+  },
+  {
+    "sample_id": "F5-LF-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LF-gpt_output_000417_0_c9542b.png"
+    ],
+    "sha256": [
+      "292d99625dd1584c59f7fcc1413df5ec703d08cd9cb600f6d90102f3ac041015"
+    ]
+  },
+  {
+    "sample_id": "F5-HA-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-HA-gpt_output_000527_0_3bbe44.png"
+    ],
+    "sha256": [
+      "03547e49a42e67e8c1360254ee3ba94ab04e6162501164626cd57973a364ce7e"
+    ]
+  },
+  {
+    "sample_id": "F5-LA-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LA-gpt_output_000716_0_5304cb.png"
+    ],
+    "sha256": [
+      "28e343192c0b740967d283e4e1fdbe625c34e14990eb6ff7708a6d23c5ee70bc"
+    ]
+  },
+  {
+    "sample_id": "F5-UC-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-UC-gpt_output_000835_0_990adf.png"
+    ],
+    "sha256": [
+      "b88a7ebcb0a330ca71222c259681f76fd7e925f153fd001f237b428caffc8275"
+    ]
+  },
+  {
+    "sample_id": "F5-HC-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-HC-gpt_output_000955_0_2d6182.png"
+    ],
+    "sha256": [
+      "44ba68d1accb11d79c1b92dd6e35b8d1e39eca39d8b7f9ea59b4da2ecc4fe7f3"
+    ]
+  },
+  {
+    "sample_id": "F5-LC-gpt",
+    "status": "failed_no_image",
+    "files": [],
+    "sha256": []
+  },
+  {
+    "sample_id": "F5-LU-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LU-gpt_output_001215_0_d20898.png"
+    ],
+    "sha256": [
+      "9405f9629881591c316bc29aea511a83cbe54e93f222172c760df8e3c9e7536d"
+    ]
+  },
+  {
+    "sample_id": "F5-C-waterink-style-image-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-C-waterink-style-image-gpt_output_001354_0_fb9c0c.png"
+    ],
+    "sha256": [
+      "77258463eb06308a797dbb486327660360114e7310e382566162d654cee49172"
+    ]
+  },
+  {
+    "sample_id": "F5-C-waterink-style-text-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-C-waterink-style-text-gpt_output_001539_0_1b3ecd.png"
+    ],
+    "sha256": [
+      "e64b30c75c47c8f4b1f3a1d619256480319ca6e50410903c02bdc12102a4d97a"
+    ]
+  },
+  {
+    "sample_id": "F5-C-kishida-mel-style-image-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-C-kishida-mel-style-image-gpt_output_001712_0_ab72db.png"
+    ],
+    "sha256": [
+      "4dc470ee26666c0cb741ef93bc73f14a0a66e6cc18604346ea53f64d6c90be1f"
+    ]
+  },
+  {
+    "sample_id": "F5-C-kishida-mel-style-text-gpt",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-C-kishida-mel-style-text-gpt_output_001832_0_4e96e1.png"
+    ],
+    "sha256": [
+      "67c7b18f3e31cf34bc8ebc8fde1a0e8b1cd83efa391e201c1d5614ecfc68f7c2"
+    ]
+  },
+  {
+    "sample_id": "F5-GP-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-GP-gemini_001938-33fa70.jpg"
+    ],
+    "sha256": [
+      "aa8725bfcbec3e81d9f035cdbd71c1cd3fd2fc8ba38f1a96c1c67366b718b5e8"
+    ]
+  },
+  {
+    "sample_id": "F5-GF-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-GF-gemini_002001-bb171c.jpg"
+    ],
+    "sha256": [
+      "762495c13e1783b20d0cd036e777531cf22be53a7b35bc3cac9490fcde5df2ed"
+    ]
+  },
+  {
+    "sample_id": "F5-LP-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LP-gemini_002025-1b9d80.jpg"
+    ],
+    "sha256": [
+      "13d97337de20c4001f46b721a8d1a823c91827c76ec1eb93a53c187a1b0e7906"
+    ]
+  },
+  {
+    "sample_id": "F5-LF-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LF-gemini_002052-a80c6a.jpg"
+    ],
+    "sha256": [
+      "64763ee98377435266cf0ecdd28909385cca233d1277139293f7009c4f9b046f"
+    ]
+  },
+  {
+    "sample_id": "F5-HA-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-HA-gemini_002114-e53fb0.jpg"
+    ],
+    "sha256": [
+      "bc234f0eb1dbe82125a3680339313df1635269d1b4713ebcd858ab5aabdf338c"
+    ]
+  },
+  {
+    "sample_id": "F5-LA-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LA-gemini_002147-e3d8a8.jpg"
+    ],
+    "sha256": [
+      "3b0a237ecdde58b3957cfd75b1d50f732a81982ce2a03e20404ac87b09a51a10"
+    ]
+  },
+  {
+    "sample_id": "F5-UC-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-UC-gemini_002212-ab9602.jpg"
+    ],
+    "sha256": [
+      "2c8675ed5360635effb04b35ecea9279a2bdfae365ff63a3b9e9ed8c62bf0ed4"
+    ]
+  },
+  {
+    "sample_id": "F5-HC-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-HC-gemini_002236-a7f73f.jpg"
+    ],
+    "sha256": [
+      "8a33196ff7c95431f2707c37900997bcc16e858e524f2b1011911f270db070be"
+    ]
+  },
+  {
+    "sample_id": "F5-LC-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LC-gemini_002321-da0973.jpg"
+    ],
+    "sha256": [
+      "9b6450c51b8755f53685d4a51298017e84f93c6ef3c8956692b7fc68bae03bea"
+    ]
+  },
+  {
+    "sample_id": "F5-LU-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-LU-gemini_002400-c8097e.jpg"
+    ],
+    "sha256": [
+      "91c6ad8fe48d1de7120454c2244d1419830fba542f848448c65f1a31bcf321bb"
+    ]
+  },
+  {
+    "sample_id": "F5-C-waterink-style-image-gemini",
+    "status": "failed_no_image",
+    "files": [],
+    "sha256": []
+  },
+  {
+    "sample_id": "F5-C-waterink-style-text-gemini",
+    "status": "failed_no_image",
+    "files": [],
+    "sha256": []
+  },
+  {
+    "sample_id": "F5-C-kishida-mel-style-image-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-C-kishida-mel-style-image-gemini_002515-f51135.jpg"
+    ],
+    "sha256": [
+      "d94bfbf3bb8a755f6fcb4e8fdc01d48bea6956c1ac53e354944251b5c6f2ef3b"
+    ]
+  },
+  {
+    "sample_id": "F5-C-kishida-mel-style-text-gemini",
+    "status": "success",
+    "files": [
+      "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round5-r1\\F5-C-kishida-mel-style-text-gemini_002540-fe2432.jpg"
+    ],
+    "sha256": [
+      "0114d64db2628829566789bf38480eb03631486d725e9a19cfba1e1dfc895e0b"
+    ]
+  }
+]

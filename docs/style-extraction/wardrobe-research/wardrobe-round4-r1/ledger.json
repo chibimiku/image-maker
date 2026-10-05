@@ -1,0 +1,27 @@
+{
+  "schema_version": "image-maker.wardrobe-experiment.v1",
+  "created_at": "2026-10-05T22:34:08",
+  "budgets": {
+    "text_http_attempts": 2,
+    "generation_http_attempts": 42,
+    "vision_http_attempts": 20,
+    "model_list_http_attempts": 1
+  },
+  "attempts": [],
+  "recovered": [],
+  "budget_grants": [
+    {
+      "budget": "generation_http_attempts",
+      "kind": "generation",
+      "previous_limit": 32,
+      "new_limit": 42,
+      "delta": 10,
+      "spent_at_grant": 0,
+      "authorized_by": "user",
+      "reason": "用户授权补跑 2 个失败槽位（Round4 内容安全拦截）",
+      "source": "conversation 2026-10-05: 你补充失败的2图即可 添加到报告里",
+      "granted_at": "2026-10-05T22:34:08"
+    }
+  ],
+  "updated_at": "2026-10-05T22:35:16"
+}

@@ -1,0 +1,4 @@
+AUTHORIZED CLOTHING ACTION: REDESIGN VISIBLE CLOTHING.
+Supply Japanese Lolita-compatible visible neckline and upper garment details within the requested close portrait. Use a coherent collar, connected lace or ruffle edging, a modest bow and plausible garment seams only where the crop shows them. Do not expand the view to demonstrate an outfit or its construction. The clothing style does not authorize a change to age, face, hair, eyes, body or scene.
+
+Keep the explicitly requested clothing colour and named accessory in their described position.

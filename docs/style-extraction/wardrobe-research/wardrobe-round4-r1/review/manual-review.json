@@ -1,0 +1,327 @@
+{
+  "method": "Codex visual review of 39 contact-sheet images plus selected originals",
+  "additional_api_calls": 0,
+  "not_complete_pipeline_audit": true,
+  "judgments": [
+    {
+      "sample_id": "F4-U-classical-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-U-sweet-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-U-gothic-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-classical-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-sweet-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-gothic-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-W-classical-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-W-sweet-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-W-gothic-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-R-classical-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-R-sweet-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-R-gothic-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-GP-classical-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "fail",
+      "protected_content_result": "fail",
+      "reason": "Solid-red pleated skirt received lace, bows and decoration"
+    },
+    {
+      "sample_id": "F4-GF-gothic-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "fail",
+      "protected_content_result": "fail",
+      "reason": "Replaced inner outfit/trousers with Gothic dress"
+    },
+    {
+      "sample_id": "F4-U-chinese-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-U-japanese-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-chinese-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-japanese-gpt",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-sweet-gpt-waterink-style",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "fail",
+      "reason": "Plain grey background changed"
+    },
+    {
+      "sample_id": "F4-R-gothic-gpt-kishida-mel-style",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "fail",
+      "reason": "Plain grey background changed; warm brown skin changed"
+    },
+    {
+      "sample_id": "F4-U-classical-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-U-sweet-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-U-gothic-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-classical-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-sweet-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-gothic-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-W-classical-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-W-sweet-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-W-gothic-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-R-classical-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-R-sweet-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-R-gothic-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-GP-classical-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "pass",
+      "reason": "Named uniform visibly retained"
+    },
+    {
+      "sample_id": "F4-GF-gothic-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "fail",
+      "protected_content_result": "fail",
+      "reason": "Added skirt layer over already complete workwear"
+    },
+    {
+      "sample_id": "F4-U-chinese-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-U-japanese-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-chinese-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-japanese-gemini",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "no_obvious_issue_in_contact_sheet",
+      "reason": "Complete target garment structure; detailed identity/accessory count not exhaustively audited"
+    },
+    {
+      "sample_id": "F4-H-sweet-gemini-waterink-style",
+      "image_generated": true,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "pass",
+      "protected_content_result": "fail",
+      "reason": "Plain grey background changed; warm brown skin changed; feet cropped"
+    },
+    {
+      "sample_id": "F4-R-gothic-gemini-kishida-mel-style",
+      "image_generated": false,
+      "scope": "manual clothing-structure screen; not a complete identity or final-publish audit",
+      "clothing_result": "not_evaluated",
+      "protected_content_result": "not_evaluated",
+      "reason": "No image; upstream blocked"
+    }
+  ]
+}

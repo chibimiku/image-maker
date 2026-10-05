@@ -1,0 +1,999 @@
+{
+  "run_dir": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round3-prep",
+  "written_at": "2026-10-05T19:12:10.447796",
+  "condition_source": "prompts/wardrobe/round3/spec",
+  "spec_condition_count": 6,
+  "covered_cases": [
+    "T01",
+    "T02",
+    "T03",
+    "T04",
+    "T05",
+    "T06"
+  ],
+  "uncovered_cases": [],
+  "expected_pair_slots": 16,
+  "case_conditions": {
+    "T01": {
+      "role": "explicit_preservation_bridge",
+      "policy": "reinterpret",
+      "branch": "preserve",
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 2,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ],
+      "expected_generation_slots": 8,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": "Exactly one 24-year-old adult woman with long straight dark-brown hair, green eyes and a medium build.",
+      "source_clothing": "Her existing outfit consists of a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to the left blazer lapel.",
+      "protected": [
+        "one adult woman, age 24",
+        "long straight dark-brown hair",
+        "green eyes",
+        "medium build",
+        "red blazer with gold piping",
+        "white collared blouse",
+        "solid-red pleated skirt",
+        "black knee-high socks",
+        "gold star brooch on left blazer lapel",
+        "park, standing, both feet visible"
+      ]
+    },
+    "T02": {
+      "role": "fill_missing_preservation",
+      "policy": "fill_missing",
+      "branch": "preserve",
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": "Exactly one 29-year-old adult woman with a short silver-grey bob, dark-brown eyes, warm tan skin, rectangular black glasses and a sturdy medium build.",
+      "source_clothing": "Her existing outfit is a navy utility jacket with patch pockets, an ochre T-shirt, straight grey trousers and dark lace-up shoes. A small copper leaf pin is attached to the jacket chest pocket.",
+      "protected": [
+        "one adult woman, age 29",
+        "short silver-grey bob",
+        "dark-brown eyes",
+        "warm tan skin",
+        "rectangular black glasses",
+        "sturdy medium build",
+        "navy utility jacket with patch pockets",
+        "ochre T-shirt",
+        "straight grey trousers",
+        "dark lace-up shoes",
+        "copper leaf pin on jacket chest pocket",
+        "library courtyard, full body"
+      ]
+    },
+    "T03": {
+      "role": "fill_unspecified",
+      "policy": "fill_missing",
+      "branch": "redesign",
+      "gold_action": "fill",
+      "gold_presence": "unspecified",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": "Exactly one 30-year-old adult woman with deep brown skin, shoulder-length curly auburn hair, amber eyes and a broad-shouldered curvy build.",
+      "source_clothing": "No source image or clothing description is supplied.",
+      "protected": [
+        "one adult woman, age 30",
+        "deep brown skin",
+        "shoulder-length curly auburn hair",
+        "amber eyes",
+        "broad-shouldered curvy build",
+        "botanical garden, full body including feet"
+      ]
+    },
+    "T04": {
+      "role": "gothic_redesign",
+      "policy": "replace",
+      "branch": "redesign",
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": "Exactly one 38-year-old adult woman with long wavy black hair, blue eyes, a mature face and a tall medium build.",
+      "source_clothing": "Her original outfit is a black trouser suit. A silver crescent brooch is attached at the upper centre of the jacket.",
+      "protected": [
+        "one adult woman, age 38, mature face",
+        "long wavy black hair",
+        "blue eyes",
+        "tall medium build",
+        "black main clothing colour",
+        "silver crescent brooch at upper centre",
+        "one closed burgundy book in right hand",
+        "stone courtyard, full body including feet"
+      ]
+    },
+    "T05": {
+      "role": "strict_crop_fill",
+      "policy": "fill_missing",
+      "branch": "visible",
+      "gold_action": "fill",
+      "gold_presence": "unspecified",
+      "framing": "upper_chest",
+      "repeats": 2,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ],
+      "expected_generation_slots": 8,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": "Exactly one 26-year-old adult woman with a chin-length teal-blue bob, grey eyes, round bronze glasses and a medium build.",
+      "source_clothing": "No source image or clothing description is supplied.",
+      "protected": [
+        "one adult woman, age 26",
+        "chin-length teal-blue bob",
+        "grey eyes",
+        "round bronze glasses",
+        "medium build where visible",
+        "plain grey background",
+        "lower frame edge at upper chest, above bust midpoint"
+      ]
+    },
+    "T06": {
+      "role": "crop_redesign",
+      "policy": "reinterpret",
+      "branch": "visible",
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "upper_chest",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ],
+      "expected_generation_slots": 4,
+      "required_fields_round3": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "required_fields_round2": [
+        "clothing_action",
+        "protected_anchors",
+        "framing"
+      ],
+      "identity": "Exactly one 28-year-old adult woman with dark-purple hair tied in a high ponytail, violet eyes and a medium build.",
+      "source_clothing": "Her original outfit is an orange hooded sweatshirt with a small blue bird pin on the left upper chest.",
+      "protected": [
+        "one adult woman, age 28",
+        "dark-purple high ponytail",
+        "violet eyes",
+        "medium build where visible",
+        "orange main clothing colour",
+        "blue bird pin on left upper chest",
+        "plain pale-blue background",
+        "lower frame edge at upper chest, above bust midpoint"
+      ]
+    }
+  },
+  "generation": {
+    "total": 32,
+    "success": 31,
+    "per_case": {
+      "T01": {
+        "covered_this_run": true,
+        "expected_generation_slots": 8,
+        "attempted_slots": 8,
+        "success": 7,
+        "by_variant": {
+          "v3_control": 4,
+          "v4_candidate": 3
+        }
+      },
+      "T02": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 4,
+        "success": 4,
+        "by_variant": {
+          "v3_control": 2,
+          "v4_candidate": 2
+        }
+      },
+      "T03": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 4,
+        "success": 4,
+        "by_variant": {
+          "v3_control": 2,
+          "v4_candidate": 2
+        }
+      },
+      "T04": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 4,
+        "success": 4,
+        "by_variant": {
+          "v3_control": 2,
+          "v4_candidate": 2
+        }
+      },
+      "T05": {
+        "covered_this_run": true,
+        "expected_generation_slots": 8,
+        "attempted_slots": 8,
+        "success": 8,
+        "by_variant": {
+          "v3_control": 4,
+          "v4_candidate": 4
+        }
+      },
+      "T06": {
+        "covered_this_run": true,
+        "expected_generation_slots": 4,
+        "attempted_slots": 4,
+        "success": 4,
+        "by_variant": {
+          "v3_control": 2,
+          "v4_candidate": 2
+        }
+      }
+    }
+  },
+  "pairs": {
+    "total": 16,
+    "ready": 15,
+    "balance": {
+      "pairs": 16,
+      "a_control": 8,
+      "a_candidate": 8,
+      "exact_balance": true,
+      "seed": 20261005
+    }
+  },
+  "scoring": {
+    "records": 16,
+    "scored": 15,
+    "not_scored": 1
+  },
+  "judgements": [
+    {
+      "pair_id": "T01-gemini-r2",
+      "case_id": "T01",
+      "channel": "gemini",
+      "repeat": 2,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images independently satisfy the specified person, identity anchors, preserved clothing, brooch placement, park setting, standing pose, and full-body framing requirements. Neither has a meaningful compliance advantage.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T05-gemini-r1",
+      "case_id": "T05",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images preserve the listed visible identity anchors, provide a coordinated clothing structure, and use a plain grey background, but both fail the strict crop requirement by showing the torso far below the upper chest. Neither has a meaningful advantage without trading away the protected framing condition.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v4_candidate",
+        "B": "v3_control"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T05-gpt-r1",
+      "case_id": "T05",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "Both images satisfy the person, identity-anchor, clothing-structure, glasses, and grey-background requirements, but both fail the strict upper-chest crop. B is the closer crop of the two, although its lower edge still extends below the required boundary.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T03-gpt-r1",
+      "case_id": "T03",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "fill",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images independently satisfy the one-person, identity-anchor, coordinated-fill clothing, full-body framing, and botanical-garden scene requirements; neither has a meaningful protected-condition advantage.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v4_candidate",
+        "B": "v3_control"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T05-gpt-r2",
+      "case_id": "T05",
+      "channel": "gpt",
+      "repeat": 2,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B is the closer crop and better matches the requested portrait composition, but both images fail the strict lower-frame requirement because they extend below the upper chest; this framing failure is not offset by their otherwise matching anchors and plain grey backgrounds.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T06-gpt-r1",
+      "case_id": "T06",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "upper_chest",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images preserve the visible identity anchors, orange clothing, blue bird pin, and pale-blue background, but both fail the protected close-portrait framing requirement by showing well below the upper chest.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v4_candidate",
+        "B": "v3_control"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T05-gemini-r2",
+      "case_id": "T05",
+      "channel": "gemini",
+      "repeat": 2,
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images satisfy the visible identity anchors, glasses, coordinated fill clothing, and plain grey setting, but both fail the protected strict close-portrait crop by extending well below the upper chest.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T02-gpt-r1",
+      "case_id": "T02",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images visibly preserve the specified identity anchors, complete outfit, copper leaf pin, library courtyard setting, and full-body framing with both feet. Neither image has a protected-condition failure.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v4_candidate",
+        "B": "v3_control"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T01-gemini-r1",
+      "case_id": "T01",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "A",
+      "reason": "A satisfies the preserved clothing and identity anchors while showing the complete figure and both feet. B also retains the visible garments and anchors, but fails the explicit full-body framing requirement because both feet are cropped out.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T06-gemini-r1",
+      "case_id": "T06",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "upper_chest",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "framing"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "fail"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "inconclusive",
+      "reason": "Both images satisfy the visible identity, orange clothing, blue bird pin, and plain pale-blue background requirements, but both fail the protected close-portrait framing requirement by showing substantially more than the upper chest.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v4_candidate",
+        "B": "v3_control"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T04-gpt-r1",
+      "case_id": "T04",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images satisfy the independent person, identity, Gothic redesign, brooch, book, courtyard and full-body requirements. Neither has a relevant protected failure, so there is no concrete basis to prefer one over the other.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T04-gemini-r1",
+      "case_id": "T04",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "redesign",
+      "framing": "full",
+      "outcome": "failed",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "fail",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [
+        "specified_items"
+      ],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "fail",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images satisfy the person, identity-anchor, Gothic redesign, black-colour, brooch, courtyard and full-body requirements, but both place the burgundy book in the figure's left hand rather than her specified right hand. Neither has a decisive advantage; the protected hand-placement failure is not offset by clothing or setting quality.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v4_candidate",
+        "B": "v3_control"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T03-gemini-r1",
+      "case_id": "T03",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "fill",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images independently satisfy the required adult woman, identity anchors, coordinated fill clothing, botanical-garden scene and full-body framing including both feet. Neither has a protected-condition advantage over the other.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T01-gpt-r2",
+      "case_id": "T01",
+      "channel": "gpt",
+      "repeat": 2,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "missing",
+      "fields": {},
+      "reason": "not_scored_missing_image",
+      "error": ""
+    },
+    {
+      "pair_id": "T01-gpt-r1",
+      "case_id": "T01",
+      "channel": "gpt",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "tie",
+      "reason": "Both images independently satisfy the specified identity anchors, preserved clothing and brooch placement, park setting, standing pose, and full-body framing with both feet visible; neither has a clear compliance advantage.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v3_control",
+        "B": "v4_candidate"
+      },
+      "full_outfit_verifiable": null
+    },
+    {
+      "pair_id": "T02-gemini-r1",
+      "case_id": "T02",
+      "channel": "gemini",
+      "repeat": 1,
+      "gold_action": "preserve",
+      "framing": "full",
+      "outcome": "pass",
+      "fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "missing_fields": [],
+      "failing_fields": [],
+      "uncertain_fields": [],
+      "control_fields": {
+        "clothing_action": "pass",
+        "identity_anchors": "pass",
+        "specified_items": "pass",
+        "framing": "pass"
+      },
+      "required_fields": [
+        "clothing_action",
+        "identity_anchors",
+        "specified_items",
+        "framing",
+        "framing"
+      ],
+      "preferred": "B",
+      "reason": "B satisfies the one-person requirement while visibly preserving all specified identity anchors, clothing, pin placement, library courtyard setting, and full-body framing. A otherwise matches the requested outfit and framing but fails because two additional background people are visible.",
+      "model": "gpt-5.6-luna",
+      "assignment": {
+        "A": "v4_candidate",
+        "B": "v3_control"
+      },
+      "full_outfit_verifiable": null
+    }
+  ],
+  "counts": {
+    "pass": 7,
+    "failed": 8,
+    "unproven": 0,
+    "missing": 1
+  },
+  "candidate_verdict": "failed",
+  "review": {
+    "candidate_ready": true,
+    "blocking_count": 0,
+    "control_defects_reported": [
+      "v3_control retains the known Round2 occasional crop widening defect; this is not a candidate blocker.",
+      "v3_control T06 is adapted to authorize the existing visible scope for the requested redesign; this is an intended control adaptation, not an unresolved competing candidate.",
+      "Control identity and accessory generalization remain unverified, as noted in the plan."
+    ]
+  },
+  "candidate_gate": {
+    "ready": true,
+    "reasons": [],
+    "overrides": [
+      "用户显式放行（user (conversation)）：CAL-CROP 裁剪校准未通过（模型把上胸特写读成 waist/lower abdomen）；用户选择继续跑完生图与评分"
+    ],
+    "spec_hash": "f2fc215aaca8b4cac7679df4ba3b78c818a9cd168d0859885837cdf2a34df19b",
+    "control_id": "v3_control",
+    "candidate_id": "v4_candidate",
+    "control_role": "frozen_control_known_defects_reported_only"
+  },
+  "control_defects": {},
+  "budget": {
+    "budgets": {
+      "text_http_attempts": 3,
+      "generation_http_attempts": 32,
+      "vision_http_attempts": 31,
+      "model_list_http_attempts": 1
+    },
+    "attempts_by_kind": {
+      "text": {
+        "total": 3,
+        "success": 2,
+        "failed": 1
+      },
+      "vision": {
+        "total": 30,
+        "success": 30,
+        "failed": 0
+      },
+      "generation": {
+        "total": 32,
+        "success": 31,
+        "failed": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "X5-gothic-a",
+  "kind": "extraction",
+  "family": "gothic",
+  "wave": 1,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "model": "UNSET_AT_PREP_TIME",
+  "model_note": "UNSET_AT_PREP_TIME：真实模型只在在线阶段运行期登记，这里不写死任何端点或模型名",
+  "max_completion_tokens": 3000,
+  "system_prompt": "Analyze the attached images as evidence for garment construction and wardrobe design. The supplied directory labels are provisional annotations, not ground truth. Do not extract painting style, character identity or composition as wardrobe rules.\n\nFor each image, use its supplied ID and describe only visible clothing evidence: upper-garment category and cut, collar or neckline, sleeve construction, waist or sash transition, skirt silhouette and layers, trim placement, fabric motifs, garment colour relationships, and visible coordinated accessories. Distinguish attached clothing ornaments from held objects and background objects. Mark hidden or ambiguous structures as unknown. Do not reconstruct an unseen skirt from a portrait.\n\nCompare the requested families classical, sweet, gothic, Chinese-inspired and Japanese-inspired. Keep aesthetic direction separate from cultural construction: a Chinese- or Japanese-inspired hybrid can also be sweet or gothic. Assign uncertain or mixed examples explicitly; never force every image into its source directory label. A colour, hairstyle, ethnicity, childlike face or background alone cannot establish a clothing family.\n\nAggregate only supported rules. Each proposed shared rule must cite image IDs, supporting visible observations, counterexamples, coverage and confidence. Avoid treating variations of the same design or heavily occluded garments as independent strong support. Report whether the main Lolita garment silhouette is actually visible. Do not claim to have inspected files that were not attached.\n\nReturn JSON with per_image observations, cross_family_features, family_profiles, ambiguous_examples, unsuitable_examples and generation_candidates. Each family profile separates core_construction, optional_variations, colour_options, motif_options, exclusions and evidence. Generation candidates describe a complete clothing transformation while preserving the requested person, protected colours/accessories and camera framing. They must contain no reference-character traits, source composition, painterly style or evaluation instructions.\n\nROUND 4 BATCH RULES (this request is one of six extraction batches for the three priority families):\n1. Address every supplied ID. The batch IDs are listed in BATCH_IDS below; if any supplied ID is absent from your per_image output, list it under missing_ids instead of silently skipping it. Never invent observations for an ID you were not given.\n2. Report every place where your visual reading disagrees with the supplied directory label under label_mismatches: id, supplied label, your reading, and the visible evidence. A colour, hairstyle, ethnicity, childlike face, background or painting medium is never sufficient grounds for a family label.\n3. Report every structure you had to guess (layer count, hidden hem, unseen back fastening, whether an ornament is attached or held) under hidden_structure_speculation with id, the structure, and why it is not visible. Do not promote a guess into a core rule.\n4. Rules you propose as core_construction must cite at least three supporting image IDs, and you must state how many independent design groups those IDs represent. Variants of one design (same print system, same coord, same character sheet, recolours, crops of one picture) count as ONE design group. If you cannot establish three independent groups, put the observation under optional_variations or uncertain instead of core_construction.\n5. Do not use held-out images as evidence: only the images attached to this request exist for you. If a rule cannot be supported by the attached images, say so.\n6. Return JSON only. Do not include evaluation expectations, scoring fields, target-family answer keys, or instructions for judging generated images.\n",
+  "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96",
+  "user_text": "BATCH_IDS (use these exact IDs in your per_image output):\n- GTX004 (provisional directory label: lo_gothic; aspect folder: long_portrait; size: 1400x2340)\n- GTX011 (provisional directory label: lo_gothic; aspect folder: long_portrait; size: 1725x2805)\n- GTX014 (provisional directory label: lo_gothic; aspect folder: long_portrait; size: 1734x2806)\n- GTX021 (provisional directory label: lo_gothic; aspect folder: long_portrait; size: 602x1145)\n\nThis batch is extraction batch 5 of 6 for the priority families classical, sweet and gothic. Requested family focus for this batch: gothic.\nEvery supplied directory label is a provisional annotation and not ground truth: report any disagreement under label_mismatches rather than adopting the label.\nThe images follow in the same order as BATCH_IDS above; each image is preceded by its own IMAGE LABEL line. Answer with JSON only, per the rules in the system message.",
+  "user_sha256": "48411f89627071214aaf68c7d9d3b2d5e9c6a1a4e49ee715e5d423250479d0d4",
+  "content_order": [
+    {
+      "role": "system",
+      "type": "text",
+      "sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96",
+      "preview": "Analyze the attached images as evidence for garment construction and wardrobe de"
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "",
+      "sha256": "48411f89627071214aaf68c7d9d3b2d5e9c6a1a4e49ee715e5d423250479d0d4",
+      "preview": "BATCH_IDS (use these exact IDs in your per_image output):\n- GTX004 (provisional "
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "GTX004",
+      "sha256": "9eb9bedb041679bf917fa84d66de40c0042712cd84433961b6d1911d1e629e4c",
+      "preview": "IMAGE LABEL: [GTX004] (X5-gothic-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "9d53a583eba057dd847ca55d36c196dad353f67bc3b858987e15a30214cad7de",
+      "bytes_estimate": 1879979
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "GTX011",
+      "sha256": "2699da7c86aa9588bbb3ec670d89473ef6a6eb47700c2f9c4d808d9d2dc5fff6",
+      "preview": "IMAGE LABEL: [GTX011] (X5-gothic-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "a122f1a0bf53d66d5a4eefacb01b7e7c548bca3958ab4770849e6245332d75b6",
+      "bytes_estimate": 2003514
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "GTX014",
+      "sha256": "c70ccdf7304db43ca4638f22886d28343e2a7dd01a8ccb1e30a82afc5c1c0c20",
+      "preview": "IMAGE LABEL: [GTX014] (X5-gothic-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "7b2889384e7ee99a152254a8181b0e8d1ce9f9c47d2e54d708bc53c9c87221ef",
+      "bytes_estimate": 2671014
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "GTX021",
+      "sha256": "f34a941774e0eee9a252c08498030391f8cc8ad5477fad3e3186181e382f456c",
+      "preview": "IMAGE LABEL: [GTX021] (X5-gothic-a)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "a2f9861dbbfa362b0058c94e94cac95db7599284e72716e1f62cd9e6bf9287c7",
+      "bytes_estimate": 683798
+    }
+  ],
+  "content_blocks": [
+    {
+      "type": "text",
+      "label": "Analyze the attached images as evidence for garment construc",
+      "sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "type": "text",
+      "label": "BATCH_IDS (use these exact IDs in your per_image output):\n- ",
+      "sha256": "48411f89627071214aaf68c7d9d3b2d5e9c6a1a4e49ee715e5d423250479d0d4"
+    },
+    {
+      "type": "text",
+      "label": "GTX004",
+      "sha256": "9eb9bedb041679bf917fa84d66de40c0042712cd84433961b6d1911d1e629e4c"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "9d53a583eba057dd847ca55d36c196dad353f67bc3b858987e15a30214cad7de"
+    },
+    {
+      "type": "text",
+      "label": "GTX011",
+      "sha256": "2699da7c86aa9588bbb3ec670d89473ef6a6eb47700c2f9c4d808d9d2dc5fff6"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "a122f1a0bf53d66d5a4eefacb01b7e7c548bca3958ab4770849e6245332d75b6"
+    },
+    {
+      "type": "text",
+      "label": "GTX014",
+      "sha256": "c70ccdf7304db43ca4638f22886d28343e2a7dd01a8ccb1e30a82afc5c1c0c20"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "7b2889384e7ee99a152254a8181b0e8d1ce9f9c47d2e54d708bc53c9c87221ef"
+    },
+    {
+      "type": "text",
+      "label": "GTX021",
+      "sha256": "f34a941774e0eee9a252c08498030391f8cc8ad5477fad3e3186181e382f456c"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "a2f9861dbbfa362b0058c94e94cac95db7599284e72716e1f62cd9e6bf9287c7"
+    }
+  ],
+  "message_roles": [
+    {
+      "role": "system",
+      "content_type": "text"
+    },
+    {
+      "role": "user",
+      "content_type": "blocks"
+    }
+  ],
+  "user_message_block_types": [
+    "text",
+    "text",
+    "image_url",
+    "text",
+    "image_url",
+    "text",
+    "image_url",
+    "text",
+    "image_url"
+  ],
+  "attachments": [
+    {
+      "label": "GTX004",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_gothic/102882781_p0.jpg",
+      "source_sha256": "c4624ed53251822e7614dbb72417c183ea772bade5001a4b9045dc5673b96d56",
+      "bytes": 1409965,
+      "data_url_sha256": "9d53a583eba057dd847ca55d36c196dad353f67bc3b858987e15a30214cad7de"
+    },
+    {
+      "label": "GTX011",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_gothic/62254385_p3.png",
+      "source_sha256": "a806f023d8ad872d6948617d07d7b3e48805f34d86714422f134fb1b80a0ea71",
+      "bytes": 1502618,
+      "data_url_sha256": "a122f1a0bf53d66d5a4eefacb01b7e7c548bca3958ab4770849e6245332d75b6"
+    },
+    {
+      "label": "GTX014",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_gothic/62254385_p9.png",
+      "source_sha256": "0db48a70576656ac0ddf1ae12752873be19f7c5bbdd3ae7ae4f638b1e94b7995",
+      "bytes": 2003243,
+      "data_url_sha256": "7b2889384e7ee99a152254a8181b0e8d1ce9f9c47d2e54d708bc53c9c87221ef"
+    },
+    {
+      "label": "GTX021",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_gothic/lo11.png",
+      "source_sha256": "823a922522535090a1813bfb9615a4d37838385b912c9b293c526c130dce20cd",
+      "bytes": 512832,
+      "data_url_sha256": "a2f9861dbbfa362b0058c94e94cac95db7599284e72716e1f62cd9e6bf9287c7"
+    }
+  ],
+  "attachment_order": [
+    "GTX004",
+    "GTX011",
+    "GTX014",
+    "GTX021"
+  ],
+  "templates": [
+    "prompts/wardrobe/round4/templates/extract-wardrobe-round4.md"
+  ],
+  "no_held_out_images_in_attachments": true,
+  "notes": [
+    "草案：本文件由离线准备任务生成，未发送、未计费。",
+    "附件顺序 = BATCH_IDS 顺序；labels 与正文里的 ID 一一对应。",
+    "请求正文不含留出图；留出核对是另外三个独立请求。"
+  ]
+}

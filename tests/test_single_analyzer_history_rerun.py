@@ -131,7 +131,7 @@ def test_clipboard_snapshot_makes_record_rerunnable(qapp, monkeypatch, tmp_path)
     calls = []
     monkeypatch.setattr(
         widget, "_launch_analysis_task",
-        lambda snapshot, gen_targets=None, header_note=None:
+        lambda snapshot, gen_targets=None, header_note=None, **kwargs:
             calls.append((snapshot, header_note)) or type("_T", (), {"meta_force_gen_targets": []})(),
     )
     assert widget._rerun_history_record(record) is True
@@ -632,7 +632,7 @@ def test_pickup_without_checkpoints_enqueues_gemini_rerun_task(qapp, monkeypatch
     assert [call["prompt_type"] for call in calls] == ["refined"]
     assert calls[0]["channel"] == "gemini"
     assert calls[0]["bundle"] == {
-        "task_hash": "abcdef12", "style_name": "默认风格", "aspect_ratio": "2:3",
+        "task_hash": "abcdef12", "style_name": "默认风格", "aspect_ratio": "2:3", "wardrobe": {},
         "original_prompt": "a girl", "refined_prompt": "a girl, refined",
         "analysis_json_path": str(analysis_json), "source_image_path": str(image_path),
     }
@@ -685,7 +685,7 @@ def test_pickup_without_checkpoints_without_prompts_offers_rerun_analysis(qapp, 
     launched = []
     monkeypatch.setattr(
         widget, "_launch_analysis_task",
-        lambda snapshot, gen_targets=None, header_note=None:
+        lambda snapshot, gen_targets=None, header_note=None, **kwargs:
             launched.append({"snapshot": snapshot, "targets": gen_targets, "note": header_note})
             or type("_T", (), {"meta_force_gen_targets": []})(),
     )
@@ -709,7 +709,7 @@ def test_pickup_offer_rerun_analysis_can_generate_afterwards(qapp, monkeypatch, 
     launched = []
     monkeypatch.setattr(
         widget, "_launch_analysis_task",
-        lambda snapshot, gen_targets=None, header_note=None:
+        lambda snapshot, gen_targets=None, header_note=None, **kwargs:
             launched.append({"targets": gen_targets, "note": header_note})
             or type("_T", (), {"meta_force_gen_targets": ["original"]})(),
     )
@@ -781,7 +781,7 @@ def test_pickup_without_checkpoints_keeps_gpt_records_on_gpt_path(qapp, monkeypa
     launched = []
     monkeypatch.setattr(
         widget, "_launch_analysis_task",
-        lambda snapshot, gen_targets=None, header_note=None:
+        lambda snapshot, gen_targets=None, header_note=None, **kwargs:
             launched.append({"targets": gen_targets}) or type("_T", (), {"meta_force_gen_targets": []})(),
     )
     monkeypatch.setattr(widget, "trigger_image_generation", lambda *a, **k: True)

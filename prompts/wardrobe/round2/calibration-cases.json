@@ -1,0 +1,45 @@
+{
+  "status": "prepared_not_executed",
+  "tests": [
+    {
+      "id": "CAL-C03",
+      "images": [
+        {
+          "label": "A",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C03-off-gpt-_output_012436_0_2f0af2.png",
+          "sha256": "2e96e65d0ad23e70c921c7b7d8ec9602baa91588bee20aa8d2ae2da713f03348"
+        },
+        {
+          "label": "B",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C03-lolita-gpt-_output_012656_0_9716f2.png",
+          "sha256": "e5beef55d6adff47e2d60d7e11ad6fc8ba12cc01d13a57790bed5caf2b90591e"
+        }
+      ],
+      "expected_observations_local_only": {
+        "A": "red school uniform: jacket and pleated skirt",
+        "B": "red decorative dress with lace and expanded skirt"
+      }
+    },
+    {
+      "id": "CAL-C06",
+      "images": [
+        {
+          "label": "A",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C06-off-gpt-_output_013414_0_c9af79.png",
+          "sha256": "0b35081d447a2c0030f548763a6099cb5c6d8effddde4fe2158624b8bfbe1623"
+        },
+        {
+          "label": "B",
+          "image": "D:/code/image-maker/data/test-result/20261005/wardrobe-pilot-v1/C06-lolita-gpt-_output_013604_0_1e0cf7.png",
+          "sha256": "2d689b936571918123795a8cefb2853687efaee663c1efad4355df69fd100950"
+        }
+      ],
+      "expected_observations_local_only": {
+        "A": "tight upper-chest portrait; no structured long garment body visible",
+        "B": "wider upper-body view with longer structured garment body visible"
+      }
+    }
+  ],
+  "gold_must_not_be_sent_to_model": true,
+  "purpose": "verify actual image reading, garment and crop evidence, and label mapping before generation"
+}

@@ -1,0 +1,71 @@
+{
+  "schema_version": "image-maker.wardrobe-test.v1",
+  "status": "prepared_not_executed",
+  "purpose": "Independent Lolita wardrobe pilot; compare off versus on without changing drawing technique.",
+  "rendering": "Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.",
+  "arms": ["off", "lolita"],
+  "repeats": 1,
+  "channels": ["gpt-image", "gemini"],
+  "generation_limit": 24,
+  "size": {"gpt-image": "1024x1536", "gemini": "2:3"},
+  "cases": [
+    {
+      "id": "C01",
+      "name": "No clothing supplied",
+      "policy": "reinterpret",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, standing in a quiet park. Full-body view including both feet.",
+      "expected_on": "A coherent Lolita outfit; clothing is supplied without requiring the user to name it.",
+      "protected": ["one young adult woman", "dark brown long hair", "green eyes", "standing", "park", "full body and feet"],
+      "target_type": "lolita"
+    },
+    {
+      "id": "C02",
+      "name": "Red school uniform changed toward Lolita",
+      "policy": "reinterpret",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. Her original outfit is a red school uniform with a gold star brooch. Keep the red clothing colour and gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "expected_on": "Intentionally redesign the old school-uniform category and cut toward Lolita; retain red and the gold star brooch.",
+      "protected": ["one young adult woman", "dark brown long hair", "green eyes", "red clothing", "gold star brooch", "standing", "park", "full body and feet"],
+      "target_type": "lolita"
+    },
+    {
+      "id": "C03",
+      "name": "Explicit keep-original overrides wardrobe",
+      "policy": "reinterpret",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Keep her original school uniform, including its cut; do not redesign or replace it. Standing in a quiet park, full-body view including both feet.",
+      "expected_on": "Preserve the school uniform. Failure to show Lolita is intentional and must not be penalized.",
+      "protected": ["original red school uniform and cut", "gold star brooch", "one young adult woman", "dark brown long hair", "green eyes", "standing", "park", "full body and feet"],
+      "target_type": "preserve"
+    },
+    {
+      "id": "C04",
+      "name": "Fill-missing preserves existing clothing",
+      "policy": "fill_missing",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.",
+      "expected_on": "Preserve the supplied uniform because fill_missing does not authorize redesign. It need not become Lolita.",
+      "protected": ["red school uniform", "gold star brooch", "one young adult woman", "dark brown long hair", "green eyes", "standing", "park", "full body and feet"],
+      "target_type": "preserve"
+    },
+    {
+      "id": "C05",
+      "name": "Replacement preserves dark colours and signature accessory",
+      "policy": "replace",
+      "content": "One long-haired young adult woman, black hair and blue eyes. Her original outfit is a black trouser suit with a silver crescent brooch. Keep the black clothing colour and silver crescent brooch; use a Gothic clothing direction. Standing in a stone courtyard, full-body view including both feet.",
+      "expected_on": "Replace the suit with a coherent Gothic Lolita outfit, preserving black and the silver crescent brooch; do not force pink or a tea-party setting.",
+      "protected": ["one young adult woman", "black long hair", "blue eyes", "black clothing", "silver crescent brooch", "standing", "stone courtyard", "full body and feet"],
+      "target_type": "lolita"
+    },
+    {
+      "id": "C06",
+      "name": "Bust crop and visible-only evaluation",
+      "policy": "fill_missing",
+      "content": "One long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.",
+      "expected_on": "Supply a Lolita-compatible visible neckline/bodice. Keep the bust crop; do not reveal feet or invent visible skirt evidence. Full-outfit conformity remains unverified.",
+      "protected": ["one young adult woman", "dark brown long hair", "green eyes", "bust crop", "plain grey background"],
+      "target_type": "visible_detail"
+    }
+  ],
+  "excluded_this_round": ["source-image edit validation", "art-reference compatibility", "full repaint and identity-correction chain", "multiple characters", "automatic multi-image wardrobe extraction", "additional repeats or production publishing"],
+  "model_selection": "Read the configured image endpoints and verify available model IDs. Freeze exact IDs in the run manifest before generation; do not silently substitute models.",
+  "scoring_prompt": "wardrobe/test-score.md",
+  "review_prompt": "wardrobe/deepseek-review.md"
+}

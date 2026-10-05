@@ -1,0 +1,4 @@
+WARDROBE FAMILY: CLASSICAL LOLITA.
+Build a coherent dress or jumper-skirt and blouse ensemble with a clear fitted garment waist and a controlled bell or A-line skirt. Organize the design through collars, a buttoned or pintucked front, gathered or gently puffed sleeves, cuffs, borders and lace placed along actual garment edges. Leave substantial calm fabric areas between decorative bands.
+
+Use a restrained arrangement of bows, floral ornament, checks or other chosen fabric motifs; coordinate visible headwear and footwear with that arrangement. Burgundy, forest green, navy, brown, cream and other harmonized colours are options, not mandatory recolouring. Respect explicitly requested colours. The defining effect is the garment's ordered construction and restrained ornament, not a sepia painting, antique room, particular face or mandatory long hair.

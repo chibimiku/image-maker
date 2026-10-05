@@ -1,0 +1,777 @@
+{
+  "run_id": "wardrobe-round3-prep",
+  "generated_at": "2026-10-05T17:24:40.637542",
+  "spec_dir": "D:\\code\\image-maker\\prompts\\wardrobe\\round3\\spec",
+  "pack_dir": "D:\\code\\image-maker\\prompts\\wardrobe\\round3\\pack",
+  "out_dir": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round3-prep",
+  "run_dir_source": "explicit --run-dir",
+  "composed_from_spec": true,
+  "plan_sha256": {
+    "expected": "06ebea5731d308cb4853bf0ad20a8d5e6054ec2a15c504074e91bdbd12026600",
+    "actual": "06ebea5731d308cb4853bf0ad20a8d5e6054ec2a15c504074e91bdbd12026600"
+  },
+  "spec_hash": "f2fc215aaca8b4cac7679df4ba3b78c818a9cd168d0859885837cdf2a34df19b",
+  "pack_snapshot_hash_check": {
+    "ok": true,
+    "rows": [
+      {
+        "file": "T01-v3_control.txt",
+        "case_id": "T01",
+        "variant": "v3_control",
+        "sha256_expected": "8d774572744bd7edc41747f11da2b028dfb3f3a27da180d5f5baea91f8c7ad1f",
+        "sha256_actual": "8d774572744bd7edc41747f11da2b028dfb3f3a27da180d5f5baea91f8c7ad1f",
+        "characters_expected": 1178,
+        "characters_actual": 1178,
+        "match": true
+      },
+      {
+        "file": "T01-v4_candidate.txt",
+        "case_id": "T01",
+        "variant": "v4_candidate",
+        "sha256_expected": "b3541fe08ae782b9221a85966465cc2e5b47adebd60c0d5b229c797c196927ad",
+        "sha256_actual": "b3541fe08ae782b9221a85966465cc2e5b47adebd60c0d5b229c797c196927ad",
+        "characters_expected": 1846,
+        "characters_actual": 1846,
+        "match": true
+      },
+      {
+        "file": "T02-v3_control.txt",
+        "case_id": "T02",
+        "variant": "v3_control",
+        "sha256_expected": "120eb3c9eda8ef0b1f243349eb46f4486b15b9ce39d61f8831f45bd917e848c9",
+        "sha256_actual": "120eb3c9eda8ef0b1f243349eb46f4486b15b9ce39d61f8831f45bd917e848c9",
+        "characters_expected": 1121,
+        "characters_actual": 1121,
+        "match": true
+      },
+      {
+        "file": "T02-v4_candidate.txt",
+        "case_id": "T02",
+        "variant": "v4_candidate",
+        "sha256_expected": "5c5210c4002f6008704e5a6893086efa9d8f1cd27431a94659d2c4649e3d1537",
+        "sha256_actual": "5c5210c4002f6008704e5a6893086efa9d8f1cd27431a94659d2c4649e3d1537",
+        "characters_expected": 1708,
+        "characters_actual": 1708,
+        "match": true
+      },
+      {
+        "file": "T03-v3_control.txt",
+        "case_id": "T03",
+        "variant": "v3_control",
+        "sha256_expected": "7abec7ba5b15625c0de5801e3467518328d6be9ee865924d611374f238299563",
+        "sha256_actual": "7abec7ba5b15625c0de5801e3467518328d6be9ee865924d611374f238299563",
+        "characters_expected": 2092,
+        "characters_actual": 2092,
+        "match": true
+      },
+      {
+        "file": "T03-v4_candidate.txt",
+        "case_id": "T03",
+        "variant": "v4_candidate",
+        "sha256_expected": "4c606e17ffe344b2e8053fac117f6c5c8bbbf59d8389058e9c4ba85284b68eb3",
+        "sha256_actual": "4c606e17ffe344b2e8053fac117f6c5c8bbbf59d8389058e9c4ba85284b68eb3",
+        "characters_expected": 2762,
+        "characters_actual": 2762,
+        "match": true
+      },
+      {
+        "file": "T04-v3_control.txt",
+        "case_id": "T04",
+        "variant": "v3_control",
+        "sha256_expected": "8d7e9cfb9ef48b26ecef85951e240ad723ab24fc95022ad3756312482d13f9c0",
+        "sha256_actual": "8d7e9cfb9ef48b26ecef85951e240ad723ab24fc95022ad3756312482d13f9c0",
+        "characters_expected": 2369,
+        "characters_actual": 2369,
+        "match": true
+      },
+      {
+        "file": "T04-v4_candidate.txt",
+        "case_id": "T04",
+        "variant": "v4_candidate",
+        "sha256_expected": "79e358d6922ac8914a03a8c7a5564caf6e8034e5358675c9cb1d7c3d342a042e",
+        "sha256_actual": "79e358d6922ac8914a03a8c7a5564caf6e8034e5358675c9cb1d7c3d342a042e",
+        "characters_expected": 3007,
+        "characters_actual": 3007,
+        "match": true
+      },
+      {
+        "file": "T05-v3_control.txt",
+        "case_id": "T05",
+        "variant": "v3_control",
+        "sha256_expected": "ee6073ace78e469efc400e1fb6b8efd48356cb1dad86b67ba25dae6cf185d66a",
+        "sha256_actual": "ee6073ace78e469efc400e1fb6b8efd48356cb1dad86b67ba25dae6cf185d66a",
+        "characters_expected": 1306,
+        "characters_actual": 1306,
+        "match": true
+      },
+      {
+        "file": "T05-v4_candidate.txt",
+        "case_id": "T05",
+        "variant": "v4_candidate",
+        "sha256_expected": "9dadb82d5c32cfd96ee9a3149d2ff086a70189859de3fd6d265dd1fb6bf3500f",
+        "sha256_actual": "9dadb82d5c32cfd96ee9a3149d2ff086a70189859de3fd6d265dd1fb6bf3500f",
+        "characters_expected": 1325,
+        "characters_actual": 1325,
+        "match": true
+      },
+      {
+        "file": "T06-v3_control.txt",
+        "case_id": "T06",
+        "variant": "v3_control",
+        "sha256_expected": "0fe705d8a61eff735b891240b75c536185584573960dfc29fe517a21aa991052",
+        "sha256_actual": "0fe705d8a61eff735b891240b75c536185584573960dfc29fe517a21aa991052",
+        "characters_expected": 1490,
+        "characters_actual": 1490,
+        "match": true
+      },
+      {
+        "file": "T06-v4_candidate.txt",
+        "case_id": "T06",
+        "variant": "v4_candidate",
+        "sha256_expected": "eed5a6eeda79d76902abf1bbb35266d75b55ab2db7c5c9793592fc88b4572a24",
+        "sha256_actual": "eed5a6eeda79d76902abf1bbb35266d75b55ab2db7c5c9793592fc88b4572a24",
+        "characters_expected": 1581,
+        "characters_actual": 1581,
+        "match": true
+      }
+    ]
+  },
+  "source_file_hash_check": {
+    "ok": true,
+    "rows": [
+      {
+        "file": "prompts/wardrobe/round3/characters.json",
+        "expected": "748218055b1ba5987d4ff698f695c13787baa2dce4eda9274ab42e72a65df45b",
+        "actual": "748218055b1ba5987d4ff698f695c13787baa2dce4eda9274ab42e72a65df45b",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/base-pack/manifest.json",
+        "expected": "132e4385cdf79eac428c2f45bd1b1d2f3f961401f86b3b486953abdeb3778f13",
+        "actual": "132e4385cdf79eac428c2f45bd1b1d2f3f961401f86b3b486953abdeb3778f13",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/design.md",
+        "expected": "069d945e23d933859b947725117e0467e2674975a75a90e79a3c4db70279d3b8",
+        "actual": "069d945e23d933859b947725117e0467e2674975a75a90e79a3c4db70279d3b8",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/frame-bust-v3.md",
+        "expected": "adff692ad393acbc825c19e94fe32fa6286d60a1cbc6db68bc8e48ce94bea28d",
+        "actual": "adff692ad393acbc825c19e94fe32fa6286d60a1cbc6db68bc8e48ce94bea28d",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/frame-bust-v4.md",
+        "expected": "5014beb8028ce7736653e6c010584d975ef241c809dc93d376d9c22f73e37397",
+        "actual": "5014beb8028ce7736653e6c010584d975ef241c809dc93d376d9c22f73e37397",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/frame-full-v4.md",
+        "expected": "ec37ab882d806abd2a8d4b2f5b6bf526df11f5ab865db77ab01e870ac830d447",
+        "actual": "ec37ab882d806abd2a8d4b2f5b6bf526df11f5ab865db77ab01e870ac830d447",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/frame-full.md",
+        "expected": "2a4c30104573d03156dbbb036431c5d9b1486010bc5ebd4758a0936c77661e6b",
+        "actual": "2a4c30104573d03156dbbb036431c5d9b1486010bc5ebd4758a0936c77661e6b",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/policy-fill_missing.md",
+        "expected": "40cc6fbb0ce5a5d233ae1461b0ec6be791bd23c1018b5c847af2ddbc69fe9ee7",
+        "actual": "40cc6fbb0ce5a5d233ae1461b0ec6be791bd23c1018b5c847af2ddbc69fe9ee7",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/policy-reinterpret.md",
+        "expected": "06542c8e1be1e7a8fa47847be920607eadee62dbbb6bc0c371b41cfcd328e5e8",
+        "actual": "06542c8e1be1e7a8fa47847be920607eadee62dbbb6bc0c371b41cfcd328e5e8",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/policy-replace.md",
+        "expected": "6cb041f3f7968a203cf17b27bc9cf71270b7907369293f2b8bff1317f50b37a3",
+        "actual": "6cb041f3f7968a203cf17b27bc9cf71270b7907369293f2b8bff1317f50b37a3",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/preserve.md",
+        "expected": "df97f5b03b9bbc37f3afcf9b781225d886728bf70a56282051dfb29badbef350",
+        "actual": "df97f5b03b9bbc37f3afcf9b781225d886728bf70a56282051dfb29badbef350",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/redesign-v3.md",
+        "expected": "dfcade833189dde4e48e85ce5b13589ac3018ca0a224eb194834ba4effc7102d",
+        "actual": "dfcade833189dde4e48e85ce5b13589ac3018ca0a224eb194834ba4effc7102d",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/redesign-v4.md",
+        "expected": "5ab75e1cc7f270e74f6f73814fd1e8825eff5c93211cf76c6c911d8d7501a387",
+        "actual": "5ab75e1cc7f270e74f6f73814fd1e8825eff5c93211cf76c6c911d8d7501a387",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/visible-v3-redesign.md",
+        "expected": "51cfcb31565c4b19179c91d74072573ca3b49086aec0d108f574993342325d5c",
+        "actual": "51cfcb31565c4b19179c91d74072573ca3b49086aec0d108f574993342325d5c",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/visible-v3.md",
+        "expected": "1bd5d2ae0fde19e0009c8149e1342d9e51eca4786b7ff5a88647ef5fc238a1d6",
+        "actual": "1bd5d2ae0fde19e0009c8149e1342d9e51eca4786b7ff5a88647ef5fc238a1d6",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/visible-v4-redesign.md",
+        "expected": "3ed450c1bc274ba924bff50322296f9630ff963d10fba7e5e79e3c8287e8a9e4",
+        "actual": "3ed450c1bc274ba924bff50322296f9630ff963d10fba7e5e79e3c8287e8a9e4",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/variants/visible-v4.md",
+        "expected": "6dee2257e445ddfc9a631e474b11aa81a3d6962e669acc0614b2b2c5b413f353",
+        "actual": "6dee2257e445ddfc9a631e474b11aa81a3d6962e669acc0614b2b2c5b413f353",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/spec/calibrate.md",
+        "expected": "9322df2f3e8e178b10e24a5efcdade318337e06c9a9f9b2c864806e670633ddb",
+        "actual": "9322df2f3e8e178b10e24a5efcdade318337e06c9a9f9b2c864806e670633ddb",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/spec/calibration-cases.json",
+        "expected": "65e40ac8a077867c55d71df24bba28725e5bc5eb4026c067dffa672161fb65cd",
+        "actual": "65e40ac8a077867c55d71df24bba28725e5bc5eb4026c067dffa672161fb65cd",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/spec/plan.json",
+        "expected": "06ebea5731d308cb4853bf0ad20a8d5e6054ec2a15c504074e91bdbd12026600",
+        "actual": "06ebea5731d308cb4853bf0ad20a8d5e6054ec2a15c504074e91bdbd12026600",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/spec/review.md",
+        "expected": "92018ff9eb128a8dca36c1606eccd1e2b3f4d937e9bca17361f6d3fcb4fcbd50",
+        "actual": "92018ff9eb128a8dca36c1606eccd1e2b3f4d937e9bca17361f6d3fcb4fcbd50",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/spec/score.md",
+        "expected": "74e6b520d1f86a3f32125ac016a9dddc68a8f5beb77eb502fd618c7d7c9baf9d",
+        "actual": "74e6b520d1f86a3f32125ac016a9dddc68a8f5beb77eb502fd618c7d7c9baf9d",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/characters/T01.md",
+        "expected": "09623196fce3eac2d5211b5bea6fa941061a30f9d1fd786605911d23abb6fd08",
+        "actual": "09623196fce3eac2d5211b5bea6fa941061a30f9d1fd786605911d23abb6fd08",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/characters/T02.md",
+        "expected": "682c971575ff3a801624ed4b2f999800a254032b73569e06eecc44bbffb53dc5",
+        "actual": "682c971575ff3a801624ed4b2f999800a254032b73569e06eecc44bbffb53dc5",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/characters/T03.md",
+        "expected": "032e10eb6e2239e70fe48e2f211a877e8f4c2ab4e9eae315a1ef8b1676d3b073",
+        "actual": "032e10eb6e2239e70fe48e2f211a877e8f4c2ab4e9eae315a1ef8b1676d3b073",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/characters/T04.md",
+        "expected": "1d675cc72c7f327c61338d0dcb17a8d5deddfc9d37a08784ab127d573fa787d8",
+        "actual": "1d675cc72c7f327c61338d0dcb17a8d5deddfc9d37a08784ab127d573fa787d8",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/characters/T05.md",
+        "expected": "416bd46315961ad80c76045f0cdfd4aee4eeea77df02001eb3f69346dcb455dc",
+        "actual": "416bd46315961ad80c76045f0cdfd4aee4eeea77df02001eb3f69346dcb455dc",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/characters/T06.md",
+        "expected": "8419463d83e79c4e9f94b9a435ab346686731f4567c1bebf039e3bdfb6913d78",
+        "actual": "8419463d83e79c4e9f94b9a435ab346686731f4567c1bebf039e3bdfb6913d78",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/base-pack/T01-base.txt",
+        "expected": "5a1e359167590e359996fc24561d2a232e1fad063b178975ac8d27074dc2e1d8",
+        "actual": "5a1e359167590e359996fc24561d2a232e1fad063b178975ac8d27074dc2e1d8",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/base-pack/T02-base.txt",
+        "expected": "4db8e4546a2284460fb31da2a7cd1d3119f057c7f5d959e7ebab40d70c89faf3",
+        "actual": "4db8e4546a2284460fb31da2a7cd1d3119f057c7f5d959e7ebab40d70c89faf3",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/base-pack/T03-base.txt",
+        "expected": "59141e73450b1598457afbc9dec24a1510090c55474f9b5a5aa0f773890abf99",
+        "actual": "59141e73450b1598457afbc9dec24a1510090c55474f9b5a5aa0f773890abf99",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/base-pack/T04-base.txt",
+        "expected": "4cd056cc31794ab500702f0a9e00ff73d0cb054b3390e9e3158b77a4b786a9ba",
+        "actual": "4cd056cc31794ab500702f0a9e00ff73d0cb054b3390e9e3158b77a4b786a9ba",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/base-pack/T05-base.txt",
+        "expected": "21fee5af4e15b817f36f1f79108250667ead89de1e45adf202e8557f2071b2ec",
+        "actual": "21fee5af4e15b817f36f1f79108250667ead89de1e45adf202e8557f2071b2ec",
+        "match": true
+      },
+      {
+        "file": "prompts/wardrobe/round3/base-pack/T06-base.txt",
+        "expected": "e68f173a4322720ccabf44fc1a7fd6b5ccd835ca2b552c5853f9e98dda9af604",
+        "actual": "e68f173a4322720ccabf44fc1a7fd6b5ccd835ca2b552c5853f9e98dda9af604",
+        "match": true
+      }
+    ]
+  },
+  "prior_results_sha256": {
+    "expected": "",
+    "actual": "408f2e912f6db235911fe317bee90eaabb5dc8122c8d6d70208f27b25feede60",
+    "match": false
+  },
+  "deterministic_checks": [
+    {
+      "file": "T01-v3_control.txt",
+      "case_id": "T01",
+      "variant": "v3_control",
+      "role": "explicit_preservation_bridge",
+      "gold_action": "preserve",
+      "framing": "full",
+      "sha256": "8d774572744bd7edc41747f11da2b028dfb3f3a27da180d5f5baea91f8c7ad1f",
+      "characters": 1178,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: PRESERVE.\nKeep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v3_control",
+        "gold_action": "preserve",
+        "framing": "full",
+        "strict": false,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "control"
+    },
+    {
+      "file": "T01-v4_candidate.txt",
+      "case_id": "T01",
+      "variant": "v4_candidate",
+      "role": "explicit_preservation_bridge",
+      "gold_action": "preserve",
+      "framing": "full",
+      "sha256": "b3541fe08ae782b9221a85966465cc2e5b47adebd60c0d5b229c797c196927ad",
+      "characters": 1846,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: PRESERVE.\nKeep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.",
+          "T01 tailoring (bridge preservation). The outfit must read as the same clothing set that the character description already lists: a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks, with the gold star brooch on the left blazer lapel. Keep the blazer single-breasted and its piping gold; keep the skirt solid red and pleated; keep the socks black and knee-high. Do not introduce garments that the description does not list, and do not borrow any garment, colour or accessory from another image.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count, and keep every named garment and accessory in the exact position given in the character description. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v4_candidate",
+        "gold_action": "preserve",
+        "framing": "full",
+        "strict": true,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "candidate"
+    },
+    {
+      "file": "T02-v3_control.txt",
+      "case_id": "T02",
+      "variant": "v3_control",
+      "role": "fill_missing_preservation",
+      "gold_action": "preserve",
+      "framing": "full",
+      "sha256": "120eb3c9eda8ef0b1f243349eb46f4486b15b9ce39d61f8831f45bd917e848c9",
+      "characters": 1121,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: PRESERVE.\nKeep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v3_control",
+        "gold_action": "preserve",
+        "framing": "full",
+        "strict": false,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "control"
+    },
+    {
+      "file": "T02-v4_candidate.txt",
+      "case_id": "T02",
+      "variant": "v4_candidate",
+      "role": "fill_missing_preservation",
+      "gold_action": "preserve",
+      "framing": "full",
+      "sha256": "5c5210c4002f6008704e5a6893086efa9d8f1cd27431a94659d2c4649e3d1537",
+      "characters": 1708,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: PRESERVE.\nKeep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.",
+          "T02 tailoring. Keep the workwear set exactly as listed: the navy utility jacket with patch pockets, the ochre T-shirt, the straight grey trousers and the dark lace-up shoes, with the small copper leaf pin on the jacket chest pocket. Keep the jacket length and its patch pockets, keep the trousers straight rather than flared or pleated, and keep the pin on the chest pocket. Do not substitute a dress or a differently coloured jacket, and do not borrow any garment from another image.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count, and keep every named garment and accessory in the exact position given in the character description. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v4_candidate",
+        "gold_action": "preserve",
+        "framing": "full",
+        "strict": true,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "candidate"
+    },
+    {
+      "file": "T03-v3_control.txt",
+      "case_id": "T03",
+      "variant": "v3_control",
+      "role": "fill_unspecified",
+      "gold_action": "fill",
+      "framing": "full",
+      "sha256": "7abec7ba5b15625c0de5801e3467518328d6be9ee865924d611374f238299563",
+      "characters": 2092,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: FILL.\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When clothing is explicitly specified in the text or the source image, keep that clothing; do not replace existing garments merely to match this preset.\nPreserve explicitly requested clothing colours and named accessories in their described role. Source outfit facts alone are not an instruction to preserve the old category or cut. Change clothing only, keeping the requested person count, age, hair and eye colours, body, pose and scene.",
+          "Japanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.",
+          "Organize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.",
+          "Do not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v3_control",
+        "gold_action": "fill",
+        "framing": "full",
+        "strict": false,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "control"
+    },
+    {
+      "file": "T03-v4_candidate.txt",
+      "case_id": "T03",
+      "variant": "v4_candidate",
+      "role": "fill_unspecified",
+      "gold_action": "fill",
+      "framing": "full",
+      "sha256": "4c606e17ffe344b2e8053fac117f6c5c8bbbf59d8389058e9c4ba85284b68eb3",
+      "characters": 2762,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: FILL.\nWhen clothing is unspecified, supply a complete outfit in the target wardrobe. When clothing is explicitly specified in the text or the source image, keep that clothing; do not replace existing garments merely to match this preset.\nPreserve explicitly requested clothing colours and named accessories in their described role. Source outfit facts alone are not an instruction to preserve the old category or cut. Change clothing only, keeping the requested person count, age, hair and eye colours, body, pose and scene. Do not add or drop any identity fact or named accessory that the character description does not mention.",
+          "Japanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.",
+          "Organize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.",
+          "Do not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.",
+          "T03 tailoring (fill from unspecified clothing). No clothing is described, so design one coherent complete outfit in the target wardrobe suited to the character and the botanical-garden setting. Keep the person count and the described identity facts untouched: age expression, deep brown skin, shoulder-length curly auburn hair, amber eyes and the broad-shouldered curvy build. Do not narrow the build, do not lighten the skin tone and do not straighten the hair.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count, and keep every named garment and accessory in the exact position given in the character description. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v4_candidate",
+        "gold_action": "fill",
+        "framing": "full",
+        "strict": true,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "candidate"
+    },
+    {
+      "file": "T04-v3_control.txt",
+      "case_id": "T04",
+      "variant": "v3_control",
+      "role": "gothic_redesign",
+      "gold_action": "redesign",
+      "framing": "full",
+      "sha256": "8d7e9cfb9ef48b26ecef85951e240ad723ab24fc95022ad3756312482d13f9c0",
+      "characters": 2369,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: REDESIGN.\nWhen clothing is unspecified, supply a complete target outfit. Otherwise replace the source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit instruction to keep the original clothing or a particular garment takes precedence over this preset.\nPreserve explicitly requested clothing colours and named accessories in their described role. Source outfit facts alone are not an instruction to preserve the old category or cut. Change clothing only, keeping the requested person count, age, hair and eye colours, body, pose and scene.",
+          "Japanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.",
+          "Organize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.",
+          "Do not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v3_control",
+        "gold_action": "redesign",
+        "framing": "full",
+        "strict": false,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "control"
+    },
+    {
+      "file": "T04-v4_candidate.txt",
+      "case_id": "T04",
+      "variant": "v4_candidate",
+      "role": "gothic_redesign",
+      "gold_action": "redesign",
+      "framing": "full",
+      "sha256": "79e358d6922ac8914a03a8c7a5564caf6e8034e5358675c9cb1d7c3d342a042e",
+      "characters": 3007,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: REDESIGN.\nWhen clothing is unspecified, supply a complete target outfit. Otherwise replace the source garment categories and cut with a complete target outfit, retaining explicitly requested colours and signature accessories. An explicit instruction to keep the original clothing or a particular garment takes precedence over this preset.\nPreserve explicitly requested clothing colours and named accessories in their described role. Source outfit facts alone are not an instruction to preserve the old category or cut. Change clothing only, keeping the requested person count, age, hair and eye colours, body, pose and scene. Do not add or drop any identity fact or named accessory that the character description does not mention.",
+          "Japanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.",
+          "Organize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.",
+          "Do not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.",
+          "T04 tailoring (Gothic redesign). Keep the black main clothing colour as the dominant tone of the new outfit, and keep the silver crescent brooch at the upper centre of the new garment rather than moving it to the hair, the skirt or the hand. Keep the mature adult face and the tall build; do not make the face younger or the body smaller. Keep her right hand holding one closed burgundy book, and keep the stone courtyard setting.",
+          "FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count, and keep every named garment and accessory in the exact position given in the character description. Clothing changes do not authorize new objects or a different camera view."
+        ],
+        "variant": "v4_candidate",
+        "gold_action": "redesign",
+        "framing": "full",
+        "strict": true,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "candidate"
+    },
+    {
+      "file": "T05-v3_control.txt",
+      "case_id": "T05",
+      "variant": "v3_control",
+      "role": "strict_crop_fill",
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "sha256": "ee6073ace78e469efc400e1fb6b8efd48356cb1dad86b67ba25dae6cf185d66a",
+      "characters": 1306,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: FILL VISIBLE UNSPECIFIED CLOTHING.\nSupply Japanese Lolita-compatible visible neckline and upper garment details within the requested close portrait. Use a coherent collar, connected lace or ruffle edging, a modest bow and plausible garment seams only where the crop shows them. Do not expand the view to demonstrate an outfit or its construction. The clothing style does not authorize a change to age, face, hair, eyes, body or scene.",
+          "FINAL FRAMING REQUIREMENT: a close portrait from the upper chest upward on the requested plain background. The lower frame edge cuts across the upper chest, above the bust midpoint. Do not show the lower bodice, waist, elbows, hands, skirt or feet; do not zoom out to display clothing details. Only draw clothing details that fall inside this crop."
+        ],
+        "variant": "v3_control",
+        "gold_action": "fill",
+        "framing": "upper_chest",
+        "strict": false,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "control"
+    },
+    {
+      "file": "T05-v4_candidate.txt",
+      "case_id": "T05",
+      "variant": "v4_candidate",
+      "role": "strict_crop_fill",
+      "gold_action": "fill",
+      "framing": "upper_chest",
+      "sha256": "9dadb82d5c32cfd96ee9a3149d2ff086a70189859de3fd6d265dd1fb6bf3500f",
+      "characters": 1325,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: FILL VISIBLE UNSPECIFIED CLOTHING.\nSupply only the clothing that falls inside the requested crop: a coherent collar, connected lace or ruffle edging, a modest bow and plausible garment seams where the crop shows them. Do not add skirt, waist, hem, shoe or sleeve instructions that the crop cannot show, and do not expand the view to demonstrate the outfit. The clothing style does not authorize a change to age, face, hair, eyes, glasses, body or scene.",
+          "FINAL FRAMING REQUIREMENT: a close portrait from the upper chest upward on the requested plain background. The lower frame edge cuts across the upper chest, above the bust midpoint. Do not show the lower bodice, waist, elbows, hands, skirt or feet; do not zoom out to display clothing details. Only draw clothing details that fall inside this crop."
+        ],
+        "variant": "v4_candidate",
+        "gold_action": "fill",
+        "framing": "upper_chest",
+        "strict": true,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "candidate"
+    },
+    {
+      "file": "T06-v3_control.txt",
+      "case_id": "T06",
+      "variant": "v3_control",
+      "role": "crop_redesign",
+      "gold_action": "redesign",
+      "framing": "upper_chest",
+      "sha256": "0fe705d8a61eff735b891240b75c536185584573960dfc29fe517a21aa991052",
+      "characters": 1490,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: REDESIGN VISIBLE CLOTHING.\nSupply Japanese Lolita-compatible visible neckline and upper garment details within the requested close portrait. Use a coherent collar, connected lace or ruffle edging, a modest bow and plausible garment seams only where the crop shows them. Do not expand the view to demonstrate an outfit or its construction. The clothing style does not authorize a change to age, face, hair, eyes, body or scene.",
+          "Keep the explicitly requested clothing colour and named accessory in their described position.",
+          "FINAL FRAMING REQUIREMENT: a close portrait from the upper chest upward on the requested plain background. The lower frame edge cuts across the upper chest, above the bust midpoint. Do not show the lower bodice, waist, elbows, hands, skirt or feet; do not zoom out to display clothing details. Only draw clothing details that fall inside this crop."
+        ],
+        "variant": "v3_control",
+        "gold_action": "redesign",
+        "framing": "upper_chest",
+        "strict": false,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "control"
+    },
+    {
+      "file": "T06-v4_candidate.txt",
+      "case_id": "T06",
+      "variant": "v4_candidate",
+      "role": "crop_redesign",
+      "gold_action": "redesign",
+      "framing": "upper_chest",
+      "sha256": "eed5a6eeda79d76902abf1bbb35266d75b55ab2db7c5c9793592fc88b4572a24",
+      "characters": 1581,
+      "deterministic": {
+        "ok": true,
+        "issues": [],
+        "added_blocks": [
+          "AUTHORIZED CLOTHING ACTION: REDESIGN, LIMITED TO THE VISIBLE CROP.\nRedesign the clothing only within what this close portrait can show: a coherent collar, connected lace or ruffle edging, a modest bow and plausible garment seams where the crop shows them. Keep the explicitly requested clothing colour and the named accessory in their described position inside the crop. Do not add skirt, waist, hem, shoe or sleeve instructions that the crop cannot show, do not expand the view to demonstrate the outfit, and do not erase the named accessory. The clothing change does not authorize a change to age, face, hair, eyes, glasses, body or scene.",
+          "FINAL FRAMING REQUIREMENT: a close portrait from the upper chest upward on the requested plain background. The lower frame edge cuts across the upper chest, above the bust midpoint. Do not show the lower bodice, waist, elbows, hands, skirt or feet; do not zoom out to display clothing details. Only draw clothing details that fall inside this crop."
+        ],
+        "variant": "v4_candidate",
+        "gold_action": "redesign",
+        "framing": "upper_chest",
+        "strict": true,
+        "expected_defects": []
+      },
+      "prior_snapshot": null,
+      "severity": "candidate"
+    }
+  ],
+  "candidate_strict_pass": true,
+  "offline_suite": {
+    "candidate_ok": true,
+    "candidate_failures": [],
+    "pairing": {
+      "pairs": 16,
+      "a_control": 8,
+      "a_candidate": 8,
+      "exact_balance": true,
+      "seed": 20261005
+    },
+    "order_slots": 32
+  },
+  "gold_routes": {
+    "T01": {
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "role": "explicit_preservation_bridge",
+      "repeats": 2
+    },
+    "T02": {
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "role": "fill_missing_preservation",
+      "repeats": 1
+    },
+    "T03": {
+      "gold_action": "fill",
+      "gold_presence": "unspecified",
+      "framing": "full",
+      "role": "fill_unspecified",
+      "repeats": 1
+    },
+    "T04": {
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "full",
+      "role": "gothic_redesign",
+      "repeats": 1
+    },
+    "T05": {
+      "gold_action": "fill",
+      "gold_presence": "unspecified",
+      "framing": "upper_chest",
+      "role": "strict_crop_fill",
+      "repeats": 2
+    },
+    "T06": {
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "upper_chest",
+      "role": "crop_redesign",
+      "repeats": 1
+    }
+  },
+  "budgets": {
+    "text_http_attempts": 2,
+    "generation_http_attempts": 32,
+    "vision_http_attempts": 20,
+    "model_list_http_attempts": 1
+  },
+  "config_summary": {
+    "aigc-2d-gpt": {
+      "base_url": "https://new.aigc2d.com/v1",
+      "model": "gpt-image-2",
+      "timeout": null,
+      "resolution": null,
+      "key_present": true,
+      "key_source": "env:IMAGE_MAKER_AIGC2D_API_KEY"
+    },
+    "aigc2d": {
+      "base_url": "https://new.aigc2d.com/v1beta/models/",
+      "model": "gemini-3-pro-image-preview",
+      "timeout": 120,
+      "resolution": "2K",
+      "key_present": true,
+      "key_source": "env:IMAGE_MAKER_AIGC2D_API_KEY"
+    },
+    "text": {
+      "base_url": "https://new.aigc2d.com/v1",
+      "model": "gpt-5.6-luna",
+      "key_present": true
+    }
+  },
+  "output_isolation": {
+    "isolated_dir": "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round3-prep",
+    "backend_sub_dir": "../test-result/20261005/wardrobe-round3-prep",
+    "env": "1"
+  },
+  "candidate_gate": {
+    "ready": false,
+    "reasons": [
+      "就绪结论与当前 spec 指纹不匹配（素材已变更）",
+      "候选审查未就绪（review.ready=false 或缺失）",
+      "候选审查仍有 blocking: 6 条",
+      "看图校准未通过或未执行"
+    ],
+    "spec_hash": "f2fc215aaca8b4cac7679df4ba3b78c818a9cd168d0859885837cdf2a34df19b",
+    "control_id": "v3_control",
+    "candidate_id": "v4_candidate",
+    "control_role": "frozen_control_known_defects_reported_only"
+  },
+  "ok": true
+}

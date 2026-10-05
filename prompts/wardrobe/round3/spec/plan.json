@@ -1,0 +1,220 @@
+{
+  "schema_version": "image-maker.wardrobe-round3.v1",
+  "status": "prepared_not_executed",
+  "not_complete_generation_requests": true,
+  "prior_plan": "prompts/wardrobe/round2/plan.json",
+  "prior_run": "data/test-result/20261005/wardrobe-round2-r1",
+  "characters_file": "prompts/wardrobe/round3/characters.json",
+  "base_pack": "prompts/wardrobe/round3/base-pack",
+  "rendering": "Clean anime illustration with controlled linework and soft cel shading.",
+  "variants": [
+    {
+      "id": "v3_control",
+      "role": "control",
+      "description": "Round2 genuine v3 framework: preservation excludes target design; visible crop includes the explicit upper-chest boundary. Adapted only for new character facts, background and T06 visible redesign authorization.",
+      "composition": "base + branches/{branch}-v3.md + tail/frame-{framing}.md",
+      "known_defects": [
+        "Round2 v3 had residual crop widening in one Gemini close portrait; identity and accessory generalization remain unverified."
+      ]
+    },
+    {
+      "id": "v4_candidate",
+      "role": "candidate",
+      "description": "本轮候选：只加强指定衣物/配饰的位置与近景构图约束，不改画法正文；全身改款沿用同一 Lolita 设计块，保留分支不发该块，近景只写可见领口/局部衣片。",
+      "composition": "base + branches/{branch}-v4.md + tailoring/{case}.md + tail/frame-{framing}.md"
+    }
+  ],
+  "channels": [
+    "gpt",
+    "gemini"
+  ],
+  "cases": [
+    {
+      "case_id": "T01",
+      "character_id": "P01",
+      "role": "explicit_preservation_bridge",
+      "policy": "reinterpret",
+      "branch": "preserve",
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 2,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ]
+    },
+    {
+      "case_id": "T02",
+      "character_id": "P02",
+      "role": "fill_missing_preservation",
+      "policy": "fill_missing",
+      "branch": "preserve",
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ]
+    },
+    {
+      "case_id": "T03",
+      "character_id": "P03",
+      "role": "fill_unspecified",
+      "policy": "fill_missing",
+      "branch": "redesign",
+      "gold_action": "fill",
+      "gold_presence": "unspecified",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ]
+    },
+    {
+      "case_id": "T04",
+      "character_id": "P04",
+      "role": "gothic_redesign",
+      "policy": "replace",
+      "branch": "redesign",
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ]
+    },
+    {
+      "case_id": "T05",
+      "character_id": "P05",
+      "role": "strict_crop_fill",
+      "policy": "fill_missing",
+      "branch": "visible",
+      "gold_action": "fill",
+      "gold_presence": "unspecified",
+      "framing": "upper_chest",
+      "repeats": 2,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ]
+    },
+    {
+      "case_id": "T06",
+      "character_id": "P06",
+      "role": "crop_redesign",
+      "policy": "reinterpret",
+      "branch": "visible",
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "upper_chest",
+      "repeats": 1,
+      "variants": [
+        "v3_control",
+        "v4_candidate"
+      ]
+    }
+  ],
+  "allowed": {
+    "roles": [
+      "explicit_preservation_bridge",
+      "fill_missing_preservation",
+      "fill_unspecified",
+      "gothic_redesign",
+      "strict_crop_fill",
+      "crop_redesign"
+    ],
+    "policies": [
+      "reinterpret",
+      "fill_missing",
+      "replace"
+    ],
+    "branches": [
+      "preserve",
+      "redesign",
+      "visible"
+    ],
+    "gold_actions": [
+      "preserve",
+      "fill",
+      "redesign"
+    ],
+    "gold_presence": [
+      "provided",
+      "unspecified",
+      "unknown"
+    ],
+    "framings": [
+      "full",
+      "upper_chest"
+    ],
+    "variants": [
+      "v3_control",
+      "v4_candidate"
+    ],
+    "channels": [
+      "gpt",
+      "gemini"
+    ]
+  },
+  "budgets": {
+    "generation_http_attempts": 32,
+    "vision_http_attempts": 20,
+    "text_http_attempts": 2,
+    "model_list_http_attempts": 1,
+    "generation_slots": 32,
+    "vision_calibration_slots": 3,
+    "vision_pair_slots": 16,
+    "vision_retry_reserve": 1,
+    "text_review_slots": 2,
+    "count_rule": "每次真实 HTTP 发送前扣减；失败/超时/备用/探针/重试一律计入；未知结果继续占用；不得靠换 run-id 重置。"
+  },
+  "pairing": {
+    "pair_slots": 16,
+    "a_control_exact": 8,
+    "a_candidate_exact": 8,
+    "seed": 20261005
+  },
+  "generation_is_oracle_routed": true,
+  "generation_params": {
+    "gpt": {
+      "channel": "gpt-image",
+      "api_type": "aigc-2d-gpt",
+      "model": "gpt-image-2",
+      "size": "1024x1536",
+      "n": 1,
+      "quality": "high",
+      "output_format": "png",
+      "mode": "generate",
+      "reference_images": 0
+    },
+    "gemini": {
+      "channel": "gemini",
+      "api_type": "aigc2d",
+      "model": "gemini-3-pro-image-preview",
+      "aspect_ratio": "2:3",
+      "resolution": "2K",
+      "face_quality_boost": false,
+      "reference_images": 0
+    },
+    "source": "data/test-result/20261005/wardrobe-pilot-v1/run-manifest.json#frozen_generation_params（与 round2 冻结值一致）"
+  },
+  "excluded": [
+    "production template changes",
+    "GUI changes",
+    "global config changes",
+    "source-image edits",
+    "reference-style compatibility",
+    "repaint/correction chain",
+    "automatic wardrobe extraction",
+    "additional characters",
+    "additional images",
+    "publication"
+  ],
+  "review_context": "Round3 compares a genuine Round2 v3 framework control with stronger v4 garment/accessory anchors and crop rules. Generation uses preregistered gold routes, not an end-to-end authorization resolver. Only text readiness is being reviewed."
+}

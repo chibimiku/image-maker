@@ -1,0 +1,370 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.v1",
+  "status": "prepared_not_executed",
+  "cli_compatible": false,
+  "online_execution_authorized": false,
+  "round_label": "round4",
+  "pack_root_label": "prompts/wardrobe/round4",
+  "not_complete_generation_requests": true,
+  "prior_plan": "prompts/wardrobe/round4/planning.json",
+  "planning_source": "prompts/wardrobe/round4/planning.json",
+  "run_dir_planned": "data/test-result/20261005/wardrobe-round4-r1",
+  "run_dir_note": "新 run-dir 与 Round3 的 data/test-result/20261005/wardrobe-round3-prep 完全分开；本轮准备任务没有创建它，也没有发送任何请求。",
+  "request_drafts": "prompts/wardrobe/round4/requests/manifest.json",
+  "selection": "data/test-result/20261005/wardrobe-round4-prep/selection.json",
+  "characters_file": "prompts/wardrobe/round4/spec/characters.json",
+  "base_pack": "prompts/wardrobe/round4/pack",
+  "rendering": "Clean anime illustration with controlled linework and soft cel shading.",
+  "channels": [
+    "gpt",
+    "gemini"
+  ],
+  "cases": [
+    {
+      "case_id": "U",
+      "character_id": "P32",
+      "role": "unspecified_complete_fill",
+      "policy": "fill_missing",
+      "branch": "redesign",
+      "gold_action": "fill",
+      "gold_presence": "unspecified",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "U-classical",
+        "U-gothic",
+        "U-sweet"
+      ]
+    },
+    {
+      "case_id": "H",
+      "character_id": "P32",
+      "role": "hoodie_complete_transformation",
+      "policy": "replace",
+      "branch": "redesign",
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "H-classical",
+        "H-gothic",
+        "H-sweet"
+      ]
+    },
+    {
+      "case_id": "W",
+      "character_id": "P32",
+      "role": "utility_complete_transformation",
+      "policy": "replace",
+      "branch": "redesign",
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "W-classical",
+        "W-gothic",
+        "W-sweet"
+      ]
+    },
+    {
+      "case_id": "R",
+      "character_id": "P32",
+      "role": "uniform_complete_transformation",
+      "policy": "replace",
+      "branch": "redesign",
+      "gold_action": "redesign",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "R-classical",
+        "R-gothic",
+        "R-sweet"
+      ]
+    },
+    {
+      "case_id": "GP",
+      "character_id": "P32",
+      "role": "explicit_preservation_guard",
+      "policy": "reinterpret",
+      "branch": "preserve",
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "GP-preserve"
+      ]
+    },
+    {
+      "case_id": "GF",
+      "character_id": "P32",
+      "role": "fill_missing_guard",
+      "policy": "fill_missing",
+      "branch": "preserve",
+      "gold_action": "preserve",
+      "gold_presence": "provided",
+      "framing": "full",
+      "repeats": 1,
+      "variants": [
+        "GF-preserve"
+      ]
+    }
+  ],
+  "slots_source": "prompts/wardrobe/round4/planning.json#slots",
+  "allowed": {
+    "roles": [
+      "explicit_preservation_guard",
+      "fill_missing_guard",
+      "hoodie_complete_transformation",
+      "uniform_complete_transformation",
+      "unspecified_complete_fill",
+      "utility_complete_transformation"
+    ],
+    "policies": [
+      "fill_missing",
+      "reinterpret",
+      "replace"
+    ],
+    "branches": [
+      "preserve",
+      "redesign"
+    ],
+    "gold_actions": [
+      "fill",
+      "preserve",
+      "redesign"
+    ],
+    "gold_presence": [
+      "provided",
+      "unspecified"
+    ],
+    "framings": [
+      "full"
+    ],
+    "variants": [
+      "GF-preserve",
+      "GP-preserve",
+      "H-classical",
+      "H-gothic",
+      "H-sweet",
+      "R-classical",
+      "R-gothic",
+      "R-sweet",
+      "U-classical",
+      "U-gothic",
+      "U-sweet",
+      "W-classical",
+      "W-gothic",
+      "W-sweet"
+    ],
+    "channels": [
+      "gpt",
+      "gemini"
+    ]
+  },
+  "variants": [
+    {
+      "id": "GF-preserve",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "GP-preserve",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "H-classical",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "H-gothic",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "H-sweet",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "R-classical",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "R-gothic",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "R-sweet",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "U-classical",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "U-gothic",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "U-sweet",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "W-classical",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "W-gothic",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    },
+    {
+      "id": "W-sweet",
+      "role": "sample",
+      "description": "单个直接采样槽位的 prompt 组合（case + family）；round4 没有 v3_control/v4_candidate 两臂。"
+    }
+  ],
+  "variant_note": "本轮的 `variants` 是逐槽位组合名，不是控制/候选两臂：工具里任何依赖两臂的判定（配对平衡、候选门禁）对本轮不适用，报告必须按 sampling_mode=direct_sampling_no_pairing 读。",
+  "budgets": {
+    "text_http_attempts": 2,
+    "generation_http_attempts": 28,
+    "vision_http_attempts": 9,
+    "model_list_http_attempts": 1,
+    "wave1_generation_attempts": 14,
+    "wave2_generation_attempts": 14,
+    "reference_vision_attempts": 9,
+    "text_synthesis_and_review_attempts": 2,
+    "online_scoring_attempts": 0,
+    "optional_wave1_single_image_scoring_attempts": 14,
+    "retry_reserve": 0,
+    "count_rule": "每次真实 HTTP 发送前扣减；失败/超时/备用/探针/重试一律计入；未知结果继续占用；不得靠换 run-id 重置。以上全部为**建议值**，本轮准备任务没有获得任何新授权。",
+    "not_granted": true
+  },
+  "report_fields": {
+    "field_set": "required_fields_round4",
+    "tables": {
+      "required_fields_round4": {
+        "fill": [
+          "complete_transformation_or_preservation",
+          "lolita_structure_when_requested",
+          "target_family_evidence_when_requested",
+          "protected_colours",
+          "protected_accessories",
+          "person_count",
+          "identity_attributes",
+          "scene",
+          "full_body_framing",
+          "visible_defects"
+        ],
+        "redesign": [
+          "complete_transformation_or_preservation",
+          "lolita_structure_when_requested",
+          "target_family_evidence_when_requested",
+          "protected_colours",
+          "protected_accessories",
+          "person_count",
+          "identity_attributes",
+          "scene",
+          "full_body_framing",
+          "visible_defects"
+        ],
+        "preserve": [
+          "complete_transformation_or_preservation",
+          "protected_colours",
+          "protected_accessories",
+          "person_count",
+          "identity_attributes",
+          "scene",
+          "full_body_framing",
+          "visible_defects"
+        ]
+      }
+    },
+    "framing_fields": {
+      "full": [
+        "full_body_framing"
+      ]
+    },
+    "note": "人物数量、场景、配饰与全部保护条件都必须在总结果里保留，不能出现 person_count=fail 而 overall=pass。"
+  },
+  "spec_digest": {
+    "characters_file": "prompts/wardrobe/round4/spec/characters.json",
+    "base_pack": "prompts/wardrobe/round4/pack",
+    "declared_dirs": [
+      "prompts/wardrobe/round4/spec",
+      "prompts/wardrobe/round4/templates",
+      "prompts/wardrobe/round4/requests",
+      "prompts/wardrobe/reference-study"
+    ]
+  },
+  "template_files": [
+    "spec/review.md",
+    "spec/score.md",
+    "spec/calibrate.md",
+    "spec/calibration-cases.json"
+  ],
+  "generation_params": {
+    "gpt": {
+      "channel": "gpt-image",
+      "api_type": "aigc-2d-gpt",
+      "model": "gpt-image-2",
+      "size": "1024x1536",
+      "n": 1,
+      "quality": "high",
+      "output_format": "png",
+      "mode": "generate",
+      "reference_images": 0
+    },
+    "gemini": {
+      "channel": "gemini",
+      "api_type": "aigc2d",
+      "model": "gemini-3-pro-image-preview",
+      "aspect_ratio": "2:3",
+      "resolution": "2K",
+      "face_quality_boost": false,
+      "reference_images": 0
+    },
+    "source": "data/test-result/20261005/wardrobe-pilot-v1/run-manifest.json#frozen_generation_params（与 round2 冻结值一致）"
+  },
+  "generation_is_oracle_routed": false,
+  "generation_references": 0,
+  "pairing_required": false,
+  "sampling_mode": "direct_sampling_no_pairing",
+  "wardrobe_block_provenance": {
+    "kind": "hand_written_draft",
+    "warning": "转化草案里的衣装块来自人写草稿，不是联网提取产物；提取完成后必须替换候选并重新冻结，届时本文件的 hash 会变。",
+    "sources": [
+      "prompts/wardrobe/reference-study/full-transformation.md",
+      "prompts/wardrobe/reference-study/classical.md",
+      "prompts/wardrobe/reference-study/sweet.md",
+      "prompts/wardrobe/reference-study/gothic.md"
+    ]
+  },
+  "excluded": [
+    "production template changes",
+    "GUI changes",
+    "global config changes",
+    "source-image edits",
+    "reference-style compatibility",
+    "repaint/correction chain",
+    "automatic wardrobe extraction",
+    "publication",
+    "reference image attachments in generation"
+  ],
+  "review_context": "Round4 is a single-arm early screen: complete wardrobe transformation for U/H/W/R across classical/sweet/gothic plus two preservation guards (GP/GF). There is no control arm and no paired comparison; text readiness only.",
+  "written_at": "2026-10-05T20:21:52",
+  "written_by": "offline preparation task (no requests sent)"
+}

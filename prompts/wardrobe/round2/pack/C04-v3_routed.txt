@@ -1,0 +1,8 @@
+Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.
+
+One long-haired young adult woman, dark brown hair and green eyes, wearing a red school uniform with a gold star brooch. Standing in a quiet park, full-body view including both feet.
+
+AUTHORIZED CLOTHING ACTION: PRESERVE.
+Keep the supplied clothing category and cut. Keep explicitly requested clothing colours and named accessories in their described role; do not relocate a named brooch to the hair or invent a replacement costume. Do not add a new clothing design to satisfy an unused preset. The supplied scene and character description still apply.
+
+FINAL FRAMING REQUIREMENT: use the requested full-body view including both feet. Preserve the requested scene and person count. Clothing changes do not authorize new objects or a different camera view.

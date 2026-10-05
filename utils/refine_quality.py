@@ -409,7 +409,11 @@ def repair_style_guard(request: dict) -> str:
     targets = "\n".join(f"{key}: {fields[key]}" for key in
                         ("Lighting", "Brushwork", "Edges", "Texture", "Detail level", "Avoid")
                         if fields.get(key))
-    return _prompt("repair-style-guard.md").replace("{style_targets}", targets) if targets else ""
+    guard = _prompt("repair-style-guard.md").replace("{style_targets}", targets) if targets else ""
+    if request.get("wardrobe"):
+        from utils.wardrobe import wardrobe_continuity
+        guard += "\n\n" + wardrobe_continuity(request["wardrobe"])
+    return guard
 
 
 def audit_hand_quality(candidate_path: str, text_cfg: dict | None = None,

@@ -1,0 +1,169 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "H1-classical",
+  "kind": "heldout_check",
+  "family": "classical",
+  "wave": null,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "model": "UNSET_AT_PREP_TIME",
+  "model_note": "UNSET_AT_PREP_TIME：真实模型只在在线阶段运行期登记，这里不写死任何端点或模型名",
+  "max_completion_tokens": 3000,
+  "system_prompt": "Cross-check the supplied wardrobe rule package against the attached images. The images in this request are held-out references: they were kept out of every extraction request and must not be used to enlarge the extraction evidence set.\n\nFor each attached image, report independently:\n1. Which of the supplied core_construction rules the image actually supports or contradicts, with the visible garment evidence (upper garment, neckline, sleeve, waist or sash, skirt silhouette and layers, trim placement, fabric motif).\n2. Which rules the image cannot test at all, and why (crop, pose, occlusion, garment type absent from this image).\n3. Any visible construction the package does not mention, and whether it looks like a design-specific variation rather than a family rule.\n4. The family you would assign from garment construction alone, before comparing with the supplied label, and the family you assign after comparing. State explicitly when the two differ.\n5. Any structure you had to guess. Never promote a guess into evidence.\n\nRules: color, face, age, hairstyle, background, painting medium or fashionability cannot establish a family. A single attached image cannot confirm a rule; three independent design groups are required for a core rule, so state how many independent groups this check can actually add. Do not treat these held-out images as new extraction evidence, and do not rewrite the rule package silently: propose changes as separate suggestions with the image ID that motivated each one. If the check motivates a change, say in `held_out_role` that the held-out set has now been used for revision and can no longer be called an independent hold-out.\n\nReturn JSON only: {\"case_id\":\"...\",\"family\":\"...\",\"images\":[{\"id\":\"...\",\"visible_construction\":\"...\",\"rules_supported\":[{\"rule_id\":\"...\",\"verdict\":\"supported|contradicted|untestable\",\"evidence\":\"...\"}],\"rules_unmentioned\":[\"...\"],\"family_before_comparison\":\"classical|sweet|gothic|mixed|uncertain\",\"family_after_comparison\":\"...\",\"mismatch_reason\":\"...\",\"hidden_structure_speculation\":[\"...\"],\"evidence\":[\"...\"]}],\"independent_design_groups_added\":0,\"suggested_changes\":[{\"rule_id\":\"...\",\"suggestion\":\"...\",\"motivated_by\":\"...\"}],\"held_out_role\":\"independent_check|used_for_revision\",\"unverified\":[\"...\"]}. Include exactly the supplied IDs, one record each.\n",
+  "system_sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3",
+  "user_text": "HELD-OUT_IDS (use these exact IDs in your images output):\n- CLX014 (aspect folder: long_portrait; size: 679x1500)\n- CLX044 (aspect folder: portrait; size: 1748x2480)\n- CLX129 (aspect folder: portrait; size: 750x1061)\n\nFamily under check: classical.\nThese images were kept out of every extraction request. They are for independent checking of the supplied rule package only; do not use them to enlarge extraction evidence.\nThe images follow in the same order as HELD-OUT_IDS; each image is preceded by its own IMAGE LABEL line. Answer with JSON only, per the rules in the system message.",
+  "user_sha256": "e160f44c13b72740209f896572f012307a317c5d5332957d8f8e304166298f68",
+  "content_order": [
+    {
+      "role": "system",
+      "type": "text",
+      "sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3",
+      "preview": "Cross-check the supplied wardrobe rule package against the attached images. The "
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "",
+      "sha256": "e160f44c13b72740209f896572f012307a317c5d5332957d8f8e304166298f68",
+      "preview": "HELD-OUT_IDS (use these exact IDs in your images output):\n- CLX014 (aspect folde"
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "CLX014",
+      "sha256": "023e1764788370ba1eab8c3a6e323f70b8cbbf3f8fbee7e6f64b172e362696a0",
+      "preview": "IMAGE LABEL: [CLX014] (H1-classical)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "869b2f19f1146051a87ad5dd0459f2bbc588f07c4b4593d330475b9039658f3c",
+      "bytes_estimate": 394111
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "CLX044",
+      "sha256": "218d349c4fca642c7b062ba8f55e489b8e3946f726f849062ec9eabc0c612221",
+      "preview": "IMAGE LABEL: [CLX044] (H1-classical)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "83064c9a2eecdb2c036cab5f7533cce41edabc688d4b260d3df8595ba01c674c",
+      "bytes_estimate": 11174686
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "CLX129",
+      "sha256": "43b81b5425b6e99f7e3f39030fc2075eb318c999197b7580c1e56b8c50ca732b",
+      "preview": "IMAGE LABEL: [CLX129] (H1-classical)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "1dbdadc03b11f0306e9e71ae747f9413e216bdcc52cfcdcb851e6441661c3f7c",
+      "bytes_estimate": 1386402
+    }
+  ],
+  "content_blocks": [
+    {
+      "type": "text",
+      "label": "Cross-check the supplied wardrobe rule package against the a",
+      "sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3"
+    },
+    {
+      "type": "text",
+      "label": "HELD-OUT_IDS (use these exact IDs in your images output):\n- ",
+      "sha256": "e160f44c13b72740209f896572f012307a317c5d5332957d8f8e304166298f68"
+    },
+    {
+      "type": "text",
+      "label": "CLX014",
+      "sha256": "023e1764788370ba1eab8c3a6e323f70b8cbbf3f8fbee7e6f64b172e362696a0"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "869b2f19f1146051a87ad5dd0459f2bbc588f07c4b4593d330475b9039658f3c"
+    },
+    {
+      "type": "text",
+      "label": "CLX044",
+      "sha256": "218d349c4fca642c7b062ba8f55e489b8e3946f726f849062ec9eabc0c612221"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "83064c9a2eecdb2c036cab5f7533cce41edabc688d4b260d3df8595ba01c674c"
+    },
+    {
+      "type": "text",
+      "label": "CLX129",
+      "sha256": "43b81b5425b6e99f7e3f39030fc2075eb318c999197b7580c1e56b8c50ca732b"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "1dbdadc03b11f0306e9e71ae747f9413e216bdcc52cfcdcb851e6441661c3f7c"
+    }
+  ],
+  "message_roles": [
+    {
+      "role": "system",
+      "content_type": "text"
+    },
+    {
+      "role": "user",
+      "content_type": "blocks"
+    }
+  ],
+  "user_message_block_types": [
+    "text",
+    "text",
+    "image_url",
+    "text",
+    "image_url",
+    "text",
+    "image_url"
+  ],
+  "attachments": [
+    {
+      "label": "CLX014",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_classical/62239028_p10.jpg",
+      "source_sha256": "384eed1299139d12d6a71a5a71422cdfcbc53c5cac38be3a0d051e103ae38fcc",
+      "bytes": 295566,
+      "data_url_sha256": "869b2f19f1146051a87ad5dd0459f2bbc588f07c4b4593d330475b9039658f3c"
+    },
+    {
+      "label": "CLX044",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_classical/103666813_p0.png",
+      "source_sha256": "00a46a8ca5e7f9a97af0a21ad31e7999a47a0fe8b181de7df4608d103af59659",
+      "bytes": 8380997,
+      "data_url_sha256": "83064c9a2eecdb2c036cab5f7533cce41edabc688d4b260d3df8595ba01c674c"
+    },
+    {
+      "label": "CLX129",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_classical/x1-58831bdcda27308cc5d0f1fe635e03bc.png",
+      "source_sha256": "c6e15d1dd4f5f09b2f4b3e7788fd45d567400f154eaae4f741bcc9688f69932b",
+      "bytes": 1039783,
+      "data_url_sha256": "1dbdadc03b11f0306e9e71ae747f9413e216bdcc52cfcdcb851e6441661c3f7c"
+    }
+  ],
+  "attachment_order": [
+    "CLX014",
+    "CLX044",
+    "CLX129"
+  ],
+  "templates": [
+    "prompts/wardrobe/round4/templates/heldout-check-round4.md"
+  ],
+  "no_held_out_images_in_attachments": false,
+  "notes": [
+    "草案：本文件由离线准备任务生成，未发送、未计费。",
+    "附件顺序 = BATCH_IDS 顺序；labels 与正文里的 ID 一一对应。",
+    "请求正文不含留出图；留出核对是另外三个独立请求。"
+  ]
+}

@@ -231,7 +231,7 @@ class AppWindow(QWidget):
         self.load_config()
         self.load_styles_config()
         self._style_sync_enabled = True
-        if self.last_used_style not in self.styles_data:
+        if self.last_used_style not in enabled_style_names(self.styles_data):
             self.last_used_style = "默认(无附加)"
         self.sync_selected_style(self.last_used_style)
 
@@ -739,11 +739,28 @@ class AppWindow(QWidget):
         style_layout.addWidget(self.save_style_btn)
         tab_style.setLayout(style_layout)
 
+        # Clothing has its own catalogue and rules, separate from the art presets.
+        from utils.wardrobe_widget import WardrobeSelector
+        from utils.wardrobe import wardrobe_prompt
+        tab_wardrobe = QWidget()
+        wardrobe_layout = QVBoxLayout(tab_wardrobe)
+        self.wardrobe_catalogue = WardrobeSelector(tab_wardrobe)
+        wardrobe_layout.addWidget(self.wardrobe_catalogue)
+        wardrobe_note = QLabel("生成页面分别选择绘画风格与穿衣风格。完整转化允许更换服装类别；明确保留的服装、颜色、配饰优先。此处查看规则，生成选择由各页面独立记忆。")
+        wardrobe_note.setWordWrap(True)
+        wardrobe_layout.addWidget(wardrobe_note)
+        self.wardrobe_rules_view = QPlainTextEdit()
+        self.wardrobe_rules_view.setReadOnly(True)
+        wardrobe_layout.addWidget(self.wardrobe_rules_view)
+        self.wardrobe_catalogue.changed.connect(lambda: self.wardrobe_rules_view.setPlainText(
+            wardrobe_prompt(self.wardrobe_catalogue.snapshot())))
+
         self.config_tabs.addTab(tab_text, "文本分析 API")
         self.config_tabs.addTab(tab_text_nsfw, "文本分析（NSFW）")
         self.config_tabs.addTab(tab_image, "图片生成 API")
         self.config_tabs.addTab(self.sd_webui_settings_tab, "SD-WebUI接口配置")
         self.config_tabs.addTab(tab_style, "画风预设管理")
+        self.config_tabs.addTab(tab_wardrobe, "穿衣风格")
 
         settings_layout = QVBoxLayout()
         settings_layout.addWidget(self.config_tabs)
@@ -1360,7 +1377,9 @@ class AppWindow(QWidget):
         
         self.style_manage_combo.blockSignals(True)
         self.style_manage_combo.clear()
-        all_keys = list(self.styles_data.keys())
+        from utils.styles import is_wardrobe_style
+        all_keys = [name for name in self.styles_data
+                    if not is_wardrobe_style(name, self.styles_data[name])]
         keys = enabled_style_names(self.styles_data)
         self.style_manage_combo.addItems(all_keys)
         

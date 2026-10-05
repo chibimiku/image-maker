@@ -1,0 +1,19 @@
+Clean anime illustration with controlled linework and soft cel shading. Preserve the requested person count, hair and eye colours, pose, scene and framing.
+
+One long-haired young adult woman, dark brown hair and green eyes. A bust portrait framed from the upper chest upward, plain grey background. No clothing is specified.
+
+WARDROBE DESIGN AUTHORITY — Lolita 衣装
+Application policy: fill_missing
+Supply the target wardrobe only when the user has left clothing unspecified. When clothing is explicitly specified in the text or source image, preserve that clothing. Do not replace existing garments merely to match this preset.
+
+This preset controls clothing design only, within the authorized scope of the policy above. Under the reinterpret and replace policies, source clothing described in the request without an explicit keep-original instruction is redesign authorization by that policy, not a keep-original requirement; under the fill_missing policy, clothing explicitly specified in the text or source image is preserved rather than redesigned. An explicit instruction to keep the original clothing or a particular garment, and any explicitly requested garment colour or signature accessory, take precedence over the policy. Art-style references supply painting technique only, never clothing or character content.
+
+Japanese Lolita fashion: choose a coherent sweet, classical or gothic direction suited to requested colours. Design an OP dress or JSK with a compatible blouse; establish a structured waist, layered skirt volume and plausible seams. A near-knee bell or A-line skirt is a default, not a universal requirement.
+
+Organize lace, ruffles, pintucks, bows and optional prints along collars, cuffs, bodice and hem; connect trims to garment panels, leaving calm fabric areas. Coordinate visible optional headwear, socks/tights and shoes without replacing held objects. Respect gravity, crop and occlusion; do not expose hidden support garments. Honour explicit clothing colours; otherwise coordinate a palette. Dark Gothic colours are allowed.
+
+Do not substitute a generic bow-decorated dress, maid uniform, lingerie or idol costume. Do not force pink, a youthful face, a tiny body, a tea-party scene or the reference's painting medium.
+
+The design block above applies only where the applicable policy authorizes a clothing change. Clothing that the policy preserves, or that an explicit keep-original instruction covers, overrides the design block. When the request crops the figure, apply the design block only to the visible clothing and do not add unseen skirt or shoe evidence.
+
+Repaint/repair must preserve the current authorized outfit (the newly generated outfit under the redesign policies; the preserved original clothing under fill_missing or an explicit keep-original instruction). Preserve identity, age, person count, hair/eyes and their colours, body, pose, scene, objects, camera, framing and image dimensions.

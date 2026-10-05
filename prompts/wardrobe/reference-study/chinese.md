@@ -1,0 +1,4 @@
+WARDROBE FAMILY: CHINESE-INSPIRED LOLITA HYBRID.
+Combine a coherent Lolita skirt silhouette and layered border or ruffle arrangement with selected Chinese-inspired upper-garment construction. Options include a standing collar, a connected asymmetrical closure with loop fastenings, a shaped front or side overlay, and controlled embroidery or tassels attached to garment edges. Choose a compatible subset rather than adding all of them.
+
+Integrate the upper garment into a defined waist and deliberately expanded skirt; do not stop at an ordinary straight qipao decorated with a bow. Coordinate textile motifs and trims while preserving explicit colours and signature accessories. Do not replace the character's hairstyle with twin buns, change ethnicity, add a fan or sword, or force an East Asian architectural background. Visible structural evidence, rather than those character or scene cues, should carry the hybrid identity.

@@ -1,0 +1,411 @@
+{
+  "status": "prepared_not_executed",
+  "generated_date": "2026-10-05",
+  "plan_sha256": "200d593b811f86b0283cd93b21e8e61c7486f5425f585918457100c726c4aca8",
+  "prior_results_sha256": "408f2e912f6db235911fe317bee90eaabb5dc8122c8d6d70208f27b25feede60",
+  "source_files": {
+    "prompts\\wardrobe\\round2\\calibrate.md": "2976c37a46413cf0bafd92b298f0be1ce24e3724e498da242e7918fad5e4b5ed",
+    "prompts\\wardrobe\\round2\\frame-bust.md": "0ac92055cb72980757874dc82e690fb4cb28760a8802f80b81871d2d6c8edca8",
+    "prompts\\wardrobe\\round2\\frame-full.md": "2a4c30104573d03156dbbb036431c5d9b1486010bc5ebd4758a0936c77661e6b",
+    "prompts\\wardrobe\\round2\\preserve.md": "6c623e3acdbface2da49e6c9b3f5a5aa37e5f1a62520aefc9a8277031138c543",
+    "prompts\\wardrobe\\round2\\redesign-full.md": "dfcade833189dde4e48e85ce5b13589ac3018ca0a224eb194834ba4effc7102d",
+    "prompts\\wardrobe\\round2\\redesign-visible.md": "33c5e146594397e6f7875491975c3e7ce45248bf7e327301d5a6c4a226f52a84",
+    "prompts\\wardrobe\\round2\\resolve.md": "d957c31a8ec9d17985d0c494156d68f9fe833d6a540068eebcf4a252b13ea718",
+    "prompts\\wardrobe\\round2\\review.md": "6fc6d774b5c3c4addb22f20ae35d267b43e6428c29426c8a0e91e66d37b282b8",
+    "prompts\\wardrobe\\round2\\score.md": "0f5adb8bd725907792dd9cdb798b043bdc0ee73fbeef26f05ec7a1b41b1293db",
+    "prompts/wardrobe/round2/plan.json": "200d593b811f86b0283cd93b21e8e61c7486f5425f585918457100c726c4aca8",
+    "prompts/wardrobe/round2/resolver-cases.json": "608b9d26b10eabd2df268bdf9d05c16eeb6b2c95a6a2192be95ac5ecbf2cd1b8",
+    "prompts/wardrobe/round2/calibration-cases.json": "87540441fa032dbdcba42efb121e1e9eb5c1b63adc54cf558bff88940d26d983",
+    "prompts/wardrobe/test-plan.json": "85ef2e037bd78c5597c12c6e39bfb26895102a21360137180cecdabe53a2cdf4",
+    "prompts/wardrobe/lolita.md": "069d945e23d933859b947725117e0467e2674975a75a90e79a3c4db70279d3b8",
+    "data/test-result/20261005/wardrobe-pilot-v1/phase0-candidate-v2/policy-reinterpret.md": "06542c8e1be1e7a8fa47847be920607eadee62dbbb6bc0c371b41cfcd328e5e8"
+  },
+  "snapshot_count": 10,
+  "generation_slots": 32,
+  "pair_slots": 16,
+  "generation_uses_gold_authorization": true,
+  "actual_network_attempts": 0,
+  "snapshots": [
+    {
+      "case_id": "C03",
+      "variant": "v2_frozen",
+      "file": "C03-v2_frozen.txt",
+      "sha256": "090ccb3d8a02a69f2ee6f2c28e2b25d8849a2583a22441d234ca5b0efe5e5cf1",
+      "characters": 3237,
+      "gold_action": "preserve",
+      "framing": "full"
+    },
+    {
+      "case_id": "C03",
+      "variant": "v3_routed",
+      "file": "C03-v3_routed.txt",
+      "sha256": "879dc111068ba2dddf68734e11d8c56feebebbba70949fd28395b50fa6e666b6",
+      "characters": 996,
+      "gold_action": "preserve",
+      "framing": "full"
+    },
+    {
+      "case_id": "C04",
+      "variant": "v2_frozen",
+      "file": "C04-v2_frozen.txt",
+      "sha256": "10bfc792f9c485f71e4d96926704e594be56d7d324f8b9a6c885cd995a709ff0",
+      "characters": 2955,
+      "gold_action": "preserve",
+      "framing": "full"
+    },
+    {
+      "case_id": "C04",
+      "variant": "v3_routed",
+      "file": "C04-v3_routed.txt",
+      "sha256": "55fe306d18285f23b78b16c1508f597f5d2eca6774d0777afa975a7696677f3f",
+      "characters": 912,
+      "gold_action": "preserve",
+      "framing": "full"
+    },
+    {
+      "case_id": "C06",
+      "variant": "v2_frozen",
+      "file": "C06-v2_frozen.txt",
+      "sha256": "2b6430d39e6b7bf4861f628e8ad1d13ef5f0bb1c53e101b9186d02c7ddce5fd3",
+      "characters": 2940,
+      "gold_action": "fill",
+      "framing": "upper_chest"
+    },
+    {
+      "case_id": "C06",
+      "variant": "v3_routed",
+      "file": "C06-v3_routed.txt",
+      "sha256": "585c1ba5935b6c8df98d648dbab1281b3f6f780193d72729e316fdab9dc578f1",
+      "characters": 1143,
+      "gold_action": "fill",
+      "framing": "upper_chest"
+    },
+    {
+      "case_id": "C01",
+      "variant": "v2_frozen",
+      "file": "C01-v2_frozen.txt",
+      "sha256": "0e38f30a5b1d2ec916e2d6c129e6bfd22e068984d31ebfb6d3ec554dfaefab8e",
+      "characters": 3099,
+      "gold_action": "fill",
+      "framing": "full"
+    },
+    {
+      "case_id": "C01",
+      "variant": "v3_routed",
+      "file": "C01-v3_routed.txt",
+      "sha256": "7ceaf3a7827db37b7e33449a6fd3c92ddce03e934f140ff8720d6c25f6f0da09",
+      "characters": 2168,
+      "gold_action": "fill",
+      "framing": "full"
+    },
+    {
+      "case_id": "C02",
+      "variant": "v2_frozen",
+      "file": "C02-v2_frozen.txt",
+      "sha256": "9deda5fa03f53b17346bb9edeb6f241e09646217616d4408dc0effde44464165",
+      "characters": 3219,
+      "gold_action": "redesign",
+      "framing": "full"
+    },
+    {
+      "case_id": "C02",
+      "variant": "v3_routed",
+      "file": "C02-v3_routed.txt",
+      "sha256": "8d7f991e0269b9b110ae012ba8122a92c094e5a645650270ea5bc74abcacafe3",
+      "characters": 2292,
+      "gold_action": "redesign",
+      "framing": "full"
+    }
+  ],
+  "request_order_seed": 20261005,
+  "request_order": [
+    {
+      "pair_id": "C04-gpt-r2",
+      "case_id": "C04",
+      "channel": "gpt",
+      "repeat": 2,
+      "sample_id": "C04-gpt-r2-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C04-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C04-gpt-r2",
+      "case_id": "C04",
+      "channel": "gpt",
+      "repeat": 2,
+      "sample_id": "C04-gpt-r2-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C04-v3_routed.txt"
+    },
+    {
+      "pair_id": "C06-gemini-r1",
+      "case_id": "C06",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C06-gemini-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C06-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C06-gemini-r1",
+      "case_id": "C06",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C06-gemini-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C06-v3_routed.txt"
+    },
+    {
+      "pair_id": "C03-gemini-r2",
+      "case_id": "C03",
+      "channel": "gemini",
+      "repeat": 2,
+      "sample_id": "C03-gemini-r2-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C03-v3_routed.txt"
+    },
+    {
+      "pair_id": "C03-gemini-r2",
+      "case_id": "C03",
+      "channel": "gemini",
+      "repeat": 2,
+      "sample_id": "C03-gemini-r2-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C03-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C01-gemini-r1",
+      "case_id": "C01",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C01-gemini-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C01-v3_routed.txt"
+    },
+    {
+      "pair_id": "C01-gemini-r1",
+      "case_id": "C01",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C01-gemini-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C01-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C06-gemini-r2",
+      "case_id": "C06",
+      "channel": "gemini",
+      "repeat": 2,
+      "sample_id": "C06-gemini-r2-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C06-v3_routed.txt"
+    },
+    {
+      "pair_id": "C06-gemini-r2",
+      "case_id": "C06",
+      "channel": "gemini",
+      "repeat": 2,
+      "sample_id": "C06-gemini-r2-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C06-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C01-gpt-r1",
+      "case_id": "C01",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C01-gpt-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C01-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C01-gpt-r1",
+      "case_id": "C01",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C01-gpt-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C01-v3_routed.txt"
+    },
+    {
+      "pair_id": "C04-gemini-r2",
+      "case_id": "C04",
+      "channel": "gemini",
+      "repeat": 2,
+      "sample_id": "C04-gemini-r2-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C04-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C04-gemini-r2",
+      "case_id": "C04",
+      "channel": "gemini",
+      "repeat": 2,
+      "sample_id": "C04-gemini-r2-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C04-v3_routed.txt"
+    },
+    {
+      "pair_id": "C03-gpt-r1",
+      "case_id": "C03",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C03-gpt-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C03-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C03-gpt-r1",
+      "case_id": "C03",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C03-gpt-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C03-v3_routed.txt"
+    },
+    {
+      "pair_id": "C06-gpt-r2",
+      "case_id": "C06",
+      "channel": "gpt",
+      "repeat": 2,
+      "sample_id": "C06-gpt-r2-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C06-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C06-gpt-r2",
+      "case_id": "C06",
+      "channel": "gpt",
+      "repeat": 2,
+      "sample_id": "C06-gpt-r2-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C06-v3_routed.txt"
+    },
+    {
+      "pair_id": "C02-gpt-r1",
+      "case_id": "C02",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C02-gpt-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C02-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C02-gpt-r1",
+      "case_id": "C02",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C02-gpt-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C02-v3_routed.txt"
+    },
+    {
+      "pair_id": "C03-gpt-r2",
+      "case_id": "C03",
+      "channel": "gpt",
+      "repeat": 2,
+      "sample_id": "C03-gpt-r2-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C03-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C03-gpt-r2",
+      "case_id": "C03",
+      "channel": "gpt",
+      "repeat": 2,
+      "sample_id": "C03-gpt-r2-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C03-v3_routed.txt"
+    },
+    {
+      "pair_id": "C03-gemini-r1",
+      "case_id": "C03",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C03-gemini-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C03-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C03-gemini-r1",
+      "case_id": "C03",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C03-gemini-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C03-v3_routed.txt"
+    },
+    {
+      "pair_id": "C04-gemini-r1",
+      "case_id": "C04",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C04-gemini-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C04-v3_routed.txt"
+    },
+    {
+      "pair_id": "C04-gemini-r1",
+      "case_id": "C04",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C04-gemini-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C04-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C04-gpt-r1",
+      "case_id": "C04",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C04-gpt-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C04-v3_routed.txt"
+    },
+    {
+      "pair_id": "C04-gpt-r1",
+      "case_id": "C04",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C04-gpt-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C04-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C02-gemini-r1",
+      "case_id": "C02",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C02-gemini-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C02-v3_routed.txt"
+    },
+    {
+      "pair_id": "C02-gemini-r1",
+      "case_id": "C02",
+      "channel": "gemini",
+      "repeat": 1,
+      "sample_id": "C02-gemini-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C02-v2_frozen.txt"
+    },
+    {
+      "pair_id": "C06-gpt-r1",
+      "case_id": "C06",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C06-gpt-r1-v3_routed",
+      "variant": "v3_routed",
+      "prompt_file": "C06-v3_routed.txt"
+    },
+    {
+      "pair_id": "C06-gpt-r1",
+      "case_id": "C06",
+      "channel": "gpt",
+      "repeat": 1,
+      "sample_id": "C06-gpt-r1-v2_frozen",
+      "variant": "v2_frozen",
+      "prompt_file": "C06-v2_frozen.txt"
+    }
+  ]
+}

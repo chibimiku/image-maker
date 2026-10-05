@@ -1,0 +1,387 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request-manifest.v1",
+  "status": "draft_only_not_sent",
+  "real_http_requests": 0,
+  "selection": "data/test-result/20261005/wardrobe-round4-prep/selection.json",
+  "selection_schema": "image-maker.wardrobe-round4.selection.v1",
+  "held_out_ids": [
+    "CLX014",
+    "CLX044",
+    "CLX129",
+    "GTX015",
+    "GTX047",
+    "GTX094",
+    "SWX028",
+    "SWX040",
+    "SWX124"
+  ],
+  "extraction_ids": [
+    "CLX015",
+    "CLX076",
+    "CLX080",
+    "CLX082",
+    "CLX094",
+    "CLX102",
+    "CLX127",
+    "CLX131",
+    "GTX004",
+    "GTX011",
+    "GTX014",
+    "GTX021",
+    "GTX024",
+    "GTX068",
+    "GTX077",
+    "GTX098",
+    "SWX019",
+    "SWX021",
+    "SWX025",
+    "SWX035",
+    "SWX062",
+    "SWX068",
+    "SWX077",
+    "SWX079"
+  ],
+  "templates": {
+    "prompts/wardrobe/round4/templates/extract-wardrobe-round4.md": {
+      "sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96",
+      "bytes": 3769
+    },
+    "prompts/wardrobe/round4/templates/heldout-check-round4.md": {
+      "sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3",
+      "bytes": 2331
+    },
+    "prompts/wardrobe/round4/templates/score-round4.md": {
+      "sha256": "d2ca298e20627f423972783077e937ccd651338585e0bd0aabb87f8fbe4052b1",
+      "bytes": 4833
+    },
+    "prompts/wardrobe/round4/templates/review-round4.md": {
+      "sha256": "26a868a9ac0d9f641232b15111dc256424c98b2b96a51888ce22562954a9243e",
+      "bytes": 2861
+    },
+    "prompts/wardrobe/reference-study/full-transformation.md": {
+      "sha256": "a2fc40d81203de3c9542fd95872cfa754ed44965251313a96dcdc5e6b1f71c31",
+      "bytes": 1391
+    },
+    "prompts/wardrobe/reference-study/classical.md": {
+      "sha256": "00d27b7e4f8c747dba464fadd8136343d3561be064de6f56b291556bc5cabf82",
+      "bytes": 858
+    },
+    "prompts/wardrobe/reference-study/sweet.md": {
+      "sha256": "2d5c6c485ba8066b72bbb7dcaf05ca81a470241a1bd2c27110994107262947db",
+      "bytes": 888
+    },
+    "prompts/wardrobe/reference-study/gothic.md": {
+      "sha256": "f15333f82435a53cc2686312547883298a438ce2933f2bd574c1f5791dc2b42f",
+      "bytes": 858
+    }
+  },
+  "requests": [
+    {
+      "slot": "X1-classical-a",
+      "kind": "extraction",
+      "family": "classical",
+      "ids": [
+        "CLX015",
+        "CLX076",
+        "CLX080",
+        "CLX082"
+      ],
+      "images": 4,
+      "file": "prompts/wardrobe/round4/requests/X1-classical-a.json",
+      "user_sha256": "f053be9e74305cdb8abc0cafe8546755c2e5a693f76d2516f88d2c5e812d207c",
+      "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "slot": "X2-classical-b",
+      "kind": "extraction",
+      "family": "classical",
+      "ids": [
+        "CLX094",
+        "CLX102",
+        "CLX127",
+        "CLX131"
+      ],
+      "images": 4,
+      "file": "prompts/wardrobe/round4/requests/X2-classical-b.json",
+      "user_sha256": "64b2658e356c56269651a98ec74e6e145054b86d07809e2467cdb364bf2cc87e",
+      "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "slot": "X3-sweet-a",
+      "kind": "extraction",
+      "family": "sweet",
+      "ids": [
+        "SWX019",
+        "SWX021",
+        "SWX025",
+        "SWX035"
+      ],
+      "images": 4,
+      "file": "prompts/wardrobe/round4/requests/X3-sweet-a.json",
+      "user_sha256": "e5958be5e72ef2ba543126872af22ce0fa7f8b0ac6d5a41e4b33a9283d289056",
+      "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "slot": "X4-sweet-b",
+      "kind": "extraction",
+      "family": "sweet",
+      "ids": [
+        "SWX062",
+        "SWX068",
+        "SWX077",
+        "SWX079"
+      ],
+      "images": 4,
+      "file": "prompts/wardrobe/round4/requests/X4-sweet-b.json",
+      "user_sha256": "ee5ba8d48cc204452956d86a241f9b6fd90d45e8482b47c83e61f28fa3578dfc",
+      "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "slot": "X5-gothic-a",
+      "kind": "extraction",
+      "family": "gothic",
+      "ids": [
+        "GTX004",
+        "GTX011",
+        "GTX014",
+        "GTX021"
+      ],
+      "images": 4,
+      "file": "prompts/wardrobe/round4/requests/X5-gothic-a.json",
+      "user_sha256": "48411f89627071214aaf68c7d9d3b2d5e9c6a1a4e49ee715e5d423250479d0d4",
+      "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "slot": "X6-gothic-b",
+      "kind": "extraction",
+      "family": "gothic",
+      "ids": [
+        "GTX024",
+        "GTX068",
+        "GTX077",
+        "GTX098"
+      ],
+      "images": 4,
+      "file": "prompts/wardrobe/round4/requests/X6-gothic-b.json",
+      "user_sha256": "63c3f144cc520a058a7b608ec31e2a6fa50430df91e0154156335d2355c943bf",
+      "system_sha256": "4560be89de3ff1c917e120e111ba693acb4e213c9d91648b17398e4845d0fd96"
+    },
+    {
+      "slot": "H1-classical",
+      "kind": "heldout_check",
+      "family": "classical",
+      "ids": [
+        "CLX014",
+        "CLX044",
+        "CLX129"
+      ],
+      "images": 3,
+      "file": "prompts/wardrobe/round4/requests/H1-classical.json",
+      "user_sha256": "e160f44c13b72740209f896572f012307a317c5d5332957d8f8e304166298f68",
+      "system_sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3"
+    },
+    {
+      "slot": "H2-sweet",
+      "kind": "heldout_check",
+      "family": "sweet",
+      "ids": [
+        "SWX028",
+        "SWX040",
+        "SWX124"
+      ],
+      "images": 3,
+      "file": "prompts/wardrobe/round4/requests/H2-sweet.json",
+      "user_sha256": "f6ad4f131c89dfc9dc0dc9b64e771a0ba1710f292ebe69b785dc2f21402f7b15",
+      "system_sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3"
+    },
+    {
+      "slot": "H3-gothic",
+      "kind": "heldout_check",
+      "family": "gothic",
+      "ids": [
+        "GTX015",
+        "GTX047",
+        "GTX094"
+      ],
+      "images": 3,
+      "file": "prompts/wardrobe/round4/requests/H3-gothic.json",
+      "user_sha256": "58d7d9d097d0d03b0dfec41698418be3d21a7a3ce757c7b582c2c863b891d7a1",
+      "system_sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3"
+    },
+    {
+      "slot": "F4-U-classical-gpt-r1",
+      "kind": "conversion",
+      "family": "classical",
+      "case_id": "U",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-U-classical-gpt-r1.json",
+      "prompt_chars": 4098,
+      "prompt_sha256": "2a048cd1df3d25163cb1f5538b3ac2593403ef1ccbbe5c0888283cf1b05b8ff6",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-U-sweet-gpt-r1",
+      "kind": "conversion",
+      "family": "sweet",
+      "case_id": "U",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-U-sweet-gpt-r1.json",
+      "prompt_chars": 4154,
+      "prompt_sha256": "658605177da27eeefe6a15edf2a053dbff5ae669a5954ec07a17bb0a460587c0",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-U-gothic-gpt-r1",
+      "kind": "conversion",
+      "family": "gothic",
+      "case_id": "U",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-U-gothic-gpt-r1.json",
+      "prompt_chars": 4095,
+      "prompt_sha256": "15e101d0b1debf1c9259b9069749fb966560b2dbf20eca4d7c279d4893874229",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-H-classical-gpt-r1",
+      "kind": "conversion",
+      "family": "classical",
+      "case_id": "H",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-H-classical-gpt-r1.json",
+      "prompt_chars": 4336,
+      "prompt_sha256": "1a6f071d12b1b6714483c96267f6562d4fe11159633bc28e6d84defc2fe7946a",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-H-sweet-gpt-r1",
+      "kind": "conversion",
+      "family": "sweet",
+      "case_id": "H",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-H-sweet-gpt-r1.json",
+      "prompt_chars": 4392,
+      "prompt_sha256": "2e5b66382d2074e64cb8ec9d0a417af1f90ade191b65e2defe3307e0d09df5e4",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-H-gothic-gpt-r1",
+      "kind": "conversion",
+      "family": "gothic",
+      "case_id": "H",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-H-gothic-gpt-r1.json",
+      "prompt_chars": 4333,
+      "prompt_sha256": "037158c6f8b3e475f875cad33eb389be6e8f0365a5b7c511fdd5981350525dd3",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-W-classical-gpt-r1",
+      "kind": "conversion",
+      "family": "classical",
+      "case_id": "W",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-W-classical-gpt-r1.json",
+      "prompt_chars": 4379,
+      "prompt_sha256": "35ec9c04983c7ad06fc29e48f676f927f0d3c41f3bac3b18ba565a4128aaf8ee",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-W-sweet-gpt-r1",
+      "kind": "conversion",
+      "family": "sweet",
+      "case_id": "W",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-W-sweet-gpt-r1.json",
+      "prompt_chars": 4435,
+      "prompt_sha256": "315635a3c632fb86b43ea4620b22e222b5ac79e74fa86dbad370350fc765ee8f",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-W-gothic-gpt-r1",
+      "kind": "conversion",
+      "family": "gothic",
+      "case_id": "W",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-W-gothic-gpt-r1.json",
+      "prompt_chars": 4376,
+      "prompt_sha256": "cb4f926782a8d48aa3301a5075fb781404a442b9d3cd024ecb84c4908a5795d2",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-R-classical-gpt-r1",
+      "kind": "conversion",
+      "family": "classical",
+      "case_id": "R",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-R-classical-gpt-r1.json",
+      "prompt_chars": 4411,
+      "prompt_sha256": "d3cdeff984c9396ae4f79026735db13d9ab2ef71dba920b45ebc4f4503cb61b8",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-R-sweet-gpt-r1",
+      "kind": "conversion",
+      "family": "sweet",
+      "case_id": "R",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-R-sweet-gpt-r1.json",
+      "prompt_chars": 4467,
+      "prompt_sha256": "44d68336ab52c39dbeb3dc7edbb2da3ab90df32bedd297cf9e3b46ee0bf0333c",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-R-gothic-gpt-r1",
+      "kind": "conversion",
+      "family": "gothic",
+      "case_id": "R",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-R-gothic-gpt-r1.json",
+      "prompt_chars": 4408,
+      "prompt_sha256": "dbc7127f363632e2211c1a800e26dd8d670e9369ace1c749db9b39df1461e157",
+      "block_provenance": "hand_written_draft"
+    },
+    {
+      "slot": "F4-GP-preserve-gpt-r1",
+      "kind": "preservation",
+      "family": null,
+      "case_id": "GP",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-GP-preserve-gpt-r1.json",
+      "prompt_chars": 1625,
+      "prompt_sha256": "1c03dd3eb11e6976ec6c7d914e9ce35bed98ecdf006bfbd317f8b2cd6919b715",
+      "block_provenance": "preservation"
+    },
+    {
+      "slot": "F4-GF-preserve-gpt-r1",
+      "kind": "preservation",
+      "family": null,
+      "case_id": "GF",
+      "channel": "gpt",
+      "file": "prompts/wardrobe/round4/requests/F4-GF-preserve-gpt-r1.json",
+      "prompt_chars": 1597,
+      "prompt_sha256": "60ee32789a0c5b1330647fdc7c0036f7c6c709e448ab1490bf869fb9a6e6f16f",
+      "block_provenance": "preservation"
+    }
+  ],
+  "counts": {
+    "extraction_requests": 6,
+    "extraction_images": 24,
+    "heldout_requests": 3,
+    "heldout_images": 9,
+    "conversion_drafts": 12,
+    "preservation_drafts": 2,
+    "max_images_per_request": 4
+  },
+  "isolation_checks": {
+    "held_out_not_in_extraction_attachments": true,
+    "held_out_not_in_extraction_body": true,
+    "extraction_not_in_heldout_attachments": true,
+    "no_shared_image_between_requests": true,
+    "no_pair_between_extraction_and_heldout": true
+  },
+  "notes": [
+    "全部请求均为草案：本轮准备任务不发送任何收费请求。",
+    "转化/保护草案的衣装块是人写草稿，不能称提取产物。",
+    "留出图只出现在 H1..H3 三个核对请求里。"
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.request.v1",
+  "slot": "H3-gothic",
+  "kind": "heldout_check",
+  "family": "gothic",
+  "wave": null,
+  "status": "draft_not_sent",
+  "sent": false,
+  "real_http_requests": 0,
+  "model": "UNSET_AT_PREP_TIME",
+  "model_note": "UNSET_AT_PREP_TIME：真实模型只在在线阶段运行期登记，这里不写死任何端点或模型名",
+  "max_completion_tokens": 3000,
+  "system_prompt": "Cross-check the supplied wardrobe rule package against the attached images. The images in this request are held-out references: they were kept out of every extraction request and must not be used to enlarge the extraction evidence set.\n\nFor each attached image, report independently:\n1. Which of the supplied core_construction rules the image actually supports or contradicts, with the visible garment evidence (upper garment, neckline, sleeve, waist or sash, skirt silhouette and layers, trim placement, fabric motif).\n2. Which rules the image cannot test at all, and why (crop, pose, occlusion, garment type absent from this image).\n3. Any visible construction the package does not mention, and whether it looks like a design-specific variation rather than a family rule.\n4. The family you would assign from garment construction alone, before comparing with the supplied label, and the family you assign after comparing. State explicitly when the two differ.\n5. Any structure you had to guess. Never promote a guess into evidence.\n\nRules: color, face, age, hairstyle, background, painting medium or fashionability cannot establish a family. A single attached image cannot confirm a rule; three independent design groups are required for a core rule, so state how many independent groups this check can actually add. Do not treat these held-out images as new extraction evidence, and do not rewrite the rule package silently: propose changes as separate suggestions with the image ID that motivated each one. If the check motivates a change, say in `held_out_role` that the held-out set has now been used for revision and can no longer be called an independent hold-out.\n\nReturn JSON only: {\"case_id\":\"...\",\"family\":\"...\",\"images\":[{\"id\":\"...\",\"visible_construction\":\"...\",\"rules_supported\":[{\"rule_id\":\"...\",\"verdict\":\"supported|contradicted|untestable\",\"evidence\":\"...\"}],\"rules_unmentioned\":[\"...\"],\"family_before_comparison\":\"classical|sweet|gothic|mixed|uncertain\",\"family_after_comparison\":\"...\",\"mismatch_reason\":\"...\",\"hidden_structure_speculation\":[\"...\"],\"evidence\":[\"...\"]}],\"independent_design_groups_added\":0,\"suggested_changes\":[{\"rule_id\":\"...\",\"suggestion\":\"...\",\"motivated_by\":\"...\"}],\"held_out_role\":\"independent_check|used_for_revision\",\"unverified\":[\"...\"]}. Include exactly the supplied IDs, one record each.\n",
+  "system_sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3",
+  "user_text": "HELD-OUT_IDS (use these exact IDs in your images output):\n- GTX015 (aspect folder: long_portrait; size: 2269x4717)\n- GTX047 (aspect folder: portrait; size: 720x960)\n- GTX094 (aspect folder: portrait; size: 720x1018)\n\nFamily under check: gothic.\nThese images were kept out of every extraction request. They are for independent checking of the supplied rule package only; do not use them to enlarge extraction evidence.\nThe images follow in the same order as HELD-OUT_IDS; each image is preceded by its own IMAGE LABEL line. Answer with JSON only, per the rules in the system message.",
+  "user_sha256": "58d7d9d097d0d03b0dfec41698418be3d21a7a3ce757c7b582c2c863b891d7a1",
+  "content_order": [
+    {
+      "role": "system",
+      "type": "text",
+      "sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3",
+      "preview": "Cross-check the supplied wardrobe rule package against the attached images. The "
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "",
+      "sha256": "58d7d9d097d0d03b0dfec41698418be3d21a7a3ce757c7b582c2c863b891d7a1",
+      "preview": "HELD-OUT_IDS (use these exact IDs in your images output):\n- GTX015 (aspect folde"
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "GTX015",
+      "sha256": "cbd3a9683a572c7082dc7b643558c3bbd58fbb818c7f274a06c5ee58a81051be",
+      "preview": "IMAGE LABEL: [GTX015] (H3-gothic)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "c2359c59068c1436beb4eb4c70a609f5849fd3bff2696174701107aba5de223c",
+      "bytes_estimate": 13841939
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "GTX047",
+      "sha256": "39a244a6832643e115be81ea033c628e2d0764d4b9b32f27bca257f9fbe47dea",
+      "preview": "IMAGE LABEL: [GTX047] (H3-gothic)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "ef8810201e40631400538488a569012c06ec50b6c1b260332855c132b6f1fd2b",
+      "bytes_estimate": 1040407
+    },
+    {
+      "role": "user",
+      "type": "text",
+      "label": "GTX094",
+      "sha256": "dd93604ccf6d91cad6cb73df1c327f2d3e3a426a63078c81c7ed3c84769a4b82",
+      "preview": "IMAGE LABEL: [GTX094] (H3-gothic)"
+    },
+    {
+      "role": "user",
+      "type": "image_url",
+      "sha256": "c0c8e6f548efdfa956f9551aa3199897cd1f1938945f15de172595cd2f5d896d",
+      "bytes_estimate": 270223
+    }
+  ],
+  "content_blocks": [
+    {
+      "type": "text",
+      "label": "Cross-check the supplied wardrobe rule package against the a",
+      "sha256": "27c04974fc6e03c0e80b4a14ed59a4f68c21e8fccdd50202028de26b594831c3"
+    },
+    {
+      "type": "text",
+      "label": "HELD-OUT_IDS (use these exact IDs in your images output):\n- ",
+      "sha256": "58d7d9d097d0d03b0dfec41698418be3d21a7a3ce757c7b582c2c863b891d7a1"
+    },
+    {
+      "type": "text",
+      "label": "GTX015",
+      "sha256": "cbd3a9683a572c7082dc7b643558c3bbd58fbb818c7f274a06c5ee58a81051be"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "c2359c59068c1436beb4eb4c70a609f5849fd3bff2696174701107aba5de223c"
+    },
+    {
+      "type": "text",
+      "label": "GTX047",
+      "sha256": "39a244a6832643e115be81ea033c628e2d0764d4b9b32f27bca257f9fbe47dea"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "ef8810201e40631400538488a569012c06ec50b6c1b260332855c132b6f1fd2b"
+    },
+    {
+      "type": "text",
+      "label": "GTX094",
+      "sha256": "dd93604ccf6d91cad6cb73df1c327f2d3e3a426a63078c81c7ed3c84769a4b82"
+    },
+    {
+      "type": "image_url",
+      "label": "",
+      "sha256": "c0c8e6f548efdfa956f9551aa3199897cd1f1938945f15de172595cd2f5d896d"
+    }
+  ],
+  "message_roles": [
+    {
+      "role": "system",
+      "content_type": "text"
+    },
+    {
+      "role": "user",
+      "content_type": "blocks"
+    }
+  ],
+  "user_message_block_types": [
+    "text",
+    "text",
+    "image_url",
+    "text",
+    "image_url",
+    "text",
+    "image_url"
+  ],
+  "attachments": [
+    {
+      "label": "GTX015",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/long_portrait/lo_gothic/87798482_p0.jpg",
+      "source_sha256": "b12f257b988a5e729800e6a719bda2321023d99e165dbe089617f69d1bb98fab",
+      "bytes": 10381435,
+      "data_url_sha256": "c2359c59068c1436beb4eb4c70a609f5849fd3bff2696174701107aba5de223c"
+    },
+    {
+      "label": "GTX047",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_gothic/53546416_p0.jpg",
+      "source_sha256": "d4cbff34eb2dbac64d2db2eb947573a47d26b5514edcca744d8c90bd3a4534ea",
+      "bytes": 780287,
+      "data_url_sha256": "ef8810201e40631400538488a569012c06ec50b6c1b260332855c132b6f1fd2b"
+    },
+    {
+      "label": "GTX094",
+      "source_path": "C:/data/train/train/lo_v2_train/train/source/img/portrait/lo_gothic/d79ee0c7gw1f962hvnzbfj21kw28gdvx.jpg",
+      "source_sha256": "af93e74e15997411e22196df7aec5d50a01b0317e8459f774cd33c7e21810abf",
+      "bytes": 202648,
+      "data_url_sha256": "c0c8e6f548efdfa956f9551aa3199897cd1f1938945f15de172595cd2f5d896d"
+    }
+  ],
+  "attachment_order": [
+    "GTX015",
+    "GTX047",
+    "GTX094"
+  ],
+  "templates": [
+    "prompts/wardrobe/round4/templates/heldout-check-round4.md"
+  ],
+  "no_held_out_images_in_attachments": false,
+  "notes": [
+    "草案：本文件由离线准备任务生成，未发送、未计费。",
+    "附件顺序 = BATCH_IDS 顺序；labels 与正文里的 ID 一一对应。",
+    "请求正文不含留出图；留出核对是另外三个独立请求。"
+  ]
+}

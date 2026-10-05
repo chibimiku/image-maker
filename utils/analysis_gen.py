@@ -28,6 +28,7 @@ def save_generation_manifest(first_image, request, *, model, size, quality, mode
                 references.append({"path": os.path.abspath(path), "sha256": hashlib.sha256(f.read()).hexdigest()})
     snapshot = {"first_image": first_image, "prompt": request.get("prompt", ""),
                 "style_name": request.get("style_name", ""), "references": references,
+                "wardrobe": request.get("wardrobe") or {},
                 "requested_mode": mode, "model": model, "size": size, "quality": quality,
                 "steps": steps, "firmware_text": resolve_firmware_text(firmware),
                 "outputs": list(outputs or [])}
@@ -254,7 +255,8 @@ def build_gpt_image_request(analysis_result: dict, style_text: str = "", style_r
 def build_first_pass_request(styles_data, style_name, analysis_result, content_text: str = "",
                              user_hint: str = "", tier: str = "short",
                              content_image_path: str = "", api_type: str = "",
-                             prompt_recipe: str = "legacy", size: str = "") -> dict:
+                             prompt_recipe: str = "legacy", size: str = "",
+                             wardrobe: dict = None) -> dict:
     """**首图请求的唯一组装点**（GUI 的 gpt 通道与 `tools/analysis_gpt_run.py` 共用）。
 
     以前 GUI 自己拼这一段，漏了渲染语言条款（`extra_clauses` 没传），于是 GUI 出的首图永远比 CLI
@@ -272,6 +274,8 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
     from utils.styles import style_ref_image, ref_image_valid, style_motif_prompt
 
     name = str(style_name or "")
+    from utils.wardrobe import validate_wardrobe_style
+    validate_wardrobe_style(styles_data, name, wardrobe)
     entry = (styles_data or {}).get(name) if name else None
     style_text = style_prompt_gpt(styles_data or {}, name).strip()
     if not style_text and isinstance(entry, str):
@@ -334,6 +338,15 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
         if reference_clauses:
             payload["prompt"] += "\n\nRENDERING LANGUAGE:\n- " + "\n- ".join(reference_clauses)
     payload["prompt_recipe"] = prompt_recipe
+    if wardrobe:
+        from utils.wardrobe import apply_wardrobe, wardrobe_prompt, wardrobe_continuity
+        block = wardrobe_prompt(wardrobe)
+        payload["prompt"] = apply_wardrobe(payload["prompt"], wardrobe)
+        payload["wardrobe"] = dict(wardrobe)
+        # Clothing authority is scoped; never inherit a blanket identity exemption.
+        payload["skip_identity_refine"] = False
+        payload["generation_clauses"] = list(payload["generation_clauses"]) + [block]
+        payload["identity_correction_clauses"] = list(payload["identity_correction_clauses"]) + [wardrobe_continuity(wardrobe)]
     return payload
 
 

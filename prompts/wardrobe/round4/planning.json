@@ -1,0 +1,347 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.planning.v1",
+  "status": "offline_planning_only",
+  "cli_compatible": false,
+  "online_execution_authorized": false,
+  "source_inventory": "data/test-result/20261005/wardrobe-reference-study/inventory.json",
+  "families": [
+    "classical",
+    "sweet",
+    "gothic"
+  ],
+  "deferred_families": [
+    "chinese",
+    "japanese"
+  ],
+  "reference_selection": {
+    "per_family": {
+      "extraction_positive": 8,
+      "heldout_positive": 3,
+      "boundary": 3
+    },
+    "max_extraction_images_per_batch": 4,
+    "initial_extraction_batches": 6,
+    "initial_heldout_batches": 3,
+    "group_split_rule": "Keep variants of one garment design entirely within one split."
+  },
+  "identity": "Exactly one 32-year-old adult woman with short wavy dark-brown hair, grey-green eyes, warm brown skin, rectangular black glasses and a medium adult build.",
+  "shared_scene_and_rendering": "Clean anime illustration with controlled linework and soft cel shading. She stands naturally with both arms relaxed and no held objects, against a plain grey background. Full-body view with both feet entirely visible. No additional people.",
+  "cases": [
+    {
+      "id": "U",
+      "source_clothing": "No clothing description is supplied.",
+      "action": "fill_complete",
+      "protected_colours": [],
+      "protected_accessories": []
+    },
+    {
+      "id": "H",
+      "source_clothing": "Her original outfit is an orange hooded sweatshirt and straight blue jeans. A small blue bird pin is attached to her left upper chest.",
+      "action": "transform_complete",
+      "protected_colours": [
+        "orange remains the main garment colour"
+      ],
+      "protected_accessories": [
+        "small blue bird pin on the wearer's left upper chest"
+      ]
+    },
+    {
+      "id": "W",
+      "source_clothing": "Her original outfit is a navy utility jacket with patch pockets, an ochre T-shirt and straight grey trousers. A copper leaf pin is attached to her left jacket chest pocket.",
+      "action": "transform_complete",
+      "protected_colours": [
+        "navy remains the main garment colour"
+      ],
+      "protected_accessories": [
+        "copper leaf pin integrated at the wearer's left upper chest"
+      ]
+    },
+    {
+      "id": "R",
+      "source_clothing": "Her original outfit is a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to her left blazer lapel.",
+      "action": "transform_complete",
+      "protected_colours": [
+        "red remains the main garment colour"
+      ],
+      "protected_accessories": [
+        "gold star brooch integrated at the wearer's left upper chest"
+      ]
+    },
+    {
+      "id": "GP",
+      "source_clothing": "Her original outfit is a red single-breasted blazer with gold piping, a white collared blouse, a solid-red pleated skirt and black knee-high socks. A gold star brooch is attached to her left blazer lapel.",
+      "action": "preserve_explicit",
+      "user_request": "Keep every named garment, its category and described construction. Do not redesign or replace the outfit. Keep the star brooch on the left blazer lapel.",
+      "target_family": null
+    },
+    {
+      "id": "GF",
+      "source_clothing": "Her existing outfit is a navy utility jacket with patch pockets, an ochre T-shirt, straight grey trousers and dark lace-up shoes. A copper leaf pin is attached to her left jacket chest pocket.",
+      "action": "fill_missing_provided",
+      "user_request": "Only fill missing clothing information. Keep the copper leaf pin on the left jacket chest pocket.",
+      "target_family": null
+    }
+  ],
+  "slots": [
+    {
+      "sample_id": "F4-U-classical-gpt-r1",
+      "case_id": "U",
+      "target_family": "classical",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-U-sweet-gpt-r1",
+      "case_id": "U",
+      "target_family": "sweet",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-U-gothic-gpt-r1",
+      "case_id": "U",
+      "target_family": "gothic",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-H-classical-gpt-r1",
+      "case_id": "H",
+      "target_family": "classical",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-H-sweet-gpt-r1",
+      "case_id": "H",
+      "target_family": "sweet",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-H-gothic-gpt-r1",
+      "case_id": "H",
+      "target_family": "gothic",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-W-classical-gpt-r1",
+      "case_id": "W",
+      "target_family": "classical",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-W-sweet-gpt-r1",
+      "case_id": "W",
+      "target_family": "sweet",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-W-gothic-gpt-r1",
+      "case_id": "W",
+      "target_family": "gothic",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-R-classical-gpt-r1",
+      "case_id": "R",
+      "target_family": "classical",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-R-sweet-gpt-r1",
+      "case_id": "R",
+      "target_family": "sweet",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-R-gothic-gpt-r1",
+      "case_id": "R",
+      "target_family": "gothic",
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-GP-preserve-gpt-r1",
+      "case_id": "GP",
+      "target_family": null,
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-GF-preserve-gpt-r1",
+      "case_id": "GF",
+      "target_family": null,
+      "channel": "gpt",
+      "repeat": 1,
+      "wave": 1
+    },
+    {
+      "sample_id": "F4-U-classical-gemini-r1",
+      "case_id": "U",
+      "target_family": "classical",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-U-sweet-gemini-r1",
+      "case_id": "U",
+      "target_family": "sweet",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-U-gothic-gemini-r1",
+      "case_id": "U",
+      "target_family": "gothic",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-H-classical-gemini-r1",
+      "case_id": "H",
+      "target_family": "classical",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-H-sweet-gemini-r1",
+      "case_id": "H",
+      "target_family": "sweet",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-H-gothic-gemini-r1",
+      "case_id": "H",
+      "target_family": "gothic",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-W-classical-gemini-r1",
+      "case_id": "W",
+      "target_family": "classical",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-W-sweet-gemini-r1",
+      "case_id": "W",
+      "target_family": "sweet",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-W-gothic-gemini-r1",
+      "case_id": "W",
+      "target_family": "gothic",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-R-classical-gemini-r1",
+      "case_id": "R",
+      "target_family": "classical",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-R-sweet-gemini-r1",
+      "case_id": "R",
+      "target_family": "sweet",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-R-gothic-gemini-r1",
+      "case_id": "R",
+      "target_family": "gothic",
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-GP-preserve-gemini-r1",
+      "case_id": "GP",
+      "target_family": null,
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    },
+    {
+      "sample_id": "F4-GF-preserve-gemini-r1",
+      "case_id": "GF",
+      "target_family": null,
+      "channel": "gemini",
+      "repeat": 1,
+      "wave": 2
+    }
+  ],
+  "counts": {
+    "conversion_prompts": 12,
+    "guard_prompts": 2,
+    "gpt_wave_attempts": 14,
+    "gemini_wave_attempts": 14,
+    "generation_attempts_total": 28
+  },
+  "proposed_budgets_not_granted": {
+    "reference_vision_attempts": 9,
+    "text_synthesis_and_review_attempts": 2,
+    "wave1_generation_attempts": 14,
+    "wave2_generation_attempts": 14,
+    "online_scoring_attempts": 0,
+    "optional_wave1_single_image_scoring_attempts": 14,
+    "retry_reserve": 0
+  },
+  "generation_params_source": "prompts/wardrobe/round3/spec/plan.json#generation_params (read frozen values at actual prepare time; do not alter production configuration)",
+  "generation_references": 0,
+  "template_sources": {
+    "common": "prompts/wardrobe/reference-study/full-transformation.md",
+    "family": "prompts/wardrobe/reference-study/{family}.md (hand-written draft until evidence-backed candidate exists)",
+    "evaluation": "prompts/wardrobe/round4/evaluate.md"
+  },
+  "required_report_fields": [
+    "complete_transformation_or_preservation",
+    "lolita_structure_when_requested",
+    "target_family_evidence_when_requested",
+    "protected_colours",
+    "protected_accessories",
+    "person_count",
+    "identity_attributes",
+    "scene",
+    "full_body_framing",
+    "visible_defects"
+  ],
+  "interpretation": "Unreplicated pilot; no comparison arm, no superiority or stable-success-rate claim. Read reference evidence and generated effects separately."
+}

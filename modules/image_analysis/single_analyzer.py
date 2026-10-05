@@ -64,6 +64,7 @@ STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
 ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure": False,
                             "auto_gen_original": False, "auto_gen_refined": False,
                             "style_selection": "",
+                            "wardrobe_selection": {"name": "", "policy": "replace"},
                             "local": False, "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
                             "quality": "high",
@@ -1795,7 +1796,9 @@ class GptImageGenWorkerThread(QThread):
                 audit_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
                 current = saved[-1]
                 actual_prompt = str(self.request_payload.get("prompt") or "")
-                audit = self.checkpoint.operation("identity-audit-0", lambda: audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt))
+                audit = self.checkpoint.operation("identity-audit-0", lambda: audit_image_identity(
+                    current, self.analysis_result, expected_prompt=actual_prompt,
+                    **({"wardrobe": self.request_payload["wardrobe"]} if self.request_payload.get("wardrobe") else {})))
                 with open(os.path.join(audit_dir, "identity-audit-0.json"), "w", encoding="utf-8") as f:
                     _json.dump(audit, f, ensure_ascii=False, indent=2)
                 skip_identity_refine = bool(self.request_payload.get("skip_identity_refine"))
@@ -1829,7 +1832,9 @@ class GptImageGenWorkerThread(QThread):
                     saved = [current]
                     self.checkpoint.data["last_outputs"] = saved
                     self.checkpoint.save()
-                    audit = self.checkpoint.operation(f"identity-audit-{correction_round}", lambda: audit_image_identity(current, self.analysis_result, expected_prompt=actual_prompt))
+                    audit = self.checkpoint.operation(f"identity-audit-{correction_round}", lambda: audit_image_identity(
+                        current, self.analysis_result, expected_prompt=actual_prompt,
+                        **({"wardrobe": self.request_payload["wardrobe"]} if self.request_payload.get("wardrobe") else {})))
                     with open(os.path.join(audit_dir, f"identity-audit-{correction_round}.json"),
                               "w", encoding="utf-8") as f:
                         _json.dump(audit, f, ensure_ascii=False, indent=2)
@@ -1931,6 +1936,17 @@ class GptImageGenWorkerThread(QThread):
             self.log_signal.emit("[最终复核] 带警告通过：" + final_decision["reason"] if final_decision["action"] == "accept_with_warning" else
                                  "[最终复核] 人体结构、画风与局部明暗可读性通过。" if self.style_ref_path else
                                  "[最终复核] 人体结构检查通过；无画风参考图，不评价原画风贴近度。")
+        if (saved and self.request_payload.get("wardrobe")
+                and not self.isInterruptionRequested() and self._stage_needed("final_review", saved)):
+            from utils.wardrobe import audit_wardrobe, record_wardrobe_audit, wardrobe_audit_key
+            spec = self.request_payload["wardrobe"]
+            content = str(self.request_payload.get("prompt") or "")
+            wardrobe_audit = self.checkpoint.operation(
+                "final_review-wardrobe-" + wardrobe_audit_key(saved[-1], spec, content),
+                lambda: audit_wardrobe(saved[-1], spec, content))
+            final_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
+            record_wardrobe_audit(wardrobe_audit, os.path.join(final_dir, "wardrobe-audit.json"))
+            self.log_signal.emit("[衣装审计] " + wardrobe_audit["summary"])
         self._stage_done("final_review", saved)
         if self.isRequestInterruption_requested_safe():
             self.checkpoint.fail("用户取消", cancelled=True)
@@ -2211,7 +2227,7 @@ class SingleAnalyzerWidget(QWidget):
         layout.addLayout(nsfw_layout)
 
         outfit_style_layout = QHBoxLayout()
-        outfit_style_layout.addWidget(QLabel("服装风格覆盖:"))
+        outfit_style_layout.addWidget(QLabel("分析服装覆盖:"))
         self.outfit_style_combo = QComboBox()
         self.outfit_style_combo.setEditable(True)
         self.outfit_style_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
@@ -2234,6 +2250,10 @@ class SingleAnalyzerWidget(QWidget):
         self.delete_outfit_style_btn.setToolTip("删除当前历史项")
         self.delete_outfit_style_btn.clicked.connect(self._delete_current_outfit_style_history)
         outfit_style_layout.addWidget(self.delete_outfit_style_btn)
+        from utils.wardrobe_widget import WardrobeSelector
+        self.wardrobe_selector = WardrobeSelector(self)
+        outfit_style_layout.addWidget(self.wardrobe_selector)
+        self.wardrobe_selector.changed.connect(self._save_gpt_pipeline_ui)
         layout.addLayout(outfit_style_layout)
 
         upscale_layout = QHBoxLayout()
@@ -3207,6 +3227,8 @@ class SingleAnalyzerWidget(QWidget):
                            or params.get("aspect_ratio") or "").strip()
         bundle = {
             "task_hash": task_hash,
+            "wardrobe": dict(params.get("wardrobe") or record.get("wardrobe")
+                             or result_json.get("generation_wardrobe") or {}),
             "style_name": style_name,
             "aspect_ratio": aspect_ratio,
             "original_prompt": str(record.get("original_prompt")
@@ -3370,6 +3392,8 @@ class SingleAnalyzerWidget(QWidget):
         thread = self._launch_analysis_task(
             _clone_image_source(usable_path),
             gen_targets=gen_targets,
+            wardrobe=dict(record.get("wardrobe") or (record.get("generation_params") or {}).get("wardrobe")
+                          or (record.get("result_json") or {}).get("generation_wardrobe") or {}),
             header_note=header_note or f"重跑来源: 线程#{record.get('thread_no', '?')}"
                                        f"（{record.get('status_text', '未知')}）",
         )
@@ -3483,7 +3507,7 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"⚠️ 剪贴板图片快照保存失败，本次记录将无法右键重跑: {e}")
             return ""
 
-    def _launch_analysis_task(self, image_source_snapshot, gen_targets=None, header_note=None):
+    def _launch_analysis_task(self, image_source_snapshot, gen_targets=None, header_note=None, wardrobe=None):
         """统一的分析任务提交入口：单图分析 / 目录批量 / 右键重跑都走这里。
 
         负责预检（prompt 文件、文本 API 配置）→ 建历史记录 → 装配 WorkerThread 并启动。
@@ -3561,6 +3585,7 @@ class SingleAnalyzerWidget(QWidget):
             source_path=clipboard_snapshot_path or None,
         )
         history_record["style_name"] = selected_style_name
+        history_record["wardrobe"] = self.wardrobe_selector.snapshot() if wardrobe is None else dict(wardrobe)
         self._insert_history_record(history_record)
 
         thread = WorkerThread(
@@ -3582,6 +3607,7 @@ class SingleAnalyzerWidget(QWidget):
         thread.meta_task_id = history_record["task_id"]
         thread.meta_task_hash = task_hash
         thread.meta_style_name = selected_style_name
+        thread.meta_wardrobe = dict(history_record["wardrobe"])
         thread.meta_force_gen_targets = [t for t in (gen_targets or []) if t in ("original", "refined")]
         self._active_analysis_threads.append(thread)
         self._update_analysis_cancel_btn()
@@ -3882,6 +3908,7 @@ class SingleAnalyzerWidget(QWidget):
         if not selected_style_name:
             selected_style_name = self._resolve_generation_style()
         result_json["generation_style_name"] = selected_style_name
+        result_json["generation_wardrobe"] = dict(getattr(thread, "meta_wardrobe", {}) or {})
 
         self.log_msg("========== 最终处理结果 ==========", prefix=thread_prefix)
         self.log_msg(json.dumps(result_json, indent=4, ensure_ascii=False), prefix=thread_prefix)
@@ -4060,6 +4087,7 @@ class SingleAnalyzerWidget(QWidget):
                     auto_targets.append("refined")
             prompt_bundle = {
                 "task_hash": local_task_hash,
+                "wardrobe": result_json["generation_wardrobe"],
                 "style_name": selected_style_name,
                 "aspect_ratio": local_aspect_ratio,
                 # 文件输入时给 GPT 首图直接读取实际像素；剪贴板输入没有路径，
@@ -4216,6 +4244,9 @@ class SingleAnalyzerWidget(QWidget):
     def _load_gpt_pipeline_ui(self, state=None):
         """恢复上次的通道 / 工序 / 区域 / 画质选择；老配置按「效果最好的配方」升级一次。"""
         state = load_analysis_gpt_ui() if state is None else state
+        self.wardrobe_selector.blockSignals(True)
+        self.wardrobe_selector.restore(state.get("wardrobe_selection"))
+        self.wardrobe_selector.blockSignals(False)
         self._saved_style_selection = str(state.get("style_selection") or "")
         self.auto_gen_orig_cb.setChecked(bool(state.get("auto_gen_original", False)))
         self.auto_gen_ref_cb.setChecked(bool(state.get("auto_gen_refined", False)))
@@ -4259,6 +4290,7 @@ class SingleAnalyzerWidget(QWidget):
         regions = [str(r) for r in data] if isinstance(data, (list, tuple)) else [str(data or "hair")]
         return {
             "channel": "gpt-image" if self._gpt_image_channel_active() else "gemini",
+            "wardrobe_selection": self.wardrobe_selector.selection(),
             "style_selection": self.main_style_combo.currentText() or getattr(self, "_saved_style_selection", ""),
             "auto_gen_original": bool(self.auto_gen_orig_cb.isChecked()),
             "auto_gen_refined": bool(self.auto_gen_ref_cb.isChecked()),
@@ -4382,6 +4414,8 @@ class SingleAnalyzerWidget(QWidget):
                                                        request_payload.get("fallback_style_ref_path")))
         if request_payload is not None:
             slots += 2  # 审核拦截后的文字改良与一次 GPT 重试，按最坏情况预留。
+            if request_payload.get("wardrobe"):
+                slots += 1  # 独立衣装终审，不挤占原有画风/人体预算。
         if (steps.get("repaint") or {}).get("enabled") or fallback_repaint:
             slots += 17  # 原 9 份 + 人体 5 份 + 最终审计/兜底修复/复审 3 份
             if (request_payload or {}).get("face_hair_refine"):
@@ -4438,7 +4472,8 @@ class SingleAnalyzerWidget(QWidget):
         # （CLI 是传了的）——2026-09-24 定位并修掉。
         request_payload = build_first_pass_request(
             styles_data, selected_style_name, analysis_result,
-            content_text=content_text, tier="short", size=size or "")
+            content_text=content_text, tier="short", size=size or "",
+            wardrobe=prompt_context.get("wardrobe") or {})
         if size:
             self.log_msg(f"[gpt 通道] 尺寸 {size}（{size_source}；画风参考图的朝向不参与）")
         if request_payload.get("aspect_alignment"):
@@ -4539,6 +4574,7 @@ class SingleAnalyzerWidget(QWidget):
         
         prompt_context = prompt_bundle or {
             "task_hash": self.current_task_hash,
+            "wardrobe": self.wardrobe_selector.snapshot(),
             "aspect_ratio": self.current_aspect_ratio,
             "original_prompt": self.current_orig_desc,
             "refined_prompt": self.current_refine_desc,
@@ -4573,6 +4609,8 @@ class SingleAnalyzerWidget(QWidget):
                 return False
         self.log_msg(f"[生图入口] 本次画风预设: {selected_style_name}")
         styles_data = self.get_styles() or {}
+        from utils.wardrobe import validate_wardrobe_style
+        validate_wardrobe_style(styles_data, selected_style_name, prompt_context.get("wardrobe"))
         has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
         active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
         active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
@@ -4589,6 +4627,11 @@ class SingleAnalyzerWidget(QWidget):
             if style_ref_paths:
                 from utils.analysis_gen import build_gemini_content_postamble
                 post_instructions = build_gemini_content_postamble(prompt_to_use, post_instructions)
+            from utils.wardrobe import apply_wardrobe
+            prompt_to_use = apply_wardrobe(prompt_to_use, prompt_context.get("wardrobe"))
+            if prompt_context.get("wardrobe") and style_ref_paths:
+                from utils.wardrobe import wardrobe_reference_guard
+                post_instructions += "\n\n" + wardrobe_reference_guard(prompt_context["wardrobe"])
         
         self.gen_orig_btn.setEnabled(False)
         self.gen_ref_btn.setEnabled(False)
@@ -4609,6 +4652,7 @@ class SingleAnalyzerWidget(QWidget):
                 self._note_generation_style(task_hash, selected_style_name)
                 self._note_generation_params(
                     task_hash, channel="gpt-image", prompt_type=prompt_type,
+                    wardrobe=prompt_context.get("wardrobe") or {},
                     style_name=selected_style_name, style_ref_mode=active_mode,
                     aspect_ratio=str(prompt_context.get("aspect_ratio") or ""))
             return started
@@ -4653,6 +4697,7 @@ class SingleAnalyzerWidget(QWidget):
         self._note_generation_style(task_hash, selected_style_name)
         self._note_generation_params(
             task_hash, channel="gemini", prompt_type=prompt_type,
+            wardrobe=prompt_context.get("wardrobe") or {},
             style_name=selected_style_name, style_ref_mode=active_mode,
             aspect_ratio=str(final_gen_ar or ""))
         return True
@@ -4669,7 +4714,7 @@ class SingleAnalyzerWidget(QWidget):
                 self._refresh_history_item(task_id)
 
     def _note_generation_params(self, task_hash, channel="", prompt_type="", style_name="",
-                                aspect_ratio="", style_ref_mode=""):
+                                aspect_ratio="", style_ref_mode="", wardrobe=None):
         """把这次生图用的通道与参数记在队列记录上，供「拾取历史」原样重跑。
 
         `prompt_types` 按尝试累积（一条任务可能同时跑原始 + 优化两种提示词），
@@ -4680,6 +4725,8 @@ class SingleAnalyzerWidget(QWidget):
             if record is None:
                 continue
             params = record.setdefault("generation_params", {})
+            if wardrobe is not None:
+                params["wardrobe"] = dict(wardrobe)
             for key, value in (("channel", channel), ("style_name", style_name),
                                ("aspect_ratio", aspect_ratio), ("style_ref_mode", style_ref_mode)):
                 if str(value or "").strip():

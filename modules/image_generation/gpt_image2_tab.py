@@ -272,11 +272,12 @@ class GptImage2Worker(QThread):
     error = pyqtSignal(str)
     raw_done = pyqtSignal(list)   # 链式模式下先回传「未重绘的原始产物」
 
-    def __init__(self, backend, params: dict, parent=None, repaint_params: dict = None):
+    def __init__(self, backend, params: dict, parent=None, repaint_params: dict = None, wardrobe_spec=None):
         super().__init__(parent)
         self.backend = backend
         self.params = dict(params or {})
         self.repaint_params = dict(repaint_params) if repaint_params else None
+        self.wardrobe_spec = dict(wardrobe_spec or {})
 
     def run(self):
         params = dict(self.params)
@@ -298,6 +299,8 @@ class GptImage2Worker(QThread):
             if isinstance(files, dict):
                 files = files.get("saved_files") or []
             saved = [p for p in (files or []) if p]
+            from utils.wardrobe import record_wardrobe_outputs
+            record_wardrobe_outputs(saved, self.wardrobe_spec, params.get("prompt", ""))
             if saved:
                 self.log.emit(f"[后端] 成功返回 {len(saved)} 张，耗时 {elapsed:.1f}s")
             else:
@@ -320,6 +323,7 @@ class GptImage2Worker(QThread):
             self.log.emit(f"===== 进入重绘阶段：{len(saved)} 张待优化（模型 {rp.get('model')} @{rp.get('resolution')}）=====")
             repainted = generate_image_repaint(source_paths=saved, **rp)
             repainted = [p for p in (repainted or []) if p]
+            record_wardrobe_outputs(repainted, self.wardrobe_spec, rp.get("prompt", ""), stage="repaint")
             self.log.emit(
                 f"[重绘] 完成 {len(repainted)}/{len(saved)} 张，耗时 {time.perf_counter() - rp_started:.1f}s"
             )
@@ -779,6 +783,10 @@ class GptImage2Widget(QWidget):
         )
         self.style_combo.currentIndexChanged.connect(self._on_style_changed)
         style_row.addWidget(self.style_combo)
+        from utils.wardrobe_widget import WardrobeSelector
+        self.wardrobe_selector = WardrobeSelector(self)
+        style_row.addWidget(self.wardrobe_selector)
+        self.wardrobe_selector.changed.connect(self._refresh_budget)
         self.style_info_label = QLabel("")
         self.style_info_label.setWordWrap(True)
         style_row.addWidget(self.style_info_label, stretch=1)
@@ -900,6 +908,8 @@ class GptImage2Widget(QWidget):
 
     def on_mode_changed(self, mode: str):
         mode_text = str(mode)
+        if hasattr(self, "wardrobe_selector"):
+            self.wardrobe_selector.setEnabled(mode_text != MODE_REPAINT)
         # 勾选框文案随模式变：重绘模式下它恒为生效状态（置灰），写「出图后立即重绘」会误导
         if hasattr(self, "repaint_check"):
             self.repaint_check.setText(REPAINT_CHECK_TEXT.get(mode_text, REPAINT_CHECK_TEXT[MODE_GENERATE]))
@@ -1075,10 +1085,13 @@ class GptImage2Widget(QWidget):
         except Exception as exc:  # noqa: BLE001 - 存默认值失败不该阻断生图
             self._append_log(f"保存重绘默认值失败(忽略): {exc}")
 
-    def build_repaint_request(self, sources) -> dict:
+    def build_repaint_request(self, sources, wardrobe=None) -> dict:
         """组装 `generate_image_repaint` 的参数（供 Worker 调用，也便于测试）。"""
         conf = self.current_repaint_config()
         override = self.prompt_edit.toPlainText().strip()
+        if wardrobe:
+            from utils.wardrobe import wardrobe_continuity
+            override = build_repaint_prompt(conf) + "\n\n" + wardrobe_continuity(wardrobe)
         params = {
             "api_type": str(conf.get("api_type") or REPAINT_DEFAULTS["api_type"]),
             "model": str(conf.get("model") or REPAINT_DEFAULTS["model"]),
@@ -1311,6 +1324,7 @@ class GptImage2Widget(QWidget):
             if mode in MODE_CHOICES:
                 self.mode_combo.setCurrentText(mode)
             saved_style = node.get("style")
+            self.wardrobe_selector.restore(node.get("wardrobe_selection"))
             if saved_style and hasattr(self, "style_combo"):
                 idx = self.style_combo.findText(str(saved_style))
                 if idx >= 0:
@@ -1386,6 +1400,7 @@ class GptImage2Widget(QWidget):
         }
         node["sites"] = sites
         node["site"] = site
+        node["wardrobe_selection"] = self.wardrobe_selector.selection()
         node["mode"] = self.mode_combo.currentText()
         if hasattr(self, "style_combo"):
             node["style"] = self.style_combo.currentText()
@@ -1499,6 +1514,11 @@ class GptImage2Widget(QWidget):
         prompt = compose_style_prompt(style_text, raw_prompt,
                                       style_ref_attached=bool(style_ref),
                                       content_image_count=len(content_images))
+        from utils.wardrobe import apply_wardrobe, validate_wardrobe_style
+        wardrobe = self.wardrobe_selector.snapshot()
+        self._prepared_wardrobe = wardrobe
+        validate_wardrobe_style(self._styles_data, self.current_style_name(), wardrobe)
+        prompt = apply_wardrobe(prompt, wardrobe)
         image_paths = ordered_reference_images(content_images, style_ref, style_ref_attached=bool(style_ref))
         # 按最终附件（含自动追加的画风图）选接口，避免 generate 强制把图片发到
         # generations 的非标准 image 字段，再因上游不支持而回退重发。
@@ -1617,10 +1637,15 @@ class GptImage2Widget(QWidget):
             self.save_repaint_defaults()
 
         self.save_defaults()
-        backend, params = self.build_request()
+        try:
+            backend, params = self.build_request()
+        except (ValueError, OSError) as exc:
+            QMessageBox.warning(self, "生成设置", str(exc))
+            return
         repaint_params = None
         if chain_repaint:
-            repaint_params = self.build_repaint_request(list(self.image_paths))
+            repaint_params = self.build_repaint_request(list(self.image_paths),
+                                                        wardrobe=self._prepared_wardrobe)
             repaint_params.pop("source_paths", None)
 
         self.log_view.clear()
@@ -1650,7 +1675,8 @@ class GptImage2Widget(QWidget):
         self.status_label.setText("生成中...(high 画质可能要几分钟)")
         self.preview_label.setText("请求中...")
 
-        self._worker = GptImage2Worker(backend, params, self, repaint_params=repaint_params)
+        wardrobe_kwargs = {"wardrobe_spec": self._prepared_wardrobe} if self._prepared_wardrobe else {}
+        self._worker = GptImage2Worker(backend, params, self, repaint_params=repaint_params, **wardrobe_kwargs)
         self._worker.log.connect(self._append_log)
         self._worker.done.connect(self.on_done)
         self._worker.raw_done.connect(self._on_raw_products)
@@ -1802,6 +1828,9 @@ class GptImage2Widget(QWidget):
             return
         text = self.prompt_edit.toPlainText() if hasattr(self, "prompt_edit") else ""
         style_text = self.current_style_block()[0] if hasattr(self, "style_combo") else ""
+        if hasattr(self, "wardrobe_selector") and self.mode_combo.currentText() != MODE_REPAINT:
+            from utils.wardrobe import wardrobe_prompt
+            style_text += wardrobe_prompt(self.wardrobe_selector.snapshot())
         budget = prompt_budget(len(text), style_chars=len(style_text))
         steps = self.post_pipeline_steps() if hasattr(self, "structure_check") else {}
         chain_repaint = bool(self.repaint_check.isChecked()) if hasattr(self, "repaint_check") else False

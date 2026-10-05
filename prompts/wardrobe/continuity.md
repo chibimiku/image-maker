@@ -1,0 +1,1 @@
+WARDROBE CONTINUITY ({label}): the current image's newly generated clothing is the garment-design anchor. Repair only the listed defect; keep its cut, colours, layers and trim arrangement. Do not restore clothing from an earlier source description or borrow clothing from an art-style reference. Preserve all character, pose and scene features outside the listed repair.

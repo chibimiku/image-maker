@@ -1,0 +1,660 @@
+{
+  "pack_sha256": "fb8c24faf1f57bdf15b21ff78d7d1de1b606bda7c20b2bfb585cdd92facd8f70",
+  "samples": [
+    {
+      "sample_id": "F4-U-classical-gpt",
+      "case_id": "U",
+      "family": "classical",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-classical-gpt_output_214842_0_5ede5b.png"
+      ],
+      "prompt_sha256": "5a80bb7680dfd7d3dd28f52e17f055c51aed36bface53ad7da3468a9f0671898",
+      "started_at": "2026-10-05T21:47:13.947319",
+      "output_sha256": [
+        "baa1bace41b19e1cfcd8a46f10876921277bdcb935edc71bd0016647927e1916"
+      ],
+      "finished_at": "2026-10-05T21:48:42.183155"
+    },
+    {
+      "sample_id": "F4-U-sweet-gpt",
+      "case_id": "U",
+      "family": "sweet",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-sweet-gpt_output_215017_0_e5df02.png"
+      ],
+      "prompt_sha256": "5284b1bd15fa857506db29fe000c0245af063a0b7d54078b6370a6760c7c1322",
+      "started_at": "2026-10-05T21:48:42.200914",
+      "output_sha256": [
+        "a992b0f8457ab87f13cb9c82456c6ad9ce42ae4014cd677b4678a1a673982fbb"
+      ],
+      "finished_at": "2026-10-05T21:50:17.221154"
+    },
+    {
+      "sample_id": "F4-U-gothic-gpt",
+      "case_id": "U",
+      "family": "gothic",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-gothic-gpt_output_215141_0_f8e8ae.png"
+      ],
+      "prompt_sha256": "71dd080fa21ac639d025c8a80e04701eb60d0b1321cfd9040d15db7e77149a7f",
+      "started_at": "2026-10-05T21:50:17.237582",
+      "output_sha256": [
+        "f8c53439a27a6fc881a22e20a5fd3173daeb96dcb858444ecbad2754efbf56b7"
+      ],
+      "finished_at": "2026-10-05T21:51:41.641224"
+    },
+    {
+      "sample_id": "F4-H-classical-gpt",
+      "case_id": "H",
+      "family": "classical",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-classical-gpt_output_215325_0_fbcc5f.png"
+      ],
+      "prompt_sha256": "1eabcdbec5fc4c72b9b4c9becf0364f4a817118c643fb6666d2bda0bec68942a",
+      "started_at": "2026-10-05T21:51:41.819506",
+      "output_sha256": [
+        "70c8c3c7502ae8e885c5ed6cf862948b211173b078164650779cc6279d70a40c"
+      ],
+      "finished_at": "2026-10-05T21:53:25.466926"
+    },
+    {
+      "sample_id": "F4-H-sweet-gpt",
+      "case_id": "H",
+      "family": "sweet",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gpt_output_215507_0_399625.png"
+      ],
+      "prompt_sha256": "81908749f10a905520450c4cef2adc9be74e73b398316751b5e225d31de459bd",
+      "started_at": "2026-10-05T21:53:25.606428",
+      "output_sha256": [
+        "a74c4f3769ec21f2faaa013598ee4b084adec580929998c1dedb5bb2778db855"
+      ],
+      "finished_at": "2026-10-05T21:55:07.548505"
+    },
+    {
+      "sample_id": "F4-H-gothic-gpt",
+      "case_id": "H",
+      "family": "gothic",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-gothic-gpt_output_215647_0_3dc370.png"
+      ],
+      "prompt_sha256": "aabad64d6ee3265422f8138f6754db61d5c94d620d5f3a912320d657aca63bc9",
+      "started_at": "2026-10-05T21:55:07.569309",
+      "output_sha256": [
+        "491e80bbc99662ef2757a590eb50155132eeacf444215aed735c59a9d2a546d8"
+      ],
+      "finished_at": "2026-10-05T21:56:47.209228"
+    },
+    {
+      "sample_id": "F4-W-classical-gpt",
+      "case_id": "W",
+      "family": "classical",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-classical-gpt_output_215736_0_2a0aef.png"
+      ],
+      "prompt_sha256": "913f15e8c9c55a2b8e5eca43b7c87c0c044cc85751898e9b9dc68e7b506d3838",
+      "started_at": "2026-10-05T21:56:47.230298",
+      "output_sha256": [
+        "4393905420bc7fca79a18e65d6dc3bc939c7834389edaaf72ca005a1df9b19e6"
+      ],
+      "finished_at": "2026-10-05T21:57:36.361857"
+    },
+    {
+      "sample_id": "F4-W-sweet-gpt",
+      "case_id": "W",
+      "family": "sweet",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-sweet-gpt_output_215935_0_9bffb6.png"
+      ],
+      "prompt_sha256": "7db888b7abf0889e66b65fad73ba43b3511e9a5d270a73ec14d19f10369c0fef",
+      "started_at": "2026-10-05T21:57:36.381541",
+      "output_sha256": [
+        "3915365ab8c5475288881f3b12571555f0d6ff9a034442fe02d79551145fa933"
+      ],
+      "finished_at": "2026-10-05T21:59:35.517713"
+    },
+    {
+      "sample_id": "F4-W-gothic-gpt",
+      "case_id": "W",
+      "family": "gothic",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-gothic-gpt_output_220111_0_5ec3bb.png"
+      ],
+      "prompt_sha256": "ee2452c3ef7f6ef54b695c78f659b675c42602874671f4b425a566ea2c35517e",
+      "started_at": "2026-10-05T21:59:35.535992",
+      "output_sha256": [
+        "7025b572bb3134bd03661dd5f620990bb2a832cba2c4efb5d1ecb7ab3d21a584"
+      ],
+      "finished_at": "2026-10-05T22:01:11.821332"
+    },
+    {
+      "sample_id": "F4-R-classical-gpt",
+      "case_id": "R",
+      "family": "classical",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-classical-gpt_output_220251_0_a449b1.png"
+      ],
+      "prompt_sha256": "561149d3c3f53f5be132336a670cb7c43c02e5ffef094ff28937e59426b1d3d9",
+      "started_at": "2026-10-05T22:01:11.838411",
+      "output_sha256": [
+        "89deef8d711e48aeac0c6ca9e326028ad7fe3cca55951ac4aeb1152c07f7a5be"
+      ],
+      "finished_at": "2026-10-05T22:02:51.794260"
+    },
+    {
+      "sample_id": "F4-R-sweet-gpt",
+      "case_id": "R",
+      "family": "sweet",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-sweet-gpt_output_220513_0_471d4f.png"
+      ],
+      "prompt_sha256": "0dcd02153e5430e9a77c50af20409daaf26555f53da4ec065d4d1dee309615b8",
+      "started_at": "2026-10-05T22:02:51.869240",
+      "output_sha256": [
+        "340c442d68937039cca24513f96c23240000a3b47d285280f1adae2de3ea311f"
+      ],
+      "finished_at": "2026-10-05T22:05:13.513864"
+    },
+    {
+      "sample_id": "F4-R-gothic-gpt",
+      "case_id": "R",
+      "family": "gothic",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-gothic-gpt_output_220651_0_e1cc2f.png"
+      ],
+      "prompt_sha256": "4f3f9496e698f3a053b85f2c800a8999951d27a1c5adf08470fc1a3dac77339a",
+      "started_at": "2026-10-05T22:05:13.622266",
+      "output_sha256": [
+        "f2e67710cd71627299c124cd93f61e911b4af2e36e8ebcc8101b6dc65e51957d"
+      ],
+      "finished_at": "2026-10-05T22:06:51.339863"
+    },
+    {
+      "sample_id": "F4-GP-classical-gpt",
+      "case_id": "GP",
+      "family": "classical",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GP-classical-gpt_output_220833_0_b32838.png"
+      ],
+      "prompt_sha256": "99e1727de8b6fbacd204f3c9fab65e1799f1e88ab25e0d450b5c51f0d1ffa5d9",
+      "started_at": "2026-10-05T22:06:51.360588",
+      "output_sha256": [
+        "ca45f40c663b2e06ce079a258a7343091806d1b976d5e5e86a08d93f8049d29f"
+      ],
+      "finished_at": "2026-10-05T22:08:33.158896"
+    },
+    {
+      "sample_id": "F4-GF-gothic-gpt",
+      "case_id": "GF",
+      "family": "gothic",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GF-gothic-gpt_output_221018_0_f7ef27.png"
+      ],
+      "prompt_sha256": "1cd2732b5db98a8b3eb64e5d6e325cd3bc788bd123505f26eae099283aef1631",
+      "started_at": "2026-10-05T22:08:33.188306",
+      "output_sha256": [
+        "3653914153359445270171dc185a8a58142e323f97eaa51c343cbcdb40cd8cde"
+      ],
+      "finished_at": "2026-10-05T22:10:18.881874"
+    },
+    {
+      "sample_id": "F4-U-chinese-gpt",
+      "case_id": "U",
+      "family": "chinese",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-chinese-gpt_output_221152_0_c8a997.png"
+      ],
+      "prompt_sha256": "4627136ff802dea87954753b54708bf4f3024b54ee508b4daeac2b76fa6f6e69",
+      "started_at": "2026-10-05T22:10:18.901091",
+      "output_sha256": [
+        "93e8e05f55bd9c3ef1cc9fda8e3092eeec3c6e7a2aeeafe6b4508d432e4fb01e"
+      ],
+      "finished_at": "2026-10-05T22:11:52.516876"
+    },
+    {
+      "sample_id": "F4-U-japanese-gpt",
+      "case_id": "U",
+      "family": "japanese",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-japanese-gpt_output_221331_0_557ae0.png"
+      ],
+      "prompt_sha256": "f6c4afc76f8868cafb053248522ade305dccaa32f758a699116260ed448163e0",
+      "started_at": "2026-10-05T22:11:52.539117",
+      "output_sha256": [
+        "6712f57e28edca0578ada8b8b4f6b032104c82de5531ba2ac4b60bcdb285615e"
+      ],
+      "finished_at": "2026-10-05T22:13:31.624258"
+    },
+    {
+      "sample_id": "F4-H-chinese-gpt",
+      "case_id": "H",
+      "family": "chinese",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-chinese-gpt_output_221530_0_aab38a.png"
+      ],
+      "prompt_sha256": "4eee0f220e7eba6f5450caad7e9ba7345df1c2c67c1e6b486c45107c2660c8e7",
+      "started_at": "2026-10-05T22:13:31.644953",
+      "output_sha256": [
+        "aa6a14a52e52436099a1838150f3ff42d4a349d3d490fdc81f74f1b6951ed5f6"
+      ],
+      "finished_at": "2026-10-05T22:15:30.412507"
+    },
+    {
+      "sample_id": "F4-H-japanese-gpt",
+      "case_id": "H",
+      "family": "japanese",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-japanese-gpt_output_221707_0_097347.png"
+      ],
+      "prompt_sha256": "1000893ed3fdcaa710e7ca2a0a91c437259aefa0ad15302ad333ea859720eecd",
+      "started_at": "2026-10-05T22:15:30.695929",
+      "output_sha256": [
+        "1a79b92b359239fbae42cfe1f3a86521c363404e307705af3ecfccd35f71952b"
+      ],
+      "finished_at": "2026-10-05T22:17:07.088556"
+    },
+    {
+      "sample_id": "F4-H-sweet-gpt-waterink-style",
+      "case_id": "H",
+      "family": "sweet",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gpt-waterink-style_output_221824_0_5f7c10.png"
+      ],
+      "prompt_sha256": "c994503c7a29baa340920efd94f215542eccc52750baa37748471685fdb4fd89",
+      "started_at": "2026-10-05T22:17:07.111524",
+      "output_sha256": [
+        "af2a513c00e61e4cf160aa93f0eab92500629ecdeaeae96f27e4ab316dcc5ff9"
+      ],
+      "finished_at": "2026-10-05T22:18:24.688117"
+    },
+    {
+      "sample_id": "F4-R-gothic-gpt-kishida-mel-style",
+      "case_id": "R",
+      "family": "gothic",
+      "channel": "gpt",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-gothic-gpt-kishida-mel-style_output_221855_0_c62af4.png"
+      ],
+      "prompt_sha256": "69ce58d344580602627403f2c16437dde1e7abe21d90fce6485ff9f42513d82c",
+      "started_at": "2026-10-05T22:18:24.711246",
+      "output_sha256": [
+        "1a4d80f7902251e7fc3315376e1a5d44f5bb2598704665c1b2d1d4bb9263d03b"
+      ],
+      "finished_at": "2026-10-05T22:18:55.764722"
+    },
+    {
+      "sample_id": "F4-U-classical-gemini",
+      "case_id": "U",
+      "family": "classical",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-classical-gemini_221927-0108e0.jpg"
+      ],
+      "prompt_sha256": "5a80bb7680dfd7d3dd28f52e17f055c51aed36bface53ad7da3468a9f0671898",
+      "started_at": "2026-10-05T22:19:04.909694",
+      "output_sha256": [
+        "499fbcf85a1999c90ef8dd68b8f08321341e03368dfa7f207dc30f1f8b4dbdbb"
+      ],
+      "finished_at": "2026-10-05T22:19:27.605466"
+    },
+    {
+      "sample_id": "F4-U-sweet-gemini",
+      "case_id": "U",
+      "family": "sweet",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-sweet-gemini_221948-880191.jpg"
+      ],
+      "prompt_sha256": "5284b1bd15fa857506db29fe000c0245af063a0b7d54078b6370a6760c7c1322",
+      "started_at": "2026-10-05T22:19:27.641953",
+      "output_sha256": [
+        "fbb94c1e0937c938152d1fb963642aae3036ec661f85a5bcd8a78fc68bc81a43"
+      ],
+      "finished_at": "2026-10-05T22:19:48.830828"
+    },
+    {
+      "sample_id": "F4-U-gothic-gemini",
+      "case_id": "U",
+      "family": "gothic",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-gothic-gemini_222021-1ac985.jpg"
+      ],
+      "prompt_sha256": "71dd080fa21ac639d025c8a80e04701eb60d0b1321cfd9040d15db7e77149a7f",
+      "started_at": "2026-10-05T22:19:48.933068",
+      "output_sha256": [
+        "599be49bb1800392bd84a4045830c590a29cb77afb424d28d95d4062aed44b99"
+      ],
+      "finished_at": "2026-10-05T22:20:21.603021"
+    },
+    {
+      "sample_id": "F4-H-classical-gemini",
+      "case_id": "H",
+      "family": "classical",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-classical-gemini_222046-757bca.jpg"
+      ],
+      "prompt_sha256": "1eabcdbec5fc4c72b9b4c9becf0364f4a817118c643fb6666d2bda0bec68942a",
+      "started_at": "2026-10-05T22:20:21.639658",
+      "output_sha256": [
+        "d8eea04896f0cce352826a1b6718e820ee64dc2a3685e1a24e37166545cbdece"
+      ],
+      "finished_at": "2026-10-05T22:20:46.441784"
+    },
+    {
+      "sample_id": "F4-H-sweet-gemini",
+      "case_id": "H",
+      "family": "sweet",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gemini_222112-2b600d.jpg"
+      ],
+      "prompt_sha256": "81908749f10a905520450c4cef2adc9be74e73b398316751b5e225d31de459bd",
+      "started_at": "2026-10-05T22:20:46.470573",
+      "output_sha256": [
+        "d001894442686ef7f1a262d58f1dcb989cd17d6f89baa7c34b3b8264a349e204"
+      ],
+      "finished_at": "2026-10-05T22:21:12.888777"
+    },
+    {
+      "sample_id": "F4-H-gothic-gemini",
+      "case_id": "H",
+      "family": "gothic",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-gothic-gemini_222146-7a4421.jpg"
+      ],
+      "prompt_sha256": "aabad64d6ee3265422f8138f6754db61d5c94d620d5f3a912320d657aca63bc9",
+      "started_at": "2026-10-05T22:21:12.920452",
+      "output_sha256": [
+        "655d51944e0c352e270355549184f53836f123238db509e86b04c55d758eb2e4"
+      ],
+      "finished_at": "2026-10-05T22:21:47.000552"
+    },
+    {
+      "sample_id": "F4-W-classical-gemini",
+      "case_id": "W",
+      "family": "classical",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-classical-gemini_222214-de367c.jpg"
+      ],
+      "prompt_sha256": "913f15e8c9c55a2b8e5eca43b7c87c0c044cc85751898e9b9dc68e7b506d3838",
+      "started_at": "2026-10-05T22:21:47.039132",
+      "output_sha256": [
+        "d69a4fc5efaad083304ab5bbf46ab9f5f8a06267d8ca212f155e3b35aed47878"
+      ],
+      "finished_at": "2026-10-05T22:22:14.080404"
+    },
+    {
+      "sample_id": "F4-W-sweet-gemini",
+      "case_id": "W",
+      "family": "sweet",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-sweet-gemini_222238-baf6a8.jpg"
+      ],
+      "prompt_sha256": "7db888b7abf0889e66b65fad73ba43b3511e9a5d270a73ec14d19f10369c0fef",
+      "started_at": "2026-10-05T22:22:14.150628",
+      "output_sha256": [
+        "6ed02902eaa577e62b4db48db0d12f38a58ebb7d43a0c9f95d68e2402e107ad4"
+      ],
+      "finished_at": "2026-10-05T22:22:38.086319"
+    },
+    {
+      "sample_id": "F4-W-gothic-gemini",
+      "case_id": "W",
+      "family": "gothic",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-W-gothic-gemini_222301-fbde53.jpg"
+      ],
+      "prompt_sha256": "ee2452c3ef7f6ef54b695c78f659b675c42602874671f4b425a566ea2c35517e",
+      "started_at": "2026-10-05T22:22:38.317489",
+      "output_sha256": [
+        "bba7c29244cd715cc52ca2f55eb828c021521934faf50c258bb35e93eed5b22a"
+      ],
+      "finished_at": "2026-10-05T22:23:01.029891"
+    },
+    {
+      "sample_id": "F4-R-classical-gemini",
+      "case_id": "R",
+      "family": "classical",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-classical-gemini_222323-115c4a.jpg"
+      ],
+      "prompt_sha256": "561149d3c3f53f5be132336a670cb7c43c02e5ffef094ff28937e59426b1d3d9",
+      "started_at": "2026-10-05T22:23:01.173917",
+      "output_sha256": [
+        "5f50bcbb5407977f54563ea7b33b3d9bb42bd37e7982ef7e07a59944fac571c7"
+      ],
+      "finished_at": "2026-10-05T22:23:23.875275"
+    },
+    {
+      "sample_id": "F4-R-sweet-gemini",
+      "case_id": "R",
+      "family": "sweet",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-sweet-gemini_222346-ded769.jpg"
+      ],
+      "prompt_sha256": "0dcd02153e5430e9a77c50af20409daaf26555f53da4ec065d4d1dee309615b8",
+      "started_at": "2026-10-05T22:23:23.911587",
+      "output_sha256": [
+        "12cd28d907b9b98b54dffdfb4d4bcc0e38136e9b66c9b73fe40bb1841cb71f9b"
+      ],
+      "finished_at": "2026-10-05T22:23:46.791557"
+    },
+    {
+      "sample_id": "F4-R-gothic-gemini",
+      "case_id": "R",
+      "family": "gothic",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-R-gothic-gemini_222417-5142dd.jpg"
+      ],
+      "prompt_sha256": "4f3f9496e698f3a053b85f2c800a8999951d27a1c5adf08470fc1a3dac77339a",
+      "started_at": "2026-10-05T22:23:46.825868",
+      "output_sha256": [
+        "dfb41f183f702f82cf14f59760036ed3cca1fce4604e253e91b89ed6c33efa4e"
+      ],
+      "finished_at": "2026-10-05T22:24:17.919699"
+    },
+    {
+      "sample_id": "F4-GP-classical-gemini",
+      "case_id": "GP",
+      "family": "classical",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GP-classical-gemini_222438-1ec175.jpg"
+      ],
+      "prompt_sha256": "99e1727de8b6fbacd204f3c9fab65e1799f1e88ab25e0d450b5c51f0d1ffa5d9",
+      "started_at": "2026-10-05T22:24:17.959167",
+      "output_sha256": [
+        "ec0e255592d30eb46f1f218c74b8deefc73d1ee5bd071a0732f550c257df4b96"
+      ],
+      "finished_at": "2026-10-05T22:24:38.199656"
+    },
+    {
+      "sample_id": "F4-GF-gothic-gemini",
+      "case_id": "GF",
+      "family": "gothic",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-GF-gothic-gemini_222515-e76481.jpg"
+      ],
+      "prompt_sha256": "1cd2732b5db98a8b3eb64e5d6e325cd3bc788bd123505f26eae099283aef1631",
+      "started_at": "2026-10-05T22:24:38.408592",
+      "output_sha256": [
+        "dbcda4f8908108193f953e5b279d50794078b55d85a4ce08f4fb8313196b72d0"
+      ],
+      "finished_at": "2026-10-05T22:25:15.088787"
+    },
+    {
+      "sample_id": "F4-U-chinese-gemini",
+      "case_id": "U",
+      "family": "chinese",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-chinese-gemini_222542-84f37c.jpg"
+      ],
+      "prompt_sha256": "4627136ff802dea87954753b54708bf4f3024b54ee508b4daeac2b76fa6f6e69",
+      "started_at": "2026-10-05T22:25:15.114513",
+      "output_sha256": [
+        "b6ff3cfa2a98ad69ec3712c0e8bf1a25d64e0b63053a7f52b72b10ab0b56fe42"
+      ],
+      "finished_at": "2026-10-05T22:25:42.196433"
+    },
+    {
+      "sample_id": "F4-U-japanese-gemini",
+      "case_id": "U",
+      "family": "japanese",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-U-japanese-gemini_222613-a8fd4a.jpg"
+      ],
+      "prompt_sha256": "f6c4afc76f8868cafb053248522ade305dccaa32f758a699116260ed448163e0",
+      "started_at": "2026-10-05T22:25:42.231804",
+      "output_sha256": [
+        "533d4a2802381428fe42aa7d5447db43c3b60f34d3bf4bfaade5262708f5703c"
+      ],
+      "finished_at": "2026-10-05T22:26:13.860352"
+    },
+    {
+      "sample_id": "F4-H-chinese-gemini",
+      "case_id": "H",
+      "family": "chinese",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-chinese-gemini_222649-0adc06.jpg"
+      ],
+      "prompt_sha256": "4eee0f220e7eba6f5450caad7e9ba7345df1c2c67c1e6b486c45107c2660c8e7",
+      "started_at": "2026-10-05T22:26:14.087619",
+      "output_sha256": [
+        "078f0594bc105ee7ebcc88051f5e7281d62faf55efe27f640ee0962a5bca83d7"
+      ],
+      "finished_at": "2026-10-05T22:26:49.777079"
+    },
+    {
+      "sample_id": "F4-H-japanese-gemini",
+      "case_id": "H",
+      "family": "japanese",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-japanese-gemini_222718-8dbfc7.jpg"
+      ],
+      "prompt_sha256": "1000893ed3fdcaa710e7ca2a0a91c437259aefa0ad15302ad333ea859720eecd",
+      "started_at": "2026-10-05T22:26:49.815333",
+      "output_sha256": [
+        "942c17c3c06c7a6888add425ddbcb05d66a39301838b9db19deb20bca1cfc9a4"
+      ],
+      "finished_at": "2026-10-05T22:27:18.504115"
+    },
+    {
+      "sample_id": "F4-H-sweet-gemini-waterink-style",
+      "case_id": "H",
+      "family": "sweet",
+      "channel": "gemini",
+      "status": "success",
+      "saved_files": [
+        "D:\\code\\image-maker\\data\\test-result\\20261005\\wardrobe-round4-r1\\F4-H-sweet-gemini-waterink-style_223555-d8c967.jpg"
+      ],
+      "prompt_sha256": "81908749f10a905520450c4cef2adc9be74e73b398316751b5e225d31de459bd",
+      "started_at": "2026-10-05T22:35:16.368638",
+      "rerun": true,
+      "rerun_label": "F4-H-sweet-gemini-waterink-style#g1",
+      "rerun_granted_at": "2026-10-05T22:35:16",
+      "output_sha256": [
+        "9ae8eaff04c79830e7302419c0882e9204b4f71fd8d3cff469eb78065c287227"
+      ],
+      "finished_at": "2026-10-05T22:35:55.147711"
+    },
+    {
+      "sample_id": "F4-R-gothic-gemini-kishida-mel-style",
+      "case_id": "R",
+      "family": "gothic",
+      "channel": "gemini",
+      "status": "failed_no_image",
+      "saved_files": [],
+      "prompt_sha256": "4f3f9496e698f3a053b85f2c800a8999951d27a1c5adf08470fc1a3dac77339a",
+      "started_at": "2026-10-05T22:35:55.189972",
+      "rerun": true,
+      "rerun_label": "F4-R-gothic-gemini-kishida-mel-style#g1",
+      "rerun_granted_at": "2026-10-05T22:35:16",
+      "output_sha256": [],
+      "finished_at": "2026-10-05T22:36:29.421080",
+      "attempts": [
+        {
+          "status": "failed_no_image",
+          "saved_files": [],
+          "output_sha256": [],
+          "started_at": "2026-10-05T22:27:18.666834",
+          "finished_at": "2026-10-05T22:27:48.559442",
+          "error": "HTTP 400 CONTENT_BLOCKED: [CONTENT ERROR] content blocked by upstream safety policy (request id 20261005222722426526826DUmFX3LN)",
+          "error_source": "F4-R-gothic-gemini-kishida-mel-style_aigc2d_server_raw_222748_331a61.txt",
+          "reconstructed": true,
+          "note": "首次补跑时入口的归档字段被新记录覆盖（已修复）；本条按 images.jsonl slot 40 与上游原始响应重建，时间戳来自权威证据而非推断"
+        }
+      ]
+    }
+  ]
+}

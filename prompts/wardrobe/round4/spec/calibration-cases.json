@@ -1,0 +1,27 @@
+{
+  "schema_version": "image-maker.wardrobe-round4.calibration-cases.v1",
+  "status": "draft_not_executed",
+  "note": "看图校准用例：需要真实图片才可执行。本轮没有产生任何图片，所以这里只登记**计划**的校准用例与判据，不写任何「已校准」结论。",
+  "cases": [
+    {
+      "id": "CAL-KEEP",
+      "kind": "preservation_guard",
+      "expect": "GP 与 GF 的实际产物：具名衣物、颜色与配饰位置保持原样；不出现目标衣装设计块。",
+      "fail_if": "出现换装、类别改变或配饰换位。"
+    },
+    {
+      "id": "CAL-CONVERT",
+      "kind": "complete_transformation",
+      "expect": "U/H/W/R 的实际产物：上身—腰部—有体积裙体的连贯设计；卫衣/工装/制服不再只是原结构加蕾丝。",
+      "fail_if": "仅在原衣物上加蕾丝或蝴蝶结；裙体无体积或腰部缺失。"
+    },
+    {
+      "id": "CAL-PROTECT",
+      "kind": "protection",
+      "expect": "主色与指定配饰保留并落在人物左上胸/左翻领的指定位置；人物数量=1、素灰背景、全身双脚可见。",
+      "fail_if": "主色改变、配饰换位、出现第二个人或被遮挡的双脚。"
+    }
+  ],
+  "calibration_status": "not_run_no_images",
+  "written_at": "2026-10-05T20:21:52"
+}

@@ -1,0 +1,4 @@
+WARDROBE FAMILY: JAPANESE-INSPIRED LOLITA HYBRID.
+Organize a wrap-like or crossed neckline, a broad coherent sash or obi-inspired waist, and wide sleeves where visible, integrating them with a deliberately full short or near-knee skirt and connected lace or ruffle borders. A layered upper garment or haori-like overlay is optional. Preserve readable joins between neckline, sash, sleeve and skirt rather than scattering unrelated Japanese ornaments over a western dress.
+
+Choose compatible floral, geometric or other textile motifs and coordinate visible footwear or head accessories. Requested colours and named accessories take priority. Do not produce an ordinary straight long kimono alone when a full Lolita conversion is requested. Do not add animal ears, force a particular hairstyle, change the face or skin, introduce an umbrella or relocate the scene to a shrine. Hybrids with long pleated skirts may be separate variants rather than the default for this preset.

@@ -871,6 +871,11 @@ def main():
     ap = argparse.ArgumentParser(description="分析产物 → gpt-image-2 → 工序（无头）")
     ap.add_argument("--json", required=True, help="分析产物 JSON（或同目录的 -prompts.txt 不必传）")
     ap.add_argument("--style", default="", help="画风名（config-styles.json 的键）")
+    from utils.wardrobe import wardrobe_presets, build_wardrobe_spec, POLICIES
+    ap.add_argument("--wardrobe", default=None, choices=["off", *wardrobe_presets()],
+                    help="独立衣装预设；未指定时沿用分析任务快照，off=沿用原衣装")
+    ap.add_argument("--wardrobe-policy", default="replace", choices=list(dict(POLICIES)),
+                    help="衣装策略：replace 完整转化（默认） / reinterpret 改款 / fill_missing 只补全")
     ap.add_argument("--quality", default="high", choices=["low", "medium", "high"])
     ap.add_argument("--size", default="auto", help="auto=按输入图比例挑；也可写 1024x1536 等")
     ap.add_argument("--steps", default="repaint",
@@ -1014,12 +1019,17 @@ def main():
     payload = build_first_pass_request(styles, args.style, result, tier="short",
                                        content_text=str(result.get(args.content_field) or ""),
                                        prompt_recipe=args.prompt_recipe,
-                                       content_image_path=content_ref, size=size)
+                                       content_image_path=content_ref, size=size,
+                                       wardrobe=(dict(result.get("generation_wardrobe") or {}) if args.wardrobe is None
+                                                 else build_wardrobe_spec("" if args.wardrobe == "off" else args.wardrobe,
+                                                                          args.wardrobe_policy)))
     if payload.get("aspect_alignment"):
         print("      内容锚画幅按本次尺寸改写: " + " / ".join(payload["aspect_alignment"]))
     if args.prompt_file:
         with open(args.prompt_file, encoding="utf-8") as f:
             payload["prompt"] = f.read()
+        from utils.wardrobe import apply_wardrobe
+        payload["prompt"] = apply_wardrobe(payload["prompt"], payload.get("wardrobe"))
     ref = str(payload.get("style_ref_path") or "")
     repaint_style_ref = (os.path.abspath(args.repaint_style_ref)
                          if args.repaint_style_ref else ref)
@@ -1207,7 +1217,8 @@ def main():
         if args.identity_audit or args.identity_correct:
             from utils.identity_audit import audit_image_identity
             try:
-                first_audit = audit_image_identity(base_path, result, expected_prompt=payload["prompt"])
+                first_audit = audit_image_identity(base_path, result, expected_prompt=payload["prompt"],
+                                                   **({"wardrobe": payload["wardrobe"]} if payload.get("wardrobe") else {}))
             except Exception as exc:  # 审计是质量门，不应让已成功的首图报废
                 first_audit = {"mismatch": False, "severity": "unknown", "confidence": 0.0,
                                "differences": [], "audit_error": f"{type(exc).__name__}: {exc}"}
@@ -1235,7 +1246,8 @@ def main():
     if args.identity_audit or args.identity_correct:
         from utils.identity_audit import audit_image_identity, build_identity_correction_prompt
         try:
-            first_audit = audit_image_identity(base_path, result, expected_prompt=payload["prompt"])
+            first_audit = audit_image_identity(base_path, result, expected_prompt=payload["prompt"],
+                                               **({"wardrobe": payload["wardrobe"]} if payload.get("wardrobe") else {}))
             first_audit["correction_prompt"] = build_identity_correction_prompt(first_audit, 1, 2)
         except Exception as exc:  # 审计是质量门，不应让已成功的生图链报废
             first_audit = {"mismatch": False, "severity": "unknown", "confidence": 0.0,
@@ -1359,7 +1371,8 @@ def main():
             # 但审计结论要落盘，报告才能给出 a/b 对称的门禁结果。
             args.identity_correct = False
         try:
-            final_audit = audit_image_identity(outs[-1], result, expected_prompt=payload["prompt"])
+            final_audit = audit_image_identity(outs[-1], result, expected_prompt=payload["prompt"],
+                                              **({"wardrobe": payload["wardrobe"]} if payload.get("wardrobe") else {}))
             final_audit["correction_prompt"] = build_identity_correction_prompt(final_audit, 1, 2)
         except Exception as exc:  # 保留最终图并把审计故障写进清单
             final_audit = {"mismatch": False, "severity": "unknown", "confidence": 0.0,
@@ -1408,7 +1421,8 @@ def main():
                 outs.extend(corrected)
                 try:
                     current_audit = audit_image_identity(
-                        current, result, expected_prompt=payload["prompt"])
+                        current, result, expected_prompt=payload["prompt"],
+                        **({"wardrobe": payload["wardrobe"]} if payload.get("wardrobe") else {}))
                     current_audit["correction_prompt"] = build_identity_correction_prompt(
                         current_audit, min(2, correction_round + 1), 2)
                 except Exception as exc:
@@ -1539,7 +1553,8 @@ def main():
         if (args.identity_audit or args.identity_correct) and selected:
             from utils.identity_audit import audit_image_identity, build_identity_correction_prompt
             try:
-                rebound = audit_image_identity(selected, result, expected_prompt=payload["prompt"])
+                rebound = audit_image_identity(selected, result, expected_prompt=payload["prompt"],
+                                               **({"wardrobe": payload["wardrobe"]} if payload.get("wardrobe") else {}))
                 rebound["correction_prompt"] = build_identity_correction_prompt(rebound, 1, 2)
             except Exception as exc:  # noqa: BLE001
                 rebound = {"mismatch": False, "severity": "unknown", "confidence": 0.0,
@@ -1564,12 +1579,25 @@ def main():
     else:
         anatomy = manifest.get("anatomy_review")
     from utils.gate_status import evaluate_final_gate
+    wardrobe_failed = False
+    if selected and payload.get("wardrobe"):
+        from utils.wardrobe import audit_wardrobe, record_wardrobe_audit
+        try:
+            wardrobe_audit = audit_wardrobe(selected, payload["wardrobe"], payload["prompt"])
+            manifest["wardrobe_review"] = wardrobe_audit
+            record_wardrobe_audit(wardrobe_audit, os.path.join(output_dir or os.path.dirname(selected), "wardrobe-audit.json"))
+        except Exception as exc:
+            wardrobe_failed = True
+            manifest.setdefault("wardrobe_review", {})["error"] = str(exc)
+            print("      衣装审计未通过：" + str(exc))
     gate = evaluate_final_gate(
         final_image=selected, identity=(manifest.get("identity") or {}).get("final"),
         anatomy=anatomy, quality=manifest.get("quality_refine"),
         final_review=manifest.get("final_review"),
         identity_action=str((manifest.get("identity") or {}).get("action") or ""),
         quality_audit_error=quality_audit_error, upstream_failed=gate_failed_before_close)
+    if wardrobe_failed and gate["status"] != "pipeline_failed":
+        gate.update(status="review_required", text="衣装目标未通过或无法确认，禁止发布")
     if gate["status"] == "complete" and not manifest.get("status") == "pipeline_failed":
         manifest["status"] = "complete"
     else:

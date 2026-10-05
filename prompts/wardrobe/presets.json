@@ -1,0 +1,41 @@
+{
+  "schema_version": "image-maker.wardrobe.v1",
+  "presets": {
+    "lolita": {
+      "label": "Lolita 衣装",
+      "prompt_file": "wardrobe/lolita.md",
+      "provenance": "hand_written"
+    },
+    "lolita-classical": {
+      "label": "Lolita 古典",
+      "prompt_files": ["wardrobe/lolita-core.md", "wardrobe/reference-study/classical.md"],
+      "provenance": "manual_visual_reference_review"
+    },
+    "lolita-sweet": {
+      "label": "Lolita 甜美",
+      "prompt_files": ["wardrobe/lolita-core.md", "wardrobe/reference-study/sweet.md"],
+      "provenance": "manual_visual_reference_review"
+    },
+    "lolita-gothic": {
+      "label": "Lolita 哥特",
+      "prompt_files": ["wardrobe/lolita-core.md", "wardrobe/reference-study/gothic.md"],
+      "provenance": "manual_visual_reference_review"
+    },
+    "lolita-chinese": {
+      "label": "Lolita 中式",
+      "prompt_files": ["wardrobe/lolita-core.md", "wardrobe/reference-study/chinese.md"],
+      "provenance": "manual_visual_reference_review"
+    },
+    "lolita-japanese": {
+      "label": "Lolita 日式",
+      "prompt_files": ["wardrobe/lolita-core.md", "wardrobe/reference-study/japanese.md"],
+      "provenance": "manual_visual_reference_review"
+    },
+    "cute-lingerie": {
+      "label": "可爱内衣（成人）",
+      "eligibility_file": "wardrobe/adult-eligibility.md",
+      "prompt_file": "wardrobe/cute-lingerie.md",
+      "provenance": "legacy_clothing_rule_migration"
+    }
+  }
+}
