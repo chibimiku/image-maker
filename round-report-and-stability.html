@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>轮内对比报告（A）与稳定性复测（B）</title>
+<style>
+  :root { --line:#e4e4e8; --muted:#6b6b73; }
+  body { margin:0; padding:26px 30px 80px; background:#fafafb; color:#1b1b20;
+         font:15px/1.75 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:23px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:34px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line); }
+  table { border-collapse:collapse; background:#fff; font-size:13px; margin:10px 0; }
+  th, td { border:1px solid var(--line); padding:4px 8px; text-align:left; vertical-align:top; }
+  th { background:#f2f3f6; white-space:nowrap; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .ok { color:#14672c; font-weight:600; } .no { color:#a11f1f; font-weight:600; } .warn { color:#8a5a06; font-weight:600; }
+  code { background:#f1f2f5; padding:1px 5px; border-radius:4px; font-size:12.5px; }
+  pre { background:#f7f8fa; border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:12.5px; }
+  .note { background:#eef5ff; border:1px solid #c3d8f0; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  .caveat { background:#fff8e6; border:1px solid #f0dfae; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+</style>
+</head>
+<body>
+<h1>A：轮内对比报告 · B：tid / komori 稳定性复测</h1>
+<p class="sub">2026-10-06 · A = 把「每轮出图后自动出 HTML」接进多图画风提取；B = 用 3 张 × 2 内容源的中位数给
+<code>tid</code> / <code>komori-hikki-style</code> 的锚字段下定论。</p>
+
+<h2>A. 每轮自动报告（已落地）</h2>
+<h3>改了什么</h3>
+<table>
+  <tr><th>文件</th><th>改动</th></tr>
+  <tr><td><code>modules/image_analysis/style_analyzer.py</code></td>
+      <td>新增 <code>_write_round_report(state, round_num, label)</code>，在**每一轮**的
+          <code>_save_state</code> 之后调用（第 1205 行附近），终审也出一份；开关 <code>self.per_round_report</code>（默认 True）</td></tr>
+  <tr><td><code>modules/image_analysis/style_comparison.py</code></td>
+      <td><code>write_comparison_report(..., output_name="automatic-comparison.html", title=…)</code> 与
+          <code>compare_state_in_process(..., output_name, title)</code>：视觉报告也能按轮命名，默认行为不变</td></tr>
+  <tr><td><code>utils/generation_report.py</code>（上一轮已建）</td>
+      <td>报告引擎本身**与画风无关**：参考图取 <code>state["dataset"]["images"]</code>（本次 15 张）、
+          候选取本轮三路产物，任何数据集/画风/轮次都能出</td></tr>
+</table>
+<h3>产物与验证</h3>
+<table>
+  <tr><th>验证</th><th>结果</th></tr>
+  <tr><td>真实 state（cccccanh，15 参考图 × 5 轮 + final）出轮内报告</td><td class="ok">成功：<code>comparison-round-01.html</code>、<code>comparison-final.html</code></td></tr>
+  <tr><td>换画风（millon-knots，12 参考图）</td><td class="ok">成功，文件名按轮次区分，互不覆盖</td></tr>
+  <tr><td>报告节</td><td class="ok">候选×参考八组指标 / <b>泛化对照</b>（每候选 × 每张参考的中位·最好·最差）/ 参考图墙 / <b>推荐 prompt 组合</b></td></tr>
+  <tr><td>GUI 进程内算指标</td><td class="warn">失败（WinError 1114 c10.dll）→ 已按项目既有约束改为<b>独立子进程</b>回退，成功</td></tr>
+</table>
+<div class="note">
+报告落地位置：<code>&lt;本次提取输出目录&gt;/comparison-round-NN.html</code> 与 <code>comparison-final.html</code>。
+本轮验证产物在 <code>data/test-result/style-lab/round-reports/</code>。<br>
+<b>「跑完一轮输出 html」= 提取任务每跑完一轮就会自动写下这一份</b>，不需要再手动跑命令。
+</div>
+
+<h2>B. tid / komori-hikki-style 稳定性复测（3 张 × 2 内容源）</h2>
+<p class="sub">条件：<code>s</code> = 无锚（当前生效），<code>a</code> = 短锚（<code>gemini_content_field=gpt_image_prompt_short</code>）。
+内容源 = white-pool（明亮户外）与 紫薔薇（深色室内）；每格 3 张，共 6 张/条件。</p>
+<table>
+  <tr><th>画风</th><th>条件</th><th class="num">n</th><th class="num">gram 中位</th><th class="num">最小</th><th class="num">最大</th><th class="num">组内极差</th></tr>
+  <tr><td rowspan="2">komori-hikki-style</td><td class="ok">无锚 s</td><td class="num">6</td><td class="num good">4.107</td><td class="num">1.931</td><td class="num">6.550</td><td class="num warn">4.618</td></tr>
+  <tr><td>短锚 a</td><td class="num">6</td><td class="num">5.441</td><td class="num">2.142</td><td class="num">9.118</td><td class="num warn">6.976</td></tr>
+  <tr><td rowspan="2">tid</td><td class="ok">无锚 s</td><td class="num">6</td><td class="num">7.302</td><td class="num">3.700</td><td class="num">14.474</td><td class="num warn">10.774</td></tr>
+  <tr><td>短锚 a</td><td class="num">6</td><td class="num">7.162</td><td class="num">2.980</td><td class="num">11.892</td><td class="num warn">8.912</td></tr>
+</table>
+<table>
+  <tr><th>画风</th><th class="num">中位差</th><th class="num">组内极差</th><th>判定</th><th>处置</th></tr>
+  <tr><td>komori-hikki-style</td><td class="num">1.334（s 更优）</td><td class="num">6.976</td><td class="warn">条件差 &lt; 组内极差 → <b>本次无法区分</b></td><td>保持无锚</td></tr>
+  <tr><td>tid</td><td class="num">0.139（基本持平）</td><td class="num">10.774</td><td class="warn">→ <b>无法区分</b></td><td>保持无锚</td></tr>
+</table>
+
+<div class="caveat">
+<b>B 的结论是"无法区分"，这本身就是结论</b>：
+<ul>
+  <li>两个画风的<b>组内极差（4.6~10.8）远大于条件中位差（0.14~1.33）</b> —— 同条件重复出图的波动就把锚的效应盖住了。</li>
+  <li>换句话说：<code>tid</code> 与 <code>komori-hikki-style</code> 在「像不像参考画风」这件事上<b>本身就不稳定</b>，
+      换锚不是它们的主要问题（references 里也没有更贴的单张参考可用）。</li>
+  <li>处置：<b>维持无锚</b>（现值），并把这两个画风标为「需要更多样本或换参考图才有意义」；
+      如果要继续投入，优先级低于「5 个复现不了的画风换参考图」。</li>
+</ul>
+</div>
+
+<h2>产物与命令</h2>
+<table>
+  <tr><th>用途</th><th>命令 / 文件</th></tr>
+  <tr><td>轮内报告（自动）</td><td>提取任务内调用 <code>_write_round_report</code>，输出 <code>comparison-round-NN.html</code></td></tr>
+  <tr><td>手动重出某轮报告</td><td><code>python tools/make_generation_report.py --label round21 --style &lt;画风&gt;</code></td></tr>
+  <tr><td>单轮真实 state 复现报告</td><td><code>python data/test-result/style-lab/round_report_smoke.py --state &lt;state.json&gt; --round 1</code></td></tr>
+  <tr><td>稳定性聚合</td><td><code>python data/test-result/style-lab/stability_report.py --rounds round22 round23</code></td></tr>
+  <tr><td>原始数据</td><td><code>shared-round22.json</code>、<code>shared-round23.json</code>、<code>stability-report.json</code>、<code>round22/23.jsonl</code></td></tr>
+</table>
+</body></html>
