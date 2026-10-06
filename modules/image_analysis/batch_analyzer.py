@@ -113,8 +113,9 @@ class BatchAnalyzerWidget(QWidget):
         # 批量处理选项
         options_layout = QVBoxLayout()
         refine_layout = QHBoxLayout()
-        self.enable_refine_cb = QCheckBox("启用 refine 二次优化")
-        self.enable_refine_cb.setChecked(False)
+        self.enable_refine_cb = QCheckBox("DeepSeek 二次加工")
+        self.enable_refine_cb.setToolTip("先忠实分析原图，再由次级文本通道转换生成措辞；关闭时仅保留原图事实描述。")
+        self.enable_refine_cb.setChecked(True)
         refine_layout.addWidget(self.enable_refine_cb)
         self.enable_outfit_check_cb = QCheckBox("服装搭配检查")
         self.enable_outfit_check_cb.setToolTip("分析出 prompts 后，再额外检查人物服装搭配是否协调；若修订，仅覆盖 prompts 相关字段并保留原值备用。")
@@ -151,9 +152,9 @@ class BatchAnalyzerWidget(QWidget):
         options_layout.addLayout(outfit_style_layout)
 
         extra_prompt_layout = QVBoxLayout()
-        extra_prompt_layout.addWidget(QLabel("请求附加 prompts（可选，识别时重点关注）:"))
+        extra_prompt_layout.addWidget(QLabel("次级加工附加 prompts（可选）:"))
         self.extra_llm_prompt_edit = QTextEdit()
-        self.extra_llm_prompt_edit.setPlaceholderText("例如：请特别关注人物服饰材质、镜头视角与场景光源方向")
+        self.extra_llm_prompt_edit.setPlaceholderText("例如：根据原始分析，精确整理服饰材质与光源关系；仅用于二次加工")
         self.extra_llm_prompt_edit.setMinimumHeight(72)
         extra_prompt_layout.addWidget(self.extra_llm_prompt_edit)
         options_layout.addLayout(extra_prompt_layout)
@@ -504,6 +505,7 @@ class BatchAnalyzerWidget(QWidget):
                 api_key,
                 base_url,
                 model_name,
+                secondary_config=dict(zip(("base_url", "api_key", "model"), self.get_text_config(True))),
                 enable_refine=self.enable_refine_cb.isChecked(),
                 booru_tag_limit=booru_tag_limit,
                 extra_llm_prompt=extra_llm_prompt,

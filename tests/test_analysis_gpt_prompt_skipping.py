@@ -276,6 +276,8 @@ def test_pipeline_accepts_compute_flag_and_skips_builder(monkeypatch, tmp_path):
     result = pipeline.analyze_single_image(
         str(image_path),
         {"base_url": "https://example.invalid/v1", "api_key": "sk", "model": "m",
+         "nsfw_api_key": "secondary-test-key", "nsfw_base_url": "https://secondary.invalid/v1",
+         "nsfw_model": "secondary-test-model",
          "enable_gpt_image_prompt_single": True},
         timeout_seconds=30,
         log_callback=logs.append,

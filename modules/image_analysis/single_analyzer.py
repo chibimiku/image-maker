@@ -217,10 +217,11 @@ def _sanitize_title_text(text, fallback_text=""):
         return cleaned
     return str(fallback_text or "").replace("\n", "").strip()
 
-def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=30):
+def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=30, preserve_observations=False):
     if not isinstance(result_json, dict):
         return {}
     fallback_data = fallback_data if isinstance(fallback_data, dict) else {}
+    preserve_observations = preserve_observations or fallback_data.get("analysis_strategy") == "observe-then-secondary-edit/v1"
     normalized = dict(result_json)
     english_description = (
         result_json.get("english_description")
@@ -268,10 +269,10 @@ def _normalize_analysis_result(result_json, fallback_data=None, booru_tag_limit=
     normalized["pixiv_tags"] = [str(tag).strip() for tag in pixiv_tags if str(tag).strip()]
     normalized["short_description"] = str(short_description).strip()
     booru_tags_normalized = normalize_booru_tags(booru_tags, limit=limit)
-    normalized["booru-tags"] = filter_facial_degrading_tags(booru_tags_normalized)
-    # 清理描述文本中的面部模糊/打码/遮挡相关短语
-    normalized["english_description"] = filter_facial_degrading_from_text(normalized["english_description"])
-    normalized["short_description"] = filter_facial_degrading_from_text(normalized["short_description"])
+    normalized["booru-tags"] = booru_tags_normalized if preserve_observations else filter_facial_degrading_tags(booru_tags_normalized)
+    if not preserve_observations:
+        normalized["english_description"] = filter_facial_degrading_from_text(normalized["english_description"])
+        normalized["short_description"] = filter_facial_degrading_from_text(normalized["short_description"])
     return normalized
 
 def _extract_json_candidates_from_text(text):
@@ -598,6 +599,8 @@ def _step_label_refusal_text(step_label):
     这里把可疑文本挑出来交给 `utils.analysis_fallback.is_refusal_text` 判定。
     """
     def _inspect(response):
+        if isinstance(response, tuple) and response:
+            response = response[0]
         try:
             choice = response.choices[0]
         except (IndexError, AttributeError, TypeError):
@@ -637,7 +640,7 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
         analyze_prompt = get_style_analyze_prompt(booru_tag_limit)
         analyze_prompt = merge_prompt_with_local_booru_tags(analyze_prompt, local_booru_tags)
         analyze_prompt = merge_prompt_with_pixiv_tag_hints(analyze_prompt, pixiv_candidates)
-        analyze_prompt = append_extra_llm_prompt(analyze_prompt, extra_llm_prompt)
+        # 附加生成/改写方向只在 Step 2 使用；Step 1 保持事实观察。
         system_prompt = _load_system_prompt()
         # Vision 请求体只在这里组装一次：主端点与备用端点发的是同一份 kwargs（同一张图、
         # 同一段提示词），区别只有 base_url/model/key —— 见 utils/analysis_fallback.py。
@@ -674,8 +677,19 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
         def _request_and_parse(client=None, **kwargs):
             active = client if client is not None else local_client
             response = active.chat.completions.create(**kwargs)
-            return response, _safe_json_from_response(
+            parsed = _safe_json_from_response(
                 response, log_callback=log_callback, step_label="Step 1")
+            choices = getattr(response, "choices", None) or []
+            if choices and getattr(getattr(choices[0], "message", None), "refusal", None):
+                raise ValueError("Step 1 返回拒绝响应（refusal）")
+            if not isinstance(parsed, dict):
+                raise ValueError("Step 1 返回的 JSON 不是对象")
+            description = str(parsed.get("english_description") or "").strip()
+            if is_refusal_text(description):
+                raise ValueError("Step 1 返回拒绝/空壳响应：" + description[:120])
+            if not description:
+                raise ValueError("Step 1 缺少有效 english_description")
+            return response, parsed
 
         response, parsed = call_with_retry(
             lambda: call_with_refusal_fallback(
@@ -696,7 +710,7 @@ def step_1_analyze_image(image_source, client, model_name, log_callback=None, bo
             cancel_check=cancel_check,
         )
         fallback_data = {"booru-tags": normalize_booru_tags(local_booru_tags or [], limit=booru_tag_limit)}
-        normalized = _normalize_analysis_result(parsed, fallback_data=fallback_data, booru_tag_limit=booru_tag_limit)
+        normalized = _normalize_analysis_result(parsed, fallback_data=fallback_data, booru_tag_limit=booru_tag_limit, preserve_observations=True)
         if local_booru_tags:
             normalized["booru_tags_local_candidate"] = normalize_booru_tags(local_booru_tags, limit=booru_tag_limit, output_style="space")
         return normalized
@@ -809,9 +823,12 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
             raise ValueError("Step 2 返回拒绝响应，未完成描述编辑")
         if not str(final_result_json.get("english_description") or "").strip():
             raise ValueError("Step 2 缺少有效 english_description，不能用原文冒充精修成功")
-        final_result_json = _normalize_analysis_result(final_result_json, fallback_data=original_json_data, booru_tag_limit=booru_tag_limit)
+        final_result_json = _normalize_analysis_result(final_result_json, fallback_data=original_json_data, booru_tag_limit=booru_tag_limit, preserve_observations=True)
         # 将原始描述也存入最终结果，方便后续对比或同时生成
         final_result_json["original_english_description"] = original_description
+        final_result_json["source_analysis"] = dict(original_json_data)
+        final_result_json["analysis_strategy"] = "observe-then-secondary-edit/v1"
+        final_result_json["secondary_text_model"] = model_name
         if atmosphere_plan:
             final_result_json["generation_atmosphere"] = atmosphere_plan
         return final_result_json
@@ -1050,13 +1067,18 @@ class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
 
-    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override="", remove_photo_style=False, use_fallback=None, gpt_prompts=True, atmosphere=None):
+    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override="", remove_photo_style=False, use_fallback=None, gpt_prompts=True, atmosphere=None, secondary_config=None):
         super().__init__()
         self.image_source = image_source
         self.api_key = api_key
         self.base_url = base_url
         self.model_name = model_name
         self.enable_refine = bool(enable_refine)
+        from utils.analysis_secondary import secondary_text_config
+        try:
+            self.secondary_config = dict(secondary_config) if secondary_config is not None else secondary_text_config()
+        except (OSError, ValueError):
+            self.secondary_config = {}
         self.booru_tag_limit = int(booru_tag_limit) if str(booru_tag_limit).strip().isdigit() else 30
         if self.booru_tag_limit <= 0:
             self.booru_tag_limit = 30
@@ -1174,12 +1196,23 @@ class WorkerThread(QThread):
                     self.log_signal.emit("任务已取消（Step 2 未执行）。")
                     self.finish_signal.emit({})
                     return
-                self.log_signal.emit("正在开始 Step 2: 根据中文指令对英文描述进行加工并推断长宽比...")
+                self.log_signal.emit("正在开始 Step 2: 使用 DeepSeek 次级文本通道转换生成描述（保留 Step 1 原始事实）...")
                 stage_status["value"] = "ok"
+                try:
+                    from utils.analysis_secondary import create_secondary_text_client
+                    secondary_client, secondary_model = create_secondary_text_client(
+                        self.secondary_config, client_factory=OpenAI, timeout_seconds=self.timeout_seconds)
+                except Exception as exc:
+                    self.last_status = "error"
+                    self.last_error = str(exc)
+                    self.log_signal.emit(f"Step 2 次级文本通道不可用：{exc}")
+                    self.finish_signal.emit({})
+                    return
+                self.log_signal.emit(f"Step 2 次级文本模型：{secondary_model}")
                 final_result = step_2_refine_description(
                     initial_result,
-                    client,
-                    self.model_name,
+                    secondary_client,
+                    secondary_model,
                     booru_tag_limit=self.booru_tag_limit,
                     extra_llm_prompt=self.extra_llm_prompt,
                     atmosphere=self.atmosphere,
@@ -3648,6 +3681,7 @@ class SingleAnalyzerWidget(QWidget):
             api_key,
             base_url,
             model_name,
+            secondary_config=dict(zip(("base_url", "api_key", "model"), self.get_text_config(True))),
             booru_tag_limit=booru_tag_limit,
             timeout_seconds=timeout_seconds,
             enable_outfit_check=enable_outfit_check,

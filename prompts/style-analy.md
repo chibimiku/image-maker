@@ -1,40 +1,34 @@
-Please analyze the provided image and generate a highly detailed description in English (approximately 500 words). 
-Include the following elements: art style, composition, lighting, camera angle, hair color, and eye color. 
+Analyze the supplied image as an observer. Return only one JSON object.
+Describe visible facts in neutral English: medium/art style, composition, lighting,
+viewpoint, people, hair and eye colour when visible, clothing construction and
+colours, accessories, props, environment, poses and visible interactions.
 
-CRITICAL ACTION REQUIREMENT: Meticulously describe the precise character poses and dynamic actions. You must explicitly detail their body language, the positioning of their limbs, and exactly how their movements physically interact with the surrounding environment, objects, and other characters.
+Use the source's actual medium and clothing terminology. Do not convert photographs
+to illustrations or replace a fashion category with another category at this stage.
+Use age-neutral terms such as person or female character; do not infer age.
+Preserve the actual framing, coverage, pose, occlusion and uncertainty. If a face or
+other detail is blurred, covered or unrecognizable, say so briefly. Do not imagine
+hidden features, remove censorship or invent anatomy. Describe visible clothing
+without sexual emphasis. Do not transcribe text inside the image.
 
-CRITICAL STYLE REQUIREMENT: Identify the specific cultural, historical, or subcultural style of the clothing present in the image (e.g., Traditional Chinese Hanfu, Japanese Kimono, Victorian Gothic, Cyberpunk Streetwear, Modern Casual, etc.). You MUST use the precise terminology for these garments and accessories (e.g., 'Ruqun', 'Obi', 'Corset'). Avoid reducing distinct cultural or stylistic garments to generic terms like 'dress', 'skirt', or 'shirt' unless the clothing is truly a basic modern item. Your exact goal is to accurately capture and preserve the original outfit's unique design language and aesthetic identity.
+Be precise where the image supports precision. An approximately 300-500 word
+description is sufficient; use fewer words when evidence is limited. Never invent
+facts or repeat material to meet a word count. The short description should be
+approximately 100 words or fewer. Later text editing handles generation adaptations.
 
-If present in the original image, meticulously describe the clothing (tops and bottoms), painted patterns on the clothing, types and colors of shoes and socks, accessories, and the environment. Do not use ambiguous language. Do not describe any text that appears in the image. 
+Include a natural Japanese title (at most 20 characters) and its Chinese translation.
+Use standard Japanese characters, without Latin letters, numbers or punctuation.
+Provide up to 12 Japanese Pixiv tags grounded in clearly visible content. Provide up
+to {booru_tag_limit} known Danbooru tags, lowercase with underscores, ordered by
+importance. Local tag candidates are fallible suggestions: keep only those supported
+by the image. Omit guesses. Do not claim a censored or obscured face is clear.
 
-Important style constraints: 
-If the original image's art style is a photograph (photo), describe it as an 'illustration' and adjust all other domain descriptions to fit an illustration style. 
-Always use the word 'girl' to describe female characters. 
-Output an English text description. Do not generate an image.
-If the concept of 'lolita' applies, use 'rococo' instead. 
-Strictly prohibit sexually explicit or NSFW words, including 'cleavage' and 'nude'.
-CRITICAL FACE QUALITY RULE: If the source image contains facial blur, mosaic, pixelation, or any form of face censorship (common in censored artworks from certain platforms), you MUST imagine and describe the face as if it were perfectly clear, sharp, and detailed. Never mention words like 'blurred', 'blurry', 'mosaic', 'censored', 'pixelated', or 'obscured' in relation to faces, facial features, or the character's appearance. Describe the face in confident, positive terms with clear details about facial features.
-
-Additionally, provide the following based on the image content:
-1. An elegant, poetic Japanese title (maximum 20 characters) composed of standard Japanese Kanji with optional hiragana/katakana, inspired by the subject, mood, or scene of the image (e.g. 薔薇書架の少女, 星屑の夜桜, 金糸雀の朝, 星菓子天蓋の姫).
-   - The title MUST read as a natural, meaningful Japanese title that clearly relates to something visibly present in the image (character, hair/eye color, outfit, iconic prop, or overall scene mood). Every character should contribute to a clear, graceful, poetic meaning.
-   - Use only standard Japanese (Shinjitai) Kanji forms. NEVER use simplified-Chinese-only characters — for example always write 騒 / 髪 / 処 / 芸 / 豊, never 骚 / 发 / 处 / 艺 / 丰.
-   - STRICTLY FORBIDDEN in the title: any English word or romaji, Latin letters, digits, punctuation, quotes, or emoji/symbols; and any Kanji with vulgar, indecent, insulting, sexual, or strongly negative connotation (e.g. 骚, 淫, 尸, 死, 污, 邪, 獣 in a crude sense). The title must be graceful, innocent, and positive toward the subject.
-   - Do not include the file name, numbers, or the literal word "title", and do not echo any English placeholder text.
-2. The Chinese translation of this title: an elegant, positive Chinese title that faithfully corresponds to the Japanese title, using natural Chinese and avoiding vulgar or negative characters.
-3. Exactly 12 Japanese tags suitable for the Pixiv tagging system (e.g., 女の子). CRITICAL: Every tag must describe actual visual content that is clearly visible in the image (such as character traits, hair color, eye color, main clothing, iconic accessories, props, actions, expressions), NOT generic "pixiv-style" tags or tags unrelated to the image. Each tag must have a clear basis in what is depicted. Prioritize core character features (hair color, eye color, main outfit, iconic props/accessories) first, then fill in clothing details, accessories, actions, and expressions. Do not include pure environment/background tags. Each tag must be standard Japanese written in a natural, positive form — no English/romaji, no vulgar or negative words, and no simplified-Chinese-only characters (write 髪/処/騒, never 发/处/骚).
-4. short_description: around 100 words in English, concise summary focused on character appearance, outfit details, action, and expression.
-5. booru-tags: a Booru-style tag array (up to {booru_tag_limit} tags), focused on character traits, clothing details, actions, and expressions, excluding environment/background tags. The tags must be sorted by importance from highest to lowest (most important first). Every tag must be a valid Danbooru tag that has searchable results on Danbooru.
-6. booru-tags format rules: each tag must be lowercase and use underscores instead of spaces. Prefer concise Danbooru vocabulary, not natural-language phrases.
-7. booru-tags style examples (for style guidance only): ["1girl", "solo", "long_hair", "blue_eyes", "looking_at_viewer", "smile", "hair_ornament", "frilled_dress", "thighhighs", "lace_gloves"].
-8. booru-tags BLACKLIST: Never output tags like "mosaic", "blurry", "censored", "pixelated", "lowres", "bad_face", "missing_face", "faceless", "covered_face" or any tag indicating facial quality degradation. Assume the character always has a clear, detailed face.
-
-Return the result strictly as a JSON object with the following keys:
+Return these fields:
 {
   "english_description": "...",
   "short_description": "...",
-  "booru-tags": ["tag1", "tag2", "tag3"],
+  "booru-tags": ["..."],
   "japanese_title": "...",
   "chinese_title": "...",
-  "pixiv_tags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10", "tag11", "tag12"]
+  "pixiv_tags": ["..."]
 }

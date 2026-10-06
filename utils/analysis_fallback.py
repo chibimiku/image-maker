@@ -399,12 +399,11 @@ def is_refusal_text(text) -> bool:
     lowered = str(text or "").strip().lower()
     if not lowered:
         return False
-    if any(marker in lowered for marker in REFUSAL_MARKERS):
-        return True
+    # 异常的宽泛标记不适用于正常图像描述（例如 safety pin / safety helmet）。
     if any(marker in lowered for marker in _SOFT_REFUSAL_MARKERS):
         return True
     # 占位符单列：`n/a` 这类两三个字母的串在正常长描述里没意义，只按"整段就是一个占位符"判
-    if len(lowered) <= 40 and any(placeholder in lowered for placeholder in _PLACEHOLDER_MARKERS):
+    if lowered.rstrip(".!。") in _PLACEHOLDER_MARKERS:
         return True
     return len(lowered) <= 100 and _has_cjk(lowered)
 

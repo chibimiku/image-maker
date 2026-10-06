@@ -158,11 +158,18 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
     original_pixiv_tags = list(initial_result.get("pixiv_tags", []) or [])
     original_booru_tags = list(initial_result.get("booru-tags", []) or [])
 
-    _log(log_callback, "== Step 2: refine 二次加工 ==")
+    from utils.analysis_secondary import secondary_text_config, create_secondary_text_client
+    try:
+        secondary_client, secondary_model = create_secondary_text_client(
+            secondary_text_config(config), client_factory=OpenAI, timeout_seconds=timeout_seconds)
+    except Exception as exc:
+        _log(log_callback, f"❌ Step 2 次级文本通道不可用：{exc}")
+        return None
+    _log(log_callback, f"== Step 2: 次级文本转换 (模型 {secondary_model}) ==")
     final_result = step_2_refine_description(
         initial_result,
-        client,
-        model_name,
+        secondary_client,
+        secondary_model,
         booru_tag_limit=booru_tag_limit,
         atmosphere=atmosphere_plan,
         timeout_seconds=timeout_seconds,
