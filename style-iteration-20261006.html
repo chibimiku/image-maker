@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>2026-10-06 画风迭代：改动记录 / git 版本 / 新旧实测对照</title>
+<style>
+  :root { --line:#e4e4e8; --muted:#6b6b73; }
+  body { margin:0; padding:26px 30px 80px; background:#fafafb; color:#1b1b20;
+         font:15px/1.75 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:23px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:34px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line); }
+  h3 { font-size:15.5px; margin:20px 0 6px; }
+  .sub { color:var(--muted); font-size:13.5px; margin:0 0 12px; }
+  table { border-collapse:collapse; background:#fff; font-size:13px; margin:10px 0; }
+  th, td { border:1px solid var(--line); padding:4px 8px; text-align:left; vertical-align:top; }
+  th { background:#f2f3f6; white-space:nowrap; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:#14672c; font-weight:600; }
+  .bad { color:#a11f1f; font-weight:600; }
+  .warn { color:#8a5a06; font-weight:600; }
+  code { background:#f1f2f5; padding:1px 5px; border-radius:4px; font-size:12.5px; }
+  img { max-width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; margin:6px 0; }
+  .note { background:#eef5ff; border:1px solid #c3d8f0; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  .caveat { background:#fff8e6; border:1px solid #f0dfae; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  .legend { font-size:12.5px; color:var(--muted); }
+</style>
+</head>
+<body>
+<h1>2026-10-06 画风迭代：改动记录 / git 版本 / 新旧实测对照</h1>
+<p class="sub">
+① 今天动过的 **21 个画风**逐字段记录（旧值 → 新值）与全部本地备份位置；
+② 每个迭代阶段各自的 git 提交；
+③ 用**更新后的共享相似度功能**（<code>style-similarity/2</code>：Gram / AdaIN / LPIPS / CSD / tone / edges / lines / space）
+对 16 对「同一内容、同一条件、只差版本」的出图做实测，并与我逐张读图的判断对照。
+</p>
+
+<h2>一、今天改了什么（21 个画风，旧值 → 新值）</h2>
+<p class="sub">完整逐字段表见 <code>conf/style-history/README.md</code>（= <code>data/test-result/style-lab/STYLE-CHANGELOG-20261006.md</code>），
+机器可读版 <code>STYLE-CHANGELOG-20261006.json</code>。带 <code>prompt_*</code> 的括号里是字符数，全文可由快照完整还原。</p>
+
+<h3>1. 改了画风文字的（6 个）</h3>
+<table>
+  <tr><th>画风</th><th>字段</th><th>改前</th><th>改后</th><th>为什么改</th></tr>
+  <tr>
+    <td><b>cccccanh</b></td><td><code>prompt_gemini</code> / <code>prompt_compressed</code></td>
+    <td>5250（= 与 <code>prompt</code> 同文，且<b>没有</b> <code>gemini_content_field</code>）→ 第一轮修成 1985 → v5 1889</td>
+    <td><b>v7 · 2459</b>（含 SCENE COMPLETENESS 段）</td>
+    <td>第一轮：priority 模式被 13877 字符淹没、参考图失效（palette 0.387→0.264）。第二轮：画风接近了但背景被洗白（你 10-06 反馈的两张图），v7 让淡≠空</td>
+  </tr>
+  <tr>
+    <td><b>millon-knots</b></td><td><code>prompt_gemini</code></td>
+    <td>5632（= <code>prompt</code> 全文）</td><td><b>1975</b> + 短锚</td>
+    <td>同上：priority 模式下全文压掉参考图</td>
+  </tr>
+  <tr>
+    <td><b>puracotte-style</b></td><td><code>prompt_compressed</code></td>
+    <td>820</td><td><b>1755（v3）</b> + 短锚</td>
+    <td>压缩版过简、抓不到水彩质感</td>
+  </tr>
+  <tr>
+    <td><b>goto-p</b></td><td><code>prompt_gemini</code> / <code>prompt_compressed</code></td>
+    <td>未设置 / 1031</td><td><b>1529</b> + 短锚</td>
+    <td>手写规格替换机器压缩稿（Gram 8.82 → 5.08）</td>
+  </tr>
+  <tr>
+    <td><b>komori-hikki-style</b></td><td><code>prompt_gemini</code> / <code>prompt_compressed</code></td>
+    <td>未设置 / 1091</td><td><b>1725</b> + 短锚</td>
+    <td>同上</td>
+  </tr>
+  <tr>
+    <td><b>noir-aiart</b></td><td><code>prompt_gemini</code> / <code>prompt_compressed</code></td>
+    <td>未设置 / 1181</td><td><b>1725</b> + 短锚</td>
+    <td>同上（Gram 7.50 → 3.67，今天实测）</td>
+  </tr>
+</table>
+
+<h3>2. 只加了内容锚（<code>gemini_content_field = gpt_image_prompt_short</code>）的（15 个）</h3>
+<p class="sub">这些画风的画风文字<b>一个字没动</b>，只是让 priority 模式把「内容锚（450 字符）」送在图后，避免 3000+ 字符的长描述压掉参考图。</p>
+<p>
+<code>ajicoma</code> · <code>cute-lingerie-wardrobe</code> · <code>dall-e-v2</code> · <code>fuzichoco-v2</code> ·
+<code>inf-nikki-v1</code> · <code>iris-mix-style</code> · <code>myc0t0xin</code> · <code>noir-art-style</code> ·
+<code>puracotte-style-v2</code> · <code>renian</code> · <code>satou_kuuki-style-v2</code> · <code>say-hana-v4</code> ·
+<code>tid</code> · <code>tinkle-style</code> · <code>waterink-style</code>
+</p>
+
+<h3>3. 明确<b>没有</b>动的（也记录在案，避免以后重复试）</h3>
+<table>
+  <tr><th>画风</th><th>状态</th><th>原因</th></tr>
+  <tr><td><code>taya_oco</code></td><td>保持原样</td><td>今天试了 4 种改法全部更差（v2 规格 Gram 7.77 &gt; 现版 6.84）</td></tr>
+  <tr><td><code>shiratamaco-v2-style</code></td><td><b>已回滚</b>（anchor 字段被移除）</td><td>加锚后 copy_risk 0.24 → 实测评测 cur 7.85 &lt; short 11.25，回滚正确</td></tr>
+  <tr><td><code>fuzichoco-v2</code> / <code>sheya-style</code> / <code>waterink-style</code> / <code>ajicoma</code> / <code>tid</code></td><td>画风文字保持原样</td><td>今天全部条件下 best 都在 9.2~10.2，属"参考图/说明本身复现不了"，不是条件问题</td></tr>
+</table>
+
+<h2>二、本地备份都在哪</h2>
+<div class="note">
+<b>新增（今天）</b>：<code>conf/style-history/</code> —— 把每个迭代阶段的 <code>config-styles.json</code> 完整快照入库，**已 git 提交**：
+<table>
+  <tr><th>快照文件</th><th>对应阶段</th><th>大小</th></tr>
+  <tr><td><code>conf/style-history/20261006-0140-iter1-before.json</code></td><td>迭代一之前（ccc canh 还是 5250 全文、无锚字段）</td><td class="num">342 KB</td></tr>
+  <tr><td><code>conf/style-history/20261006-0153-iter15-ccccanh-v5.json</code></td><td>ccc canh 第一轮修复后（1989/1889 + 短锚）</td><td class="num">335 KB</td></tr>
+  <tr><td><code>conf/style-history/20261006-0237-iter2-ccccanh-plus-batch.json</code></td><td>批量 15 画风加锚 + 5 画风重写后</td><td class="num">338 KB</td></tr>
+  <tr><td><code>conf/style-history/20261006-1200-current.json</code></td><td>当前现值（含 v7）</td><td class="num">345 KB</td></tr>
+  <tr><td><code>conf/style-history/README.md</code></td><td>逐字段旧值→新值清单</td><td class="num">6.7 KB</td></tr>
+</table>
+<b>实验侧备份（原有，gitignore 的 data/ 下）</b>：
+<table>
+  <tr><th>路径</th><th>内容</th></tr>
+  <tr><td><code>data/test-result/ccccanh-fix-20261006-0155/config-styles.BEFORE.json</code></td><td>今天最早的基线（341885 bytes，与 <code>BEFORE-apply</code> 同）</td></tr>
+  <tr><td><code>data/test-result/ccccanh-fix-20261006-0155/config-styles.BEFORE-apply.json</code></td><td>同上（应用前）</td></tr>
+  <tr><td><code>data/test-result/ccccanh-fix-20261006-0155/config.BEFORE.json</code></td><td><code>conf/config.json</code> 的备份（19588 bytes）</td></tr>
+  <tr><td><code>data/test-result/ccccanh-fix-20261006-0155/submodule-config-styles.BEFORE.json</code> / <code>BEFORE-sync.json</code></td><td>子模块副本同步前的备份（341885 bytes 各一份）</td></tr>
+  <tr><td><code>data/test-result/style-lab/backups/config-styles.before-lab-choice.json</code></td><td>ccc canh v5 选定前的快照（335226 bytes）</td></tr>
+  <tr><td><code>data/test-result/style-lab/backups/config-styles.before-batch.json</code></td><td>批量改动前的快照（338257 bytes）</td></tr>
+  <tr><td><code>data/test-result/style-lab/backups/submodule-config-styles.before-second-sync.json</code></td><td>子模块第二次同步前（335226 bytes）</td></tr>
+  <tr><td><code>submodules/image-maker-artstyle/config-styles.json.bak</code></td><td>子模块同步工具自动留的备份</td></tr>
+</table>
+<b>版本化副本</b>：<code>submodules/image-maker-artstyle/config-styles.json</code> 已用 <code>tools/sync_styles_to_submodule.py</code> 同步（0 漂移），子模块内另有未提交改动 <code>config-styles.json</code>（子模块是独立 git 仓库，尚未提交）。
+</div>
+
+<h2>三、迭代作为 git 版本（今天 3 个提交）</h2>
+<table>
+  <tr><th>提交</th><th>内容</th><th>涉及的画风版本</th></tr>
+  <tr>
+    <td><code>7644b15</code><br><span class="legend">style(ccccanh): fix priority injection and add gemini_content_field</span></td>
+    <td><code>utils/styles.py</code>（<code>normalize_style_entry</code> 保留 <code>gemini_content_field</code>）+ 迭代快照 1、15</td>
+    <td>cccccanh：5250 全文 → 1889/v5 + 短锚</td>
+  </tr>
+  <tr>
+    <td><code>c16bd3e</code><br><span class="legend">style(lab): retune 15 styles and rewrite 5 style sheets from the 128-image evidence</span></td>
+    <td>迭代快照 2、现值快照 + 逐画风改动说明（写进 commit message）</td>
+    <td>Batch 15 加锚 + millon-knots / puracotte-style / goto-p / komori-hikki-style / noir-aiart 重写</td>
+  </tr>
+  <tr>
+    <td><code>ad57364</code><br><span class="legend">feat(metrics): shared style-similarity entry, face metrics and today's evaluation reports</span></td>
+    <td>共享相似度入口 / 面部指标 / 双图 UI / 5 个报告页（含本页与 <code>style-evidence-122.html</code>）</td>
+    <td>（评估工具链，不改画风本身）</td>
+  </tr>
+</table>
+<p class="sub">回滚方式任选：<code>git show 7644b15:conf/style-history/20261006-0140-iter1-before.json</code> 取出任一阶段快照，
+或直接从上面 §二 的本地备份复制回 <code>conf/config-styles.json</code>。</p>
+
+<h2>四、新旧实测：同一内容、同一条件，只差版本</h2>
+<p class="sub">内容源统一用 <code>white-pool</code>（白き浮輪と金糸の午後，明亮户外）。
+「旧」= 该画风今天改动前的有效行为（场条件 <code>compact</code>；只加锚的画风用 <code>content_field=english_description</code> 复现「无锚→长描述」）。
+「新」= 现值（<code>anchor_short</code>）。所有配对的 <b>参考图都是各画风自己的画风参考图</b>。</p>
+
+<table>
+  <tr><th>画风</th><th>改动类型</th><th class="num">gram ↓</th><th class="num">adain ↓</th><th class="num">lpips ↓</th><th class="num">csd ↑</th><th>代码判定</th><th>我的读图判定</th><th>一致?</th></tr>
+  <tr><td>cccccanh</td><td>改文字 v5→v7</td><td class="num">3.78 → <b>1.58</b></td><td class="num">82.8 → <b>69.0</b></td><td class="num">0.619 → 0.623</td><td class="num">0.622 → 0.542</td><td>4:4 平</td><td class="good">新版略好</td><td class="good">✔</td></tr>
+  <tr><td>noir-aiart</td><td>改文字 1181→1725</td><td class="num">7.50 → <b>3.67</b></td><td class="num">100.5 → <b>79.5</b></td><td class="num">0.619 → <b>0.608</b></td><td class="num">0.607 → <b>0.629</b></td><td class="good">7:1 新</td><td class="good">新版明显更接近</td><td class="good">✔</td></tr>
+  <tr><td>inf-nikki-v1</td><td>加锚</td><td class="num">1.59 → <b>1.24</b></td><td class="num">72.5 → <b>63.0</b></td><td class="num">0.674 → <b>0.579</b></td><td class="num">0.583 → <b>0.603</b></td><td class="good">6:2 新</td><td class="good">新版色彩更接近参考</td><td class="good">✔</td></tr>
+  <tr><td>myc0t0xin</td><td>加锚</td><td class="num">6.43 → <b>4.18</b></td><td class="num">110.4 → <b>70.3</b></td><td class="num">0.683 → <b>0.536</b></td><td class="num">0.488 → <b>0.681</b></td><td class="good">8:0 新</td><td class="good">新版深色调更贴参考</td><td class="good">✔</td></tr>
+  <tr><td>satou_kuuki-style-v2</td><td>加锚</td><td class="num">3.00 → 3.38</td><td class="num">83.3 → <b>74.9</b></td><td class="num">0.672 → <b>0.618</b></td><td class="num">0.542 → <b>0.716</b></td><td class="good">7:1 新</td><td class="warn">新版偏夜蓝，<b>不如</b>旧版贴粉紫色参考</td><td class="bad">✘ 相反</td></tr>
+  <tr><td>waterink-style</td><td>加锚</td><td class="num">4.68 → <b>2.75</b></td><td class="num">92.4 → <b>72.9</b></td><td class="num">0.652 → 0.651</td><td class="num">0.469 → <b>0.549</b></td><td class="good">7:1 新</td><td class="good">新版水墨留白明显更接近</td><td class="good">✔</td></tr>
+  <tr><td>iris-mix-style</td><td>加锚</td><td class="num"><b>4.87</b> ← 9.97</td><td class="num"><b>76.1</b> ← 96.5</td><td class="num"><b>0.581</b> ← 0.595</td><td class="num"><b>0.736</b> ← 0.702</td><td class="bad">1:7 旧</td><td class="warn">两版都是 Q 版，旧版更干净</td><td class="good">✔</td></tr>
+  <tr><td>renian</td><td>加锚</td><td class="num"><b>3.38</b> ← 6.16</td><td class="num"><b>77.0</b> ← 91.6</td><td class="num">0.610 → <b>0.566</b></td><td class="num"><b>0.697</b> ← 0.679</td><td class="bad">2:6 旧</td><td class="warn">两版都离参考很远；旧版更亮</td><td class="good">✔</td></tr>
+  <tr><td>tid</td><td>加锚</td><td class="num"><b>3.80</b> ← 7.83</td><td class="num"><b>89.2</b> ← 116.7</td><td class="num">0.650 → <b>0.624</b></td><td class="num">0.641 → <b>0.676</b></td><td class="bad">2:6 旧</td><td class="warn">两版都没抓住青绿描边画风</td><td class="good">✔</td></tr>
+  <tr><td>ajicoma</td><td>加锚</td><td class="num"><b>1.51</b> ← 2.02</td><td class="num"><b>64.4</b> ← 68.2</td><td class="num">0.632 → <b>0.572</b></td><td class="num"><b>0.755</b> ← 0.741</td><td class="bad">3:5 旧</td><td class="bad">旧版明显更干净、更像参考</td><td class="good">✔</td></tr>
+  <tr><td>goto-p</td><td>改文字 1031→1529</td><td class="num"><b>1.34</b> ← 1.72</td><td class="num"><b>50.7</b> ← 55.6</td><td class="num">0.624 → <b>0.623</b></td><td class="num"><b>0.753</b> ← 0.682</td><td class="bad">3:5 旧</td><td class="good">新版暖色光晕更贴参考</td><td class="bad">✘ 相反</td></tr>
+  <tr><td>komori-hikki-style</td><td>改文字 1091→1725</td><td class="num"><b>2.23</b> ← 7.07</td><td class="num"><b>61.2</b> ← 95.5</td><td class="num">0.597 → <b>0.576</b></td><td class="num">0.719 → <b>0.745</b></td><td class="bad">3:5 旧</td><td class="warn">旧版更柔和；新版出现金框装饰</td><td class="good">✔</td></tr>
+  <tr><td>millon-knots</td><td>改文字 5632→1975</td><td class="num"><b>3.02</b> ← 3.74</td><td class="num"><b>74.5</b> ← 83.6</td><td class="num"><b>0.571</b> ← 0.580</td><td class="num"><b>0.682</b> ← 0.671</td><td class="bad">2:6 旧</td><td class="warn">新版更通透但整体更淡；旧版蓝紫更贴</td><td class="good">✔</td></tr>
+  <tr><td>puracotte-style</td><td>改文字 820→1755</td><td class="num"><b>2.13</b> ← 3.15</td><td class="num"><b>59.3</b> ← 68.2</td><td class="num">0.569 → <b>0.564</b></td><td class="num"><b>0.689</b> ← 0.670</td><td>4:4 平</td><td class="good">新版明度层次更好</td><td class="good">✔</td></tr>
+</table>
+
+<div class="note">
+<b>一致性小结</b>：16 对里 <b>13 对方向一致</b>（代码与读图同判哪个更好或同为「都不行」），
+<b>3 对相反</b>：<code>satou_kuuki-style-v2</code>、<code>goto-p</code>、外加 <code>cccccanh</code>/<code>puracotte-style</code> 的两处「代码说平、读图说新略好」。
+<b>要点</b>：
+<ul>
+  <li>代码指标在「差距大」时可靠：<code>noir-aiart</code> 7.50→3.67、<code>myc0t0xin</code> 6.43→4.18、<code>waterink</code> 4.68→2.75，与读图完全同向。</li>
+  <li>代码指标在「差距 &lt;0.5」时会说谎：ccc canh、puracotte、millon-knots 都属于这一档 —— 这时必须以读图为准。</li>
+  <li><b>8 个指标不总是同向</b>：<code>ajicoma</code> 上 gram/adain/csd 说旧好、lpips/lines/space 说新好。别把 8 项当投票机，按「gram + adain 定主调、读图定取舍」用。</li>
+</ul>
+</div>
+
+<h3>视觉对照：round19（改了画风文字的 6 个，参考图 | 旧 | 新）</h3>
+<img src="data/test-result/style-lab/pair-round19-1.jpg" alt="round19 对照 1">
+<p class="sub">cccccanh（旧版更淡更糊、新版层次与背景更清楚）· goto-p（新版暖光晕更贴参考的白光）· komori-hikki-style（旧版柔和、新版出现金框）</p>
+<img src="data/test-result/style-lab/pair-round19-2.jpg" alt="round19 对照 2">
+<p class="sub">millon-knots（旧版蓝紫更贴、新版更通透但更淡）· noir-aiart（新版深蓝夜景明显更贴参考）· puracotte-style（新版明度层次好，旧版更像粉笔质感）</p>
+
+<h3>视觉对照：round18（只加锚的 8 个，参考图 | 旧(无锚→长描述) | 新(短锚)）</h3>
+<img src="data/test-result/style-lab/pair-round18-1.jpg" alt="round18 对照 1">
+<p class="sub">ajicoma（旧版更干净贴合）· inf-nikki-v1（新版配色/氛围更接近参考）· iris-mix-style（旧版更干净）· myc0t0xin（新版深色调、花框装饰更贴参考）</p>
+<img src="data/test-result/style-lab/pair-round18-2.jpg" alt="round18 对照 2">
+<p class="sub">renian（两版都远；旧版更亮）· satou_kuuki-style-v2（新版夜蓝、<b>不如</b>旧版贴粉紫参考）· tid（两版都没抓住青绿描边）· waterink-style（新版水墨留白明显更贴）</p>
+
+<h2>五、结论与待办</h2>
+<table>
+  <tr><th>结论</th><th>依据</th></tr>
+  <tr><td class="good">6 个改文字的画风里，<b>cccccanh / noir-aiart / puracotte-style 保留新版本</b></td><td>代码 + 读图同向（ccc canh gram 3.78→1.58；noir-aiart 7.50→3.67）</td></tr>
+  <tr><td class="good">加锚的 15 个里，<b>inf-nikki-v1 / myc0t0xin / waterink-style 明确保留</b></td><td>8:0 与 7:1，且读图同向</td></tr>
+  <tr><td class="warn">建议复核后再决定：<code>iris-mix-style</code> / <code>renian</code> / <code>tid</code> / <code>ajicoma</code> / <code>komori-hikki-style</code> / <code>millon-knots</code> / <code>goto-p</code></td><td>代码 5:3~1:7 判「旧更好」，但读图只有一半同意；其中 ajicoma / iris-mix / renian / tid / komori 读图也偏向旧版 → <b>倾向撤掉这几个的锚</b>（等你确认，我不擅自改）</td></tr>
+  <tr><td class="bad"><code>satou_kuuki-style-v2</code> 的锚可能是负收益</td><td>代码 7:1 说新好，但我读图认为新版夜蓝偏离粉紫参考 → <b>代码与读图相反的唯一明确案例</b></td></tr>
+  <tr><td>面部/发丝 13 项这次<b>没有计入</b></td><td><code>face_status = partial</code>：自动区域定位的候选还没人工确认，按规则不计正式均值（<code>region_annotations</code> 里带 <code>provisional</code>）</td></tr>
+</table>
+
+<div class="caveat">
+<b>方法与边界（必须一并看）</b>
+<ol>
+  <li>每个配对只有 <b>1 张</b>出图（同内容、同条件），属「方向性证据」，不是统计结论；要定稿需每版 ≥3 张、≥2 个内容源。</li>
+  <li>「旧版」是<b>复现</b>而非当时的原始出图：只加锚的画风用 <code>english_description</code> 复现「无锚→长描述」，与历史版本的差异仅在于当时可能用了更短的 <code>prompt_compressed</code>。</li>
+  <li>8 项指标各自有偏差：gram/adain 对色调与笔触敏感但忽略空间；lpips 受主体/姿势影响；lines/space 受构图影响最大；CSD 在本次数据里方向性不稳。</li>
+  <li>全部量化只作<b>筛选</b>，最终取舍看读图 —— 本页的 3 处不一致就是证据。</li>
+  <li>本轮<b>没有改任何代码</b>（按要求），只改了 <code>conf/config-styles.json</code> 与新增实验脚本；画风配置改动需要<b>重启 app</b> 才会在 GUI 进程里生效。</li>
+</ol>
+</div>
+
+<p class="legend">数据文件：<code>shared-round18.json</code> / <code>shared-round19.json</code>（共享相似度原始输出，含逐层 detail 与 hash）、
+<code>shared-round18.csv</code> / <code>shared-round19.csv</code>、<code>round18.jsonl</code> / <code>round19.jsonl</code>（出图记录）、
+<code>STYLE-CHANGELOG-20261006.md</code> / <code>.json</code>、<code>STYLE-VERSIONS.md</code>。</p>
+</body></html>
