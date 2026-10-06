@@ -61,16 +61,21 @@ STYLE_REF_MODES = [
 def normalize_style_entry(entry):
     """把任意样式条目归一化为
     {"prompt": str, "ref_image": str, "prompt_compressed": str, "prompt_gpt": str,
-     "enabled": bool, "motif_clauses": list[str], "motif_enabled": bool}，兼容新旧格式。
+     "prompt_gemini": str, "gemini_content_field": str, "enabled": bool,
+     "motif_clauses": list[str], "motif_enabled": bool}，兼容新旧格式。
     旧条目缺少 `enabled` 时视为启用；装饰母题缺省为关闭。
 
     `prompt_gpt` 是给 gpt-image 通道用的「短版字段式画风说明」（见 utils/style_gpt.py 与
     docs/gpt-image-tid-style/）：gpt-image 会把画风说明与主体拼成一条 prompt，长说明书会
     抢走参考图的话语权，所以该通道优先用这一份。
+
+    `gemini_content_field` 是「Gemini 参考优先模式改用分析产物里的纯内容锚」的字段名
+    （见 utils/analysis_gen.resolve_gemini_reference_content）；**必须在这里保留**，
+    否则调用方（如无头对照脚本）放进去的条目对象会被归一化吃掉，内容锚静默失效。
     """
     if isinstance(entry, str):
         return {"prompt": entry, "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
-                "prompt_gemini": "",
+                "prompt_gemini": "", "gemini_content_field": "",
                 "enabled": True, "motif_clauses": [], "motif_enabled": False,
                 "proportion_clauses": []}
     if isinstance(entry, dict):
@@ -85,6 +90,7 @@ def normalize_style_entry(entry):
             "prompt_compressed": str(compressed or ""),
             "prompt_gpt": str(gpt_prompt or ""),
             "prompt_gemini": str(gemini_prompt or ""),
+            "gemini_content_field": str(entry.get("gemini_content_field") or ""),
             "enabled": entry.get("enabled", True) is not False,
             "motif_clauses": [str(v).strip() for v in (entry.get("motif_clauses") or [])
                               if str(v).strip()][:4],
@@ -93,7 +99,7 @@ def normalize_style_entry(entry):
                                    if str(v).strip()][:4],
         }
     return {"prompt": "", "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
-            "prompt_gemini": "",
+            "prompt_gemini": "", "gemini_content_field": "",
             "enabled": True, "motif_clauses": [], "motif_enabled": False,
             "proportion_clauses": []}
 
