@@ -3,7 +3,7 @@ import os
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QFileDialog,
-    QDialog, QLineEdit
+    QDialog, QLineEdit, QCheckBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
 from PyQt6.QtGui import QPixmap
@@ -13,7 +13,7 @@ from modules.others.api_backend import fetch_llm_json, _extract_json_object, res
 from utils.styles import (
     MODE_OFF,
     style_prompt, style_prompt_compressed, style_ref_image, ref_image_valid, build_style_entry,
-    normalize_style_entry, assemble_style_instructions, save_styles_file,
+    normalize_style_entry, assemble_style_instructions, save_styles_file, build_ref_gen_params,
 )
 from utils.style_gpt import is_gpt_image_api_type, style_prompt_gpt
 from utils.style_ref_widget import StyleRefModeCombo
@@ -116,6 +116,63 @@ class JsonDropLabel(QLabel):
         QMessageBox.warning(self, "格式错误", "请拖放 JSON 文件。")
 
 
+class GptDebugGenThread(QThread):
+    """「单图调试生图」的 gpt-image-2 通道：首图（与图片分析 Tab 同一条组装链）+ 可选后处理。"""
+
+    log_signal = pyqtSignal(str)
+    finish_signal = pyqtSignal(list)
+
+    def __init__(self, generate, first_image, run_pipeline, request_kwargs, prompt, steps=None,
+                 style_ref_path="", parent=None):
+        super().__init__(parent)
+        self._generate = generate
+        self._first_image = first_image
+        self._run_pipeline = run_pipeline
+        self.request_kwargs = dict(request_kwargs or {})
+        self.prompt = prompt
+        self.steps = dict(steps or {})
+        self.style_ref_path = style_ref_path or ""
+        self._cancelled = False
+
+    def request_cancel(self):
+        self._cancelled = True
+
+    def _log(self, message):
+        self.log_signal.emit(str(message))
+
+    def run(self):
+        try:
+            keywords = dict(self.request_kwargs)
+            keywords.setdefault("return_metadata", False)
+            files, effective_prompt = self._first_image(
+                self._generate, prompt=self.prompt, log_callback=self._log, **keywords)
+            if self._cancelled:
+                self.finish_signal.emit([])
+                return
+            files = [path for path in (files or []) if os.path.isfile(path)]
+            if not files:
+                self._log("❌ gpt-image 首图没有产物")
+                self.finish_signal.emit([])
+                return
+            current = files[0]
+            self._log(f"✅ 首图完成: {os.path.basename(current)}")
+            if self.steps and not self._cancelled:
+                from utils.analysis_gen import run_gpt_image_pipeline
+                self._log("▶ 后处理步骤: " + ", ".join(
+                    key for key, value in self.steps.items() if (value or {}).get("enabled")))
+                outputs = run_gpt_image_pipeline(
+                    [current], self.steps, log_callback=self._log,
+                    style_ref_path=self.style_ref_path or "", strict=False)
+                outputs = [path for path in (outputs or []) if os.path.isfile(path)]
+                if outputs:
+                    current = outputs[-1]
+                    self._log(f"✅ 后处理完成: {os.path.basename(current)}")
+            self.finish_signal.emit([current])
+        except Exception as exc:  # noqa: BLE001 —— 线程里必须兜住，否则 Qt 直接崩
+            self._log(f"❌ gpt 通道失败: {exc}")
+            self.finish_signal.emit([])
+
+
 class SingleGenDebugWidget(QWidget):
     def __init__(self, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, styles_reload_callback=None):
         super().__init__()
@@ -125,6 +182,7 @@ class SingleGenDebugWidget(QWidget):
         self.get_ar_policy = ar_policy_getter_func
         self.styles_reload_callback = styles_reload_callback
         self.img_thread = None
+        self.gpt_thread = None
         self._last_image_path = ""
         self.attach_image_paths = []
         self.style_ref_image_path = ""
@@ -147,6 +205,28 @@ class SingleGenDebugWidget(QWidget):
         self.edit_style_btn.clicked.connect(self.open_style_editor)
         style_layout.addWidget(self.edit_style_btn)
         layout.addLayout(style_layout)
+
+        # 生图通道（2026-10-06）：与「图片分析」Tab 的两条链路对齐，方便横向对比
+        channel_layout = QHBoxLayout()
+        channel_layout.addWidget(QLabel("生图通道:"))
+        self.channel_combo = QComboBox()
+        self.channel_combo.addItems(["Gemini", "gpt-image-2"])
+        self.channel_combo.setToolTip(
+            "Gemini：走 Gemini 直出（aspect_ratio + 画风说明 + 内容），与旧行为完全一致。\n"
+            "gpt-image-2：与「图片分析」Tab 的 gpt 通道同一条组装链\n"
+            "（build_first_pass_request：画风 prompt_gpt → 内容锚 → 参考图排除句 → 渲染条款），\n"
+            "并可选跑重绘/色调/加墨后处理。提示词框作为内容锚使用。"
+        )
+        self.channel_combo.currentTextChanged.connect(self._on_channel_changed)
+        channel_layout.addWidget(self.channel_combo)
+        self.post_pipeline_check = QCheckBox("gpt 通道跑后处理（重绘+色调+加墨）")
+        self.post_pipeline_check.setToolTip(
+            "只对 gpt-image-2 通道生效：出首图后按「图片分析」Tab 的默认配方执行\n"
+            "重绘(lines_only) → 色调校准(目标=画风参考图) → 线条加墨。\n全流程要 2~3 份联网调用。")
+        self.post_pipeline_check.setChecked(True)
+        channel_layout.addWidget(self.post_pipeline_check)
+        channel_layout.addStretch(1)
+        layout.addLayout(channel_layout)
 
         mode_layout = QHBoxLayout()
         mode_layout.addWidget(QLabel("风格参考模式:"))
@@ -425,9 +505,16 @@ class SingleGenDebugWidget(QWidget):
                     self._refresh_style_ref_info()
                     self._append_log(f"已恢复风格参考图: {saved_style_ref}")
 
+            saved_channel = state.get("channel")
+            if isinstance(saved_channel, str) and saved_channel:
+                if self.channel_combo.findText(saved_channel) >= 0:
+                    self.channel_combo.setCurrentText(saved_channel)
+            self.post_pipeline_check.setChecked(bool(state.get("post_pipeline", True)))
+
             self._refresh_style_ref_info()
         finally:
             self._is_restoring_state = False
+        self._on_channel_changed()
 
     def save_ui_state(self, *args):
         if self._is_restoring_state:
@@ -439,6 +526,8 @@ class SingleGenDebugWidget(QWidget):
             "resolution": self.resolution_combo.currentText().strip(),
             "attachments": list(self.attach_image_paths),
             "style_ref_image": self.style_ref_image_path,
+            "channel": self.channel_combo.currentText().strip(),
+            "post_pipeline": bool(self.post_pipeline_check.isChecked()),
         }
         try:
             os.makedirs(os.path.dirname(SINGLE_DEBUG_UI_STATE_FILE), exist_ok=True)
@@ -604,6 +693,9 @@ class SingleGenDebugWidget(QWidget):
         if not prompt:
             QMessageBox.warning(self, "提示", "请先输入提示词。")
             return
+        if self.channel_combo.currentText().strip().startswith("gpt"):
+            self._generate_via_gpt_channel(prompt)
+            return
 
         self.save_img_cfg()
         _img_url, img_key, model_name, api_type = self.get_img_config()
@@ -615,23 +707,35 @@ class SingleGenDebugWidget(QWidget):
         resolution = self._resolve_resolution()
         style_name = self.main_style_combo.currentText()
         style_text = self._current_style_text()
-        # gpt-image 通道只认短版字段式说明（长说明书会抢走参考图的话语权）
-        gpt_style_text = style_prompt_gpt(self.get_styles() or {}, style_name) if is_gpt_image_api_type(api_type) else ""
         ref_path, ref_source = self._effective_style_ref_image()
         has_ref = ref_image_valid(ref_path)
         mode = self.style_mode_combo.effective_mode(has_ref)
 
-        instructions, post_instructions = assemble_style_instructions(
-            mode,
-            style_text,
-            has_ref,
-            style_prompt_compressed(self.get_styles() or {}, style_name),
-            gpt_style_text,
-        )
+        # 与「图片分析」Tab 的 Gemini 通道**同一套组装**（2026-10-06 对齐）：
+        # build_ref_gen_params 负责画风说明/参考指令/参考图路径；参考优先模式再叠加
+        # 「短内容锚 + 图后重申」，这两步以前只有分析 Tab 有，导致本页的图不可横向对比。
+        from utils.analysis_gen import resolve_gemini_reference_content, build_gemini_content_postamble
+        styles_data = self.get_styles() or {}
+        instructions, post_instructions, ref_paths = build_ref_gen_params(
+            styles_data, style_name, mode, api_type=api_type)
+        style_entry = normalize_style_entry(styles_data.get(style_name, {}))
+        # 内容锚（gemini_content_field）由 `resolve_gemini_reference_content` 从**分析产物 JSON 路径**读取，
+        # 所以这里必须把已加载的 JSON 路径一起传进去（只传字段字典是解析不出锚的）。
+        prompt_context = {"analysis_json_path": self.json_file_path or "",
+                          "english_description": prompt, "short_description": prompt}
+        if not self.json_file_path:
+            self._append_log("未加载分析 JSON：画风若配置了内容锚，会退回用提示词框内容（可能触发不了锚）")
+        content, anchor_field = resolve_gemini_reference_content(
+            style_entry, prompt_context, prompt, mode)
+        post_instructions = build_gemini_content_postamble(content, post_instructions)
+        if anchor_field:
+            self._append_log(f"内容锚：使用 {anchor_field}（{len(content)} 字符）")
         image_paths = list(self.attach_image_paths)
-        if has_ref and mode != MODE_OFF:
-            if ref_path not in image_paths:
-                image_paths.insert(0, ref_path)
+        for ref in ref_paths:
+            if ref and ref not in image_paths:
+                image_paths.insert(0, ref)
+        if has_ref and mode != MODE_OFF and ref_path not in image_paths:
+            image_paths.insert(0, ref_path)
 
         mode_label = self.style_mode_combo.itemText(self.style_mode_combo.findData(mode)) or "关闭"
         self.generate_btn.setEnabled(False)
@@ -659,9 +763,87 @@ class SingleGenDebugWidget(QWidget):
         self.img_thread.finish_signal.connect(self.on_image_finished)
         self.img_thread.start()
 
+    # ------------------------------------------------------------------ gpt-image-2 通道
+    def _on_channel_changed(self, *args):
+        is_gpt = self.channel_combo.currentText().strip().startswith("gpt")
+        self.post_pipeline_check.setEnabled(is_gpt)
+        self.prompt_edit.setPlaceholderText(
+            "输入内容描述（作为内容锚）…" if is_gpt else "输入提示词…"
+        )
+        self.save_ui_state()
+
+    def _generate_via_gpt_channel(self, prompt):
+        """与「图片分析」Tab 的 gpt 通道同一条组装链（build_first_pass_request）。"""
+        from modules.others.api_backend import generate_image_aigc2d_gpt
+        from utils.analysis_gen import build_first_pass_request, pipeline_steps_from_flags
+        from utils.first_image_review import generate_first_image
+        from utils.post_process import run_pipeline
+
+        self.save_img_cfg()
+        _img_url, img_key, _model, api_type = self.get_img_config()
+        if not img_key:
+            QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空。")
+            return
+        gpt_api_type = api_type if api_type in ("aigc2d", "autodl") else "aigc2d"
+
+        style_name = self.main_style_combo.currentText()
+        ref_path, ref_source = self._effective_style_ref_image()
+        has_ref = ref_image_valid(ref_path)
+        mode = self.style_mode_combo.effective_mode(has_ref)
+        # 与 gpt 通道一致：提示词框内容当作内容锚，tier=short（画风图要能说话）
+        analysis_like = {"short_description": prompt, "english_description": prompt,
+                         "gpt_image_prompt": "", "gpt_image_prompt_short": ""}
+        size = ""
+        ar = self._resolve_aspect_ratio()
+        if ar and ":" in ar:
+            w, h = ar.split(":", 1)
+            try:
+                size = "1536x1024" if float(w) > float(h) else ("1024x1536" if float(h) > float(w) else "1024x1024")
+            except ValueError:
+                size = ""
+        payload = build_first_pass_request(
+            self.get_styles() or {}, style_name, analysis_like,
+            content_text=prompt, tier="short", size=size, api_type=gpt_api_type,
+        )
+        request_kwargs = dict(payload.get("request_kwargs") or {})
+        style_entry = normalize_style_entry((self.get_styles() or {}).get(style_name, {}))
+        style_ref_for_pipeline = style_entry.get("ref_image") or ""
+        steps = {}
+        if self.post_pipeline_check.isChecked():
+            steps = pipeline_steps_from_flags(repaint=True, tone=True, ink=True,
+                                              repaint_ref_mode="style",
+                                              style_ref_path=style_ref_for_pipeline)
+        enabled = [key for key, value in steps.items() if (value or {}).get("enabled")]
+        self.generate_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(True)
+        self.status_label.setText("正在生成（gpt-image-2 通道）...")
+        self.preview_label.setText("正在请求 gpt-image，请稍候...")
+        self._append_log(
+            f"开始生图: 通道=gpt-image-2, 模型={request_kwargs.get('model')}, size={size or '跟随比例'}, "
+            f"模式={mode}, 参考图={'ON(' + ref_source + ')' if has_ref and mode != MODE_OFF else 'OFF'}, "
+            f"后处理={enabled or '无'}"
+        )
+
+        self.gpt_thread = GptDebugGenThread(
+            generate=lambda **kwargs: generate_image_aigc2d_gpt(**kwargs),
+            first_image=generate_first_image,
+            run_pipeline=run_pipeline,
+            request_kwargs=request_kwargs,
+            prompt=prompt,
+            steps=steps,
+            style_ref_path=style_ref_for_pipeline,
+            parent=self,
+        )
+        self.gpt_thread.log_signal.connect(self._append_log)
+        self.gpt_thread.finish_signal.connect(self.on_image_finished)
+        self.gpt_thread.start()
+
     def cancel_generation(self):
         if self.img_thread and self.img_thread.isRunning():
             self.img_thread.request_cancel()
+            self.status_label.setText("已请求终止，等待线程退出...")
+        if getattr(self, "gpt_thread", None) and self.gpt_thread.isRunning():
+            self.gpt_thread.request_cancel()
             self.status_label.setText("已请求终止，等待线程退出...")
 
     def on_image_finished(self, saved_files):
