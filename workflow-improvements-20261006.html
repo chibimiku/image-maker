@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>工作流改善：对比报告 / 大模型打分 / 三 Tab 功能对齐</title>
+<style>
+  :root { --line:#e4e4e8; --muted:#6b6b73; }
+  body { margin:0; padding:26px 30px 80px; background:#fafafb; color:#1b1b20;
+         font:15px/1.75 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:23px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:34px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line); }
+  h3 { font-size:15.5px; margin:20px 0 6px; }
+  table { border-collapse:collapse; background:#fff; font-size:13px; margin:10px 0; }
+  th, td { border:1px solid var(--line); padding:4px 8px; text-align:left; vertical-align:top; }
+  th { background:#f2f3f6; white-space:nowrap; }
+  .ok { color:#14672c; font-weight:600; }
+  .no { color:#a11f1f; font-weight:600; }
+  .warn { color:#8a5a06; font-weight:600; }
+  code { background:#f1f2f5; padding:1px 5px; border-radius:4px; font-size:12.5px; }
+  pre { background:#f7f8fa; border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+        overflow:auto; font-size:12.5px; line-height:1.55; }
+  img { max-width:100%; border:1px solid var(--line); border-radius:8px; margin:6px 0; }
+  .note { background:#eef5ff; border:1px solid #c3d8f0; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  .caveat { background:#fff8e6; border:1px solid #f0dfae; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+</style>
+</head>
+<body>
+<h1>工作流改善：对比报告 / 大模型打分 / 三 Tab 功能对齐</h1>
+<p class="sub">2026-10-06 · 对应任务的 2、3、4 三项。任务 0（提交）与任务 1（撤锚实验）见
+<a href="anchor-removal-experiment.html">anchor-removal-experiment.html</a> 与 git 历史。</p>
+
+<h2>一、任务 0：先提交（已完成）</h2>
+<table>
+  <tr><th>提交</th><th>内容</th></tr>
+  <tr><td><code>6a6e947</code></td><td><code>chore</code>：今天全部未提交改动（127 文件，含 <code>utils/color_experiment.py</code>、<code>utils/post_process.py</code>、
+      色彩知识包 <code>prompts/color-knowledge/*</code>、指标文档等）—— 作为后续改动前的安全点</td></tr>
+  <tr><td><code>7484d08</code></td><td>撤锚实验（6 画风）+ 4 个画风恢复短锚 + 快照 <code>20261006-1220-after-anchor-experiment.json</code></td></tr>
+  <tr><td><code>bb7cc2b</code></td><td>本页三项工作（对比报告 / 大模型打分 / 单图调试页 gpt 通道）</td></tr>
+</table>
+
+<h2>二、任务 2：每轮出图后的对比报告（已实现）</h2>
+<p class="sub">新增 <code>utils/generation_report.py</code>（报告引擎）+ <code>tools/make_generation_report.py</code>（CLI）。</p>
+
+<h3>报告包含什么</h3>
+<table>
+  <tr><th>节</th><th>内容</th><th>解决的原问题</th></tr>
+  <tr><td>一、候选 × 参考</td><td>参考图缩略图 + 八组指标 + 「最像/最不像哪张参考」</td><td>以前只有整轮结束才出一次报告（<code>automatic-comparison.html</code>）</td></tr>
+  <tr><td>二、<b>泛化对照</b></td><td><b>每个候选 × 每一张参考图</b>的中位/最好/最差 + 配对数</td><td>画风提取常用 10+ 张来源图，只看单张参考会过拟合</td></tr>
+  <tr><td>三、参考图墙</td><td>本次用到的全部参考图缩略图</td><td>报告里看不到"到底比了哪些图"</td></tr>
+  <tr><td>四、<b>推荐 prompt 组合</b></td><td>按 gram 中位排序 + 推荐使用哪一版</td><td>以前选型靠人工翻目录</td></tr>
+  <tr><td>六、大模型打分</td><td>视觉模型 0-100 分 + 分项 + 依据（见任务 3）</td><td>本地指标没有"判断"，只有数值</td></tr>
+</table>
+
+<h3>用法</h3>
+<pre># 某一个实验轮次（每个画风各出一份）
+python tools/make_generation_report.py --label round21
+
+# 只出某个画风
+python tools/make_generation_report.py --label round19 --style komori-hikki-style
+
+# 显式指定（画风名会自动查参考图）
+python tools/make_generation_report.py --style cccccanh --images a.jpg b.jpg
+
+# 多参考泛化对照（画风提取的 10+ 张来源）
+python tools/make_generation_report.py --references r1.jpg r2.jpg r3.jpg --images c1.jpg c2.jpg --out report.html</pre>
+<p>实测已生成：<code>data/test-result/style-lab/reports/report-round19-*.html</code>（6 个画风）、
+<code>report-round21-komori-hikki-style.html</code>。指标复用共享入口 <code>utils.style_similarity.compare_images</code>，
+<b>没有复制任何公式</b>；设备默认 <code>auto-cpu</code>，批处理可设 <code>IMAGE_MAKER_REPORT_DEVICE=cuda</code>。</p>
+
+<div class="caveat">
+<b>还没接进「每轮自动触发」</b>：多图画风提取的轮内循环在 <code>modules/image_analysis/style_analyzer.py:1205</code> 附近
+（每轮 <code>_save_state</code> 之后），现在报告仍是"跑完一轮后用 CLI 生成"。
+接进 GUI 需要给 <code>write_comparison_report</code> 加输出名参数（它固定写 <code>automatic-comparison.html</code>），
+并考虑轮内自动跑指标会占用 CPU/GPU —— <b>建议作为下一步单独改，避免一次动太多测试面</b>。
+</div>
+
+<h2>三、任务 3：把对比图交给大模型打分（已实现）</h2>
+<p class="sub">新增 <code>utils/llm_style_score.py</code> + <code>tools/llm_style_score.py</code>，
+<b>复用现有文字/视觉分析接口</b>（<code>utils.analysis_gpt_prompt.call_text_model</code>，多模态 <code>image_url</code>，一次可带多张图）。</p>
+
+<h3>提示词要点（对应实际业务约束）</h3>
+<table>
+  <tr><th>要求</th><th>提示词里的对应条款</th></tr>
+  <tr><td>一次发多张图</td><td>先发<b>全部参考图</b>（reference_1..N），再发该批候选（c1..cN），标签顺序固定</td></tr>
+  <tr><td>参考集本身多样</td><td>「先归纳参考集的<b>共性画法</b>，不要逐张比对某一张」</td></tr>
+  <tr><td>只评画风不评内容</td><td>「人物、发色、瞳色、服装、姿势、镜头、道具、场景<b>不得影响评分</b>；换了角色的同画风图算匹配」</td></tr>
+  <tr><td>不奖励抄内容</td><td>「不得因为抄了参考图的内容而加分，也不得因为内容不同而扣分」</td></tr>
+  <tr><td>要 0-100</td><td>严格 JSON：<code>style_score</code> 0-100 + 5 个分项（线条/五官头发/上色光影/材质/背景）0-100 + <code>reason</code> + <code>biggest_gap</code></td></tr>
+  <tr><td>保守</td><td>「在两档之间犹豫时取下档」；分项加权与总分差 &gt;15 分时只记录不擅自改分</td></tr>
+</table>
+
+<h3>实测（komori-hikki-style round19，两次独立运行）</h3>
+<table>
+  <tr><th>候选</th><th class="num">第 1 次总分</th><th class="num">第 2 次总分</th><th class="num">本地 gram ↓</th><th>我的读图</th></tr>
+  <tr><td>new（短锚）</td><td class="num">77</td><td class="num">62</td><td class="num">7.07</td><td>更规整、有装饰边框，不如旧版</td></tr>
+  <tr><td>old（长描述）</td><td class="num good">84</td><td class="num good">67</td><td class="num good">2.23</td><td class="good">更柔和更贴参考</td></tr>
+</table>
+<div class="note">
+<b>三方同向</b>：大模型打分、本地 gram、我的读图都判「旧版更好」。
+<b>但绝对分不稳定</b>：同一条目两次运行差了 10~15 分（77/84 → 62/67），
+说明 <b>0-100 分只能当相对比较用</b>，跨批次比绝对值没有意义 —— 这一点已写进工具输出与报告页脚。
+</div>
+
+<h3>用法</h3>
+<pre># 先看会发什么（不发请求）
+python tools/llm_style_score.py --style cccccanh --images a.jpg --dry-run
+
+# 打分（自动查该画风的参考图）
+python tools/llm_style_score.py --style komori-hikki-style --images a.jpg b.jpg --out score.json
+
+# 直接从实验轮次取候选，并写进出图对比报告
+python tools/llm_style_score.py --label round19 --style komori-hikki-style --report report.html</pre>
+
+<h2>四、任务 4：三 Tab 功能对齐</h2>
+
+<h3>4.1 现状审计（改前的结论）</h3>
+<table>
+  <tr><th>功能</th><th>单图分析 · Gemini</th><th>单图分析 · gpt</th><th>单图调试生图（改前）</th><th>CLI</th></tr>
+  <tr><td>画风预设</td><td class="ok">✅ <code>build_ref_gen_params</code></td><td class="ok">✅ <code>build_first_pass_request</code></td><td class="warn">✅ 但走 <code>assemble_style_instructions</code>（<b>不读 prompt_gemini、不解析内容锚</b>）</td><td>✅ <code>--style</code></td></tr>
+  <tr><td>风格参考模式</td><td class="ok">✅</td><td class="ok">✅（经画风图）</td><td class="ok">✅</td><td>✅ <code>--reference-mode</code></td></tr>
+  <tr><td>情绪 / 季节</td><td class="ok">✅（分析产物字段）</td><td class="ok">✅</td><td class="no">❌ 无</td><td>❌</td></tr>
+  <tr><td>穿衣风格 wardrobe</td><td class="ok">✅ <code>apply_wardrobe</code></td><td class="ok">✅</td><td class="no">❌ 无</td><td>✅ <code>--wardrobe</code>（专用 CLI）</td></tr>
+  <tr><td>配色 theme_color</td><td class="no">❌ 两侧都没有</td><td class="no">❌</td><td class="no">❌</td><td>✅ 批量提示词 / gpt-image-2 页有</td></tr>
+  <tr><td>重绘 / 后处理</td><td class="no">❌</td><td class="ok">✅ 7 档工序</td><td class="no">❌（本次已补）</td><td>✅ <code>--repaint</code></td></tr>
+  <tr><td>尺寸</td><td>aspect_ratio</td><td>size + quality</td><td>两者都有</td><td>✅</td></tr>
+</table>
+
+<h3>4.2 本次改动（「单图调试生图」）</h3>
+<ol>
+  <li><b>新增通道选择</b>：<code>生图通道: Gemini | gpt-image-2</code>，状态持久化（<code>data/single_gen_debug_ui_state.json</code>）。</li>
+  <li><b>Gemini 路径改为与分析 Tab 完全同源</b>：<code>build_ref_gen_params</code>
+      + <code>resolve_gemini_reference_content</code>（内容锚，需要已加载分析 JSON）
+      + <code>build_gemini_content_postamble</code>（图后重申）。
+      改前它用 <code>assemble_style_instructions</code>、既不看 <code>prompt_gemini</code> 也不解析
+      <code>gemini_content_field</code> —— <b>同一个画风在两个 Tab 会出不同的图，根本没法横向对比</b>。</li>
+  <li><b>gpt-image-2 路径</b>：<code>build_first_pass_request</code> → <code>generate_first_image</code> → 可选
+      <code>run_gpt_image_pipeline</code>（重绘 lines_only + 色调校准(目标=画风参考图) + 线条加墨），
+      与分析 Tab 的默认配方一致。</li>
+  <li>提示词框在 gpt 通道下作为<b>内容锚</b>使用（placeholder 会切换说明）。</li>
+</ol>
+
+<h3>4.3 仍未对齐 / 明确的差距</h3>
+<table>
+  <tr><th>缺口</th><th>影响</th><th>建议</th></tr>
+  <tr><td>调试页没有情绪/季节、穿衣风格控件</td><td>调试页没法复现"分析+生图"的完整条件</td>
+      <td>调试页定位是"快速试提示词"，若要完整条件应走分析 Tab；<b>不建议三处都放同一堆控件</b>（布局契约：分析 Tab 只允许两行 gpt 选项）</td></tr>
+  <tr><td>配色仅存在于另两个 Tab</td><td>无图首图才注入，本就与分析/调试页的"带图"场景冲突</td><td>维持现状，或在调试页加只读提示</td></tr>
+  <tr><td>CLI 没有 1:1 的"单图调试生图"入口</td><td>脚本化调试要绕 <code>analyze_fashion.py --channel</code>（会跑完整分析）</td>
+      <td>可基于本次改动加 <code>--debug-gen</code>（直接走调试页的组装），本轮未做</td></tr>
+</table>
+
+<div class="note">
+<b>三 Tab 是否可以"功能一致"？</b>结论是<b>不能也不需要完全一致</b>：
+<ul>
+  <li><b>分析 Tab</b>：输入是"要分析的图"，条件来自分析产物（情绪/服装进描述），gpt 通道有 7 档工序。</li>
+  <li><b>调试页</b>：输入是"纯提示词 + 参考图"，没有分析产物，所以依赖分析产物的字段（内容锚、情绪、服装）天然缺失。</li>
+  <li><b>可对齐的是"画风注入链路"</b>——本次已完成，两边现在用同一套组装函数；剩余差异都来自"有没有分析产物"这个输入差异。</li>
+</ul>
+</div>
+
+<h2>五、验证与遗留</h2>
+<table>
+  <tr><th>项</th><th>结果</th></tr>
+  <tr><td><code>py_compile</code></td><td class="ok">4 个新/改文件全部通过</td></tr>
+  <tr><td>回归测试</td><td class="ok">190 passed（<code>single_gen_debug / gpt_image2 / analysis_channel</code>）</td></tr>
+  <tr><td>报告生成实测</td><td class="ok">round19 六个画风 + round21 komori 均产出 HTML，图片路径全部有效</td></tr>
+  <tr><td>大模型打分实测</td><td class="ok">两次真实调用成功；方向与本地指标、读图一致</td></tr>
+  <tr><td>GUI 运行验证</td><td class="warn"><b>未做</b>：改的是 <code>modules/*.py</code>，需要重启 app 才能在界面上看到通道选择；本轮没有重启</td></tr>
+  <tr><td>轮内自动出报告</td><td class="warn"><b>未接</b>：见任务 2 的说明</td></tr>
+</table>
+
+<h2>六、文件清单</h2>
+<table>
+  <tr><th>文件</th><th>作用</th></tr>
+  <tr><td><code>utils/generation_report.py</code></td><td>报告引擎：指标聚合、泛化对照、推荐组合、HTML 渲染</td></tr>
+  <tr><td><code>tools/make_generation_report.py</code></td><td>报告 CLI（轮次 / 显式 / 多参考三种输入）</td></tr>
+  <tr><td><code>utils/llm_style_score.py</code></td><td>多图 → 视觉模型 0-100 打分（提示词、批组、严格校验）</td></tr>
+  <tr><td><code>tools/llm_style_score.py</code></td><td>打分 CLI（<code>--dry-run</code> / <code>--out</code> / <code>--report</code>）</td></tr>
+  <tr><td><code>data/test-result/style-lab/llm_report_patch.py</code></td><td>把打分结果追加进已有报告 HTML</td></tr>
+  <tr><td><code>modules/image_generation/single_gen_debug_tab.py</code></td><td>调试页：通道选择 + gpt 通道 + Gemini 组装对齐</td></tr>
+  <tr><td><code>data/test-result/style-lab/reports/</code></td><td>已生成的报告（round19 × 6、round21 × 1）</td></tr>
+</table>
+</body></html>
