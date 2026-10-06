@@ -53,7 +53,14 @@ NPU FP16 与 CPU/CUDA FP32 不混用数值。
 
 ## 验证
 
-可靠性实验执行协议见 [DeepSeek 严格受控实验](DEEPSEEK-SIMILARITY-CONTROLLED-EXPERIMENT-20261006.md)。该协议尚未执行完毕，包含技术失败重试、原作品留出、干扰对照、定位误差和独立盲评，不把计算正确等同画风效度。
+可靠性实验执行协议见 [DeepSeek 严格受控实验](DEEPSEEK-SIMILARITY-CONTROLLED-EXPERIMENT-20261006.md)。该协议已执行 E0–E5，
+结果见 [受控实验结果](DEEPSEEK-SIMILARITY-CONTROLLED-RESULTS-20261006.md)；要跑同一套流程用
+`python -u tools/style_similarity_experiment.py freeze|run --stages …|report`，
+编排/统计在 `utils/style_experiment_controlled*.py`，实验定义在
+`prompts/style-extraction/similarity-validation-v1/`。
+该协议包含技术失败重试、原作品留出、干扰对照、定位误差和独立盲评，**不把计算正确等同画风效度**：
+E4 的人工标注与 E5 的人类盲评、新增 18 个生图槽位都还没有人类输入/费用授权，
+因此自动定位默认可用性、候选排序效度仍未验收。
 
 测试覆盖同图 / 对称 / 差异、损坏图片、hash 变化、缺失不计零、全部候选 × 全部参考、提取与独立计算数值一致、CLI 同入口、UI 冻结参数 / 子进程 / 八项展示。
 真实双图验证素材及报告在 `cache/temp/style-similarity-validation/`，不写入生产日期目录。

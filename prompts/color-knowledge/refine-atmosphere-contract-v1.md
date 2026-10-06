@@ -1,0 +1,4 @@
+User-selected generation atmosphere (creative direction, not an observed source fact):
+{instructions}
+Apply these as soft preferences in value, chroma and contrast, only where compatible with the existing description. Explicit palette choices, colour bindings, tone choices and primary/secondary/accent roles take precedence. Preserve hue families and colour placements; do not replace the palette or force neutral colours. If the preferences conflict, use a subtle shared effect instead of forcing either extreme.
+Preserve people, identity, facial expressions, pose, clothing, objects, composition, drawing style, weather, time of day and lighting direction. Season here means colour expression: do not add snow, blossoms, leaves, sunlight, seasonal clothes or new objects. Mood here means visual atmosphere: do not infer a person's emotions or change their face. No numeric area targets or exact colour matching are requested.

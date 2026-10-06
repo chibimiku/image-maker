@@ -1,0 +1,130 @@
+{
+  "kind": "palette",
+  "version": 1,
+  "id": "book-spatial-guide-content-v1",
+  "title": "独立位置图研究 · 统一内容合同（两个分支逐字相同）",
+  "date": "2026-10-05",
+  "schedule_seed": 261005,
+  "rounds": 2,
+  "subject": "An anime illustration of one young woman with long neutral silver-grey hair fishing beside a river in spring. She wears an elegant ivory-white Western-style dress with lace, a modest full skirt, and a clearly visible wide waist ribbon sash tied at the front of her waist. She wears dark neutral platform heels with clearly visible ribbon bows on both shoes. Full-body three-quarter view, both shoes visible on the dry riverbank, the waist sash and both shoe bows clearly readable in the composition. She holds a fishing rod naturally with both hands, the fishing line extending into the river. Fresh spring foliage, a gently flowing river and a few small blossoms already present on the bank. Her face, hair, dress silhouette, waist ribbon sash, bow decorations and thick platform soles must remain readable. One person, natural connected anatomy, no text or watermark.",
+  "rendering": "Polished anime illustration with fine expressive contours, softly layered painted shading, readable lace and fabric folds, restrained surface detail and coherent natural daylight. Keep the same subject, action, objects, full-body framing and rendering treatment in every image.",
+  "protected": [
+    "long neutral silver-grey hair",
+    "ivory-white dress",
+    "dark neutral platform heels",
+    "opposite riverbank ground",
+    "upper-right overhanging branches and leaves (source pink-lilac)",
+    "lower-right foreground leaves, stems and existing blossoms (source pink-lilac)",
+    "waist ribbon sash and shoe ribbon bows (existing regions, colour may follow the palette)",
+    "fishing action",
+    "spring riverside daylight",
+    "one person",
+    "full body, both shoes and the accent regions visible"
+  ],
+  "protection_block_id": "M2",
+  "protection_block": "Preserve the source intrinsic colours of skin, silver-grey hair, ivory-white dress, dark neutral shoe bodies, and the opposite riverbank ground. In particular keep both of these existing plant objects in their original pink-lilac colour, shapes and shading: the branches and leaves that overhang into the upper-right of the frame, and the foreground leaves and stems with the existing blossoms in the lower-right corner. Never replace those plant colours with realistic green or with the environment's assigned colour. Recolour only the existing regions explicitly authorized by the palette contract: river water, sky, distant foliage, foreground dry riverbank ground under the person's shoes (excluding the opposite bank, grass and flowers), waist ribbon sash, left shoe bow, and right shoe bow. Every region not listed retains its original intrinsic colours. Keep exactly one person, the source identity, fishing action, pose, garment and shoe designs, scene objects, full-body framing, daylight, weather and drawing style. The colour contract changes colours only; do not add objects, duplicate the subject or add panels, text, labels or swatches.",
+  "protection_block_note": "保护块 M2 相对 book-region-contract-content-v1.json 的 M 只做一件事：把两个枝叶对象（右上伸入画幅的枝叶、右下近景叶片）显式写进保护清单，因为它们正是上一轮被整体改成蓝色/青蓝的未授权区域。授权清单逐字未变，两个分支（source / source_locator）使用同一份 M2，因此「新增保护要求」不会混进附件效果。M2 不提及任何位置图、框或蒙版。",
+  "prompt_layout": {
+    "separator": "\n\n",
+    "order": [
+      "（仅 source_locator 分支）SPATIAL GUIDE ROLES 角色说明",
+      "content_reference_instruction（两个分支逐字相同）",
+      "subject",
+      "rendering",
+      "COLOUR PLAN:（C16 固定色板）",
+      "PRESERVE:（两个分支同一份 M2）",
+      "SCENE AND SUBJECT COUNT LOCK"
+    ],
+    "note": "subject 与 rendering 逐字沿用 2026-10-03 第二阶段主题与 2026-10-05 上一轮内容源配置；两个分支唯一的差别是：source_locator 多一张独立位置图附件，以及紧贴该附件角色的那一段说明。",
+    "headers": {
+      "color_plan": "COLOUR PLAN:",
+      "protection": "PRESERVE:"
+    }
+  },
+  "channels": {
+    "gemini-flash": {
+      "api_type": "aigc2d",
+      "model": "gemini-3.1-flash-image-preview",
+      "host": "new.aigc2d.com",
+      "resolution": "1K",
+      "aspect_ratio": "3:2",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "note": "与上一轮 book-region-contract-v1 同款通道、模型与参数；本轮生图附件由协议显式声明（内容源 / 内容源+位置图），不再使用本字段。"
+    }
+  },
+  "variants": {
+    "simple": {
+      "label": "简洁版",
+      "source_file": "prompts/color-knowledge/fixed-palette-v1-simple.md",
+      "definition": "只写颜色、主次、区域与允许保留的中性色；不写明度/彩度层级理论"
+    }
+  },
+  "groups": [
+    {
+      "id": "C16-source",
+      "palette_id": "C16",
+      "variant": "source",
+      "label": "C16 内容源分支（无位置图）",
+      "intent": "同一内容源与同一份统一文字合同，只有内容源附件",
+      "palette_preview": [
+        "#477893",
+        "#f7da31",
+        "#f0441c"
+      ],
+      "preview_source": "scan_measured_swatches_not_pixel_exact_targets",
+      "clauses": [],
+      "protection": true
+    },
+    {
+      "id": "C16-source_locator",
+      "palette_id": "C16",
+      "variant": "source_locator",
+      "label": "C16 内容源 + 独立位置图分支",
+      "intent": "同一内容源与同一份统一文字合同，另加一张明确角色的黑白位置图及其角色说明",
+      "palette_preview": [
+        "#477893",
+        "#f7da31",
+        "#f0441c"
+      ],
+      "preview_source": "scan_measured_swatches_not_pixel_exact_targets",
+      "clauses": [],
+      "protection": true
+    }
+  ],
+  "evaluation": {
+    "per_image_dimensions": [
+      "单人、源姿势与构图、无分栏/重复人物/色卡/文字",
+      "蓝环境、黄近岸、橙红腰带与左右鞋结分别是否执行",
+      "右下近景植物与右上枝叶是否保留源图实际粉紫颜色（不得改成蓝色或“自然绿色”）",
+      "对岸、肤色、银灰发、白裙、深色鞋体是否保持",
+      "位置框、黑白指导图或标记是否被复制进产物（出现即内容失败）",
+      "人体连接（灰度可辨性不能代替结构或保护色判断）"
+    ],
+    "statuses": [
+      "conform",
+      "partial",
+      "fail",
+      "unverifiable"
+    ],
+    "review_plan": "按组评审：每组 2 张全图 + 各自身体裁剪 + 只读灰度；source_locator 组另附声明的独立位置图。共 2 次评审调用，无自动补抽。"
+  },
+  "budget_policy": {
+    "generation": "逻辑样本数 = 4（两个分支各两轮），底层 HTTP 重试在本次运行内显式关闭（IMAGE_MAKER_IMAGE_MAX_RETRIES=0）",
+    "review": "分组评审 2 次，不留自动补充额度",
+    "failure_policy": "连续两次请求失败即停止；失败、拒绝与不可验证原样保留在分母里，不补抽、不换图、不重试"
+  },
+  "request_policy": {
+    "protocol_change": "spec、条款、模型、端点或附件变化必须换新的输出目录",
+    "no_reference_images": "不附画风图，不重绘，不做 tone 校准、局部色调、材质或本地后处理",
+    "no_mask_field": "不向 Gemini 请求添加任何未经文档确认的 mask 字段；位置图只能作为普通视觉指导附件",
+    "note": "本协议只生成首图，并与 book-region-contract-v1 目录完全隔离"
+  },
+  "limitations": [
+    "两分支各两轮，共 4 张；不是配对 seed，不能证明稳定性、因果收益或原生 mask 支持",
+    "比较的单位是「位置图 + 角色说明」这条整体干预，不是「只加一张图」",
+    "位置图框只是粗定位，不是逐像素分割；框内地面/水面仍按各自合同执行，框外也不自动获准改色",
+    "分支不可见时（例如腰带或鞋结被遮挡）该张的区域执行记 unverifiable，不计成功",
+    "对岸树丛与「distant foliage」的深度边界在源图里并不完全清晰，边界处记 partial/unverifiable，不冒充面积测量"
+  ]
+}

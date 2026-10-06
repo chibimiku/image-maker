@@ -1,0 +1,118 @@
+{
+  "version": 2,
+  "provenance": "Qualitative engineering translations; user choices rather than inferred book palette roles. No universal area percentages.",
+  "tones": [
+    {
+      "id": "bright",
+      "label": "明亮",
+      "pages": [
+        14,
+        15,
+        16,
+        110,
+        129
+      ],
+      "instruction": "Prefer somewhat lighter values within the existing assigned hue families. Retain dark structural accents and readable shading; avoid bleaching, clipping highlights or adding light sources.",
+      "ncd_candidates": [
+        "B",
+        "P",
+        "Vp"
+      ],
+      "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping."
+    },
+    {
+      "id": "deep",
+      "label": "深沉",
+      "pages": [
+        14,
+        15,
+        16,
+        110,
+        129
+      ],
+      "instruction": "Prefer somewhat deeper values within the existing assigned hue families. Retain readable highlights, hue distinctions and shadow details; do not turn the scene into night.",
+      "ncd_candidates": [
+        "Dp",
+        "Dk",
+        "Dgr"
+      ],
+      "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping."
+    },
+    {
+      "id": "clear",
+      "label": "清色",
+      "pages": [
+        14,
+        15,
+        16
+      ],
+      "instruction": "Prefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.",
+      "ncd_candidates": [
+        "V",
+        "B",
+        "P",
+        "Vp"
+      ],
+      "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping."
+    },
+    {
+      "id": "muted",
+      "label": "浊色",
+      "pages": [
+        14,
+        15,
+        16
+      ],
+      "instruction": "Prefer gently restrained chroma within the existing assigned hue families. Retain colour distinctions and focal readability; do not replace the palette with grey or apply a uniform haze.",
+      "ncd_candidates": [
+        "Lgr",
+        "Gr",
+        "L",
+        "Dl"
+      ],
+      "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping."
+    }
+  ],
+  "areas": [
+    {
+      "id": "base-accent",
+      "label": "主色主导、少量强调",
+      "pages": [
+        18,
+        146
+      ],
+      "instruction": "Let the assigned base family carry the main visual weight, with the assigned accent concentrated on the named existing details. Treat this as a flexible visual hierarchy, not a measured area ratio."
+    },
+    {
+      "id": "balanced",
+      "label": "双色并重",
+      "pages": [
+        79
+      ],
+      "instruction": "Aim for comparable visual prominence of the two assigned colour families within the named existing regions. This is a soft preference, not equal pixel coverage; if existing region sizes prevent balance, preserve the composition and report no exact-area guarantee."
+    },
+    {
+      "id": "three-level",
+      "label": "主色＋辅助＋强调",
+      "pages": [
+        18,
+        146
+      ],
+      "instruction": "Use the explicitly bound base as the main visual weight, the explicitly bound auxiliary colour as a supporting layer, and the explicitly bound accent as concentrated emphasis. Keep this hierarchy qualitative; do not manufacture colour coverage by adding or enlarging objects."
+    }
+  ],
+  "auxiliary": {
+    "cool-blue-red": {
+      "colour": "muted blue-grey",
+      "provenance": "existing trial profile's named auxiliary; designer approximation, not a book-measured role"
+    },
+    "deep-green-rose": {
+      "colour": "subdued green",
+      "provenance": "existing trial profile's named auxiliary; designer approximation, not a book-measured role"
+    },
+    "blue-violet-gold": {
+      "colour": "subdued violet-grey",
+      "provenance": "existing trial profile's named auxiliary; designer approximation, not a book-measured role"
+    }
+  }
+}

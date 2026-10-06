@@ -1,0 +1,152 @@
+{
+  "extends": "prompts/color-knowledge/book-palette-ablation-v1.json",
+  "id": "book-spatial-guide-v1",
+  "version": 1,
+  "out_dir": "data/test-result/20261005/book-spatial-guide-v1",
+  "include_control": false,
+  "composition_guard": "single-scene-v1",
+  "review_addendum": [
+    "color-knowledge/book-content-anchor-review-v1.md",
+    "color-knowledge/book-spatial-guide-review-v1.md"
+  ],
+  "readonly_grayscale": true,
+  "content_reference_instruction": "color-knowledge/book-content-anchor-v1.md",
+  "content_source": "prompts/color-knowledge/book-spatial-guide-content-v1.json",
+  "content_reference": {
+    "path": "data/test-result/20261005/book-palette-ablation-v2/samples/C13-simple-r1/book-C13-simple-r1_105300-2c8d70.jpg",
+    "sha256": "63a39e46a2ece312a2f703b2a7561f5c285d3d598f1c565a20c053cdbc97a6c1",
+    "role": "content_only",
+    "subject_count": 1,
+    "selection_rule": "沿用上一轮冻结的同一张内容源；本轮不改图、不改内容源、不重新挑选。"
+  },
+  "spatial_guide": {
+    "path": "data/test-result/20261005/book-spatial-guide-design-v1/protected-region-locator.png",
+    "sha256": "39ea2e9438dda924ae2eeed825dec25475eaafbe8612a949a0a214d6d4735dab",
+    "role": "spatial_locator_not_native_mask",
+    "canvas_size": [
+      1264,
+      848
+    ],
+    "manifest": "data/test-result/20261005/book-spatial-guide-design-v1/locator-manifest.json",
+    "manifest_sha256": "a5771ae3b03f608fb8d994da866793a24e77c9455e7bfd246df40a2e411474b9",
+    "instruction": "color-knowledge/book-spatial-guide-v1.md",
+    "note": "空白画布上的两个白框，没有复制任何源图像素，没有羽化层，没有合成任何候选。它只给模型做普通视觉定位，不是接口原生 mask，也不是逐像素锁定。"
+  },
+  "variants": {
+    "source": {
+      "include_relationship_rules": false,
+      "arrangement_mode": "none",
+      "uses_content_reference": true,
+      "uses_spatial_guide": false
+    },
+    "source_locator": {
+      "include_relationship_rules": false,
+      "arrangement_mode": "none",
+      "uses_content_reference": true,
+      "uses_spatial_guide": true
+    }
+  },
+  "existing_regions": [
+    "river water",
+    "sky",
+    "distant foliage",
+    "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+    "opposite riverbank ground",
+    "foreground plants and existing blossoms",
+    "upper-right overhanging branches and leaves",
+    "waist ribbon sash",
+    "left shoe bow",
+    "right shoe bow",
+    "skin",
+    "silver-grey hair",
+    "ivory-white dress",
+    "dark neutral shoe bodies"
+  ],
+  "authorized_regions": [
+    "river water",
+    "sky",
+    "distant foliage",
+    "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+    "waist ribbon sash",
+    "left shoe bow",
+    "right shoe bow"
+  ],
+  "protected_regions": [
+    "skin",
+    "silver-grey hair",
+    "ivory-white dress",
+    "dark neutral shoe bodies",
+    "opposite riverbank ground",
+    "foreground plants and existing blossoms",
+    "upper-right overhanging branches and leaves"
+  ],
+  "bindings": [
+    {
+      "region": "river water",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "sky",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "distant foliage",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+      "role": "auxiliary",
+      "order_key": "auxiliary_order"
+    },
+    {
+      "region": "waist ribbon sash",
+      "role": "accent",
+      "order_key": "accent_order"
+    },
+    {
+      "region": "left shoe bow",
+      "role": "accent",
+      "order_key": "accent_order"
+    },
+    {
+      "region": "right shoe bow",
+      "role": "accent",
+      "order_key": "accent_order"
+    }
+  ],
+  "review_max_calls": 2,
+  "purpose": "独立位置图研究：把「内容源 + 统一文字合同」与「同样内容源与合同 + 一张明确角色的独立位置图及其角色说明」分开跑，判断这张普通视觉指导附件是否改变了保护区是否被改色。不新增局部色调、材质或其它色彩知识，不与旧目录混比。",
+  "schemes": [
+    {
+      "id": "C16",
+      "palette_id": "image-chart-147-16",
+      "base_order": 3,
+      "auxiliary_order": 2,
+      "accent_order": 1
+    }
+  ],
+  "budget": {
+    "generation_calls": 4,
+    "review_calls": 2,
+    "auto_retry": 0,
+    "note": "两分支各两轮，共最多 4 次生图、2 次分组评审；不补抽、不追加请求。"
+  },
+  "authorization_scope": {
+    "endpoints": [
+      "new.aigc2d.com 生图端点",
+      "new.aigc2d.com 视觉评审端点"
+    ],
+    "uploads": "仅指定内容源、独立位置图与本轮候选",
+    "excluded": "不上传 PDF、其它项目资料、配置文件、目录清单或凭据"
+  },
+  "limitations": [
+    "来源图、色板、模型与尺寸与上一轮相同，但两轮随机样本不能证明稳定性或因果收益",
+    "两条分支的比较单位是「位置图 + 角色说明」的整体干预",
+    "位置图不是原生 mask；本轮不发送任何未确认的 mask 字段，也不能据此宣称像素级锁定",
+    "框只是定位：框内地面/水面不自动变成保护区，框内外的判定仍按各自合同执行",
+    "两分支都携带同一份新增保护要求（右下近景植物、右上枝叶与对岸），避免把保护措辞差异混进附件效果"
+  ]
+}

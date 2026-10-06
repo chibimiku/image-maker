@@ -1,0 +1,181 @@
+{
+  "kind": "tone",
+  "version": 3,
+  "id": "spring-fishing-tone-effect-v1",
+  "title": "用户显式指定色调（冷/暖）是否有效 · Gemini 与 gpt-image-2",
+  "date": "2026-10-03",
+  "schedule_seed": 261003,
+  "rounds": 3,
+  "subject": "An anime illustration of one young woman with long pink hair fishing beside a river in spring. She wears an elegant ivory Western-style dress with lace and a modest full skirt, and dusty-pink platform heels with clearly visible ribbon bows. Full-body three-quarter view, both shoes visible on the dry riverbank. She holds a fishing rod naturally with both hands, the fishing line extending into the river. Fresh spring foliage, a gently flowing river and a few small blossoms already present on the bank. Her face, long pink hair, dress silhouette, bow decorations and thick platform soles must remain readable. One person, natural connected anatomy, no text or watermark.",
+  "rendering": "Polished anime illustration with fine expressive contours, softly layered painted shading, readable lace and fabric folds, restrained surface detail and coherent natural daylight. Keep the same subject, action, objects, full-body framing and rendering treatment in every image.",
+  "protected": [
+    "long pink hair",
+    "ivory dress",
+    "dusty-pink platform heels",
+    "ribbon bows",
+    "fishing action",
+    "spring riverside",
+    "one person",
+    "full body and both shoes"
+  ],
+  "protection_block_id": "K",
+  "protection_block": "Preserve the intrinsic pink hair, ivory dress and dusty-pink shoes. Keep exactly one person, the existing fishing action, full-body framing, both platform heels and their ribbon bows. Do not add objects or change the time of day, pose, outfit design or drawing style.",
+  "prompt_layout": {
+    "separator": "\\n\\n",
+    "order": [
+      "subject",
+      "rendering",
+      "COLOR PLAN:（仅 G2~G7）",
+      "PRESERVE:（仅 G1~G7，同一份 K）"
+    ],
+    "note": "subject 与 rendering 逐字沿用第一轮 pilot-spring-fishing.json；G0 的请求文本因此与第一轮 baseline 完全相同",
+    "headers": {
+      "color_plan": "COLOR PLAN:",
+      "protection": "PRESERVE:"
+    }
+  },
+  "channels": {
+    "gemini-flash": {
+      "api_type": "aigc2d",
+      "model": "gemini-3.1-flash-image-preview",
+      "host": "new.aigc2d.com",
+      "resolution": "1K",
+      "aspect_ratio": "3:2",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "note": "第一轮同款通道；实测输出 1264x848"
+    },
+    "gpt-image-2": {
+      "api_type": "aigc-2d-gpt",
+      "model": "gpt-image-2",
+      "host": "new.aigc2d.com",
+      "size": "1536x1024",
+      "aspect_ratio": "3:2",
+      "quality": "medium",
+      "output_format": "png",
+      "n": 1,
+      "mode": "generate",
+      "image_paths": [],
+      "note": "无参考图、无重绘/tone/加墨、不混用其他家族或质量档"
+    }
+  },
+  "groups": [
+    {
+      "id": "T0",
+      "label": "基线：无附加块",
+      "added_block": "无",
+      "clauses": [],
+      "protection": false,
+      "intent": "同一轮内的对照：与 T1~T4 只差附加块",
+      "sources": [],
+      "clause_chars": 0,
+      "protection_block_chars": 0,
+      "instruction_chars": 0
+    },
+    {
+      "id": "T1",
+      "label": "冷色调 · 一句用户口吻（短）",
+      "added_block": "T1 条款 + K",
+      "clauses": [
+        "Use a cool color palette for this image: cool blues, blue-greens and cool greys, with cool shadow tones."
+      ],
+      "protection": true,
+      "intent": "用户只说“用冷色调”，一句话，能否真的变冷",
+      "sources": [],
+      "clause_chars": 104,
+      "protection_block_chars": 267,
+      "instruction_chars": 371
+    },
+    {
+      "id": "T2",
+      "label": "冷色调 · 更强更主导",
+      "added_block": "T2 条款 + K",
+      "clauses": [
+        "Make the whole image distinctly cool-toned: blue and cyan dominate the environment, the light is cool and slightly desaturated, and warm colors are reduced to small accents only."
+      ],
+      "protection": true,
+      "intent": "把冷色写成主导色、暖色压成小面积点缀，看效果是否更强",
+      "sources": [],
+      "clause_chars": 178,
+      "protection_block_chars": 267,
+      "instruction_chars": 445
+    },
+    {
+      "id": "T3",
+      "label": "暖色调 · 对称对照",
+      "added_block": "T3 条款 + K",
+      "clauses": [
+        "Use a warm color palette for this image: warm golden light, with warm yellow and amber environment tones."
+      ],
+      "protection": true,
+      "intent": "同强度反方向指令：如果只有冷色会变、暖色不变，说明观测可能来自随机漂移",
+      "sources": [],
+      "clause_chars": 105,
+      "protection_block_chars": 267,
+      "instruction_chars": 372
+    },
+    {
+      "id": "T4",
+      "label": "冷色调 · 点名色相（teal/slate blue/grey）",
+      "added_block": "T4 条款 + K",
+      "clauses": [
+        "Use teal, slate blue and cool grey for the environment colours, with cool shadows; keep the subject's own hair, dress and shoe colours unchanged."
+      ],
+      "protection": true,
+      "intent": "不写“冷”这个抽象词，改为点名若干冷色相，看是否比 T1 更稳",
+      "sources": [],
+      "clause_chars": 145,
+      "protection_block_chars": 267,
+      "instruction_chars": 412
+    }
+  ],
+  "evaluation": {
+    "per_image_reading": [
+      "very_cool",
+      "cool",
+      "neutral",
+      "warm",
+      "very_warm"
+    ],
+    "content_dimensions": [
+      "单人",
+      "粉色长发",
+      "象牙白洋装",
+      "灰粉 platform heels 与蝴蝶结",
+      "钓鱼动作",
+      "主要肢体与竿线可读",
+      "全身与双鞋可见"
+    ],
+    "local_metrics": [
+      "cool_pixel_fraction",
+      "warm_pixel_fraction",
+      "mean_hue_circular",
+      "mean_hsv_saturation",
+      "mean_display_luma"
+    ],
+    "vision_call_plan": "每 5 张一个调用，同时回答内容状态与冷暖读数；不告诉评价模型分组",
+    "caps": {
+      "tone_reading": 4
+    }
+  },
+  "reference_from_main_run": {
+    "run_dir": "data/test-result/20261003/color-stage2-v2",
+    "group": "G4",
+    "note": "主试验的“柔蓝完整版”三张作为“关系型配色包”的历史参照，不重新生图，也不与新图合并成同一样本组"
+  },
+  "source_availability": {
+    "book_transcription": "本机 docs/261003-color-improve/book-html 转录（未被 git 跟踪，仅本机可读）",
+    "pdf": "本机 docs/261003-color-improve/15659159.pdf",
+    "reviewed": "以上来源页在本次执行前已在本地打开核对（PDF 146/147/79/40/53）"
+  },
+  "request_policy": {
+    "http_retries": "沿用后端配置 max_retries=1；不做业务级自动重试；不补图",
+    "protocol_change": "spec 或通道参数变化必须换新的输出目录，禁止复用旧目录",
+    "failure_policy": "连续两次接口失败或配置错误即停止该模型区块并报告；空返回/拒绝/HTTP 错误登记为请求失败，不与内容失败混同"
+  },
+  "limitations": [
+    "全局色相统计没有区域蒙版，背景面积占优，不能当成“人物是否变冷”的测量",
+    "3 张/组只能说明趋势，不构成显著性",
+    "评价模型的冷暖读数是主观读数；本轮只问“看起来冷不冷”，不问好不好看"
+  ]
+}

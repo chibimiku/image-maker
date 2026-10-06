@@ -1,0 +1,106 @@
+{
+  "extends": "prompts/color-knowledge/book-palette-ablation-v1.json",
+  "id": "book-region-contract-v1",
+  "version": 1,
+  "out_dir": "data/test-result/20261005/book-region-contract-v1",
+  "include_control": false,
+  "composition_guard": "single-scene-v1",
+  "review_addendum": "color-knowledge/book-content-anchor-review-v1.md",
+  "readonly_grayscale": true,
+  "content_reference_instruction": "color-knowledge/book-content-anchor-v1.md",
+  "content_reference": {
+    "path": "data/test-result/20261005/book-palette-ablation-v2/samples/C13-simple-r1/book-C13-simple-r1_105300-2c8d70.jpg",
+    "sha256": "63a39e46a2ece312a2f703b2a7561f5c285d3d598f1c565a20c053cdbc97a6c1",
+    "role": "content_only",
+    "subject_count": 1,
+    "selection_rule": "Earliest scheduled v2 sample with one person, continuous scene and no chart; not chosen by beauty."
+  },
+  "variants": {
+    "content": {
+      "include_relationship_rules": false,
+      "arrangement_mode": "none",
+      "uses_content_reference": true
+    }
+  },
+  "existing_regions": [
+    "river water",
+    "sky",
+    "distant foliage",
+    "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+    "opposite riverbank ground",
+    "foreground plants and existing blossoms",
+    "waist ribbon sash",
+    "left shoe bow",
+    "right shoe bow",
+    "skin",
+    "silver-grey hair",
+    "ivory-white dress",
+    "dark neutral shoe bodies"
+  ],
+  "authorized_regions": [
+    "river water",
+    "sky",
+    "distant foliage",
+    "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+    "waist ribbon sash",
+    "left shoe bow",
+    "right shoe bow"
+  ],
+  "protected_regions": [
+    "skin",
+    "silver-grey hair",
+    "ivory-white dress",
+    "dark neutral shoe bodies",
+    "opposite riverbank ground",
+    "foreground plants and existing blossoms"
+  ],
+  "bindings": [
+    {
+      "region": "river water",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "sky",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "distant foliage",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+      "role": "auxiliary",
+      "order_key": "auxiliary_order"
+    },
+    {
+      "region": "waist ribbon sash",
+      "role": "accent",
+      "order_key": "accent_order"
+    },
+    {
+      "region": "left shoe bow",
+      "role": "accent",
+      "order_key": "accent_order"
+    },
+    {
+      "region": "right shoe bow",
+      "role": "accent",
+      "order_key": "accent_order"
+    }
+  ],
+  "review_max_calls": 1,
+  "purpose": "Two C16 content-reference requests after removing the contradictory final recolour-only-bows protection sentence. No new colour theory, no causal comparison to historical samples. Offline preflight only until user schedules execution.",
+  "content_source": "prompts/color-knowledge/book-region-contract-content-v1.json",
+  "schemes": [
+    {
+      "id": "C16",
+      "palette_id": "image-chart-147-16",
+      "base_order": 3,
+      "auxiliary_order": 2,
+      "accent_order": 1
+    }
+  ]
+}

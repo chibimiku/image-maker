@@ -1,0 +1,39 @@
+{
+  "id": "book-palette-ablation-v1",
+  "version": 1,
+  "knowledge": "prompts/color-knowledge/book-generation-knowledge-v2.json",
+  "content_source": "prompts/color-knowledge/fixed-palette-v1.json",
+  "channel_source": "gemini-flash",
+  "rounds": 2,
+  "schedule_seed": 261005,
+  "out_dir": "data/test-result/20261005/book-palette-ablation-v1",
+  "purpose": "Compare identical measured swatches and bindings, with or without area/separation instructions. Colour allocation, not image quality.",
+  "scheme_selection": "Two predetermined contrasting three-hue entries (13 and 16); no generated-image selection or sample replacement.",
+  "schemes": [
+    {"id": "C13", "palette_id": "image-chart-147-13", "base_order": 2, "auxiliary_order": 3, "accent_order": 1},
+    {"id": "C16", "palette_id": "image-chart-147-16", "base_order": 3, "auxiliary_order": 2, "accent_order": 1}
+  ],
+  "existing_regions": ["river water", "sky", "distant foliage", "riverbank ground", "waist ribbon sash", "left shoe bow", "right shoe bow", "skin", "silver-grey hair", "ivory-white dress", "dark neutral shoe bodies"],
+  "authorized_regions": ["river water", "sky", "distant foliage", "riverbank ground", "waist ribbon sash", "left shoe bow", "right shoe bow"],
+  "protected_regions": ["skin", "silver-grey hair", "ivory-white dress", "dark neutral shoe bodies"],
+  "bindings": [
+    {"region": "river water", "role": "base", "order_key": "base_order"},
+    {"region": "sky", "role": "base", "order_key": "base_order"},
+    {"region": "distant foliage", "role": "base", "order_key": "base_order"},
+    {"region": "riverbank ground", "role": "auxiliary", "order_key": "auxiliary_order"},
+    {"region": "waist ribbon sash", "role": "accent", "order_key": "accent_order"},
+    {"region": "left shoe bow", "role": "accent", "order_key": "accent_order"},
+    {"region": "right shoe bow", "role": "accent", "order_key": "accent_order"}
+  ],
+  "variants": {
+    "simple": {"include_relationship_rules": false, "arrangement_mode": "none"},
+    "knowledge": {"include_relationship_rules": true, "arrangement_mode": "separation"}
+  },
+  "tone_code": null,
+  "tone_note": "The printed three-colour schemes contain mixed tones; do not force one NCD tone onto all three. This first ablation isolates area hierarchy and value separation, not the twelve-tone selector.",
+  "model_seed": null,
+  "image_max_retries": 0,
+  "review_max_calls": 5,
+  "review_extra_calls": 0,
+  "finish_policy": "Keep all failures in the denominator; do not promote from only two samples; no automatic repaint, corrections or production GUI wiring."
+}

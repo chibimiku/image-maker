@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "provenance": "Qualitative engineering translations of book PDF pages 37 and 53; hue-changing associations deliberately omitted to protect fixed palettes. Not validated generation guarantees.",
+  "moods": [
+    {"id": "pleasant", "label": "愉快活跃", "page": 53, "instruction": "Suggest a pleasant, lively visual atmosphere with clear, readable tonal contrasts."},
+    {"id": "relaxed", "label": "平静放松", "page": 53, "instruction": "Suggest a calm, relaxed visual atmosphere through gentle tonal transitions and restrained contrast."},
+    {"id": "melancholic", "label": "忧郁沉静", "page": 53, "instruction": "Suggest a subdued, melancholic visual atmosphere with restrained chroma and quiet tonal contrasts."},
+    {"id": "tense", "label": "紧张凝重", "page": 53, "instruction": "Suggest a tense, weighty visual atmosphere with deeper tonal contrasts while retaining readable details."}
+  ],
+  "seasons": [
+    {"id": "spring", "label": "春", "page": 37, "instruction": "Suggest spring-like colour expression with gently bright, soft and clear tonal relationships."},
+    {"id": "summer", "label": "夏", "page": 37, "instruction": "Suggest summer-like colour expression with lively, clear tonal relationships and restrained vividness."},
+    {"id": "autumn", "label": "秋", "page": 37, "instruction": "Suggest autumn-like colour expression with somewhat deeper values and restrained chroma."},
+    {"id": "winter", "label": "冬", "page": 37, "instruction": "Suggest winter-like colour expression with quiet, restrained tonal relationships; retain every assigned hue family."}
+  ]
+}

@@ -1,0 +1,339 @@
+{
+  "kind": "cross-theme",
+  "version": 1,
+  "id": "cross-theme-palette-v1",
+  "title": "无画风参考图场景下的固定配色跨主题执行验证",
+  "date": "2026-10-05",
+  "out_dir": "data/test-result/20261005/color-palette-cross-theme-v1",
+  "purpose": "验证「指定一套颜色 + 指定落点区域」在没有画风参考图时能否跨主题执行。只判配色与落点，不评画质或美感。",
+  "source_spec": "prompts/color-knowledge/fixed-palette-v1.json",
+  "contract": {
+    "contract_id": "structured-colour-contract",
+    "version": 1,
+    "hash_source": "canonical_json_of_this_contract_block",
+    "authorized_recolor_regions": [
+      "waist_band_region",
+      "left_shoe_bow_region",
+      "right_shoe_bow_region"
+    ],
+    "protected_in_every_theme": [
+      "hair_colour",
+      "skin_tone",
+      "outfit_body_colour",
+      "footwear_body_colour",
+      "outfit_design",
+      "one_person",
+      "full_body_with_both_shoes"
+    ],
+    "forbidden_additions": [
+      "any new ribbon, sash, belt or bow that is not already in the theme",
+      "any new prop, animal, plant or decorative object",
+      "any second person"
+    ],
+    "negative": [
+      "do not change the time of day or the weather",
+      "do not change the drawing style",
+      "do not change the pose, outfit design or camera framing"
+    ],
+    "allowed_neutrals": [
+      {
+        "name": "near-white",
+        "role": "protected outfit body colour, unchanged"
+      },
+      {
+        "name": "low-chroma blue-grey",
+        "role": "value ladder inside the main colour"
+      },
+      {
+        "name": "low-chroma warm grey",
+        "role": "stone / paved surfaces already present in the theme"
+      },
+      {
+        "name": "dark neutral",
+        "role": "protected footwear body colour, unchanged"
+      }
+    ],
+    "colour_values_are_approximations": true,
+    "colour_value_note": "hex 只是设计师近似值，不是测量阈值；验收看区域与色相关系，不比对像素值"
+  },
+  "clauses_note": "条款来自 fixed-palette-v1.json 对应组，只把「河流/天空/岸地/远景植被」这类旧场景地标做一次「去场景化」改写；三个方案都只改一次，之后对所有主题逐字相同，运行中不再改",
+  "scheme_clauses_shared_per_theme": true,
+  "schemes": [
+    {
+      "id": "P1-knowledge",
+      "palette_id": "P1",
+      "variant": "knowledge",
+      "label": "P1 冷蓝 + 红 · 知识编译版",
+      "main": {
+        "name": "cool blue",
+        "hex": "#4A6E8A",
+        "role": "environment dominant"
+      },
+      "accent": {
+        "name": "red",
+        "hex": "#B23A3A",
+        "role": "small accent on the three authorized regions",
+        "must_not_become": [
+          "pink",
+          "orange",
+          "gold"
+        ]
+      },
+      "clauses_source_group": "P1-knowledge",
+      "clauses": [
+        "Establish a cool blue base as the dominant colour area: the background environment, the distant scenery, the ground plane and the shadow side of the subject use cool blue and blue-grey of low saturation, with value variation across the distance so the scene keeps depth instead of a flat wash.",
+        "Keep the near blue slightly darker and the distant blue lighter and desaturated; this value ladder carries the depth.",
+        "Reserve the red as the accent of highest chroma, small in area, placed only on the existing waist band and the existing ribbon bows on both shoes; the accent stays red, not pink.",
+        "Let the accent keep its chroma while the surrounding area stays muted, so the accent reads by chroma contrast rather than by size; keep it spatially concentrated on those three regions.",
+        "Use the cool shadows as part of the blue area, not as a grey veil, and keep overall daylight brightness.",
+        "Keep the subject's own colours: natural skin, the outfit's own body colour and the dark neutral footwear body, exactly as described; do not recolour them.",
+        "Do not add red objects, a second person, or change the time of day."
+      ]
+    },
+    {
+      "id": "P2-simple",
+      "palette_id": "P2",
+      "variant": "simple",
+      "label": "P2 深绿 + 玫红 · 简洁版",
+      "main": {
+        "name": "deep green",
+        "hex": "#2F4F3A",
+        "role": "environment dominant"
+      },
+      "accent": {
+        "name": "rose-red",
+        "hex": "#B7417A",
+        "role": "small accent on the three authorized regions",
+        "must_not_become": [
+          "pure red",
+          "orange",
+          "gold"
+        ]
+      },
+      "clauses_source_group": "P2-simple",
+      "clauses": [
+        "Give the environment a deep green palette: the background environment, the distant scenery, the ground plane and the shadows use deep green and low-chroma green tones.",
+        "Make the environment the dominant colour area, clearly deeper and less saturated than the subject.",
+        "Use rose-red only as a small accent, on the existing waist band and the existing ribbon bows on both shoes.",
+        "Keep the rose-red small and spatially concentrated on those three areas rather than spread over the background.",
+        "Keep the overall daylight brightness; do not darken the whole picture.",
+        "Keep the subject's own colours: natural skin, the outfit's own body colour and the dark neutral footwear body, exactly as described.",
+        "Do not add rose-red objects, a second person, or change the time of day."
+      ]
+    },
+    {
+      "id": "P3-knowledge",
+      "palette_id": "P3",
+      "variant": "knowledge",
+      "label": "P3 蓝紫 + 金 · 知识编译版",
+      "main": {
+        "name": "blue-violet",
+        "hex": "#4B4A7A",
+        "role": "environment dominant"
+      },
+      "accent": {
+        "name": "gold",
+        "hex": "#C9A227",
+        "role": "small accent on the three authorized regions",
+        "must_not_become": [
+          "yellow-white",
+          "orange",
+          "rose-red"
+        ]
+      },
+      "clauses_source_group": "P3-knowledge",
+      "clauses": [
+        "Establish a blue-violet base as the dominant colour area: the background environment, the distant scenery, the ground plane and the shadow side of the subject use blue-violet and low-chroma purple-grey, with value variation across the distance so the scene keeps depth instead of a flat wash.",
+        "Keep the near violet slightly darker and the distant violet lighter and desaturated; this value ladder carries the depth.",
+        "Reserve the gold as the accent of highest chroma, small in area, placed only on the existing waist band and the existing ribbon bows on both shoes.",
+        "Let the accent keep its chroma while the surrounding violet stays muted, so the accent reads by chroma contrast rather than by size; keep it spatially concentrated on those three regions.",
+        "Use the cool shadows as part of the violet area, not as a grey veil, and keep overall daylight brightness.",
+        "Keep the subject's own colours: natural skin, the outfit's own body colour and the dark neutral footwear body, exactly as described; do not recolour them.",
+        "Do not add gold objects, a second person, or change the time of day."
+      ]
+    }
+  ],
+  "control_group": {
+    "id": "B0",
+    "label": "无配色方案（同一主题基线）",
+    "clauses": [],
+    "note": "只发主题与保护块，不写任何 COLOUR PLAN 段；不套用任何配色方案的判据去判它通过或失败"
+  },
+  "themes": [
+    {
+      "id": "canal-town",
+      "label": "白日運河小鎮 · 石橋水巷",
+      "why_this_theme": "与旧钓鱼场景不同：主体站在石橋上，环境由「天空 + 運河水面 + 石砌建筑 + 陰影」大面积主导，因此冷蓝/深绿/蓝紫这类环境主色有清晰的承载面；点缀仍落在既有束带与两只鞋蝴蝶结上，不需要新增任何物件",
+      "subject": "An anime illustration of one young woman with long neutral silver-grey hair standing on a stone bridge over a sunlit canal in a quiet old town. She wears an elegant ivory-white long coat with a modest skirt and a clearly visible wide waist band tied at the front of her waist. She wears dark neutral platform heels with clearly visible ribbon bows on both shoes. Full-body three-quarter view, both shoes visible on the stone pavement, the waist band and both shoe bows clearly readable in the composition. Sunlit stone walls, a calm canal with reflections and a few small potted flowers already present along the railing. Her face, hair, outfit silhouette, waist band, bow decorations and thick platform soles must remain readable. One person, natural connected anatomy, no text or watermark.",
+      "rendering": "Polished anime illustration with fine expressive contours, softly layered painted shading, readable fabric folds, restrained surface detail and coherent natural daylight. Keep the same subject, action, objects, full-body framing and rendering treatment in every image.",
+      "existing_regions": [
+        "waist_band_region",
+        "left_shoe_bow_region",
+        "right_shoe_bow_region",
+        "environment_dominant_region",
+        "sky_and_water_region",
+        "masonry_and_shadow_region"
+      ],
+      "region_mapping": {
+        "environment_dominant_region": {
+          "maps_to": "sky_and_water_region",
+          "describes": "the sunlit sky, the canal water, the stone walls and the shadowed pavement (all already present)"
+        },
+        "waist_band_region": {
+          "maps_to": "waist_band_region",
+          "describes": "the wide waist band tied at the front of the ivory-white long coat (already present)"
+        },
+        "left_shoe_bow_region": {
+          "maps_to": "left_shoe_bow_region",
+          "describes": "the existing ribbon bow on the left platform shoe (already present)"
+        },
+        "right_shoe_bow_region": {
+          "maps_to": "right_shoe_bow_region",
+          "describes": "the existing ribbon bow on the right platform shoe (already present)"
+        }
+      },
+      "accent_regions_exist": true,
+      "protected_regions": [
+        "hair_colour_region",
+        "skin_tone_region",
+        "outfit_body_colour_region",
+        "footwear_body_colour_region",
+        "outfit_design_region"
+      ],
+      "protected": [
+        "long neutral silver-grey hair",
+        "natural skin tone",
+        "ivory-white coat body colour",
+        "dark neutral platform heel body",
+        "the coat design, the waist band and both shoe bows as existing shapes",
+        "one person, full body, both shoes and the three accent regions visible"
+      ]
+    },
+    {
+      "id": "mountain-steps",
+      "label": "白日山道石階 · 梯田遠山",
+      "why_this_theme": "与旧钓鱼场景不同：主体走在石階山道上，环境由「天空 + 遠山 + 梯田 + 石階陰影」大面积主导，承载面比水景更分散，正好检验主色条款是不是只对水景有效；点缀同样落在既有束带与两只鞋蝴蝶结上",
+      "subject": "An anime illustration of one young woman with long neutral silver-grey hair climbing a sunlit stone stairway between terraced fields in the mountains. She wears an elegant ivory-white long dress with a modest skirt and a clearly visible wide waist band tied at the front of her waist. She wears dark neutral platform heels with clearly visible ribbon bows on both shoes. Full-body three-quarter view, both shoes visible on the stone steps, the waist band and both shoe bows clearly readable in the composition. Sunlit terraced fields, distant layered mountain ridges and a few small wild flowers already present beside the steps. Her face, hair, dress silhouette, waist band, bow decorations and thick platform soles must remain readable. One person, natural connected anatomy, no text or watermark.",
+      "rendering": "Polished anime illustration with fine expressive contours, softly layered painted shading, readable fabric folds, restrained surface detail and coherent natural daylight. Keep the same subject, action, objects, full-body framing and rendering treatment in every image.",
+      "existing_regions": [
+        "waist_band_region",
+        "left_shoe_bow_region",
+        "right_shoe_bow_region",
+        "environment_dominant_region",
+        "sky_and_distant_ridge_region",
+        "terrace_and_stone_region"
+      ],
+      "region_mapping": {
+        "environment_dominant_region": {
+          "maps_to": "sky_and_distant_ridge_region",
+          "describes": "the sky, the distant mountain ridges, the terraced fields and the stone steps in shadow (all already present)"
+        },
+        "waist_band_region": {
+          "maps_to": "waist_band_region",
+          "describes": "the wide waist band tied at the front of the ivory-white dress (already present)"
+        },
+        "left_shoe_bow_region": {
+          "maps_to": "left_shoe_bow_region",
+          "describes": "the existing ribbon bow on the left platform shoe (already present)"
+        },
+        "right_shoe_bow_region": {
+          "maps_to": "right_shoe_bow_region",
+          "describes": "the existing ribbon bow on the right platform shoe (already present)"
+        }
+      },
+      "accent_regions_exist": true,
+      "protected_regions": [
+        "hair_colour_region",
+        "skin_tone_region",
+        "outfit_body_colour_region",
+        "footwear_body_colour_region",
+        "outfit_design_region"
+      ],
+      "protected": [
+        "long neutral silver-grey hair",
+        "natural skin tone",
+        "ivory-white dress body colour",
+        "dark neutral platform heel body",
+        "the dress design, the waist band and both shoe bows as existing shapes",
+        "one person, full body, both shoes and the three accent regions visible"
+      ]
+    }
+  ],
+  "prompt_layout": {
+    "separator": "\n\n",
+    "order": [
+      "subject",
+      "rendering",
+      "COLOUR PLAN:（配色组才有；B0 无此段）",
+      "PRESERVE:"
+    ],
+    "headers": {
+      "color_plan": "COLOUR PLAN:",
+      "protection": "PRESERVE:"
+    },
+    "region_binding_template": "Apply the colour plan to the regions that already exist in this theme: the dominant environment area is {environment_dominant_region}; the accent areas are {waist_band_region}, {left_shoe_bow_region} and {right_shoe_bow_region}. Do not create any new region or object to satisfy the colour plan.",
+    "protection_block": "Preserve the intrinsic hair colour, the skin tone, the outfit body colour and the dark neutral footwear body, and keep the outfit design, the waist band and both shoe ribbon bows as they are. Recolour only the existing waist band and the existing ribbon bows on both shoes when a colour plan asks for it. Keep exactly one person, the existing action, full-body framing, daylight, both platform heels and their ribbon bows. Do not add objects, do not add a second person, and do not change the time of day, the weather, the pose, the outfit design or the drawing style."
+  },
+  "generation": {
+    "channel": "gemini-flash",
+    "image_paths": [],
+    "face_quality_boost": false,
+    "source": "conf/config.json + prompts/gpt-image-optimize/config.json 解析，运行中不得切换",
+    "must_resolve_at_runtime": [
+      "model",
+      "api_type",
+      "resolution",
+      "aspect_ratio"
+    ],
+    "retry_env": {
+      "IMAGE_MAKER_IMAGE_MAX_RETRIES": "0"
+    }
+  },
+  "design": {
+    "matrix": "每主题 8 张：3 配色方案 × 2 次重复 + 无配色对照 × 2 次",
+    "themes_count": 2,
+    "schemes_count": 3,
+    "repeats": 2,
+    "control_repeats": 2,
+    "total_images": 16,
+    "total_generation_calls": 16,
+    "review_plan": "每组（同主题同方案的两张）一次调用：3 方案 × 2 主题 + 2 组对照 = 最多 8 次文本请求",
+    "no_reference_images": "全部组都不附源图与画风参考图"
+  },
+  "evaluation": {
+    "per_image_dimensions": [
+      "环境主色（区域）",
+      "点缀色与三个落点区域",
+      "受保护颜色",
+      "内容变化（人数/物件/动作/画幅）",
+      "新增显著色块"
+    ],
+    "statuses": [
+      "conform",
+      "partial",
+      "fail",
+      "unverifiable"
+    ],
+    "control_group_rule": "无配色对照只判「它自己有没有改保护色/加物件/改内容」，不用配色方案的判据判它通过或失败",
+    "no_aesthetic_scoring": "不评画质、不评美感、不做排名",
+    "repeat_rule": "同一方案同一主题两次重复，只能作为探索证据，不宣称普遍稳定"
+  },
+  "budget_policy": {
+    "generation": "16 次实际图片请求，自动重试 0 次（IMAGE_MAKER_IMAGE_MAX_RETRIES=0）；逻辑样本数 = 收费调用数",
+    "review": "最多 8 次文本请求，自动重试 0 次",
+    "failure_policy": "连续两次请求失败即停止并报告；失败、拒绝、不可验证原样保留，不补抽、不换图、不缩小分母",
+    "no_extra": "不追加修图、重绘或收费诊断"
+  },
+  "request_policy": {
+    "protocol_change": "合同/spec/条款/模型或通道参数变化必须换新输出目录",
+    "no_reference_images": "不附源图与画风图；有有效画风参考图时禁止注入配色（本轮只做校验与回归）",
+    "not_enabled_is_byte_identical": "未启用配色时原请求逐字不变，也不额外调用模型",
+    "not_production": "只扩展实验工具与测试，不接生产 GUI"
+  },
+  "limitations": [
+    "两个新主题各两次重复，只能作为探索证据，不宣称普遍稳定",
+    "无画风参考图是本轮唯一场景；带参考图场景由校验函数挡住，不是本轮的实验结论",
+    "hex 只是近似值，不是验收阈值",
+    "只验证首图直出，不涉及重绘或工序保留"
+  ]
+}

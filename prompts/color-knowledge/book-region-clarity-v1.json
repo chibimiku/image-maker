@@ -1,0 +1,213 @@
+{
+  "extends": "prompts/color-knowledge/book-palette-ablation-v1.json",
+  "id": "book-region-clarity-v1",
+  "version": 1,
+  "out_dir": "data/test-result/20261005/book-region-clarity-v1",
+  "include_control": false,
+  "composition_guard": "single-scene-v1",
+  "review_addendum": [
+    "color-knowledge/book-content-anchor-review-v1.md",
+    "color-knowledge/book-region-clarity-review-v1.md"
+  ],
+  "readonly_grayscale": true,
+  "content_reference_instruction": "color-knowledge/book-content-anchor-v1.md",
+  "content_source": "prompts/color-knowledge/book-spatial-guide-content-v1.json",
+  "content_reference": {
+    "path": "data/test-result/20261005/book-palette-ablation-v2/samples/C13-simple-r1/book-C13-simple-r1_105300-2c8d70.jpg",
+    "sha256": "63a39e46a2ece312a2f703b2a7561f5c285d3d598f1c565a20c053cdbc97a6c1",
+    "role": "content_only",
+    "subject_count": 1,
+    "selection_rule": "沿用上一轮冻结的同一张内容源；本轮不改图、不改内容源、不重新挑选。"
+  },
+  "variants": {
+    "legacy": {
+      "include_relationship_rules": false,
+      "arrangement_mode": "none",
+      "uses_content_reference": true
+    },
+    "clear": {
+      "include_relationship_rules": false,
+      "arrangement_mode": "none",
+      "uses_content_reference": true,
+      "existing_regions": [
+        "river water",
+        "sky",
+        "distant foliage: the continuous far-bank tree belt from the left edge to behind the woman",
+        "distant foliage: the right-bank midground tree canopy and its leaves behind the pale sand spit, below the top-right hanging branches; exclude those hanging branches and the bottom-right foreground plants",
+        "foreground dry riverbank ground: the broad near-bank ground connected to and beneath the person's shoes; exclude the narrow far-bank sand spit projecting left into the river at middle-right, all plants, grass and blossoms",
+        "waist ribbon sash",
+        "left shoe bow",
+        "right shoe bow",
+        "skin",
+        "silver-grey hair",
+        "ivory-white dress",
+        "dark neutral shoe bodies",
+        "opposite riverbank ground: the narrow far-bank sand spit projecting left into the river at middle-right, beneath the midground canopy and above the near bank; preserve source pale warm ivory with faint pink-lilac cast and shading, never assign yellow/gold or blue/green",
+        "foreground plants and existing blossoms: the large leaves and stems in the bottom-right corner, plus all existing near-bank grass and blossoms; preserve source intrinsic colours including pink-lilac leaves",
+        "upper-right overhanging branches and leaves: the branches entering from the top and right frame edges above the midground canopy; preserve source pink-lilac leaves"
+      ],
+      "authorized_regions": [
+        "river water",
+        "sky",
+        "distant foliage: the continuous far-bank tree belt from the left edge to behind the woman",
+        "distant foliage: the right-bank midground tree canopy and its leaves behind the pale sand spit, below the top-right hanging branches; exclude those hanging branches and the bottom-right foreground plants",
+        "foreground dry riverbank ground: the broad near-bank ground connected to and beneath the person's shoes; exclude the narrow far-bank sand spit projecting left into the river at middle-right, all plants, grass and blossoms",
+        "waist ribbon sash",
+        "left shoe bow",
+        "right shoe bow"
+      ],
+      "protected_regions": [
+        "skin",
+        "silver-grey hair",
+        "ivory-white dress",
+        "dark neutral shoe bodies",
+        "opposite riverbank ground: the narrow far-bank sand spit projecting left into the river at middle-right, beneath the midground canopy and above the near bank; preserve source pale warm ivory with faint pink-lilac cast and shading, never assign yellow/gold or blue/green",
+        "foreground plants and existing blossoms: the large leaves and stems in the bottom-right corner, plus all existing near-bank grass and blossoms; preserve source intrinsic colours including pink-lilac leaves",
+        "upper-right overhanging branches and leaves: the branches entering from the top and right frame edges above the midground canopy; preserve source pink-lilac leaves"
+      ],
+      "bindings": [
+        {
+          "region": "river water",
+          "role": "base",
+          "colour_order": 3
+        },
+        {
+          "region": "sky",
+          "role": "base",
+          "colour_order": 3
+        },
+        {
+          "region": "distant foliage: the continuous far-bank tree belt from the left edge to behind the woman",
+          "role": "base",
+          "colour_order": 3
+        },
+        {
+          "region": "distant foliage: the right-bank midground tree canopy and its leaves behind the pale sand spit, below the top-right hanging branches; exclude those hanging branches and the bottom-right foreground plants",
+          "role": "base",
+          "colour_order": 3
+        },
+        {
+          "region": "foreground dry riverbank ground: the broad near-bank ground connected to and beneath the person's shoes; exclude the narrow far-bank sand spit projecting left into the river at middle-right, all plants, grass and blossoms",
+          "role": "auxiliary",
+          "colour_order": 2
+        },
+        {
+          "region": "waist ribbon sash",
+          "role": "accent",
+          "colour_order": 1
+        },
+        {
+          "region": "left shoe bow",
+          "role": "accent",
+          "colour_order": 1
+        },
+        {
+          "region": "right shoe bow",
+          "role": "accent",
+          "colour_order": 1
+        }
+      ]
+    }
+  },
+  "existing_regions": [
+    "river water",
+    "sky",
+    "distant foliage",
+    "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+    "opposite riverbank ground",
+    "foreground plants and existing blossoms",
+    "upper-right overhanging branches and leaves",
+    "waist ribbon sash",
+    "left shoe bow",
+    "right shoe bow",
+    "skin",
+    "silver-grey hair",
+    "ivory-white dress",
+    "dark neutral shoe bodies"
+  ],
+  "authorized_regions": [
+    "river water",
+    "sky",
+    "distant foliage",
+    "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+    "waist ribbon sash",
+    "left shoe bow",
+    "right shoe bow"
+  ],
+  "protected_regions": [
+    "skin",
+    "silver-grey hair",
+    "ivory-white dress",
+    "dark neutral shoe bodies",
+    "opposite riverbank ground",
+    "foreground plants and existing blossoms",
+    "upper-right overhanging branches and leaves"
+  ],
+  "bindings": [
+    {
+      "region": "river water",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "sky",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "distant foliage",
+      "role": "base",
+      "order_key": "base_order"
+    },
+    {
+      "region": "foreground dry riverbank ground under the person's shoes (exclude opposite bank, grass and flowers)",
+      "role": "auxiliary",
+      "order_key": "auxiliary_order"
+    },
+    {
+      "region": "waist ribbon sash",
+      "role": "accent",
+      "order_key": "accent_order"
+    },
+    {
+      "region": "left shoe bow",
+      "role": "accent",
+      "order_key": "accent_order"
+    },
+    {
+      "region": "right shoe bow",
+      "role": "accent",
+      "order_key": "accent_order"
+    }
+  ],
+  "review_max_calls": 2,
+  "purpose": "旧区域合同与按具体物体明确的合同对照；只改变区域命名与对应绑定，不加位置图或色彩理论。",
+  "schemes": [
+    {
+      "id": "C16",
+      "palette_id": "image-chart-147-16",
+      "base_order": 3,
+      "auxiliary_order": 2,
+      "accent_order": 1
+    }
+  ],
+  "budget": {
+    "generation_calls": 4,
+    "review_calls": 2,
+    "auto_retry": 0,
+    "note": "最多四次生图、两次分组评审，自动重试为零，失败不补抽"
+  },
+  "authorization_scope": {
+    "endpoints": [
+      "new.aigc2d.com 生图端点",
+      "new.aigc2d.com 视觉评审端点"
+    ],
+    "uploads": "仅同一指定内容源与本轮候选（评审含只读裁剪和灰度视图）；不发位置图",
+    "excluded": "不上传 PDF、其它项目资料、配置文件、目录清单或凭据"
+  },
+  "limitations": [
+    "两分支各两轮，不是配对 seed，不证明稳定性或因果收益",
+    "明确合同把含糊的深度词拆成现有物体；不能用它倒改旧合同历史结论",
+    "不新增局部色调、材质、mask 字段或生产 GUI 功能"
+  ]
+}

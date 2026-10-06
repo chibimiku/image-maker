@@ -1,0 +1,293 @@
+{
+  "kind": "palette",
+  "version": 1,
+  "id": "fixed-palette-v1",
+  "title": "固定色彩组合执行验证 · 冷蓝+红 / 深绿+玫红 / 蓝紫+金 与无方案基线",
+  "date": "2026-10-04",
+  "schedule_seed": 261004,
+  "rounds": 3,
+  "subject": "An anime illustration of one young woman with long neutral silver-grey hair fishing beside a river in spring. She wears an elegant ivory-white Western-style dress with lace, a modest full skirt, and a clearly visible wide waist ribbon sash tied at the front of her waist. She wears dark neutral platform heels with clearly visible ribbon bows on both shoes. Full-body three-quarter view, both shoes visible on the dry riverbank, the waist sash and both shoe bows clearly readable in the composition. She holds a fishing rod naturally with both hands, the fishing line extending into the river. Fresh spring foliage, a gently flowing river and a few small blossoms already present on the bank. Her face, hair, dress silhouette, waist ribbon sash, bow decorations and thick platform soles must remain readable. One person, natural connected anatomy, no text or watermark.",
+  "rendering": "Polished anime illustration with fine expressive contours, softly layered painted shading, readable lace and fabric folds, restrained surface detail and coherent natural daylight. Keep the same subject, action, objects, full-body framing and rendering treatment in every image.",
+  "protected": [
+    "long neutral silver-grey hair",
+    "ivory-white dress",
+    "dark neutral platform heels",
+    "waist ribbon sash and shoe ribbon bows (existing regions, colour may follow the palette)",
+    "fishing action",
+    "spring riverside daylight",
+    "one person",
+    "full body, both shoes and the accent regions visible"
+  ],
+  "protection_block_id": "M",
+  "protection_block": "Preserve the intrinsic silver-grey hair, the ivory-white dress and the dark neutral platform shoes, and keep the dress design, the waist ribbon sash and the shoe ribbon bows as they are. Recolour only the existing waist ribbon sash and the existing shoe ribbon bows when a colour plan asks for it. Keep exactly one person, the existing fishing action, full-body framing, daylight, both platform heels and their ribbon bows. Do not add objects, do not add a second person, and do not change the time of day, the weather, the pose, the outfit design or the drawing style.",
+  "prompt_layout": {
+    "separator": "\n\n",
+    "order": [
+      "subject",
+      "rendering",
+      "COLOUR PLAN:（P1/P2/P3 各两版；B0 无此段）",
+      "PRESERVE:（全部组同一份 M）"
+    ],
+    "note": "subject 与 rendering 逐字沿用 2026-10-03 第二阶段的春日河岸钓鱼主题，只把主体固有配色换成中性银灰发/象牙白裙/深中性色厚底鞋，并把红色等点缀色指向既有的腰带与鞋蝴蝶结区域；保护块 M 对全部组（含 B0）逐字相同",
+    "headers": {
+      "color_plan": "COLOUR PLAN:",
+      "protection": "PRESERVE:"
+    }
+  },
+  "channels": {
+    "gemini-flash": {
+      "api_type": "aigc2d",
+      "model": "gemini-3.1-flash-image-preview",
+      "host": "new.aigc2d.com",
+      "resolution": "1K",
+      "aspect_ratio": "3:2",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "note": "与 2026-10-03 主试验同款通道与参数（1K / 3:2 / 无参考图）；模型名显式写在请求里，若与配置里的当前模型不同，按「新模型实验」记录，不宣称可直接对比"
+    }
+  },
+  "variants": {
+    "simple": {
+      "label": "简洁版",
+      "source_file": "prompts/color-knowledge/fixed-palette-v1-simple.md",
+      "definition": "只写颜色、主次、区域与允许保留的中性色；不写明度/彩度层级理论"
+    },
+    "knowledge": {
+      "label": "知识编译版",
+      "source_file": "prompts/color-knowledge/fixed-palette-v1-knowledge.md",
+      "definition": "同一套颜色与区域，增加明度/彩度层级与色彩关系说明；不新增物件、不改构图、光照时间或画法，也不删掉简洁版的关键约束"
+    }
+  },
+  "groups": [
+    {
+      "id": "P1-simple",
+      "palette_id": "P1",
+      "variant": "simple",
+      "label": "P1 冷蓝 + 红 · 简洁版",
+      "intent": "用户明确点名「冷蓝主色 + 红色点缀」时，最简的说法能否稳定执行，并把红色落在既有腰带与鞋蝴蝶结上",
+      "palette_preview": [
+        "#4A6E8A",
+        "#8FA6B4",
+        "#B23A3A"
+      ],
+      "preview_source": "designer_approximation_not_a_measured_threshold",
+      "clauses": [
+        "Give the environment a cool blue palette: the river, sky, banks, distant foliage and shadows use cool blue and blue-grey tones, kept low in saturation.",
+        "Make the river environment the dominant colour area, clearly colder than the subject.",
+        "Use red only as a small accent, on the existing waistband and the existing ribbon bows on the shoes; do not replace it with pink.",
+        "Keep the red small and spatially concentrated on those two areas rather than spread over the background.",
+        "Keep the overall daylight brightness; do not darken the whole picture.",
+        "Keep the subject's own colours: natural skin, ivory-white dress and dark neutral platform shoes.",
+        "Do not add red objects, a second person, or change the time of day."
+      ],
+      "protection": true
+    },
+    {
+      "id": "P1-knowledge",
+      "palette_id": "P1",
+      "variant": "knowledge",
+      "label": "P1 冷蓝 + 红 · 知识编译版",
+      "intent": "同一色板与区域，用知识库里的明度/彩度层级与面积关系重写，检验编译版是否比简洁版更可靠",
+      "palette_preview": [
+        "#4A6E8A",
+        "#8FA6B4",
+        "#B23A3A"
+      ],
+      "preview_source": "designer_approximation_not_a_measured_threshold",
+      "clauses": [
+        "Establish a cool blue base as the dominant colour area: the river, sky, banks, distant foliage and the shadow side of the subject use cool blue and blue-grey of low saturation, with value variation across the distance so the scene keeps depth instead of a flat wash.",
+        "Keep the near blue slightly darker and the distant blue lighter and desaturated; this value ladder carries the depth.",
+        "Reserve the red as the accent of highest chroma, small in area, placed only on the existing waistband and the existing ribbon bows on the shoes; the accent stays red, not pink.",
+        "Let the accent keep its chroma while the surrounding blue stays muted, so the accent reads by chroma contrast rather than by size; keep it spatially concentrated on those two regions.",
+        "Use the cool shadows as part of the blue area, not as a grey veil, and keep overall daylight brightness.",
+        "Keep the subject's own colours: natural skin, ivory-white dress and dark neutral platform shoes.",
+        "Do not add red objects, a second person, or change the time of day."
+      ],
+      "protection": true
+    },
+    {
+      "id": "P2-simple",
+      "palette_id": "P2",
+      "variant": "simple",
+      "label": "P2 深绿 + 玫红 · 简洁版",
+      "intent": "诊断性候选：换一个色相组合，检验简洁版是否只是对某一组颜色有效",
+      "palette_preview": [
+        "#2F4F3A",
+        "#7C9A78",
+        "#B7417A"
+      ],
+      "preview_source": "designer_approximation_not_a_measured_threshold",
+      "clauses": [
+        "Give the environment a deep green palette: the river, sky, banks, distant foliage and shadows use deep green and low-chroma green tones.",
+        "Make the river environment the dominant colour area, clearly deeper and less saturated than the subject.",
+        "Use rose-red only as a small accent, on the existing waistband and the existing ribbon bows on the shoes.",
+        "Keep the rose-red small and spatially concentrated on those two areas rather than spread over the background.",
+        "Keep the overall daylight brightness; do not darken the whole picture.",
+        "Keep the subject's own colours: natural skin, ivory-white dress and dark neutral platform shoes.",
+        "Do not add rose-red objects, a second person, or change the time of day."
+      ],
+      "protection": true
+    },
+    {
+      "id": "P2-knowledge",
+      "palette_id": "P2",
+      "variant": "knowledge",
+      "label": "P2 深绿 + 玫红 · 知识编译版",
+      "intent": "同一色板与区域的编译版对照",
+      "palette_preview": [
+        "#2F4F3A",
+        "#7C9A78",
+        "#B7417A"
+      ],
+      "preview_source": "designer_approximation_not_a_measured_threshold",
+      "clauses": [
+        "Establish a deep green base as the dominant colour area: the river, sky, banks, distant foliage and the shadow side of the subject use deep green and low-chroma green, with value variation across the distance so the scene keeps depth instead of a flat wash.",
+        "Keep the near green darker and the distant green lighter and desaturated; this value ladder carries the depth.",
+        "Reserve the rose-red as the accent of highest chroma, small in area, placed only on the existing waistband and the existing ribbon bows on the shoes.",
+        "Let the accent keep its chroma while the surrounding green stays muted, so the accent reads by chroma contrast rather than by size; keep it spatially concentrated on those two regions.",
+        "Use the green shadows as part of the green area, not as a grey veil, and keep overall daylight brightness.",
+        "Keep the subject's own colours: natural skin, ivory-white dress and dark neutral platform shoes.",
+        "Do not add rose-red objects, a second person, or change the time of day."
+      ],
+      "protection": true
+    },
+    {
+      "id": "P3-simple",
+      "palette_id": "P3",
+      "variant": "simple",
+      "label": "P3 蓝紫 + 金 · 简洁版",
+      "intent": "诊断性候选：第三个色相组合，检验点名色相的可执行性",
+      "palette_preview": [
+        "#4B4A7A",
+        "#8C8AA8",
+        "#C9A227"
+      ],
+      "preview_source": "designer_approximation_not_a_measured_threshold",
+      "clauses": [
+        "Give the environment a blue-violet palette: the river, sky, banks, distant foliage and shadows use blue-violet and low-chroma purple-grey tones.",
+        "Make the river environment the dominant colour area, clearly cooler and less saturated than the subject.",
+        "Use gold only as a small accent, on the existing waistband and the existing ribbon bows on the shoes.",
+        "Keep the gold small and spatially concentrated on those two areas rather than spread over the background.",
+        "Keep the overall daylight brightness; do not darken the whole picture.",
+        "Keep the subject's own colours: natural skin, ivory-white dress and dark neutral platform shoes.",
+        "Do not add gold objects, a second person, or change the time of day."
+      ],
+      "protection": true
+    },
+    {
+      "id": "P3-knowledge",
+      "palette_id": "P3",
+      "variant": "knowledge",
+      "label": "P3 蓝紫 + 金 · 知识编译版",
+      "intent": "同一色板与区域的编译版对照",
+      "palette_preview": [
+        "#4B4A7A",
+        "#8C8AA8",
+        "#C9A227"
+      ],
+      "preview_source": "designer_approximation_not_a_measured_threshold",
+      "clauses": [
+        "Establish a blue-violet base as the dominant colour area: the river, sky, banks, distant foliage and the shadow side of the subject use blue-violet and low-chroma purple-grey, with value variation across the distance so the scene keeps depth instead of a flat wash.",
+        "Keep the near violet slightly darker and the distant violet lighter and desaturated; this value ladder carries the depth.",
+        "Reserve the gold as the accent of highest chroma, small in area, placed only on the existing waistband and the existing ribbon bows on the shoes.",
+        "Let the accent keep its chroma while the surrounding violet stays muted, so the accent reads by chroma contrast rather than by size; keep it spatially concentrated on those two regions.",
+        "Use the cool shadows as part of the violet area, not as a grey veil, and keep overall daylight brightness.",
+        "Keep the subject's own colours: natural skin, ivory-white dress and dark neutral platform shoes.",
+        "Do not add gold objects, a second person, or change the time of day."
+      ],
+      "protection": true
+    },
+    {
+      "id": "B0",
+      "palette_id": null,
+      "variant": null,
+      "label": "B0 无指定配色（同一主体基线）",
+      "intent": "同一主体、同一画法、同一保护块的对照：模型自行安排颜色，用来辨认「指定色板」与「模型默认配色」的差别，不作为美学竞赛",
+      "palette_preview": [],
+      "preview_source": "no_palette_because_no_colour_is_requested",
+      "clauses": [],
+      "protection": true
+    }
+  ],
+  "scale_options": {
+    "full": {
+      "label": "默认 21 张矩阵",
+      "groups": [
+        "P1-simple",
+        "P1-knowledge",
+        "P2-simple",
+        "P2-knowledge",
+        "P3-simple",
+        "P3-knowledge",
+        "B0"
+      ],
+      "images": 21,
+      "generation_calls": 21,
+      "review_calls_planned": 7,
+      "review_calls_contingency": 2
+    },
+    "reduced": {
+      "label": "9 张缩减选择（预算有限时）",
+      "groups": [
+        "P1-simple",
+        "P1-knowledge",
+        "B0"
+      ],
+      "images": 9,
+      "generation_calls": 9,
+      "review_calls_planned": 3,
+      "review_calls_contingency": 1,
+      "note": "缩减版只覆盖用户点名的「冷蓝 + 红」与无方案对照；一旦选定规模，运行中禁止自动扩组"
+    }
+  },
+  "evaluation": {
+    "per_image_dimensions": [
+      "颜色组合是否出现（点名色相分别是否可见，以及实际呈现成什么颜色）",
+      "区域分配（环境主色是否落在环境区域；点缀色是否只落在既有腰带与鞋蝴蝶结上）",
+      "额外显著色块（是否出现方案未要求的大块颜色）",
+      "保护颜色（银灰发、象牙白洋装、深中性色厚底鞋是否保留）",
+      "主体与物件内容（单人、洋装结构、腰带可见、双鞋与蝴蝶结可见、钓鱼动作、肢体可读）",
+      "画法观察（不是画质打分）",
+      "证据位置与不可验证原因"
+    ],
+    "requirement_types": {
+      "dominant": "「环境由某色系主导」类要求：判是否主导，不要求排除全部局部异色",
+      "regional": "「点缀色只落在既有腰带与鞋蝴蝶结」类要求：判该区域的颜色与位置，区域不可见时记 unverifiable",
+      "exclusive": "严格排他色板：本协议没有任何组属于这一类，因此本轮不验收排他性"
+    },
+    "statuses": [
+      "conform",
+      "partial",
+      "fail",
+      "unverifiable"
+    ],
+    "promotion_rule": "一个版本 3/3 配色符合，且没有明确的保护色或内容违约，才可进入工序保留试验；2/3 不能称为已稳定实现；3/3 也不是跨主题、跨模型的普遍可靠性证明",
+    "review_plan": "按「组」评审：每组 3 张全图一次调用；21 张 = 7 次，另留 2 次只用于事先约定的失败恢复/证据不足，不反复询问直到给出满意评价",
+    "local_metrics": [
+      "chromatic_cool_fraction",
+      "chromatic_warm_fraction",
+      "mean_hsv_saturation",
+      "mean_display_luma",
+      "dominant_colour_families"
+    ]
+  },
+  "budget_policy": {
+    "generation": "逻辑样本数 = 收费图片调用数（按目标数生成）；底层 HTTP 重试必须在本次运行内关闭（IMAGE_MAKER_IMAGE_MAX_RETRIES=0，命令行会显式设置并记录），否则按「产物数」无法推算请求次数上界",
+    "review": "评审调用数按组数计，额外 2 次（缩减版 1 次）只在事先约定的失败恢复/证据不足时使用",
+    "failure_policy": "连续两次请求失败即停止并报告；成功产物续跑复用；失败、拒绝与不可验证原样保留，不为凑成功率替换样本",
+    "no_auto_expansion": "运行中禁止自动扩组、自动换模型或追加预算；换规模必须换新的输出目录"
+  },
+  "request_policy": {
+    "protocol_change": "spec、条款、模型或通道参数变化必须换新的输出目录，禁止复用旧目录",
+    "no_reference_images": "不附源图与画风图，不重绘，不做 tone 校准或本地后处理",
+    "note": "本协议只生成首图；工序保留（重绘/身份修订）另开独立预检与预算"
+  },
+  "limitations": [
+    "每组三张独立随机生成，不是同 seed 配对；三张说明趋势，不构成显著性",
+    "中性色主体（银灰发/象牙白裙/深中性色鞋）是新的诊断用例，不与旧粉发主题直接配对比较",
+    "近似 HEX 只是可视化参照，不是逐像素硬门禁，也不冒充书中测量值",
+    "「点缀色只在既有区域」依赖腰带与鞋蝴蝶结在构图里可见；不可见时该张的区域执行记 unverifiable，不计成功",
+    "若实际使用的模型与 2026-10-03 批次不同，标为新模型实验，不宣称可直接对比",
+    "本协议不验证画风兼容、不验证重绘/后处理保留"
+  ]
+}

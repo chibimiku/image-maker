@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "status": "trial_text_only_generation",
+  "source_pages": [146, 79],
+  "profiles": [
+    {"id":"cool-blue-red","label":"冷蓝 + 红","base":"cool blue and muted blue-grey","accent":"red, not pink","swatches":["#4A6E8A","#8FA6B4","#B23A3A"],"evidence":"P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"},
+    {"id":"deep-green-rose","label":"深绿 + 玫红","base":"deep green and subdued green","accent":"rose-red","swatches":["#2F4F3A","#7C9A78","#B7417A"],"evidence":"P2 cross-theme: 3/4 selected candidates; one base partial"},
+    {"id":"blue-violet-gold","label":"蓝紫 + 金","base":"blue-violet and subdued violet-grey","accent":"golden yellow, not beige","swatches":["#4B4A7A","#8C8AA8","#C9A227"],"evidence":"P3 cross-theme: 2/4 selected candidates; two content violations"}
+  ],
+  "swatch_source":"designer_approximation_not_book_measurement",
+  "limitations":["Only theme design from text; no input or style images", "GPT and new subjects remain unvalidated", "No automatic success, quality improvement or exact colour guarantee"]
+}

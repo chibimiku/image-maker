@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
 import os
 import re
 
@@ -536,6 +537,545 @@ def compose_color_block(case, data_dir: str, with_core: bool = True,
             if len(seen) >= max_rules:
                 break
     return "\n".join(lines)
+
+
+def build_book_palette_catalog(data_dir: str) -> dict:
+    """Expose every extracted case without inventing colour roles or validation."""
+    import hashlib
+    library_path = os.path.join(data_dir, "palette_library.json")
+    with io.open(library_path, encoding="utf-8") as handle:
+        library = json.load(handle)
+    entries, seen = [], set()
+    for case in library["palettes"]:
+        slug = case["slug"]
+        if slug in seen or len(case["colors"]) != 5:
+            raise ValueError("Duplicate case or incomplete five-colour palette: " + slug)
+        seen.add(slug)
+        colours = []
+        for colour in case["colors"]:
+            measured = colour.get("measured_hex")
+            rgb = colour.get("rgb")
+            if measured:
+                if not re.fullmatch(r"#[0-9a-fA-F]{6}", measured):
+                    raise ValueError("Invalid measured hex: " + slug)
+                hex_value, provenance = measured, "scan_measured"
+            elif rgb is not None:
+                if len(rgb) != 3 or any(type(v) is not int or not 0 <= v <= 255 for v in rgb):
+                    raise ValueError("Invalid nominal RGB: " + slug)
+                hex_value, provenance = "#%02x%02x%02x" % tuple(rgb), "ncd_nominal"
+            else:
+                hex_value, provenance = None, "name_only"
+            colours.append({"order": colour["order"], "name": colour["name"],
+                            "hex": hex_value, "hex_source": provenance,
+                            "measured_hex": measured, "nominal_rgb": rgb,
+                            "role": None, "role_source": "not_assigned",
+                            "ncd_no": colour.get("ncd_no")})
+        entry = {"id": slug, "label": case["title"], "artist": case["artist"],
+                 "source": case["source"], "origin": "book_case",
+                 "selection_enabled": True, "generation_validation": "untested",
+                 "requires_region_binding": True, "style_reference_allowed": False,
+                 "colours": colours, "source_facts": case.get("facts") or {},
+                 "source_area_statements": case.get("area_statements") or [],
+                 "tags": case.get("tags") or [],
+                 "original_story_metadata_only": case.get("story_theme") or ""}
+        entry["palette_hash"] = hashlib.sha256(json.dumps(entry, ensure_ascii=False,
+                                                        sort_keys=True).encode("utf-8")).hexdigest()
+        entries.append(entry)
+    if len(entries) != library["count"]:
+        raise ValueError("Palette library count disagrees with actual entries")
+    with open(library_path, "rb") as handle:
+        source_hash = hashlib.sha256(handle.read()).hexdigest()
+    return {"version": 1, "kind": "book_palette_catalog", "count": len(entries),
+            "swatch_count": sum(len(entry["colours"]) for entry in entries),
+            "source_library_sha256": source_hash,
+            "scope": "No style reference; preserve intrinsic colours; bind only existing authorized regions",
+            "role_policy": "Order is not a dominant/accent role; missing roles remain unassigned",
+            "hex_policy": "Measured scan values preferred; nominal RGB labelled; missing values remain null",
+            "palettes": entries}
+
+
+def export_book_palette_catalog(data_dir: str, out_path: str) -> dict:
+    """Build the selection data and an offline swatch index, without API calls."""
+    from html import escape
+    catalog = build_book_palette_catalog(data_dir)
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    with io.open(out_path, "w", encoding="utf-8") as handle:
+        json.dump(catalog, handle, ensure_ascii=False, indent=2)
+    parts = ['<!doctype html><html lang="zh-CN"><meta charset="utf-8">',
+             '<meta name="viewport" content="width=device-width,initial-scale=1">',
+             '<title>书籍配色方案目录</title>',
+             '<style>body{font:15px/1.6 system-ui;max-width:1100px;margin:auto;padding:24px}'
+             'section{border-top:1px solid #ccc;padding:18px 0}.swatches{display:flex;flex-wrap:wrap;gap:12px}'
+             'figure{margin:0;width:180px}.chip{height:64px;border:1px solid #777;border-radius:4px}'
+             'figcaption{overflow-wrap:anywhere}small{color:#555}</style>',
+             f'<h1>书籍案例配色：{catalog["count"]} 套</h1>',
+             '<p>五色案例不是五种主色。全部尚未生图验证，主次与区域待绑定；原作品主题仅供溯源，不带入新图。</p>',
+             '<p>实测值来自扫描印刷品，不等于原稿；NCD 标称值单独注明。无色值的色格不猜色。</p>']
+    labels = {"scan_measured": "扫描实测", "ncd_nominal": "NCD标称", "name_only": "只有色名，待实测"}
+    for entry in catalog["palettes"]:
+        parts.append(f'<section><h2>{escape(entry["label"])}</h2><p>{escape(entry["artist"])} · PDF {entry["source"]["pdf_page"]} · {escape(entry["id"])}</p><div class="swatches">')
+        for colour in entry["colours"]:
+            style = f'background:{colour["hex"]}' if colour["hex"] else 'background:transparent;border-style:dashed'
+            parts.append(f'<figure><div class="chip" style="{style}"></div><figcaption>{escape(colour["name"])}<br><small>{escape(colour["hex"] or "无可靠色值")} · {labels[colour["hex_source"]]}</small></figcaption></figure>')
+        parts.append('</div><p>状态：书籍来源 / 未测试；主色、点缀色与区域未指定。</p></section>')
+    parts.append('</html>')
+    html_path = os.path.splitext(out_path)[0] + ".html"
+    with io.open(html_path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(parts))
+    return {"count": catalog["count"], "swatch_count": catalog["swatch_count"],
+            "catalog": out_path, "gallery": html_path}
+
+
+def _knowledge_hash(value) -> str:
+    import hashlib
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                     separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def measure_book_image_chart(manifest_path: str, root: str) -> dict:
+    """Measure manually checked rectangular swatches, including near-white cells."""
+    import hashlib
+    import numpy as np
+    from PIL import Image
+    with io.open(manifest_path, encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    source = os.path.join(root, manifest["source_image"])
+    with open(source, "rb") as handle:
+        source_hash = hashlib.sha256(handle.read()).hexdigest()
+    if source_hash != manifest["source_image_sha256"]:
+        raise ValueError("Chart image hash changed; ROI coordinates must be reviewed again")
+    with Image.open(source) as image:
+        if list(image.size) != manifest["image_size"]:
+            raise ValueError("Chart dimensions changed")
+        pixels = np.asarray(image.convert("RGB"))
+    height, width = pixels.shape[:2]
+    inset = manifest["sampling_inset_fraction"]
+    if not 0 < inset < 0.5:
+        raise ValueError("Sampling inset must stay strictly inside each colour cell")
+    entries, boxes = [], set()
+    left, top, right, bottom = manifest["chart_bounds"]
+    for index, row in enumerate(manifest["rows"], 1):
+        name, x, y, w, h = row
+        if any(type(v) is not int for v in (x, y, w, h)) or min(w, h) < 6:
+            raise ValueError("Invalid chart ROI")
+        if not (0 <= x < x + w <= width and 0 <= y < y + h <= height):
+            raise ValueError("Chart ROI outside image")
+        if (x, y, w, h) in boxes:
+            raise ValueError("Duplicate chart ROI")
+        boxes.add((x, y, w, h))
+        colours = []
+        for order in range(3):
+            cell_left = x + order * w / 3
+            cell_right = x + (order + 1) * w / 3
+            sx0, sx1 = round(cell_left + w / 3 * inset), round(cell_right - w / 3 * inset)
+            sy0, sy1 = round(y + h * inset), round(y + h * (1 - inset))
+            sample = pixels[sy0:sy1, sx0:sx1].reshape(-1, 3)
+            if not len(sample):
+                raise ValueError("Empty chart sample")
+            rgb = np.rint(np.median(sample, axis=0)).astype(int).tolist()
+            p10, p90 = np.percentile(sample, [10, 90], axis=0)
+            spread = np.round(p90 - p10, 2).tolist()
+            colours.append({"order": order + 1, "name": "C%d" % (order + 1),
+                            "hex": "#%02x%02x%02x" % tuple(rgb), "measured_rgb": rgb,
+                            "hex_source": "scan_measured", "role": None, "role_source": "not_assigned",
+                            "sample_bbox": [sx0, sy0, sx1, sy1], "sample_pixels": len(sample),
+                            "channel_p90_minus_p10": spread,
+                            "measurement_status": "heterogeneous_sample" if max(spread) > 35 else "measured",
+                            "calibration": "uncalibrated_print_scan"})
+        entry = {"id": "image-chart-147-%02d" % index, "label": name, "origin": "book_image_chart",
+                 "source": {"pdf_page": 147, "printed_page": 142, "also_pdf_page": 74,
+                            "image": manifest["source_image"], "image_sha256": source_hash,
+                            "bbox": [x, y, x + w, y + h]},
+                 "copyright": manifest["copyright"], "colours": colours,
+                 "chart_position": {"x_fraction": round((x + w / 2 - left) / (right - left), 4),
+                                    "y_fraction": round((y + h / 2 - top) / (bottom - top), 4),
+                                    "meaning": "approximate position on printed chart, not a numerical colour metric"},
+                 "generation_validation": "untested", "requires_region_binding": True,
+                 "style_reference_allowed": False, "measurement_review": "manual_roi_visual_check"}
+        entry["palette_hash"] = _knowledge_hash(entry)
+        entries.append(entry)
+    return {"version": 1, "count": len(entries), "swatch_count": len(entries) * 3,
+            "manifest_hash": _knowledge_hash(manifest), "source_image_sha256": source_hash,
+            "source_pages": manifest["source_pages"], "axes": manifest["axes"],
+            "duplicate_note": manifest["duplicate_note"], "palettes": entries}
+
+
+def export_book_image_chart(manifest_path: str, root: str, out_path: str) -> dict:
+    import base64
+    from html import escape
+    from PIL import Image, ImageDraw
+    chart = measure_book_image_chart(manifest_path, root)
+    with io.open(manifest_path, encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    with Image.open(os.path.join(root, manifest["source_image"])) as source:
+        source = source.convert("RGB")
+    overview = source.copy()
+    draw = ImageDraw.Draw(overview)
+    parts = ['<!doctype html><html lang="zh-CN"><meta charset="utf-8">',
+             '<meta name="viewport" content="width=device-width,initial-scale=1">',
+             '<title>意象坐标图测色核对</title><style>body{font:15px/1.6 system-ui;max-width:1100px;margin:auto;padding:20px}'
+             'section{border-top:1px solid #ccc;padding:14px 0}img{max-width:100%;height:auto}.row{display:flex;flex-wrap:wrap;gap:12px}'
+             '.chip{width:100px;height:48px;border:1px solid #777}figure{margin:0}figcaption{overflow-wrap:anywhere}</style>',
+             '<h1>意象图：50 组 / 150 色格</h1><p>PDF 74/147 去重计数；仅测 PDF 147。数值是未校准印刷扫描样本的 RGB 中位数，不是原稿或 NCD 标准色值。序号不代表主次。</p>']
+
+    def embedded(image):
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+    for p in chart["palettes"]:
+        x0, y0, x1, y1 = p["source"]["bbox"]
+        draw.rectangle((x0, y0, x1, y1), outline="red", width=2)
+        draw.text((x0, y0 - 12), p["id"].rsplit("-", 1)[-1], fill="red")
+        crop = source.crop((max(0, x0 - 5), max(0, y0 - 5), min(source.width, x1 + 5), min(source.height, y1 + 35)))
+        parts.append('<section><h2>' + escape(p["id"] + " · " + p["label"]) + '</h2><div class="row"><img alt="原色条及名称" src="' + embedded(crop) + '">')
+        for c in p["colours"]:
+            parts.append('<figure><div class="chip" style="background:' + c["hex"] + '"></div><figcaption>' +
+                         escape(c["name"] + " " + c["hex"]) + '<br>' + escape(c["measurement_status"]) + '</figcaption></figure>')
+        parts.append('</div></section>')
+    parts.insert(4, '<img alt="全部色条定位编号" src="' + embedded(overview) + '">')
+    parts.append('</html>')
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    with io.open(out_path, "w", encoding="utf-8") as handle:
+        json.dump(chart, handle, ensure_ascii=False, indent=2)
+    with io.open(os.path.splitext(out_path)[0] + ".html", "w", encoding="utf-8") as handle:
+        handle.write("\n".join(parts))
+    overview.save(os.path.splitext(out_path)[0] + ".overlay.png")
+    return chart
+
+
+def build_generation_knowledge(data_dir: str, pages_dir: str, chart_path: str = None, scoped_rules_path: str = None) -> dict:
+    """Extract reviewed teaching tables; keep source and compiler policy separate."""
+    from utils.prompt_loader import read_prompt_file
+    catalog = build_book_palette_catalog(data_dir)
+    policies = json.loads(read_prompt_file("color-knowledge/book-generation-rules-v1.json"))
+    pages = {}
+    for number in (14, 16, 17, 18, 59, 77, 79):
+        with io.open(os.path.join(pages_dir, "page-%03d.md" % number), encoding="utf-8") as handle:
+            pages[number] = handle.read()
+    teaching = []
+
+    def add(page, group, names, roles=None, evidence=""):
+        colours = [{"order": i + 1, "name": name.strip(), "hex": None,
+                    "hex_source": "name_only", "name_provenance": "transcribed_visual_description",
+                    "role": roles[i] if roles else None,
+                    "role_source": "diagram_explicit" if roles else "not_assigned"}
+                   for i, name in enumerate(names)]
+        entry = {"id": "teaching-%03d-%02d" % (page, sum(e["source"]["pdf_page"] == page for e in teaching) + 1),
+                 "label": group + ": " + " / ".join(names), "origin": "book_teaching",
+                 "source": {"pdf_page": page, "printed_page": page - 5},
+                 "evidence": evidence, "colours": colours, "generation_validation": "untested",
+                 "requires_region_binding": True, "style_reference_allowed": False}
+        entry["palette_hash"] = _knowledge_hash(entry)
+        teaching.append(entry)
+
+    for page in (16, 18):
+        for title, rows in _split_tables(pages[page]):
+            for head, cells in rows:
+                if head == ["组", "色板"]:
+                    add(page, title, cells[1].split("·"), evidence=" | ".join(cells))
+                elif head == ["组", "基色调（大）", "强调色（小）"]:
+                    add(page, "base-accent", [cells[1], cells[2].replace("（竖条）", "")],
+                        ["base", "accent"], " | ".join(cells))
+    for page in (17, 18):
+        section = ""
+        for line in pages[page].splitlines():
+            if line.startswith("## "):
+                section = line[3:]
+            if line.startswith("- 页面色板（"):
+                for value in re.findall(r"`([^`]+)`", line):
+                    add(page, section, value.split("·"), evidence=value)
+    if len(teaching) != 28:
+        raise ValueError("Teaching extraction changed: expected 28 source entries")
+    tones = []
+    group = ""
+    for title, rows in _split_tables(pages[14]):
+        for head, cells in rows:
+            if head != ["大类", "包含色调", "定义"]:
+                continue
+            group = _clean_md(cells[0]) or group
+            code = re.search(r"`([A-Za-z]+)`", cells[1])
+            if not code:
+                raise ValueError("Missing tone code")
+            tones.append({"code": code[1], "name": _clean_md(cells[1]).replace(code[1], "").strip(),
+                          "group": group, "description": _clean_md(cells[2]),
+                          "source": {"pdf_page": 14}, "evidence": " | ".join(cells),
+                          "numeric_thresholds": None})
+    if len(tones) != 12 or len({t["code"] for t in tones}) != 12:
+        raise ValueError("Expected twelve distinct simplified NCD tones")
+    for collection in (policies["area_modes"], policies["arrangement_modes"]):
+        for rule in collection.values():
+            if rule and rule["evidence"] not in _clean_md(pages[rule["pdf_page"]]):
+                raise ValueError("Compiler rule evidence missing: " + rule["evidence"])
+    with io.open(os.path.join(data_dir, "color_clauses.json"), encoding="utf-8") as handle:
+        clauses = json.load(handle)
+    entries = catalog["palettes"] + teaching
+    chart = None
+    if chart_path:
+        with io.open(chart_path, encoding="utf-8") as handle:
+            chart = json.load(handle)
+        if chart["count"] != len(chart["palettes"]):
+            raise ValueError("Chart count mismatch")
+        entries += chart["palettes"]
+    result = {"version": 1, "kind": "book_generation_knowledge", "count": len(entries),
+              "case_count": catalog["count"], "teaching_count": len(teaching),
+              "count_unit": "source entries, not deduplicated unique palettes",
+              "palettes": entries, "tones": tones, "compiler_policy": policies,
+              "source_page_hashes": {str(p): _knowledge_hash(v) for p, v in pages.items()},
+              "case_catalog_hash": _knowledge_hash(catalog),
+              "existing_clause_index": {"count": clauses["count"], "hash": _knowledge_hash(clauses),
+                                        "auto_inject": False},
+              "retrieval_rules": clauses["clauses"],
+              "coverage_pending": [{"pdf_pages": [74, 147], "kind": "image-coordinate chart",
+                                    "status": "requires deduplication and swatch measurement"},
+                                   {"kind": "remaining light/material/perception rules",
+                                    "status": "indexed in clauses; not enabled as generation instructions"}],
+              "generation_validation": "untested"}
+    result["knowledge_hash"] = _knowledge_hash(result)
+    if chart:
+        result["version"] = 2
+        result["image_chart_count"] = chart["count"]
+        result["image_chart_hash"] = _knowledge_hash(chart)
+        result["coverage_pending"] = result["coverage_pending"][1:]
+        result["knowledge_hash"] = _knowledge_hash({k: v for k, v in result.items() if k != "knowledge_hash"})
+    if scoped_rules_path:
+        extension = json.loads(Path(scoped_rules_path).read_text(encoding="utf-8"))
+        entries_by_id = set()
+        for collection in ("generation_rules", "audit_rules", "retrieval_metadata"):
+            for rule in extension[collection]:
+                if rule["id"] in entries_by_id:
+                    raise ValueError("Duplicate scoped rule ID")
+                entries_by_id.add(rule["id"])
+                page = rule["pdf_page"]
+                if page not in pages:
+                    pages[page] = Path(pages_dir, "page-%03d.md" % page).read_text(encoding="utf-8")
+                if rule["evidence"] not in _clean_md(pages[page]):
+                    raise ValueError("Scoped rule evidence missing: " + rule["id"])
+                rule["generation_validation"] = "untested" if collection == "generation_rules" else "not_a_generation_rule"
+        result["version"] = 3
+        result["scoped_rules"] = extension
+        result["source_page_hashes"] = {str(p): _knowledge_hash(v) for p, v in pages.items()}
+        result["coverage_pending"] = [{"kind": "conditional rules", "status": "compiled opt-in; generation performance untested"},
+                                      {"kind": "remaining indexed clauses", "status": "retrieval only; no blanket injection"}]
+        result["knowledge_hash"] = _knowledge_hash({k: v for k, v in result.items() if k != "knowledge_hash"})
+    return result
+
+
+def export_generation_knowledge(data_dir: str, pages_dir: str, out_path: str, chart_path: str = None, scoped_rules_path: str = None) -> dict:
+    from html import escape
+    knowledge = build_generation_knowledge(data_dir, pages_dir, chart_path, scoped_rules_path)
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    with io.open(out_path, "w", encoding="utf-8") as handle:
+        json.dump(knowledge, handle, ensure_ascii=False, indent=2)
+    parts = ['<!doctype html><html lang="zh-CN"><meta charset="utf-8">',
+             '<meta name="viewport" content="width=device-width,initial-scale=1">',
+             '<title>书籍生图配色知识</title><style>body{font:15px/1.6 system-ui;max-width:1100px;margin:auto;padding:24px}'
+             'section{border-top:1px solid #ccc;padding:16px 0}.colours{display:flex;flex-wrap:wrap;gap:12px}'
+             'figure{margin:0;width:175px}.chip{height:48px;border:1px solid #777}figcaption{overflow-wrap:anywhere}</style>',
+             '<h1>书籍生图配色知识</h1>',
+             f'<p>{knowledge["count"]} 条来源记录：31 案例 + 28 教学 + {knowledge.get("image_chart_count", 0)} 意象图。未按色值去重，未生图验证；空色格表示只有转录色名，尚无可靠色值。</p>']
+    for p in knowledge["palettes"]:
+        parts.append('<section><h2>' + escape(p["label"]) + '</h2><p>' + escape(p["id"]) +
+                     ' · PDF ' + str(p["source"]["pdf_page"]) + '</p><div class="colours">')
+        for c in p["colours"]:
+            style = 'background:' + c["hex"] if c["hex"] else 'border-style:dashed'
+            parts.append('<figure><div class="chip" style="' + style + '"></div><figcaption>' +
+                         escape(c["name"]) + '<br>' + escape(c["hex"] or "色值待实测") +
+                         '<br>' + escape(c["hex_source"]) + ' · ' + escape(c["role"] or "主次待绑定") + '</figcaption></figure>')
+        parts.append('</div></section>')
+    parts.append('<section><h2>12 类简化色调（PDF 14）</h2>')
+    for t in knowledge["tones"]:
+        parts.append('<p>' + escape(t["code"] + ' / ' + t["name"] + ' / ' + t["group"] + '：' + t["description"]) + '</p>')
+    parts.append('</section>')
+    if knowledge.get("scoped_rules"):
+        for key, label in (("generation_rules", "条件生图规则（尚未在线验证）"), ("audit_rules", "只读审计规则"), ("retrieval_metadata", "检索标签（不自动注入）")):
+            parts.append('<section><h2>' + label + '</h2>')
+            for rule in knowledge["scoped_rules"][key]:
+                parts.append('<h3>' + escape(rule["id"]) + ' · PDF ' + str(rule["pdf_page"]) + '</h3><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' + escape(json.dumps(rule, ensure_ascii=False, indent=2)) + '</pre>')
+            parts.append('</section>')
+    parts.append('<section><h2>规则覆盖边界</h2><p>原有 430 条规则作为检索资料，不整包注入；条件规则需显式选定已有区域并满足前提，不将案例物件带入新图。</p></section></html>')
+    with io.open(os.path.splitext(out_path)[0] + ".html", "w", encoding="utf-8") as handle:
+        handle.write("\n".join(parts))
+    return knowledge
+
+
+def compile_generation_palette(knowledge: dict, selection: dict) -> dict:
+    """Compile an explicit, scoped selection without changing production requests."""
+    from utils.prompt_loader import read_prompt_file, render_prompt_file
+    original = selection["prompt"]
+    if not isinstance(original, str):
+        raise ValueError("prompt must be text")
+    if selection.get("enabled", False) is False:
+        return {"enabled": False, "prompt": original, "prompt_hash": _knowledge_hash(original)}
+    if selection.get("enabled") is not True:
+        raise ValueError("enabled must be a boolean")
+    frozen = {k: v for k, v in knowledge.items() if k != "knowledge_hash"}
+    if knowledge.get("knowledge_hash") != _knowledge_hash(frozen):
+        raise ValueError("Knowledge hash mismatch; extract and freeze again")
+    if "style_reference_images" not in selection:
+        raise ValueError("Explicit effective style_reference_images is required")
+    if not isinstance(selection["style_reference_images"], list):
+        raise ValueError("style_reference_images must be a list of effective attachments")
+    if selection["style_reference_images"]:
+        raise ValueError("Palette selection is unavailable with an effective style reference image")
+    palette = next((p for p in knowledge["palettes"] if p["id"] == selection["palette_id"]), None)
+    if palette is None:
+        raise ValueError("Unknown palette")
+    policy = knowledge["compiler_policy"]
+    area_key = selection.get("area_mode", "base-accent")
+    if area_key not in policy["area_modes"]:
+        raise ValueError("Unknown area mode")
+    area = policy["area_modes"][area_key]
+    if area.get("scene_kind") and selection.get("scene_kind") != area["scene_kind"]:
+        raise ValueError("Interior area ratios cannot be applied outside interiors")
+    arrangement_key = selection.get("arrangement_mode", "none")
+    if arrangement_key not in policy["arrangement_modes"]:
+        raise ValueError("Unknown arrangement mode")
+    for key in ("existing_regions", "protected_regions", "authorized_regions"):
+        values = selection[key]
+        if not isinstance(values, list) or any(not isinstance(v, str) or not v.strip() for v in values):
+            raise ValueError(key + " must contain nonempty region names")
+        if len(set(values)) != len(values):
+            raise ValueError("Duplicate region names: " + key)
+    existing = set(selection["existing_regions"])
+    protected = set(selection["protected_regions"])
+    authorized = set(selection["authorized_regions"])
+    if not protected <= existing or not authorized <= existing or authorized & protected:
+        raise ValueError("Regions must exist; protected and authorized regions cannot overlap")
+    bindings = selection["bindings"]
+    if not bindings:
+        raise ValueError("Explicit colour roles and region bindings required")
+    expected_roles = {"family-a", "family-b"} if area_key == "equal-opposition" else {"base", "accent"}
+    allowed_roles = expected_roles if area_key == "equal-opposition" else {"base", "auxiliary", "accent"}
+    used_regions, used_colours, roles, lines = set(), set(), set(), []
+    by_order = {c["order"]: c for c in palette["colours"]}
+    for binding in bindings:
+        region, role, order = binding["region"], binding["role"], binding["colour_order"]
+        if region not in authorized or region in used_regions or role not in allowed_roles:
+            raise ValueError("Invalid, unauthorized, or duplicate region/role")
+        if type(order) is not int or order not in by_order:
+            raise ValueError("Unknown colour order")
+        colour = by_order[order]
+        if colour.get("role") and colour["role"] != role:
+            raise ValueError("Binding conflicts with explicit book diagram role")
+        used_regions.add(region)
+        used_colours.add(order)
+        roles.add(role)
+        hex_note = policy["templates"]["hex_note"].format(hex=colour["hex"], source=colour["hex_source"]) if colour["hex"] else ""
+        lines.append(policy["templates"]["binding"].format(role=role, region=region,
+                                                          colour=colour["name"], hex_note=hex_note))
+    if not expected_roles <= roles or used_colours != set(by_order):
+        raise ValueError("Bind all palette colours and required roles explicitly")
+    if area_key == "interior-three-level" and "auxiliary" not in roles:
+        raise ValueError("Interior three-level mode needs auxiliary bindings")
+    tone_text = ""
+    relationship_rules = selection.get("include_relationship_rules", True)
+    if type(relationship_rules) is not bool:
+        raise ValueError("include_relationship_rules must be boolean")
+    if not relationship_rules and (selection.get("tone_code") or arrangement_key != "none"):
+        raise ValueError("Palette-only mode cannot carry tone or arrangement instructions")
+    if selection.get("tone_code"):
+        tone = next((t for t in knowledge["tones"] if t["code"] == selection["tone_code"]), None)
+        if tone is None:
+            raise ValueError("Unknown simplified NCD tone")
+        tone_text = policy["templates"]["tone"].format(**tone)
+    arrangement = policy["arrangement_modes"][arrangement_key]
+    template = read_prompt_file("color-knowledge/book-generation-contract-v1.md")
+    block = render_prompt_file("color-knowledge/book-generation-contract-v1.md", {
+        "bindings": "\n".join(lines), "tone": tone_text, "area": area["instruction"] if relationship_rules else "",
+        "arrangement": arrangement["instruction"] if arrangement else "",
+        "protection": policy["templates"]["protection"].format(regions=", ".join(sorted(protected)))})
+    prompt = original + "\n\n" + block
+    scoped = compile_scoped_colour_rules(knowledge, selection, used_regions)
+    if scoped["instructions"]:
+        prompt += "\n\n" + "\n".join(scoped["instructions"])
+    guard = selection.get("composition_guard")
+    if guard not in (None, "single-scene-v1"):
+        raise ValueError("Unknown composition guard")
+    if guard:
+        prompt += "\n\n" + read_prompt_file("color-knowledge/book-single-scene-guard-v1.md")
+    result = {"enabled": True, "prompt": prompt, "prompt_hash": _knowledge_hash(prompt),
+            "contract": block, "template_hash": _knowledge_hash(template),
+            "knowledge_hash": _knowledge_hash(knowledge), "palette_hash": palette["palette_hash"],
+            "selection": selection, "selection_hash": _knowledge_hash(selection),
+            "status": "compiled_not_generated", "generation_validation": "untested"}
+    if scoped["applied"] or scoped["audits"]:
+        result["scoped_rule_snapshot"] = scoped
+    return result
+
+
+def compile_scoped_colour_rules(knowledge, selection, bound_regions):
+    """Explicit conditions only; retrieval tags never become instructions."""
+    extension = knowledge.get("scoped_rules", {})
+    rules = {r["id"]: r for r in extension.get("generation_rules", [])}
+    facts = selection.get("region_facts", {})
+    if not isinstance(facts, dict):
+        raise ValueError("region_facts must map existing regions to explicit facts")
+    requests = selection.get("scoped_rules", [])
+    if not isinstance(requests, list) or len(requests) > 4:
+        raise ValueError("Select at most four scoped rules")
+    instructions, applied, seen = [], [], set()
+    for request in requests:
+        if not isinstance(request, dict) or request.get("id") not in rules:
+            raise ValueError("Unknown scoped generation rule")
+        rule = rules[request["id"]]
+        regions = request.get("regions")
+        if not isinstance(regions, list) or any(not isinstance(r, str) for r in regions) or len(set(regions)) != len(regions):
+            raise ValueError("Scoped rules require unique region names")
+        if len(regions) < rule["minimum_regions"] or not set(regions) <= set(bound_regions):
+            raise ValueError("Scoped rule regions must be authorized and bound, never protected")
+        signature = (rule["id"], tuple(sorted(regions)))
+        if signature in seen:
+            raise ValueError("Duplicate scoped rule application")
+        seen.add(signature)
+        for region in regions:
+            actual = facts.get(region, {})
+            if not isinstance(actual, dict) or any(type(actual.get(k)) is not type(v) or actual.get(k) != v
+                                                  for k, v in rule.get("required_fact", {}).items()):
+                raise ValueError("Scoped rule conditions not met: " + rule["id"])
+            if rule["id"] in ("porcelain-gloss", "steel-reflection"):
+                guards = extension["material_colour_guards"]
+                palette = next(p for p in knowledge["palettes"] if p["id"] == selection["palette_id"])
+                binding = next(b for b in selection["bindings"] if b["region"] == region)
+                colour = next(c for c in palette["colours"] if c["order"] == binding["colour_order"])
+                hex_value = colour.get("hex")
+                if hex_value:
+                    rgb = tuple(int(hex_value[i:i + 2], 16) for i in (1, 3, 5))
+                    compatible = max(rgb) - min(rgb) <= guards["max_channel_spread"] and (rule["id"] != "porcelain-gloss" or min(rgb) >= guards["porcelain_min_channel"])
+                else:
+                    name = colour["name"].lower()
+                    compatible = any(v in name for v in guards["porcelain_name_tokens" if rule["id"] == "porcelain-gloss" else "steel_name_tokens"])
+                if not compatible:
+                    raise ValueError("Material rule conflicts with assigned colour family")
+        text = rule["instruction"].format(regions=", ".join(regions))
+        instructions.append(text)
+        applied.append({"id": rule["id"], "regions": regions, "source_page": rule["pdf_page"],
+                        "rule_hash": _knowledge_hash(rule), "facts": {r: facts.get(r, {}) for r in regions}, "instruction": text})
+    tones = {t["code"]: t for t in knowledge["tones"]}
+    local_tones = selection.get("region_tones", {})
+    if not isinstance(local_tones, dict):
+        raise ValueError("region_tones must map authorized regions to tone codes")
+    if local_tones and selection.get("tone_code"):
+        raise ValueError("Choose local or global tone scope, not both")
+    if local_tones and selection.get("include_relationship_rules", True) is False:
+        raise ValueError("Palette-only mode cannot carry local tone rules")
+    for region, code in local_tones.items():
+        if region not in bound_regions or code not in tones:
+            raise ValueError("Local tone must target an authorized bound region with a known code")
+        tone = tones[code]
+        text = "At " + region + ", " + knowledge["compiler_policy"]["templates"]["tone"].format(**tone)
+        text += " Retain the assigned hue family; do not replace it with another colour or alter protected neighbours."
+        instructions.append(text)
+        applied.append({"id": "region-tone-" + code, "regions": [region], "source_page": 14,
+                        "rule_hash": _knowledge_hash(tone), "instruction": text})
+    audit_ids = selection.get("audit_rules", [])
+    if not isinstance(audit_ids, list) or any(not isinstance(v, str) for v in audit_ids) or len(set(audit_ids)) != len(audit_ids):
+        raise ValueError("Audit rules must be unique IDs")
+    audits = {r["id"]: r for r in extension.get("audit_rules", [])}
+    if any(v not in audits for v in audit_ids):
+        raise ValueError("Unknown read-only audit rule")
+    return {"instructions": instructions, "applied": applied, "audits": [audits[v] for v in audit_ids],
+            "hash": _knowledge_hash({"applied": applied, "audits": [audits[v] for v in audit_ids]})}
 
 
 def audit_knowledge(out_dir: str, log_callback=None) -> dict:

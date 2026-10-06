@@ -1,0 +1,2864 @@
+{
+  "version": 1,
+  "kind": "book_palette_catalog",
+  "count": 31,
+  "swatch_count": 155,
+  "source_library_sha256": "a2af74f99de4888f186a391ad9a3ffbd0e307b499d5a516447740f23db986b38",
+  "scope": "No style reference; preserve intrinsic colours; bind only existing authorized regions",
+  "role_policy": "Order is not a dominant/accent role; missing roles remain unassigned",
+  "hex_policy": "Measured scan values preferred; nominal RGB labelled; missing values remain null",
+  "palettes": [
+    {
+      "id": "color-case-p022",
+      "label": "带上你的文字",
+      "artist": "给米（Gemi）",
+      "source": {
+        "pdf_page": 22,
+        "printed_page": "17"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "蓝紫色",
+          "hex": "#2e2f5d",
+          "hex_source": "scan_measured",
+          "measured_hex": "#2e2f5d",
+          "nominal_rgb": [
+            26,
+            67,
+            155
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 8
+        },
+        {
+          "order": 2,
+          "name": "桃红色",
+          "hex": "#d74b7e",
+          "hex_source": "scan_measured",
+          "measured_hex": "#d74b7e",
+          "nominal_rgb": [
+            248,
+            117,
+            157
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 30
+        },
+        {
+          "order": 3,
+          "name": "粉红色",
+          "hex": "#fbb987",
+          "hex_source": "scan_measured",
+          "measured_hex": "#fbb987",
+          "nominal_rgb": [
+            253,
+            217,
+            205
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 41
+        },
+        {
+          "order": 4,
+          "name": "蔷薇色",
+          "hex": "#e64b3f",
+          "hex_source": "scan_measured",
+          "measured_hex": "#e64b3f",
+          "nominal_rgb": [
+            251,
+            103,
+            89
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 21
+        },
+        {
+          "order": 5,
+          "name": "红桦色",
+          "hex": "#4b2022",
+          "hex_source": "scan_measured",
+          "measured_hex": "#4b2022",
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "左侧的表格显示出色相和色调的分区范围。这幅作品的配色特点是通过几个连续的色调形成从高彩度到中彩度的色彩变化。 在画面中占主导地位的是明亮而略显暗淡的色调，主要集中于紫红色范围。"
+      },
+      "source_area_statements": [],
+      "tags": [],
+      "original_story_metadata_only": "讲述绚丽的夕阳和旅行的故事",
+      "palette_hash": "18f3ae5ef2e8d99daa0cb98e906669fafb75ef2d2e53742b87a9977406eb4ef0"
+    },
+    {
+      "id": "color-case-p029",
+      "label": "“落色”的日子",
+      "artist": "给米（Gemi）",
+      "source": {
+        "pdf_page": 29,
+        "printed_page": "24"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "森林绿色",
+          "hex": "#020202",
+          "hex_source": "scan_measured",
+          "measured_hex": "#020202",
+          "nominal_rgb": [
+            1,
+            24,
+            10
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 115
+        },
+        {
+          "order": 2,
+          "name": "浅湖绿色",
+          "hex": "#3b6056",
+          "hex_source": "scan_measured",
+          "measured_hex": "#3b6056",
+          "nominal_rgb": [
+            153,
+            215,
+            179
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 36
+        },
+        {
+          "order": 3,
+          "name": "白茶色",
+          "hex": "#c9a544",
+          "hex_source": "scan_measured",
+          "measured_hex": "#c9a544",
+          "nominal_rgb": [
+            254,
+            230,
+            194
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 42
+        },
+        {
+          "order": 4,
+          "name": "丁香色",
+          "hex": "#923f23",
+          "hex_source": "scan_measured",
+          "measured_hex": "#923f23",
+          "nominal_rgb": [
+            215,
+            144,
+            92
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 62
+        },
+        {
+          "order": 5,
+          "name": "赭石色",
+          "hex": "#2b1006",
+          "hex_source": "scan_measured",
+          "measured_hex": "#2b1006",
+          "nominal_rgb": [
+            149,
+            60,
+            53
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 81
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "色相范围主要集中于红色至蓝绿色。 然而，色调的多样性是本作品的主要特征。 在钝调和暗调的基础上，少量明亮鲜艳的色调细腻地表现了光线的美丽。"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "雨夜",
+        "玻璃",
+        "灯光",
+        "钝调",
+        "暗调"
+      ],
+      "original_story_metadata_only": "讲述刺激感官的色彩缤纷的故事",
+      "palette_hash": "5e247b176cd088fb86a8cb1544d1a12d81356f8e98b21d6ccab79c0ffdf77c6f"
+    },
+    {
+      "id": "color-case-p033",
+      "label": "隐藏在透明的雨中",
+      "artist": "给米（Gemi）",
+      "source": {
+        "pdf_page": 33,
+        "printed_page": "28"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "东方蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "蓝紫色",
+          "hex": "#1a439b",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            26,
+            67,
+            155
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 8
+        },
+        {
+          "order": 3,
+          "name": "淡雾色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "白茶色",
+          "hex": "#fee6c2",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            254,
+            230,
+            194
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 42
+        },
+        {
+          "order": 5,
+          "name": "淡紫色",
+          "hex": "#b189c1",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            177,
+            137,
+            193
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 29
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "雨夜",
+        "蓝紫",
+        "渐变",
+        "分离",
+        "低饱和",
+        "强调色"
+      ],
+      "original_story_metadata_only": "讲述含蓄的情感故事",
+      "palette_hash": "ed44af1c97bfe1372447c0c29d64cb0ad12427882b0b658df87381dce472f346"
+    },
+    {
+      "id": "color-case-p035",
+      "label": "夏天的感觉",
+      "artist": "给米（Gemi）",
+      "source": {
+        "pdf_page": 35,
+        "printed_page": "30"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "天蓝色",
+          "hex": "#67c3b7",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            103,
+            195,
+            183
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 27
+        },
+        {
+          "order": 2,
+          "name": "白色",
+          "hex": "#ffffff",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            255,
+            255,
+            255
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 121
+        },
+        {
+          "order": 3,
+          "name": "绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "深蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "朱红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "夏",
+        "明暗对比",
+        "淡调",
+        "强调色",
+        "冷色调",
+        "朱红"
+      ],
+      "original_story_metadata_only": "讲述炎热季节里鲜活时刻的故事",
+      "palette_hash": "28df72e89d1a80a8ecec0d27b62d889ef823fc3b0f10878365bb4d3531f87d7d"
+    },
+    {
+      "id": "color-case-p036",
+      "label": "与你共享的时光",
+      "artist": "给米（Gemi）",
+      "source": {
+        "pdf_page": 36,
+        "printed_page": "31"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "番茄红",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "橙色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "焦糖色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "巧克力色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "芥末色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "秋",
+        "暖色调",
+        "无强调色",
+        "连贯",
+        "平静",
+        "露营"
+      ],
+      "original_story_metadata_only": "讲述色彩浓厚的秋季的故事",
+      "palette_hash": "c3e819eb3db83538b5e575f17dce126bfa3ae1ec42dd9eaebc3eafc678049112"
+    },
+    {
+      "id": "color-case-p040",
+      "label": "紫藤",
+      "artist": "波特歌（potg）",
+      "source": {
+        "pdf_page": 40,
+        "printed_page": "35"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "紫藤色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "冷白色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "嫩叶绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "深绿色",
+          "hex": "#0e3915",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            14,
+            57,
+            21
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 105
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "整个画面主要由两种色彩构成：从嫩叶绿色到深绿色的绿色和以紫藤色为主的紫色。 虽然使用的色相范围较小，但色调却很丰富。 从明调到暗调，这种配色手法更容易表现透视和深度。",
+        "hue_balance": "表现树叶和草地的黄绿色在画面中占比较高，而表现紫藤花的紫色占比仅约黄绿色的四分之一。 这种基于面积来平衡基调色与强调色的配色方法，制造了整幅画的视觉焦点， 有效表现了配色的主题。",
+        "tone_balance": "整幅图的色调以暗沉色调为主，以淡弱调和钝调为辅。 这种明暗色调的渐变给郁郁葱葱的紫藤花架增添了层次感。"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "春",
+        "紫藤",
+        "绿",
+        "面积平衡",
+        "明暗渐变",
+        "层次"
+      ],
+      "original_story_metadata_only": "讲述自然与舒适的故事",
+      "palette_hash": "bb821a825f4b268f931bdbf42b06586e5fb82bb74e778a6fc25dcd001f5baa64"
+    },
+    {
+      "id": "color-case-p047",
+      "label": "水底花圃",
+      "artist": "波特歌（potg）",
+      "source": {
+        "pdf_page": 47,
+        "printed_page": "42"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "淡黄绿色",
+          "hex": "#addb5d",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            173,
+            219,
+            93
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 34
+        },
+        {
+          "order": 2,
+          "name": "淡青色",
+          "hex": "#bfe6c8",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            191,
+            230,
+            200
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 46
+        },
+        {
+          "order": 3,
+          "name": "宝石绿色",
+          "hex": "#28a377",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            40,
+            163,
+            119
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 16
+        },
+        {
+          "order": 4,
+          "name": "深蓝绿色",
+          "hex": "#012f2d",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            1,
+            47,
+            45
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 106
+        },
+        {
+          "order": 5,
+          "name": "黑蓝色",
+          "hex": "#050b30",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            5,
+            11,
+            48
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 118
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "水下",
+        "单一色相",
+        "蓝绿",
+        "光线",
+        "冷色系"
+      ],
+      "original_story_metadata_only": "讲述水底光线之美的故事",
+      "palette_hash": "03e44d482cf013832d1767ae6a24b4d2244780bef48a1e80c1e8c737b9d8ce33"
+    },
+    {
+      "id": "color-case-p050",
+      "label": "即使这样也要画下去",
+      "artist": "波特歌（potg）",
+      "source": {
+        "pdf_page": 50,
+        "printed_page": "45"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "柿色",
+          "hex": "#f26401",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            242,
+            100,
+            1
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 12
+        },
+        {
+          "order": 2,
+          "name": "鹅黄色",
+          "hex": "#bfa90b",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            191,
+            169,
+            11
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 13
+        },
+        {
+          "order": 3,
+          "name": "玫瑰色",
+          "hex": "#7e3a58",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            126,
+            58,
+            88
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 90
+        },
+        {
+          "order": 4,
+          "name": "淡蓝灰色",
+          "hex": "#d9e4e4",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            217,
+            228,
+            228
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 48
+        },
+        {
+          "order": 5,
+          "name": "云杉绿色",
+          "hex": "#748b74",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            116,
+            139,
+            116
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 76
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "本作品使用的色相主要是橙色。 一方面，使用了暖色系的弱调和淡调，给人以色调丰富之感。 另一方面，使用以蓝色为主的冷色系且低饱和度的色彩。 在冷色、低饱和度色和无彩色的背景下，暖色调的色彩越发明目。",
+        "hue_balance": "虽然本作品中使用的色相较多，但在欣赏时不会觉得低饱和度的冷色相（蓝绿色、蓝色和蓝紫色）使用过多。 这是因为冷色相多以无彩色为背景，且配色中还有少许暖色来加强画面的冲击力。",
+        "tone_balance": "图中的色彩看起来非常具有冲击力，仔细观察的话就会发现， 画中并没有过多鲜亮色调的色彩。 画师仅搭配一些暗调和淡调的色彩，就使画面极具表现力了。"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "冷暖对比",
+        "低饱和",
+        "无彩色背景",
+        "冲击力",
+        "意志"
+      ],
+      "original_story_metadata_only": "讲述意志坚强的情感故事",
+      "palette_hash": "70c6e6f734f841cd87b2cdff4efb7c6818789a792405bf7281590ac31b66bc22"
+    },
+    {
+      "id": "color-case-p055",
+      "label": "射手座的糖苹果",
+      "artist": "樱田千寻（Sakurada Chihiro）",
+      "source": {
+        "pdf_page": 55,
+        "printed_page": "50"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "朱红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "橙色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "杏黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "白色",
+          "hex": "#ffffff",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            255,
+            255,
+            255
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 121
+        },
+        {
+          "order": 5,
+          "name": "深棕色",
+          "hex": "#280018",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            40,
+            0,
+            24
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 120
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "色彩基本由红色和橙色构成。色相也集中在这一范围，苹果看起来秀色可餐。"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "美食",
+        "红橙",
+        "明度差",
+        "可读性",
+        "圆形呼应"
+      ],
+      "original_story_metadata_only": "讲述怀旧美食的故事",
+      "palette_hash": "c747bf7337d8e334e928a3865979904c5b63af292998710763f9a28a99399cc5"
+    },
+    {
+      "id": "color-case-p059",
+      "label": "极光下的甜瓜苏打水",
+      "artist": "樱田千寻（Sakurada Chihiro）",
+      "source": {
+        "pdf_page": 59,
+        "printed_page": "54"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "翠绿色",
+          "hex": "#019066",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            1,
+            144,
+            102
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 6
+        },
+        {
+          "order": 2,
+          "name": "奶油黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "樱桃红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "普蓝色",
+          "hex": "#0d2078",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            13,
+            32,
+            120
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 98
+        },
+        {
+          "order": 5,
+          "name": "黑绿色",
+          "hex": "#011617",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            1,
+            22,
+            23
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 116
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "基调色",
+        "强调色",
+        "面积比",
+        "对比方式",
+        "冷色背景"
+      ],
+      "original_story_metadata_only": "讲述幻想与现实相遇的故事",
+      "palette_hash": "a27990b8c445b4b12f1dbc85172bd721987f39d6d3b1178b9292f612512981e0"
+    },
+    {
+      "id": "color-case-p061",
+      "label": "天空之色果酱",
+      "artist": "樱田千寻（Sakurada Chihiro）",
+      "source": {
+        "pdf_page": 61,
+        "printed_page": "56"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "蓝黑色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "普蓝色",
+          "hex": "#0d2078",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            13,
+            32,
+            120
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 98
+        },
+        {
+          "order": 3,
+          "name": "浅蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "东方红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "橙色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "包装设计",
+        "天空",
+        "渐变",
+        "互补色",
+        "明暗对比",
+        "系列感"
+      ],
+      "original_story_metadata_only": "讲述天空色彩变幻的故事",
+      "palette_hash": "8c94960297828b74784a0b2918bf0a714f9de93796059c82536b76fca2c8979e"
+    },
+    {
+      "id": "color-case-p068",
+      "label": "星泉的守护神",
+      "artist": "亚纪（Aki）",
+      "source": {
+        "pdf_page": 68,
+        "printed_page": "63"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "灰红色",
+          "hex": "#8a6561",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            138,
+            101,
+            97
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 71
+        },
+        {
+          "order": 2,
+          "name": "浅橄榄绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "灰绿色",
+          "hex": "#90c19c",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            144,
+            193,
+            156
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 56
+        },
+        {
+          "order": 4,
+          "name": "青灰色",
+          "hex": "#627472",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            98,
+            116,
+            114
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 77
+        },
+        {
+          "order": 5,
+          "name": "香槟色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**虽然整幅图看起来好像是由淡调或明亮的色调组成的， 但实际上运用了淡弱调和涩调等多种色调。**",
+        "hue_balance": "作品中运用了从红色到蓝紫色的多种色相。 背景使用冷色系，而主人公周围使用暖色系的色彩。",
+        "tone_balance": "**尽管涩调和淡弱调的色彩饱和度较低， 但由于光线的明暗对比，作品中大多数淡调色彩看起来也较为明亮。**"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "淡调",
+        "冷暖分区",
+        "明暗对比",
+        "梦幻",
+        "粉黄玫瑰"
+      ],
+      "original_story_metadata_only": "讲述幻想世界的故事（淡调）",
+      "palette_hash": "72f95ba54e36b556eb4eca4714000aba23a0599bb221f9f86ce25adb3f5c202c"
+    },
+    {
+      "id": "color-case-p072",
+      "label": "晚宴",
+      "artist": "亚纪（Aki）",
+      "source": {
+        "pdf_page": 72,
+        "printed_page": "67"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "黑蓝色",
+          "hex": "#050b30",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            5,
+            11,
+            48
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 118
+        },
+        {
+          "order": 2,
+          "name": "钴蓝色",
+          "hex": "#053c58",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            5,
+            60,
+            88
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 97
+        },
+        {
+          "order": 3,
+          "name": "丹参蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "红花黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "勃艮第红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "暗调",
+        "互补色强调",
+        "色彩恒常性",
+        "蓝紫滤镜",
+        "明暗对比"
+      ],
+      "original_story_metadata_only": "讲述豪华、充满幻想的故事（暗调）",
+      "palette_hash": "2c44fd1987c4c77b4ff963bdc455f1f17ab0a0dfc6577177edfdbefecdba4719"
+    },
+    {
+      "id": "color-case-p076",
+      "label": "女巫与午后",
+      "artist": "亚纪（Aki）",
+      "source": {
+        "pdf_page": 76,
+        "printed_page": "71"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "砖红色",
+          "hex": "#8a0007",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            138,
+            0,
+            7
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 91
+        },
+        {
+          "order": 2,
+          "name": "黄灰色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "深褐色",
+          "hex": "#352006",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            53,
+            32,
+            6
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 113
+        },
+        {
+          "order": 4,
+          "name": "松针色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "深蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**作品以深色为主，整体色彩浓重，色调沉稳柔和。 画师采用这种配色是为了让室内空间看起来更平静。** 另外，镜子中反射的蓝天、白云采用高彩度的明亮色调，与室内的暗沉色调形成鲜明对比。",
+        "hue_balance": "红色和蓝紫色约占据画面配色的一半。 **虽然低彩度和低明度的色彩较多，看起来并不起眼， 但是由于色相较多，整体给人色彩丰富的印象。**",
+        "tone_balance": "暗沉色调占据整幅插画的 60% 左右。 相比之下，**朴素色调在亮度上与其形成微妙的对比。 两种色调相搭配，表现出房间的平静。**"
+      },
+      "source_area_statements": [
+        "**暗沉色调占据整幅插画的 60% 左右",
+        "靠两种色调的亮度差（暗沉 60% + 朴素）表现平静 | 「两种色调相搭"
+      ],
+      "tags": [
+        "暗调",
+        "室内",
+        "写实",
+        "镜面反射",
+        "高彩度对比"
+      ],
+      "original_story_metadata_only": "讲述神秘午后的故事",
+      "palette_hash": "a765d79d2a0cff62f04777f71c07fc80a61c6bd1fb842ff9bb38848059d6972a"
+    },
+    {
+      "id": "color-case-p082",
+      "label": "爱丽丝梦游仙境",
+      "artist": "约尔·福杰（Fajyobore）",
+      "source": {
+        "pdf_page": 82,
+        "printed_page": "77"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "浅金色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "灰蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "灰茄紫色",
+          "hex": "#633f6e",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            99,
+            63,
+            110
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 89
+        },
+        {
+          "order": 4,
+          "name": "象牙白色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "午夜蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "总的来说，**蓝紫色占据画面三分之一的面积，中间的三分之一则使用了明亮鲜艳的色调。 这种配色由 3 个等比面积组成，让主角显得更加活泼鲜明。**",
+        "hue_balance": "蓝紫色的暗沉色调表现夜空和城市的黑暗（约占总面积的 40%）。 红色、橙色和黄色用于表现花朵、头发和光线，营造出华丽的意象。",
+        "tone_balance": "整体来看，蓝紫色所占比例最大，且多使用暗沉色调，占比约为 80%~90%。 明亮色调的色彩起到强调的作用。"
+      },
+      "source_area_statements": [
+        "**蓝紫色的暗沉色调表现夜空和城市的黑暗（约占总面积的 40%）",
+        "整体来看，**蓝紫色所占比例最大，且多使用暗沉色调，占比约为 80%~90%",
+        "夜景主体用暗沉色调占 80~90%，亮色只做强调 | 原文 |"
+      ],
+      "tags": [
+        "戏剧性",
+        "明暗对比",
+        "彩度对比",
+        "等比三分",
+        "聚光灯"
+      ],
+      "original_story_metadata_only": "登场！讲述充满戏剧化的故事",
+      "palette_hash": "40a35332a6d85f7f6dce8069316c90083d6f56d96af935193241f45741816f5f"
+    },
+    {
+      "id": "color-case-p089",
+      "label": "洗碗",
+      "artist": "约尔·福杰（Fajyobore）",
+      "source": {
+        "pdf_page": 89,
+        "printed_page": "84"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "雾蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "薄雾蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "雪白色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "灰粉色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "焦黑色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "作品使用的基调色是低彩度的蓝紫色和无彩色，每种色相的浓淡都表现得非常细腻。 **人物的肤色和衣服看起来像是象牙色，但实际上是低彩度的红色和紫红色， 这是由于和蓝色背景色形成对比，造成了视觉差。**"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "白色",
+        "低彩度",
+        "质感",
+        "视觉差",
+        "冷暖对比",
+        "渐变"
+      ],
+      "original_story_metadata_only": "讲述精致生活一角的故事",
+      "palette_hash": "94d81c0520d4dec41c6fdc15f52261c66716c943ee51a596b0d5770653cba5f9"
+    },
+    {
+      "id": "color-case-p093",
+      "label": "不和",
+      "artist": "约尔·福杰（Fajyobore）",
+      "source": {
+        "pdf_page": 93,
+        "printed_page": "88"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "钴红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "金黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "森林绿色",
+          "hex": "#01180a",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            1,
+            24,
+            10
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 115
+        },
+        {
+          "order": 4,
+          "name": "灰色",
+          "hex": "#a1a1a1",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            161,
+            161,
+            161
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 125
+        },
+        {
+          "order": 5,
+          "name": "琥珀黑色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**无论是为了绘制插画还是进行其他设计，在制定配色方案时， 通常需要先确定目的和用途，再选择要使用的色彩， 接着在调色板上排列色彩，思考如何配色进行创作。** 《洗碗》和《不和》很好地说明了选择色彩的两个主要方向。"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "真实与虚拟",
+        "色调对比",
+        "多色相",
+        "异国风情",
+        "少量色相"
+      ],
+      "original_story_metadata_only": "讲述充满异国风情的故事",
+      "palette_hash": "4061bdff11a717007fdf6717173150446fb0f2b89f82cc0aa8450f669f109c55"
+    },
+    {
+      "id": "color-case-p095",
+      "label": "放晴",
+      "artist": "巴尼石门（Banishment）",
+      "source": {
+        "pdf_page": 95,
+        "printed_page": "90"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "阳光黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "白色",
+          "hex": "#ffffff",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            255,
+            255,
+            255
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 121
+        },
+        {
+          "order": 3,
+          "name": "嫩叶绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "绿松石色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "蓝松鸦色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**本作品使用了红色和紫色的最淡调和弱淡调，在色调上呈狭长的横向分布， 让人感受到色彩的阶梯变化。** 绿色和蓝绿色的色调呈垂直和对角线式分布，这是自然界中常见的色彩分布方式。"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "绿色系",
+        "明亮",
+        "逆光",
+        "阶梯变化",
+        "自然分布"
+      ],
+      "original_story_metadata_only": "讲述雨过天晴的故事",
+      "palette_hash": "ba6210564e55a611b41531b5b3122ea2f85d5c33bf3273a0d80f3301bf37d708"
+    },
+    {
+      "id": "color-case-p100",
+      "label": "勿忘我",
+      "artist": "巴尼石门（Banishment）",
+      "source": {
+        "pdf_page": 100,
+        "printed_page": "95"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "夕阳红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "橙色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "硫黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "蓝晶色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "粉红色",
+          "hex": "#fdd9cd",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            253,
+            217,
+            205
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 41
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "黄昏",
+        "水洼倒影",
+        "暖色渐变",
+        "相反色相",
+        "浦肯野效应",
+        "高光"
+      ],
+      "original_story_metadata_only": "讲述另一个世界的故事",
+      "palette_hash": "29a3e50ede648e6dc9ea5a742e65ee235e27a6683756bd3e43ba11ff9666c7e9"
+    },
+    {
+      "id": "color-case-p101",
+      "label": "一天",
+      "artist": "巴尼石门（Banishment）",
+      "source": {
+        "pdf_page": 101,
+        "printed_page": "96"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "黑蓝色",
+          "hex": "#050b30",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            5,
+            11,
+            48
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 118
+        },
+        {
+          "order": 2,
+          "name": "石板蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "天空蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "冷白色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "粉紫色",
+          "hex": "#ead8e3",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            234,
+            216,
+            227
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 49
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "色相比较集中，几乎只使用了色相环中蓝绿色到紫红色的色相。 **其中，蓝色和蓝紫色集中于浅弱调、涩调和暗沉调中， 表明本作品的基调是由冷色系的色彩构成的。**"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "冷色系",
+        "风的轨迹",
+        "彩度对比",
+        "时间流逝",
+        "强调色"
+      ],
+      "original_story_metadata_only": "讲述通过风感受时间流逝的故事",
+      "palette_hash": "c4730d9ef221f673388a5c5023a4fdad6967afd7b8992241e6a45fa090aa5137"
+    },
+    {
+      "id": "color-case-p105",
+      "label": "天旋地转",
+      "artist": "巴尼石门（Banishment）",
+      "source": {
+        "pdf_page": 105,
+        "printed_page": "100"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "水蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "帆船蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "米白色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "深蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "棕色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "倒置构图",
+        "纵深",
+        "明度对比",
+        "色相对比",
+        "动感"
+      ],
+      "original_story_metadata_only": "讲述一段天旋地转的奇妙经历",
+      "palette_hash": "6c739446b8ed9497f29c31ad623ce3d3877494879f5ebd83feb228787fd27aff"
+    },
+    {
+      "id": "color-case-p107",
+      "label": "专属空间",
+      "artist": "寺田寺（Terada Tera）",
+      "source": {
+        "pdf_page": 107,
+        "printed_page": "102"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "珊瑚粉色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "天蓝色",
+          "hex": "#67c3b7",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            103,
+            195,
+            183
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 27
+        },
+        {
+          "order": 3,
+          "name": "鸢尾花紫色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "翠粉色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "黑色",
+          "hex": "#000000",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            0,
+            0,
+            0
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 130
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "尽管作品给人色彩斑斓的印象，但实际使用的色相却是非常集中的。 **几乎没有使用会让人联想到大自然的黄色、黄绿色和绿色， 因此给人冷酷感和机械感。**"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "拼贴",
+        "波普",
+        "色相集中",
+        "机械感",
+        "明清色调",
+        "黑色提神"
+      ],
+      "original_story_metadata_only": "模拟器？数字化？讲述专属世界的故事",
+      "palette_hash": "7e21acb8409b340913fcbd04eea9437a40ecf57006462369663bc42baae9d5e9"
+    },
+    {
+      "id": "color-case-p114",
+      "label": "放松",
+      "artist": "寺田寺（Terada Tera）",
+      "source": {
+        "pdf_page": 114,
+        "printed_page": "109"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "淡粉色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "淡黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "淡蓝色",
+          "hex": "#ccece8",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            204,
+            236,
+            232
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 47
+        },
+        {
+          "order": 4,
+          "name": "淡紫色",
+          "hex": "#b189c1",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            177,
+            137,
+            193
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 29
+        },
+        {
+          "order": 5,
+          "name": "淡绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "色彩使用了最淡调，从蓝紫色到紫红色，色调呈渐变的形式，其他色相则没有这种变化。 画面整体效果柔和，没有明显的明暗色调的差异。",
+        "hue_balance": "虽然作品使用了很多色相，但蓝紫色、紫色、紫红色和红色所占比例相对较高。",
+        "tone_balance": "**本作品中明亮的色调占比很大，因为明度上存在差异， 所以读者可以轻松分辨出每种色彩。**"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "多色相",
+        "淡调",
+        "最淡调",
+        "无明暗差",
+        "柔和"
+      ],
+      "original_story_metadata_only": "讲述休闲一刻的故事",
+      "palette_hash": "147cba02ce369b0b2fa87f8cb7fa359d96ba879088c70496f323c8f590b0f551"
+    },
+    {
+      "id": "color-case-p120",
+      "label": "年轻的贞德",
+      "artist": "木野花日兰子（Konohana Hiranko）",
+      "source": {
+        "pdf_page": 120,
+        "printed_page": "115"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "红雀色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "胡萝卜橙色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "稻草黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "芥末黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "橄榄棕色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**作品中使用的色相仅限于暖色系的红色、橙色和黄色。 相比之下，画中使用的色调范围比较广。** 可以看出，画师使用了明暗、浓淡对比的配色方案。 画家的签名使用了蓝色的弱调，作为强调色在画中显得非常突出。",
+        "hue_balance": "红色和橙色占整幅画面的 70%， 由于从黄绿色到紫红色的色彩使用较少， 因此色彩方案主要是由暖色调组成的，营造出整体的凝聚感。",
+        "tone_balance": "**虽然作品中使用的色相仅限于暖色系色彩，但使用的色调范围比较广， 主要以暗沉色调的色彩为基调色，明亮色调和浅色调的色彩作为强调色。**"
+      },
+      "source_area_statements": [
+        "红色和橙色占整幅画面的 70%，"
+      ],
+      "tags": [
+        "暖色系暗调",
+        "浑浊色调",
+        "窄色相宽色调",
+        "线描",
+        "签名作强调"
+      ],
+      "original_story_metadata_only": "讲述女英雄的苦难故事",
+      "palette_hash": "3290f1362ebd620d86789065c37cd1b0296119c070fdf2fa2b5465898bc355e6"
+    },
+    {
+      "id": "color-case-p126",
+      "label": "想遗忘的事情",
+      "artist": "木野花日兰子（Konohana Hiranko）",
+      "source": {
+        "pdf_page": 126,
+        "printed_page": "121"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "红锈色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "蛋黄色",
+          "hex": "#fff23f",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            255,
+            242,
+            63
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 23
+        },
+        {
+          "order": 3,
+          "name": "金茶色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "烟竹色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "黑茶色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**作品主要由橙色、红色和黄色组成。 这些暖色系很容易让人感受到温暖和亲切。 作品使用的色调比较暗淡，给人沉稳的印象。**",
+        "hue_balance": "橙色约占插画面积的 60%，作品中几乎没有使用冷色调，给人温暖自然的感觉。",
+        "tone_balance": "作品中使用了偏向于暗沉的色调，朴素的色调给人平静安宁的印象。"
+      },
+      "source_area_statements": [
+        "**橙色约占插画面积的 60%，作品中几乎没有使用冷色调，给人温暖自然",
+        "全画面暖色（橙约 60%），几乎不用冷色 → 温暖自然 |"
+      ],
+      "tags": [
+        "棕色系",
+        "暖色",
+        "模糊背景",
+        "朴素",
+        "沉思",
+        "沉稳"
+      ],
+      "original_story_metadata_only": "讲述不施粉黛的情感自然流露的故事",
+      "palette_hash": "6a1bc301a6351ba0c145c3e4dcd25149cc4a80a1086ce2e0d5083fcd8af8d69e"
+    },
+    {
+      "id": "color-case-p132",
+      "label": "海岛之歌",
+      "artist": "三土（REDUM）",
+      "source": {
+        "pdf_page": 132,
+        "printed_page": "127"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "橙黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "朱红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "白色",
+          "hex": "#ffffff",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            255,
+            255,
+            255
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 121
+        },
+        {
+          "order": 4,
+          "name": "亮蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "海军蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**作品使用了橙色、黄色、蓝色和蓝紫色中的多个色调。 虽然色相之间的对比是本作品的最大特征， 但是加上白色之后，画面看起来更加简洁。**",
+        "hue_balance": "**蓝色和蓝紫色占据了画面的大片区域，因为作品以天空和大海为背景。 红色和橙色占据了画面的中心，用于描绘主人公和其周围的事物。**",
+        "tone_balance": "**作品整体以暗沉色调为基调，营造出沉静平和的氛围。 对比之下，橙黄色和蓝色显得更加醒目。**"
+      },
+      "source_area_statements": [],
+      "tags": [
+        "冷暖对比",
+        "白压简洁",
+        "暗沉基调",
+        "蓝色背景",
+        "橙色中心"
+      ],
+      "original_story_metadata_only": "讲述琴声悠扬的海边故事",
+      "palette_hash": "d5cfa0aa3ff16bdabfc3e061a68f2a3c44c8d470e4459ff8b065e8044ccf0495"
+    },
+    {
+      "id": "color-case-p136",
+      "label": "夜长姬和耳男",
+      "artist": "三土（REDUM）",
+      "source": {
+        "pdf_page": 136,
+        "printed_page": "131"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "焦茶色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "朱红色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "明灰色",
+          "hex": "#f2f2f2",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            242,
+            242,
+            242
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 122
+        },
+        {
+          "order": 4,
+          "name": "绿青色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "墨黑色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "逆光",
+        "光效七种",
+        "亚光",
+        "高光",
+        "戏剧性",
+        "坂口安吾"
+      ],
+      "original_story_metadata_only": "讲述小说的高潮情节",
+      "palette_hash": "63abe016b3595c5d28af59847143c315d6a7c6ccbf6fe66204307191b1b93459"
+    },
+    {
+      "id": "color-case-p140",
+      "label": "爱的渴望",
+      "artist": "拉斯库（RASUKU）",
+      "source": {
+        "pdf_page": 140,
+        "printed_page": "135"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "三色堇紫色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "紫罗兰色",
+          "hex": "#5f238d",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            95,
+            35,
+            141
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 9
+        },
+        {
+          "order": 3,
+          "name": "浅紫色",
+          "hex": "#cfb3d7",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            207,
+            179,
+            215
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 39
+        },
+        {
+          "order": 4,
+          "name": "粉紫色",
+          "hex": "#ead8e3",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            234,
+            216,
+            227
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 49
+        },
+        {
+          "order": 5,
+          "name": "青绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {
+        "hue_tone_range": "**色相数量较少，以紫色为主，采用类似色配色，搭配蓝紫色和紫红色。 色调却很丰富，形成对比。** 此外，画面中还搭配了少量的相反色例如黄色和绿色，作为强调色，突出画面。",
+        "hue_balance": "**从面积来看，紫色系约占总面积的 80%。 黄色、黄绿色和绿色作为强调色，仅在画面中少量出现。**",
+        "tone_balance": "**色相的使用范围很窄，但是色调的变化非常丰富。 作品使用最多的是高彩度的鲜艳色调，约占画面的 40%， 而其余 3 种色调出现的频率则相对平均。**"
+      },
+      "source_area_statements": [
+        "**从面积来看，紫色系约占总面积的 80%",
+        "作品使用最多的是高彩度的鲜艳色调，约占画面的 40%，",
+        "窄色相 + 宽色调（紫系 80%，深浅跨度极大） | 「缩小了色相的使用",
+        "高彩度鲜艳色调约占 40%，其余三档平均 | 色调平衡说明 |"
+      ],
+      "tags": [
+        "窄色相宽色调",
+        "类似色配色",
+        "紫色系",
+        "相反色强调",
+        "优雅"
+      ],
+      "original_story_metadata_only": "讲述优雅女性的故事",
+      "palette_hash": "7e8916e1875afb3972e81c363c1c0ede878cc4f4b38f520c86bffe25c181b44a"
+    },
+    {
+      "id": "color-case-p143",
+      "label": "小憩",
+      "artist": "拉斯库（RASUKU）",
+      "source": {
+        "pdf_page": 143,
+        "printed_page": "138"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "橘橙色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "铬黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "可可棕色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "粉色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 5,
+          "name": "铬绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "秋意",
+        "时尚感",
+        "自然感",
+        "暗暖色",
+        "蓝绿强调色"
+      ],
+      "original_story_metadata_only": "讲述在宁静秋日里小憩的故事",
+      "palette_hash": "b007a1201020c61ff91dfcb99fd675c672ee67533ae338805f8e35602ef8122b"
+    },
+    {
+      "id": "color-case-p144",
+      "label": "魅惑的甜瓜味",
+      "artist": "拉斯库（RASUKU）",
+      "source": {
+        "pdf_page": 144,
+        "printed_page": "139"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "青蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "桃红色",
+          "hex": "#f8759d",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            248,
+            117,
+            157
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 30
+        },
+        {
+          "order": 3,
+          "name": "锦葵粉色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "紫罗兰色",
+          "hex": "#5f238d",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            95,
+            35,
+            141
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 9
+        },
+        {
+          "order": 5,
+          "name": "铬绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "味觉暗示",
+        "横向纵向双渐变",
+        "背景与人同色系",
+        "甜瓜",
+        "棒棒糖"
+      ],
+      "original_story_metadata_only": "讲述专注于个人爱好的故事",
+      "palette_hash": "22c5c6b7e939a93abc0c1d02cbc3a06ed3dbe9d50339fbc80bf32465088a7250"
+    },
+    {
+      "id": "color-case-p145",
+      "label": "熊猫",
+      "artist": "拉斯库（RASUKU）",
+      "source": {
+        "pdf_page": 145,
+        "printed_page": "140"
+      },
+      "origin": "book_case",
+      "selection_enabled": true,
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "colours": [
+        {
+          "order": 1,
+          "name": "海绿色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 2,
+          "name": "杏黄色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 3,
+          "name": "亮紫色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        },
+        {
+          "order": 4,
+          "name": "天蓝色",
+          "hex": "#67c3b7",
+          "hex_source": "ncd_nominal",
+          "measured_hex": null,
+          "nominal_rgb": [
+            103,
+            195,
+            183
+          ],
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": 27
+        },
+        {
+          "order": 5,
+          "name": "深蓝色",
+          "hex": null,
+          "hex_source": "name_only",
+          "measured_hex": null,
+          "nominal_rgb": null,
+          "role": null,
+          "role_source": "not_assigned",
+          "ncd_no": null
+        }
+      ],
+      "source_facts": {},
+      "source_area_statements": [],
+      "tags": [
+        "对比",
+        "同化",
+        "相似性",
+        "冷暖分区",
+        "落日",
+        "稳定感"
+      ],
+      "original_story_metadata_only": "讲述爱与治愈的故事",
+      "palette_hash": "aa445ce579b7de9837f04a95047f055fb2a7892e87fc17582fd8fe9bc04c1390"
+    }
+  ]
+}

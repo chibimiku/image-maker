@@ -55,3 +55,7 @@ models/style-metrics/
 3. **上游 CSD 权重有已声明的已知问题**：官方 README 顶部 DISCLAIMER 仍在，
    `learn2phoenix/CSD` issue #14 至今 open —— 上传权重与论文报告数字有出入。
    本目录只保证「拿到官方权重、按官方预处理复现描述子」，**不声称复现论文指标**。
+
+## 2026-10-06 Gram 版本
+
+默认 `gatys-layer-sum/v2`：归一化 Gram `FFᵀ/(C·H·W)` 的平方差只除以 4，五层等权。旧 `normalized-gram-extra-channel/v1` 仅供显式历史复算，数值不能混用。此次不改变权重、输入预处理或特征编码器，无须仅为标量公式修正重新导出 ONNX。App 深度比较使用独立 v2 缓存文件；旧缓存和报告保留。新版实测与局限见 `docs/style-extraction/STYLE-METRICS-GRAM-V2-20261006.md`。

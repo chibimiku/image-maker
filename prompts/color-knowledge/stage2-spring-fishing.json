@@ -1,0 +1,410 @@
+{
+  "version": 2,
+  "id": "spring-fishing-v2",
+  "title": "春日河岸钓鱼 · 第二阶段八组双模型配色对照（E0 + A）",
+  "date": "2026-10-03",
+  "schedule_seed": 261003,
+  "rounds": 3,
+  "subject": "An anime illustration of one young woman with long pink hair fishing beside a river in spring. She wears an elegant ivory Western-style dress with lace and a modest full skirt, and dusty-pink platform heels with clearly visible ribbon bows. Full-body three-quarter view, both shoes visible on the dry riverbank. She holds a fishing rod naturally with both hands, the fishing line extending into the river. Fresh spring foliage, a gently flowing river and a few small blossoms already present on the bank. Her face, long pink hair, dress silhouette, bow decorations and thick platform soles must remain readable. One person, natural connected anatomy, no text or watermark.",
+  "rendering": "Polished anime illustration with fine expressive contours, softly layered painted shading, readable lace and fabric folds, restrained surface detail and coherent natural daylight. Keep the same subject, action, objects, full-body framing and rendering treatment in every image.",
+  "protected": [
+    "long pink hair",
+    "ivory dress",
+    "dusty-pink platform heels",
+    "ribbon bows",
+    "fishing action",
+    "spring riverside",
+    "one person",
+    "full body and both shoes"
+  ],
+  "protection_block_id": "K",
+  "protection_block": "Preserve the intrinsic pink hair, ivory dress and dusty-pink shoes. Keep exactly one person, the existing fishing action, full-body framing, both platform heels and their ribbon bows. Do not add objects or change the time of day, pose, outfit design or drawing style.",
+  "prompt_layout": {
+    "separator": "\\n\\n",
+    "order": [
+      "subject",
+      "rendering",
+      "COLOR PLAN:（仅 G2~G7）",
+      "PRESERVE:（仅 G1~G7，同一份 K）"
+    ],
+    "note": "subject 与 rendering 逐字沿用第一轮 pilot-spring-fishing.json；G0 的请求文本因此与第一轮 baseline 完全相同",
+    "headers": {
+      "color_plan": "COLOR PLAN:",
+      "protection": "PRESERVE:"
+    }
+  },
+  "channels": {
+    "gemini-flash": {
+      "api_type": "aigc2d",
+      "model": "gemini-3.1-flash-image-preview",
+      "host": "new.aigc2d.com",
+      "resolution": "1K",
+      "aspect_ratio": "3:2",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "note": "第一轮同款通道；实测输出 1264x848"
+    },
+    "gpt-image-2": {
+      "api_type": "aigc-2d-gpt",
+      "model": "gpt-image-2",
+      "host": "new.aigc2d.com",
+      "size": "1536x1024",
+      "aspect_ratio": "3:2",
+      "quality": "medium",
+      "output_format": "png",
+      "n": 1,
+      "mode": "generate",
+      "image_paths": [],
+      "note": "无参考图、无重绘/tone/加墨、不混用其他家族或质量档"
+    }
+  },
+  "groups": [
+    {
+      "id": "G0",
+      "label": "原生基线（无附加块）",
+      "added_block": "无",
+      "intent": "由模型自行安排颜色；与 G1 比较重复保护本身的影响",
+      "clauses": [],
+      "protection": false,
+      "sources": [],
+      "note": "请求文本与第一轮 baseline 完全一致（subject + rendering 原样）",
+      "clause_chars": 0,
+      "protection_block_chars": 0,
+      "instruction_chars": 0
+    },
+    {
+      "id": "G1",
+      "label": "仅内容保护（只有 K）",
+      "added_block": "K",
+      "intent": "只强化内容保护，不做任何颜色优化；G2~G7 的共同参照",
+      "clauses": [],
+      "protection": true,
+      "sources": [],
+      "note": "K 是主动对照，不是无效安慰剂，且未与各方案做等长匹配",
+      "clause_chars": 0,
+      "protection_block_chars": 267,
+      "instruction_chars": 267
+    },
+    {
+      "id": "G2",
+      "label": "春绿短版（一条关系指令 + K）",
+      "added_block": "G2 条款 + K",
+      "intent": "用一条春绿关系指令检验简短方案能否接近完整方案",
+      "clauses": [
+        "Use muted yellow-green and deep leafy green for broad background masses, varied values for depth, and keep the existing pink hair and shoes as localized warm accents; maintain readable ivory dress edges without changing intrinsic colors."
+      ],
+      "protection": true,
+      "sources": [
+        {
+          "pdf_page": 146,
+          "printed_page": 141,
+          "page_title": "笔记：插画中的色彩搭配（五步法）",
+          "section": "3 选择色彩 / 4 创造基调色 / 5 加入强调色",
+          "evidence": "stated",
+          "adaptation": "借用基调/强调的关系方法，把既有粉发、粉鞋设为局部暖强调"
+        },
+        {
+          "pdf_page": 79,
+          "printed_page": 74,
+          "page_title": "笔记：根据面积选择配色方案",
+          "section": "用大面积的色彩创建基调 / 用小面积的色彩进行强调",
+          "evidence": "stated",
+          "adaptation": "基调色大面积、强调色小面积的关系，不给固定面积比值"
+        }
+      ],
+      "palette_preview": [
+        "#72876C",
+        "#B4C7A1",
+        "#E9B6C9",
+        "#F4EDE0",
+        "#405A50"
+      ],
+      "preview_source": "designer_approximation_not_book_measurement",
+      "clause_chars": 237,
+      "protection_block_chars": 267,
+      "instruction_chars": 504
+    },
+    {
+      "id": "G3",
+      "label": "春绿完整版（第一轮春绿前三条款 + K）",
+      "added_block": "第一轮 spring-green-rose 条款 1~3 + K",
+      "intent": "复验第一轮候选方案在两模型上的表现（v2 用 K 替换旧第四条，不与第一轮合并样本）",
+      "clauses": [
+        "Organize the large background masses around muted yellow-green and deeper leafy green; use a range of light and dark values within these related hues for depth.",
+        "Let the existing pink hair, pink shoe bows and small existing blossoms carry the warm pink accents; keep these accents spatially concentrated around the young woman rather than scattered across the background.",
+        "Keep distant foliage and river reflections less saturated and less contrasty than the subject; separate the ivory dress from its surroundings with local value differences, without bleaching the whole scene."
+      ],
+      "protection": true,
+      "sources": [
+        {
+          "pdf_page": 146,
+          "printed_page": 141,
+          "page_title": "笔记：插画中的色彩搭配（五步法）",
+          "section": "3 选择色彩 / 4 创造基调色 / 5 加入强调色",
+          "evidence": "stated",
+          "adaptation": "色相数量、基调、强调"
+        },
+        {
+          "pdf_page": 40,
+          "printed_page": 35,
+          "page_title": "紫藤（波特歌 potg）",
+          "section": "讲述自然与舒适的故事 / 主色调",
+          "evidence": "source_prose",
+          "adaptation": "窄色相与明暗层次，不复制紫藤、服装或面积数字"
+        },
+        {
+          "pdf_page": 79,
+          "printed_page": 74,
+          "page_title": "笔记：根据面积选择配色方案",
+          "section": "用大面积的色彩创建基调 / 用小面积的色彩进行强调",
+          "evidence": "stated",
+          "adaptation": "大面积基调 + 局部强调，不硬套比例"
+        }
+      ],
+      "palette_preview": [
+        "#72876C",
+        "#B4C7A1",
+        "#E9B6C9",
+        "#F4EDE0",
+        "#405A50"
+      ],
+      "preview_source": "designer_approximation_not_book_measurement",
+      "clause_chars": 575,
+      "protection_block_chars": 267,
+      "instruction_chars": 842
+    },
+    {
+      "id": "G4",
+      "label": "柔蓝完整版（第一轮柔蓝前三条款 + K）",
+      "added_block": "第一轮 soft-river-rose 条款 1~3 + K",
+      "intent": "复验柔蓝方向及内容稳定性（第一轮第一张出现双人内容失败）",
+      "clauses": [
+        "Use soft blue-green river tones and subdued natural greens as the broad environmental base; keep most background colors gently muted, with clear layered values rather than a uniform grey wash.",
+        "Use the existing warm pink hair and dusty-pink shoes as a restrained warm-cool contrast against the cooler river environment; keep small pink blossoms subordinate to the face and hair.",
+        "Give the ivory dress soft cool reflected shadows from the river while retaining its ivory local color; preserve readable lace, skirt folds and shoe platform edges in the light areas."
+      ],
+      "protection": true,
+      "sources": [
+        {
+          "pdf_page": 146,
+          "printed_page": 141,
+          "page_title": "笔记：插画中的色彩搭配（五步法）",
+          "section": "3 选择色彩 / 4 创造基调色 / 5 加入强调色",
+          "evidence": "stated",
+          "adaptation": "相对色与色调"
+        },
+        {
+          "pdf_page": 53,
+          "printed_page": 48,
+          "page_title": "笔记：情绪和配色方案",
+          "section": "让人平静放松与较浅浊色",
+          "evidence": "stated",
+          "adaptation": "平静放松的浅浊色原则；蓝绿来自本任务河景，不称书中固定情绪配方"
+        },
+        {
+          "pdf_page": 147,
+          "printed_page": 142,
+          "page_title": "笔记：根据意象选择配色方案（三色配色意象坐标）",
+          "section": "暖－冷 / 柔－刚 / 清晰－模糊",
+          "evidence": "source_prose",
+          "adaptation": "暖冷/柔刚意象轴转成本任务的冷暖与柔和程度"
+        }
+      ],
+      "palette_preview": [
+        "#9FBABF",
+        "#738C92",
+        "#C8D1B4",
+        "#E9B6C9",
+        "#F4EDE0"
+      ],
+      "preview_source": "designer_approximation_not_book_measurement",
+      "clause_chars": 558,
+      "protection_block_chars": 267,
+      "instruction_chars": 825
+    },
+    {
+      "id": "G5",
+      "label": "仅明暗层次（不指定新色相 + K）",
+      "added_block": "G5 条款 + K",
+      "intent": "不指定整体绿/蓝色板，只安排相对明暗与前后景层次，检查“主要靠变暗”的解释",
+      "clauses": [
+        "Keep the scene's existing hue choices and overall daylight brightness. Separate the ivory dress and pink hair from adjacent background areas through local light-dark relationships, and retain distinct foreground, middle-ground and distant values. Do not darken the whole image or erase lace and shoe detail in highlights."
+      ],
+      "protection": true,
+      "sources": [
+        {
+          "pdf_page": 40,
+          "printed_page": 35,
+          "page_title": "紫藤（波特歌 potg）",
+          "section": "讲述自然与舒适的故事 / 主色调",
+          "evidence": "source_prose",
+          "adaptation": "色相与色调范围、面积平衡的层次方法"
+        },
+        {
+          "pdf_page": 146,
+          "printed_page": 141,
+          "page_title": "笔记：插画中的色彩搭配（五步法）",
+          "section": "3 选择色彩 / 4 创造基调色 / 5 加入强调色",
+          "evidence": "stated",
+          "adaptation": "用色调（明暗/清浊）而非新增色相来建立层次"
+        }
+      ],
+      "palette_preview": [],
+      "preview_source": "no_palette_because_hues_are_unchanged",
+      "clause_chars": 321,
+      "protection_block_chars": 267,
+      "instruction_chars": 588
+    },
+    {
+      "id": "G6",
+      "label": "仅主体焦点（不指定整体色板 + K）",
+      "added_block": "G6 条款 + K",
+      "intent": "只组织彩度与强调位置，检查局部焦点本身是否已足够",
+      "clauses": [
+        "Keep the scene's existing hue choices. Concentrate the strongest local chromatic emphasis around the existing pink hair and shoe bows; make small background blossoms and distant reflections less saturated than these subject accents. Do not reduce saturation uniformly across the whole image."
+      ],
+      "protection": true,
+      "sources": [
+        {
+          "pdf_page": 146,
+          "printed_page": 141,
+          "page_title": "笔记：插画中的色彩搭配（五步法）",
+          "section": "3 选择色彩 / 4 创造基调色 / 5 加入强调色",
+          "evidence": "stated",
+          "adaptation": "强调色小面积、与基调形成差异以吸引视线"
+        },
+        {
+          "pdf_page": 79,
+          "printed_page": 74,
+          "page_title": "笔记：根据面积选择配色方案",
+          "section": "用大面积的色彩创建基调 / 用小面积的色彩进行强调",
+          "evidence": "stated",
+          "adaptation": "用小面积的色彩进行强调"
+        }
+      ],
+      "palette_preview": [],
+      "preview_source": "no_palette_because_hues_are_unchanged",
+      "clause_chars": 291,
+      "protection_block_chars": 267,
+      "instruction_chars": 558
+    },
+    {
+      "id": "G7",
+      "label": "暖柔春景（暖中性光感 + 保留河蓝 + K）",
+      "added_block": "G7 三条 + K",
+      "intent": "增加第三种完整配色方向：暖中性春日光感，保绿也保留河蓝",
+      "clauses": [
+        "Build a gentle spring daylight palette from natural greens, warm ivory and restrained pale yellow light, while retaining blue-green river color; do not turn the scene into sunset or an orange color cast.",
+        "Let the existing pink hair and dusty-pink shoes remain distinct warm accents, with subdued flowers and cooler river reflections supporting them.",
+        "Keep luminous light areas readable and use softly varied chromatic shadows for depth; preserve the ivory dress's local color and avoid a uniform beige or grey wash."
+      ],
+      "protection": true,
+      "sources": [
+        {
+          "pdf_page": 147,
+          "printed_page": 142,
+          "page_title": "笔记：根据意象选择配色方案（三色配色意象坐标）",
+          "section": "暖－冷 / 柔－刚 / 清晰－模糊",
+          "evidence": "source_prose",
+          "adaptation": "把暖冷/柔刚意象轴转成“暖中性日光 + 柔和层次”，是策划者的新适配，不是书中实测色板"
+        }
+      ],
+      "palette_preview": [
+        "#D9C79A",
+        "#8FA36B",
+        "#7FA0A6",
+        "#F1E7D2",
+        "#E9B6C9"
+      ],
+      "preview_source": "designer_approximation_not_book_measurement",
+      "clause_chars": 511,
+      "protection_block_chars": 267,
+      "instruction_chars": 778
+    }
+  ],
+  "evaluation": {
+    "content_dimensions": [
+      "单人",
+      "粉色长发",
+      "象牙白洋装",
+      "灰粉 platform heels 与蝴蝶结",
+      "钓鱼动作",
+      "主要肢体与竿线可读",
+      "全身与双鞋可见"
+    ],
+    "compare_dimensions": [
+      "color_hierarchy",
+      "subject_focus",
+      "tonal_depth",
+      "theme_mood"
+    ],
+    "compare_values": [
+      "A",
+      "B",
+      "tie",
+      "uncertain"
+    ],
+    "comparisons_per_model": [
+      [
+        "G0",
+        "G1"
+      ],
+      [
+        "G2",
+        "G1"
+      ],
+      [
+        "G3",
+        "G1"
+      ],
+      [
+        "G4",
+        "G1"
+      ],
+      [
+        "G5",
+        "G1"
+      ],
+      [
+        "G6",
+        "G1"
+      ],
+      [
+        "G7",
+        "G1"
+      ]
+    ],
+    "swap_rechecks": 2,
+    "aa_rechecks": 2,
+    "conformance_per_model": 1,
+    "conformance_selection_rule": "候选组必须内容合格数 >= 2/3；在匿名比较中相对 G1 的净胜维度数最高；并列时取组号较小者；无合格候选则跳过符合度调用",
+    "vision_call_caps": {
+      "calibration": 5,
+      "comparison": 16,
+      "conformance": 2
+    }
+  },
+  "calibration_source": {
+    "run_dir": "data/test-result/20261003/color-spring-fishing-v1",
+    "manifest": "experiment.json",
+    "label": "第一轮六图（spring-fishing-v1）",
+    "known_content_failure": "soft-river-rose-1：出现两位粉发女性（第一轮已记录）",
+    "note": "第一轮六图只用于评价校准，不计入本轮 48 个样本，也不能替代本轮 G0/G1"
+  },
+  "source_availability": {
+    "book_transcription": "本机 docs/261003-color-improve/book-html 转录（未被 git 跟踪，仅本机可读）",
+    "pdf": "本机 docs/261003-color-improve/15659159.pdf",
+    "reviewed": "以上来源页在本次执行前已在本地打开核对（PDF 146/147/79/40/53）"
+  },
+  "request_policy": {
+    "http_retries": "沿用后端配置 max_retries=1；不做业务级自动重试；不补图",
+    "protocol_change": "spec 或通道参数变化必须换新的输出目录，禁止复用旧目录",
+    "failure_policy": "连续两次接口失败或配置错误即停止该模型区块并报告；空返回/拒绝/HTTP 错误登记为请求失败，不与内容失败混同"
+  },
+  "limitations": [
+    "每组三张独立随机抽样，不是同 seed 严格配对，不能据此宣称显著性",
+    "跨模型只比较方向一致性；显示与评价使用等显示面积版本，像素尺寸不同（Gemini 1264x848 / GPT 1536x1024）",
+    "方案卡 HEX 是设计近似预览，不发给模型，也不冒充书中测量",
+    "K 未与各方案做等长匹配，G2~G7 仍含不同语义与长度"
+  ]
+}

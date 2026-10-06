@@ -1,0 +1,82 @@
+# cccccanh opt3
+
+针对 opt2 实测的签名和服装漂移进行小修；实际测试记录另存。
+
+=== MASTER / 完整画风分析 ===
+Create the requested scene in a painterly anime language: quiet, smooth facial planes contrasted with flowing painted hair masses, translucent chromatic layering, fine directional marks and selective crisp accents. If an attached image is supplied as a style reference, it demonstrates rendering only. Create a new image of the requested subject and setting; do not reproduce the attached character, costume, colours or portrait crop. The requested identity, age, hairstyle, intrinsic colours, clothes, pose, proportions and framing take priority.
+
+Keep facial modeling soft and economical, with a gently tapered lower face and small nose and mouth indications. Where compatible with the requested identity, use open rounded-oval anime eyes, fine chromatic upper lids, sparse lower-lid marks and delicate grouped lashes. Paint irises with a darker upper veil, translucent pigment transitions, a readable pupil and a few restrained, irregular catchlights. Preserve gaze, expression and eye colour. Local warm lid and cheek accents may enrich the complexion without becoming a continuous red stripe. Retain anime abstraction; do not impose a younger face, chibi proportions, ornamental iris rings or photoreal facial detail.
+
+Group hair into broad, flowing, overlapping locks that follow the requested silhouette, length and parting. Let translucent glazing reveal the underlying colour through midtones and shadows. Place darker chromatic accents at selected roots and overlaps, then gather fine directional strokes into a few narrow bundles. Interrupt reflections with short tapered strokes and uneven light fragments, leaving quiet matte passages between them. Broad locks remain curved and supple; angular brush cuts are local accents rather than rigid plates across the entire hairstyle. Avoid continuous glossy ribbons and evenly resolved individual strands.
+
+Alternate fine chromatic contour marks, a few crisp overlap accents and soft or lost boundaries. Taper and interrupt internal lines where painted values already describe the form. Keep anatomy, fingers and garment junctions connected and readable. Strongest definition belongs to selected facial details and focal overlaps; the rest need not share a clean ink outline. Preserve the contrast between controlled facial drawing and freer surrounding paint.
+
+Build form primarily through translucent washes, layered glazing and softly merged chromatic planes. Add selective directional scumbles, dragged strokes and small opaque accents to hair, fabric and environmental forms. Keep underlying colour visible in broad passages. Clothing follows the specified design: express its folds through broad painted transitions and restrained overlap shadows, with a few broken seam or trim marks. Brushwork should remain visible without turning every fold into a hard polygon or every material into polished realistic shading.
+
+Respect local colours and the requested illumination. Exchange warm and cool reflected colour within translucent shadows; reserve deeper chromatic anchors and pale glints for selected overlaps. A softly lit scene retains readable midtones without a blanket ivory veil. A night scene remains night, but its visible surfaces carry coloured glazing, irregular painted reflections and softer peripheral edges. Do not darken all midtones to create drama or substitute photographic material rendering for painterly anime. Bright accents remain localized and supported by the scene's light.
+
+Keep the requested camera distance and composition. Full-body views retain the whole pose and visible ground or seat contact. Translate the requested environment into layered washes, loosely grouped colour patches and selective directional strokes, retaining recognizable setting and spatial depth. In generation, ordinary details may complete an underspecified scene when compatible with the description; do not impose flowers, floating particles, ornate collars, lace or bows as mandatory style signatures. Explicit exclusions remain binding. Do not borrow objects or composition from a style reference. Avoid flat cel shading, uniform black ink, plastic gloss, pore-detailed realism, all-over airbrushing and uniform texture noise.
+
+Output a clean illustration without lettering, signatures, watermarks, logos or signature-like brush squiggles in any corner. Keep painterly accents integrated with depicted forms. Retain the requested neckline, collar opening, sleeve length and shoe type rather than redesigning them to suit the rendering.
+
+=== GEMINI FULL / Gemini 生图 ===
+Create the requested scene in a painterly anime language: quiet, smooth facial planes contrasted with flowing painted hair masses, translucent chromatic layering, fine directional marks and selective crisp accents. If an attached image is supplied as a style reference, it demonstrates rendering only. Create a new image of the requested subject and setting; do not reproduce the attached character, costume, colours or portrait crop. The requested identity, age, hairstyle, intrinsic colours, clothes, pose, proportions and framing take priority.
+
+Keep facial modeling soft and economical, with a gently tapered lower face and small nose and mouth indications. Where compatible with the requested identity, use open rounded-oval anime eyes, fine chromatic upper lids, sparse lower-lid marks and delicate grouped lashes. Paint irises with a darker upper veil, translucent pigment transitions, a readable pupil and a few restrained, irregular catchlights. Preserve gaze, expression and eye colour. Local warm lid and cheek accents may enrich the complexion without becoming a continuous red stripe. Retain anime abstraction; do not impose a younger face, chibi proportions, ornamental iris rings or photoreal facial detail.
+
+Group hair into broad, flowing, overlapping locks that follow the requested silhouette, length and parting. Let translucent glazing reveal the underlying colour through midtones and shadows. Place darker chromatic accents at selected roots and overlaps, then gather fine directional strokes into a few narrow bundles. Interrupt reflections with short tapered strokes and uneven light fragments, leaving quiet matte passages between them. Broad locks remain curved and supple; angular brush cuts are local accents rather than rigid plates across the entire hairstyle. Avoid continuous glossy ribbons and evenly resolved individual strands.
+
+Alternate fine chromatic contour marks, a few crisp overlap accents and soft or lost boundaries. Taper and interrupt internal lines where painted values already describe the form. Keep anatomy, fingers and garment junctions connected and readable. Strongest definition belongs to selected facial details and focal overlaps; the rest need not share a clean ink outline. Preserve the contrast between controlled facial drawing and freer surrounding paint.
+
+Build form primarily through translucent washes, layered glazing and softly merged chromatic planes. Add selective directional scumbles, dragged strokes and small opaque accents to hair, fabric and environmental forms. Keep underlying colour visible in broad passages. Clothing follows the specified design: express its folds through broad painted transitions and restrained overlap shadows, with a few broken seam or trim marks. Brushwork should remain visible without turning every fold into a hard polygon or every material into polished realistic shading.
+
+Respect local colours and the requested illumination. Exchange warm and cool reflected colour within translucent shadows; reserve deeper chromatic anchors and pale glints for selected overlaps. A softly lit scene retains readable midtones without a blanket ivory veil. A night scene remains night, but its visible surfaces carry coloured glazing, irregular painted reflections and softer peripheral edges. Do not darken all midtones to create drama or substitute photographic material rendering for painterly anime. Bright accents remain localized and supported by the scene's light.
+
+Keep the requested camera distance and composition. Full-body views retain the whole pose and visible ground or seat contact. Translate the requested environment into layered washes, loosely grouped colour patches and selective directional strokes, retaining recognizable setting and spatial depth. In generation, ordinary details may complete an underspecified scene when compatible with the description; do not impose flowers, floating particles, ornate collars, lace or bows as mandatory style signatures. Explicit exclusions remain binding. Do not borrow objects or composition from a style reference. Avoid flat cel shading, uniform black ink, plastic gloss, pore-detailed realism, all-over airbrushing and uniform texture noise.
+
+Output a clean illustration without lettering, signatures, watermarks, logos or signature-like brush squiggles in any corner. Keep painterly accents integrated with depicted forms. Retain the requested neckline, collar opening, sleeve length and shoe type rather than redesigning them to suit the rendering.
+
+=== GPT-IMAGE SHORT / GPT 短版 ===
+Palette: local hues, warm-cool exchanges, translucent chromatic shadows
+Lighting: scene-led glow, localized glints, readable midtones
+Brushwork: layered glazing, watery washes, selective scumbles and opaque accents
+Edges: fine chromatic contours, crisp overlaps, soft lost boundaries
+Texture: smooth focal planes, brushed secondary masses, broken sheen
+Composition density: requested framing, layered masses, quiet periphery
+Detail level: rounded anime eyes, flowing lock groups, bundled fine marks
+Avoid: uniform ink, cel shading, plastic gloss, photorealism, signatures
+
+=== GEMINI REPAINT / 重绘条款 ===
+- For new generation, take all content from the requested description; an attached style sample never defines the character or scene. For repainting, the generated source is the sole content truth. Preserve identity, intrinsic colours, garment design, pose, proportions, framing and aspect ratio; transfer rendering only.
+- Keep facial modeling smooth and economical, with fine chromatic upper lids, delicate grouped lashes, sparse lower marks and small nose-mouth indications. Retain compatible rounded-oval anime eye abstraction without changing identity, age, expression or gaze.
+- Use translucent iris pigment transitions, a darker upper veil, a readable pupil and a few restrained irregular catchlights. Preserve iris colour and local complexion; avoid ornamental iris rings and continuous red facial stripes.
+- Follow the existing hair silhouette, length and parting with broad flowing lock groups. Let chromatic glazing show the underlying colour through midtones and shadows; use darker overlap accents locally and gather fine directional marks into selected bundles.
+- Break hair reflections into short tapered strokes and uneven light fragments with quiet matte gaps. Keep broad locks supple and curved; confine angular paint cuts to selected accents rather than rebuilding all hair as rigid plates.
+- Alternate fine chromatic contours, crisp focal overlaps and soft or lost secondary boundaries. Keep anatomical connections, fingers and garment junctions readable; remove uniform ink weight without breaking structure.
+- Recover translucent washes and softly merged chromatic planes in existing hair, fabric and environment. Add selective scumbles, dragged marks and small opaque accents while keeping underlying colour visible. Avoid hard polygon folds, flat cel shading and uniformly airbrushed surfaces.
+- Respect the requested illumination in new generation and the existing illumination in repainting. Keep local colours, readable midtones and warm-cool reflected shadows; deeper anchors and pale glints stay local. Night scenes retain painted colour passages rather than photographic materials or blanket darkening.
+- Keep the requested garment design in generation and the existing design in repainting. Preserve neckline height and shape, collar opening, sleeve length, closures and shoe type; do not add a high neck or change heel height. Use broad painted transitions and sparse seam marks. Keep scene objects; add no ornaments or replacement setting.
+- Produce a clean image without lettering, signatures, watermarks, logos or signature-like corner squiggles. In repainting, remove such stray generated marks while preserving the depicted scene and objects.
+
+=== FACE + HAIR / 五官头发条款 ===
+- Preserve age, identity, expression, gaze and intrinsic colours while keeping smooth facial planes, fine chromatic lids and compatible rounded-oval anime eyes.
+- Paint translucent iris transitions with a restrained upper veil and sparse irregular glints, avoiding ornamental eye geometry.
+- Preserve the existing hairstyle; group flowing curved locks with translucent glazing and selected bundles of fine directional strokes.
+- Use local chromatic overlap accents and broken light strokes with matte gaps; avoid rigid plates and continuous plastic highlight bands.
+
+=== NEGATIVE RULES / 负面规则 ===
+- Do not copy a style reference's identity, colours, clothing, objects or crop.
+- Do not force a uniformly pale or uniformly dark treatment across different scenes.
+- Do not replace painterly anime abstraction with photoreal material rendering or generic clean cel shading.
+- Do not treat decoration, a sampled hairstyle or chibi proportions as mandatory style features.
+- Do not interpret selective lost edges as permission to disconnect anatomy.
+
+=== EVIDENCE / 证据与可变项 ===
+review_basis:
+- Opt2 live comparison produced 12 images in two scenes. Its luminous GPT repaint retained fine facial drawing and translucent hair passages.
+- The opt2 dark GPT first image included a signature-like corner mark; its repaint retained the mark and changed the inner neckline.
+editorial_changes_pending_visual_validation:
+- Clarify description versus source roles in clauses shared by first generation and repaint.
+- Forbid generated signatures and lock neckline, sleeves and shoes without changing the core opt2 rendering.
+limitations:
+- This targeted revision needs its own live outputs; opt2 outputs are not opt3 evidence.

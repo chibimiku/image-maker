@@ -1,0 +1,1191 @@
+{
+  "kind": "app-theme-color-direction-validation",
+  "version": 3,
+  "id": "theme-color-clear-repeat-v3",
+  "status": "prompts_frozen_runtime_parameters_not_yet_frozen",
+  "out_dir": "data/test-result/20261006/color-clear-repeat-validation-v3",
+  "generation_channel": "gemini_text_only",
+  "image_http_budget": 9,
+  "review_http_budget": 3,
+  "automatic_retry": false,
+  "runtime_freeze_required": [
+    "api_node",
+    "base_url_without_credentials",
+    "model",
+    "aspect_ratio",
+    "resolution",
+    "transport_timeout",
+    "retry_policy",
+    "review_model",
+    "review_endpoint_without_credentials",
+    "review_timeout"
+  ],
+  "review_prompt_path": "prompts/color-knowledge/theme-color-clear-repeat-v3-review.md",
+  "review_groups": [
+    {
+      "id": "R1",
+      "kind": "tone",
+      "scene_id": "S1",
+      "slot_ids": [
+        "A1",
+        "B1",
+        "C1"
+      ],
+      "neutral_order": [
+        "A1",
+        "B1",
+        "C1"
+      ]
+    },
+    {
+      "id": "R2",
+      "kind": "tone",
+      "scene_id": "S1",
+      "slot_ids": [
+        "B2",
+        "C2",
+        "A2"
+      ],
+      "neutral_order": [
+        "B2",
+        "C2",
+        "A2"
+      ]
+    },
+    {
+      "id": "R3",
+      "kind": "tone",
+      "scene_id": "S1",
+      "slot_ids": [
+        "C3",
+        "A3",
+        "B3"
+      ],
+      "neutral_order": [
+        "C3",
+        "A3",
+        "B3"
+      ]
+    }
+  ],
+  "slots": [
+    {
+      "id": "A1",
+      "scene_id": "S1",
+      "variant_id": "A",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true
+      },
+      "color_plan": {
+        "schema_version": 1,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.",
+        "source_pages": [
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "plan_hash": "5831ee222e143c0f5c324e9ccb89ad1dd6cf261aee4569737b4810b12992f9df"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.",
+      "prompt_sha256": "703d46ac425de7a04085f7883d2d459ab7cb8fc3ffa7ea469e1dceebb0c690d0",
+      "candidate_text_id": null,
+      "candidate_append": "",
+      "candidate_append_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "A2",
+      "scene_id": "S1",
+      "variant_id": "A",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true
+      },
+      "color_plan": {
+        "schema_version": 1,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.",
+        "source_pages": [
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "plan_hash": "5831ee222e143c0f5c324e9ccb89ad1dd6cf261aee4569737b4810b12992f9df"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.",
+      "prompt_sha256": "703d46ac425de7a04085f7883d2d459ab7cb8fc3ffa7ea469e1dceebb0c690d0",
+      "candidate_text_id": null,
+      "candidate_append": "",
+      "candidate_append_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "A3",
+      "scene_id": "S1",
+      "variant_id": "A",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true
+      },
+      "color_plan": {
+        "schema_version": 1,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.",
+        "source_pages": [
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "plan_hash": "5831ee222e143c0f5c324e9ccb89ad1dd6cf261aee4569737b4810b12992f9df"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.",
+      "prompt_sha256": "703d46ac425de7a04085f7883d2d459ab7cb8fc3ffa7ea469e1dceebb0c690d0",
+      "candidate_text_id": null,
+      "candidate_append": "",
+      "candidate_append_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "B1",
+      "scene_id": "S1",
+      "variant_id": "B",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true,
+        "tone": "clear"
+      },
+      "color_plan": {
+        "schema_version": 2,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true,
+          "tone": "clear"
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+        "source_pages": [
+          14,
+          15,
+          16,
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "direction": {
+          "tone": "clear",
+          "area": "",
+          "auxiliary_regions": "",
+          "tone_source": {
+            "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping.",
+            "reference_tones": [
+              {
+                "code": "V",
+                "name": "锐调",
+                "group": "纯色调（最鲜艳的色调）",
+                "description": "彩度最高，看起来鲜艳锐利的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**纯色调**（最鲜艳的色调） | 锐调 `V` | 彩度最高，看起来鲜艳锐利的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "B",
+                "name": "明调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "在锐调的基础上加强了明度的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**明清色调**（明亮纯净的） | 明调 `B` | 在锐调的基础上加强了明度的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "P",
+                "name": "淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "清澈淡淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 淡调 `P` | 清澈淡淡的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "Vp",
+                "name": "最淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "明度最高、色彩最淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 最淡调 `Vp` | 明度最高、色彩最淡的色调。",
+                "numeric_thresholds": null
+              }
+            ]
+          }
+        },
+        "plan_hash": "6691861b985c2e4f78e02a90d4ba33f7293bdfb23c07449e0ccbd20c9be19806"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+      "prompt_sha256": "94344ec69a09273c42259b35a2b3b0a36502316062eb05dc448871bd6799e4f8",
+      "candidate_text_id": null,
+      "candidate_append": "",
+      "candidate_append_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "B2",
+      "scene_id": "S1",
+      "variant_id": "B",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true,
+        "tone": "clear"
+      },
+      "color_plan": {
+        "schema_version": 2,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true,
+          "tone": "clear"
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+        "source_pages": [
+          14,
+          15,
+          16,
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "direction": {
+          "tone": "clear",
+          "area": "",
+          "auxiliary_regions": "",
+          "tone_source": {
+            "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping.",
+            "reference_tones": [
+              {
+                "code": "V",
+                "name": "锐调",
+                "group": "纯色调（最鲜艳的色调）",
+                "description": "彩度最高，看起来鲜艳锐利的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**纯色调**（最鲜艳的色调） | 锐调 `V` | 彩度最高，看起来鲜艳锐利的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "B",
+                "name": "明调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "在锐调的基础上加强了明度的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**明清色调**（明亮纯净的） | 明调 `B` | 在锐调的基础上加强了明度的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "P",
+                "name": "淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "清澈淡淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 淡调 `P` | 清澈淡淡的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "Vp",
+                "name": "最淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "明度最高、色彩最淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 最淡调 `Vp` | 明度最高、色彩最淡的色调。",
+                "numeric_thresholds": null
+              }
+            ]
+          }
+        },
+        "plan_hash": "6691861b985c2e4f78e02a90d4ba33f7293bdfb23c07449e0ccbd20c9be19806"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+      "prompt_sha256": "94344ec69a09273c42259b35a2b3b0a36502316062eb05dc448871bd6799e4f8",
+      "candidate_text_id": null,
+      "candidate_append": "",
+      "candidate_append_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "B3",
+      "scene_id": "S1",
+      "variant_id": "B",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true,
+        "tone": "clear"
+      },
+      "color_plan": {
+        "schema_version": 2,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true,
+          "tone": "clear"
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+        "source_pages": [
+          14,
+          15,
+          16,
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "direction": {
+          "tone": "clear",
+          "area": "",
+          "auxiliary_regions": "",
+          "tone_source": {
+            "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping.",
+            "reference_tones": [
+              {
+                "code": "V",
+                "name": "锐调",
+                "group": "纯色调（最鲜艳的色调）",
+                "description": "彩度最高，看起来鲜艳锐利的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**纯色调**（最鲜艳的色调） | 锐调 `V` | 彩度最高，看起来鲜艳锐利的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "B",
+                "name": "明调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "在锐调的基础上加强了明度的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**明清色调**（明亮纯净的） | 明调 `B` | 在锐调的基础上加强了明度的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "P",
+                "name": "淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "清澈淡淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 淡调 `P` | 清澈淡淡的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "Vp",
+                "name": "最淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "明度最高、色彩最淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 最淡调 `Vp` | 明度最高、色彩最淡的色调。",
+                "numeric_thresholds": null
+              }
+            ]
+          }
+        },
+        "plan_hash": "6691861b985c2e4f78e02a90d4ba33f7293bdfb23c07449e0ccbd20c9be19806"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+      "prompt_sha256": "94344ec69a09273c42259b35a2b3b0a36502316062eb05dc448871bd6799e4f8",
+      "candidate_text_id": null,
+      "candidate_append": "",
+      "candidate_append_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "C1",
+      "scene_id": "S1",
+      "variant_id": "C",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true,
+        "tone": "clear"
+      },
+      "color_plan": {
+        "schema_version": 2,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true,
+          "tone": "clear"
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+        "source_pages": [
+          14,
+          15,
+          16,
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "direction": {
+          "tone": "clear",
+          "area": "",
+          "auxiliary_regions": "",
+          "tone_source": {
+            "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping.",
+            "reference_tones": [
+              {
+                "code": "V",
+                "name": "锐调",
+                "group": "纯色调（最鲜艳的色调）",
+                "description": "彩度最高，看起来鲜艳锐利的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**纯色调**（最鲜艳的色调） | 锐调 `V` | 彩度最高，看起来鲜艳锐利的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "B",
+                "name": "明调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "在锐调的基础上加强了明度的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**明清色调**（明亮纯净的） | 明调 `B` | 在锐调的基础上加强了明度的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "P",
+                "name": "淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "清澈淡淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 淡调 `P` | 清澈淡淡的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "Vp",
+                "name": "最淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "明度最高、色彩最淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 最淡调 `Vp` | 明度最高、色彩最淡的色调。",
+                "numeric_thresholds": null
+              }
+            ]
+          }
+        },
+        "plan_hash": "6691861b985c2e4f78e02a90d4ba33f7293bdfb23c07449e0ccbd20c9be19806"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.\n\nOn the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter.",
+      "prompt_sha256": "e18b3750c0bd8b9ae2882cd32897928ed73c1def8193f29498ec938bc94596e0",
+      "candidate_text_id": "clear-candidate-v3",
+      "candidate_append": "On the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter.",
+      "candidate_append_sha256": "5e549a853dd441ff95d1aec0c526231cfa0c215abe35ceccc99890d545ab37fe",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "C2",
+      "scene_id": "S1",
+      "variant_id": "C",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true,
+        "tone": "clear"
+      },
+      "color_plan": {
+        "schema_version": 2,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true,
+          "tone": "clear"
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+        "source_pages": [
+          14,
+          15,
+          16,
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "direction": {
+          "tone": "clear",
+          "area": "",
+          "auxiliary_regions": "",
+          "tone_source": {
+            "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping.",
+            "reference_tones": [
+              {
+                "code": "V",
+                "name": "锐调",
+                "group": "纯色调（最鲜艳的色调）",
+                "description": "彩度最高，看起来鲜艳锐利的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**纯色调**（最鲜艳的色调） | 锐调 `V` | 彩度最高，看起来鲜艳锐利的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "B",
+                "name": "明调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "在锐调的基础上加强了明度的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**明清色调**（明亮纯净的） | 明调 `B` | 在锐调的基础上加强了明度的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "P",
+                "name": "淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "清澈淡淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 淡调 `P` | 清澈淡淡的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "Vp",
+                "name": "最淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "明度最高、色彩最淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 最淡调 `Vp` | 明度最高、色彩最淡的色调。",
+                "numeric_thresholds": null
+              }
+            ]
+          }
+        },
+        "plan_hash": "6691861b985c2e4f78e02a90d4ba33f7293bdfb23c07449e0ccbd20c9be19806"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.\n\nOn the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter.",
+      "prompt_sha256": "e18b3750c0bd8b9ae2882cd32897928ed73c1def8193f29498ec938bc94596e0",
+      "candidate_text_id": "clear-candidate-v3",
+      "candidate_append": "On the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter.",
+      "candidate_append_sha256": "5e549a853dd441ff95d1aec0c526231cfa0c215abe35ceccc99890d545ab37fe",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    },
+    {
+      "id": "C3",
+      "scene_id": "S1",
+      "variant_id": "C",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true,
+        "tone": "clear"
+      },
+      "color_plan": {
+        "schema_version": 2,
+        "profile": {
+          "id": "cool-blue-red",
+          "label": "冷蓝 + 红",
+          "base": "cool blue and muted blue-grey",
+          "accent": "red, not pink",
+          "swatches": [
+            "#4A6E8A",
+            "#8FA6B4",
+            "#B23A3A"
+          ],
+          "evidence": "P1 cross-theme: 4/4 selected candidates; Gemini Flash, no images; not a production gate"
+        },
+        "selection": {
+          "profile_id": "cool-blue-red",
+          "environment": "back wall",
+          "accent_regions": "closed notebook cover, mug",
+          "confirmed": true,
+          "tone": "clear"
+        },
+        "scope": "text_only_first_generation",
+        "prompt": "THEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.",
+        "source_pages": [
+          14,
+          15,
+          16,
+          79,
+          146
+        ],
+        "validation": "not_reviewed",
+        "swatch_source": "designer_approximation_not_book_measurement",
+        "direction": {
+          "tone": "clear",
+          "area": "",
+          "auxiliary_regions": "",
+          "tone_source": {
+            "mapping_note": "Broad UI preference with reference candidates from the existing 12-tone catalog, not an exact NCD class or exhaustive mapping.",
+            "reference_tones": [
+              {
+                "code": "V",
+                "name": "锐调",
+                "group": "纯色调（最鲜艳的色调）",
+                "description": "彩度最高，看起来鲜艳锐利的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**纯色调**（最鲜艳的色调） | 锐调 `V` | 彩度最高，看起来鲜艳锐利的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "B",
+                "name": "明调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "在锐调的基础上加强了明度的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": "**明清色调**（明亮纯净的） | 明调 `B` | 在锐调的基础上加强了明度的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "P",
+                "name": "淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "清澈淡淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 淡调 `P` | 清澈淡淡的色调。",
+                "numeric_thresholds": null
+              },
+              {
+                "code": "Vp",
+                "name": "最淡调",
+                "group": "明清色调（明亮纯净的）",
+                "description": "明度最高、色彩最淡的色调。",
+                "source": {
+                  "pdf_page": 14
+                },
+                "evidence": " | 最淡调 `Vp` | 明度最高、色彩最淡的色调。",
+                "numeric_thresholds": null
+              }
+            ]
+          }
+        },
+        "plan_hash": "6691861b985c2e4f78e02a90d4ba33f7293bdfb23c07449e0ccbd20c9be19806"
+      },
+      "prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.\n\nTHEME COLOUR DESIGN (text-only first generation):\nUse cool blue and muted blue-grey as the large environmental base, ONLY on these existing authorized regions: back wall.\nUse red, not pink as a small, concentrated accent, ONLY on these existing authorized regions: closed notebook cover, mug.\nThese explicit bindings authorize changing intrinsic colours ONLY at the named regions. Every other explicitly specified intrinsic colour, including skin, hair, eyes, clothing and footwear outside those regions, remains protected. If a named region is absent or the description explicitly forbids changing it, do not invent objects or bypass that protection to satisfy the palette. Preserve shading and reasonable neutrals. No exact HEX targets or fixed area percentages are required.\nThe theme palette takes precedence over the drawing style's generic palette for the authorized regions only; retain its drawing technique. Keep the description's person count, poses, composition, existing objects, garment designs, lighting, weather and time of day. Produce a single continuous scene, never a palette chart, comparison panel, collage, labels or extra people. Do not add accent objects, increase accent area, tint protected areas or apply a uniform colour wash.\n\nUSER-SELECTED COLOUR DIRECTION (qualitative prompt preferences):\nPrefer clear, relatively clean chroma within the existing assigned hue families, without neon colours, uniform saturation boosts or loss of shading.\nApply tone only within the assigned hue families and colour placements, preserving explicit palette choices. With no theme palette selected, retain all colours from the original description and apply only mild value/chroma preferences. A selected tone is independent of mood and season, and takes precedence over their colour suggestions. Preserve people, intrinsic hue families, expressions, poses, clothes, objects, boundaries, composition, drawing technique, weather, time of day and lighting direction. Avoid uniform filters, new hue families, new objects, geometry changes, exact colour matching and numeric area targets. Use local tonal variation rather than forcing every surface into one tone; respect original composition when soft area preferences cannot fit it.\n\nOn the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter.",
+      "prompt_sha256": "e18b3750c0bd8b9ae2882cd32897928ed73c1def8193f29498ec938bc94596e0",
+      "candidate_text_id": "clear-candidate-v3",
+      "candidate_append": "On the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter.",
+      "candidate_append_sha256": "5e549a853dd441ff95d1aec0c526231cfa0c215abe35ceccc99890d545ab37fe",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ],
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "instructions": "",
+      "post_instructions": "",
+      "prompt_suffix": "",
+      "image_paths": [],
+      "face_quality_boost": false,
+      "expected_output_count": 1
+    }
+  ],
+  "source_hashes": {
+    "utils/theme_color.py": "09683e6fd20c197506018c3bbf6af43277c8d5a4bb2bc28d80d6f1b2d1e76736",
+    "prompts/color-knowledge/theme-color-profiles-v1.json": "38a928c31b21313a8e312e12862c7078bcf3454202bce889339e963c3170cab6",
+    "prompts/color-knowledge/theme-color-contract-v1.md": "92b4b703bbb02db785ef72b20c77bfffcfa31eba303b4d17435ab20b015b0108",
+    "prompts/color-knowledge/theme-color-direction-v2.json": "d243e561e9e2cf953c09e2e8c1e58528097f8e1492ec5219dbb319a5da1d0141",
+    "prompts/color-knowledge/theme-color-direction-v2.md": "e712b5ce34a69578c3dd01cba2b112e6d16e0803dd3549f51550a01b4e61fdee",
+    "prompts/color-knowledge/theme-color-binding-v2.md": "58e0b364e738bd918e78a30556c4230376309cc3d90393f5ffec5ff786dbf445",
+    "prompts/color-knowledge/theme-color-auxiliary-v2.md": "c5dc571f5bd0dd9875b1a73c2e23729005843e5efa234b33005aa32de633b024",
+    "prompts/color-knowledge/book-generation-knowledge-v3.json": "3f53933f94a43cd913735039a79c80beca99edbbb2be4484a33963c94d84905b",
+    "prompts/color-knowledge/theme-color-clear-repeat-v3-scenes.json": "04b6cd7ed3c6e2276ab851b76a47b6ce4370d6d2dede01a20715b5f932c32a93",
+    "prompts/color-knowledge/theme-color-clear-repeat-v3-review.md": "b96785d891bf599c91e43b12f9079211fe903ce6a2455532981376cb64c622b0",
+    "prompts/color-knowledge/theme-color-clear-candidate-v3.md": "cab8306be7618221ac9da98afe2e53d4c1e9cb52b1fb3df2a11fee57e4210be6"
+  },
+  "limitations": [
+    "Single simplified still-life scene and one palette (cool blue + red); no second scene, no second palette, no person scene.",
+    "Three independent random draws per condition; no seed guarantee, so this only compares random spread with the wording effect and cannot give statistical significance.",
+    "Sameness and lighting are declared in the content text but the viewer still sees three independently composed illustrations; outline-only differences are reported separately from substantive confounds.",
+    "Only the clear direction is tested. Bright/deep, muted, area hierarchy, auxiliary-layer hierarchy, mood/season, material/perception, drawing-style transfer, GPT-image channel, reference images and repaint colour retention are all out of scope.",
+    "Deep feature metrics (Gram/AdaIN/LPIPS/CSD) describe whole-image change and cannot be attributed to local de-greying.",
+    "No production gate, no threshold and no promise of a stable universal effect."
+  ],
+  "comparison_policy": "A is the first-stage fixed-palette baseline; B applies the current production clear rule; C is identical to B and only appends the frozen candidate text. All three conditions are the same declared direction (clear). Accent surfaces must remain recognizably red; muted is not tested in this round.",
+  "scenes_path": "prompts/color-knowledge/theme-color-clear-repeat-v3-scenes.json",
+  "tone_measure": "more_distinct",
+  "tone_pairwise_field": "chroma_pairwise",
+  "comparisons": [
+    {
+      "name": "clear_b_vs_a",
+      "label": "B（当前生产清色）相对 A（基准）",
+      "group_id": "R1",
+      "scene_id": "S1",
+      "repeat": 1,
+      "baseline": "A1",
+      "candidate": "B1",
+      "expect": "candidate",
+      "variant_id": "B"
+    },
+    {
+      "name": "clear_b_vs_a",
+      "label": "B（当前生产清色）相对 A（基准）",
+      "group_id": "R2",
+      "scene_id": "S1",
+      "repeat": 2,
+      "baseline": "A2",
+      "candidate": "B2",
+      "expect": "candidate",
+      "variant_id": "B"
+    },
+    {
+      "name": "clear_b_vs_a",
+      "label": "B（当前生产清色）相对 A（基准）",
+      "group_id": "R3",
+      "scene_id": "S1",
+      "repeat": 3,
+      "baseline": "A3",
+      "candidate": "B3",
+      "expect": "candidate",
+      "variant_id": "B"
+    },
+    {
+      "name": "clear_c_vs_a",
+      "label": "C（清色追加正文）相对 A（基准）",
+      "group_id": "R1",
+      "scene_id": "S1",
+      "repeat": 1,
+      "baseline": "A1",
+      "candidate": "C1",
+      "expect": "candidate",
+      "variant_id": "C"
+    },
+    {
+      "name": "clear_c_vs_a",
+      "label": "C（清色追加正文）相对 A（基准）",
+      "group_id": "R2",
+      "scene_id": "S1",
+      "repeat": 2,
+      "baseline": "A2",
+      "candidate": "C2",
+      "expect": "candidate",
+      "variant_id": "C"
+    },
+    {
+      "name": "clear_c_vs_a",
+      "label": "C（清色追加正文）相对 A（基准）",
+      "group_id": "R3",
+      "scene_id": "S1",
+      "repeat": 3,
+      "baseline": "A3",
+      "candidate": "C3",
+      "expect": "candidate",
+      "variant_id": "C"
+    },
+    {
+      "name": "clear_c_vs_b",
+      "label": "C（清色追加正文）相对 B（当前生产清色）",
+      "group_id": "R1",
+      "scene_id": "S1",
+      "repeat": 1,
+      "baseline": "B1",
+      "candidate": "C1",
+      "expect": "candidate",
+      "variant_id": "C"
+    },
+    {
+      "name": "clear_c_vs_b",
+      "label": "C（清色追加正文）相对 B（当前生产清色）",
+      "group_id": "R2",
+      "scene_id": "S1",
+      "repeat": 2,
+      "baseline": "B2",
+      "candidate": "C2",
+      "expect": "candidate",
+      "variant_id": "C"
+    },
+    {
+      "name": "clear_c_vs_b",
+      "label": "C（清色追加正文）相对 B（当前生产清色）",
+      "group_id": "R3",
+      "scene_id": "S1",
+      "repeat": 3,
+      "baseline": "B3",
+      "candidate": "C3",
+      "expect": "candidate",
+      "variant_id": "C"
+    }
+  ],
+  "verdict_texts": {
+    "clear_b_vs_a": "当前生产清色 B 相对基准 A 是否在绑定蓝／红表面减少灰混杂且红色仍为红色",
+    "clear_c_vs_a": "清色候选 C 相对基准 A 是否在绑定蓝／红表面减少灰混杂且红色仍为红色",
+    "clear_c_vs_b": "清色候选 C 相对当前生产清色 B 是否在绑定蓝／红表面减少灰混杂且红色仍为红色"
+  },
+  "candidate_texts": {
+    "clear-candidate-v3": "On the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter."
+  },
+  "candidate_text_sources": {
+    "clear-candidate-v3": "prompts/color-knowledge/theme-color-clear-candidate-v3.md"
+  },
+  "candidate_append_variants": [
+    "C"
+  ],
+  "candidate_policy": "Only variant C carries the candidate text, and it carries it verbatim. A reuses the frozen first-stage palette unchanged; B and C share the identical production colour plan, so C differs from B by the appended text only. Nothing here is written back into the App palette templates or the shared configuration.",
+  "source_spec": "prompts/color-knowledge/theme-color-clear-repeat-v3-spec.json",
+  "pack_hash": "0c3178c7795a3456c553196cccced84ae449115974208dd52f1ba852fa789298"
+}

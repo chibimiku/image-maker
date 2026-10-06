@@ -1,0 +1,5629 @@
+{
+  "version": 1,
+  "count": 50,
+  "swatch_count": 150,
+  "manifest_hash": "e02022aa10f468804c30ef65eb73389e9aefde85913efc36f23896ea80a2f245",
+  "source_image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+  "source_pages": [
+    147,
+    74
+  ],
+  "axes": {
+    "horizontal": [
+      "暖",
+      "冷"
+    ],
+    "vertical": [
+      "柔",
+      "刚"
+    ],
+    "third_criterion": [
+      "清晰",
+      "模糊"
+    ],
+    "third_criterion_position": null
+  },
+  "duplicate_note": "Same chart on PDF 74, smaller and overlaid with artwork-location circles and connectors. Count once; measure the unobstructed PDF 147 figure.",
+  "palettes": [
+    {
+      "id": "image-chart-147-01",
+      "label": "甜美的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          338,
+          104,
+          458,
+          161
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#fa9a79",
+          "measured_rgb": [
+            250,
+            154,
+            121
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            348,
+            118,
+            368,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            13.0,
+            18.0,
+            19.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#fdfff2",
+          "measured_rgb": [
+            253,
+            255,
+            242
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            388,
+            118,
+            408,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            2.0,
+            0.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#f0d7e9",
+          "measured_rgb": [
+            240,
+            215,
+            233
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            428,
+            118,
+            448,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            13.0,
+            13.0,
+            15.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.3128,
+        "y_fraction": 0.051,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "82ea0bffb099eabff43e0d6605bcdd4c5b96c0dc37caae0b64267c9c82059094"
+    },
+    {
+      "id": "image-chart-147-02",
+      "label": "浪漫的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          651,
+          104,
+          771,
+          161
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#efd6eb",
+          "measured_rgb": [
+            239,
+            214,
+            235
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            661,
+            118,
+            681,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            16.0,
+            15.0,
+            15.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            701,
+            118,
+            721,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#f9fefa",
+          "measured_rgb": [
+            249,
+            254,
+            250
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            741,
+            118,
+            761,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            6.0,
+            3.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.581,
+        "y_fraction": 0.051,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "1c766f2f257f7d7f8f52ecfe4ab33012f61c646b08c40aec90fbb01073dbce16"
+    },
+    {
+      "id": "image-chart-147-03",
+      "label": "清纯的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          804,
+          104,
+          924,
+          161
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#fefefe",
+          "measured_rgb": [
+            254,
+            254,
+            254
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            814,
+            118,
+            834,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            854,
+            118,
+            874,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#f8fcfb",
+          "measured_rgb": [
+            248,
+            252,
+            251
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            894,
+            118,
+            914,
+            147
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7121,
+        "y_fraction": 0.051,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "082508bd4d98215503015fe7e308bf428e8a590f4d443ea841ec1af35228b0d9"
+    },
+    {
+      "id": "image-chart-147-04",
+      "label": "稚嫩的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          154,
+          180,
+          274,
+          237
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#fa9474",
+          "measured_rgb": [
+            250,
+            148,
+            116
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            164,
+            194,
+            184,
+            223
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            15.0,
+            22.1,
+            22.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffcd",
+          "measured_rgb": [
+            255,
+            255,
+            205
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            204,
+            194,
+            224,
+            223
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            0.0,
+            1.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#fdd771",
+          "measured_rgb": [
+            253,
+            215,
+            113
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            244,
+            194,
+            264,
+            223
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            7.0,
+            11.0,
+            22.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.1551,
+        "y_fraction": 0.1093,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "dd68ac331ccdcb9aa5f06c88ff53b1d39a8aa940f1b4dd587de7556bb27a42ac"
+    },
+    {
+      "id": "image-chart-147-05",
+      "label": "孩子气的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          154,
+          273,
+          274,
+          331
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#f65342",
+          "measured_rgb": [
+            246,
+            83,
+            66
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            164,
+            288,
+            184,
+            316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            9.0,
+            7.1,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffcd",
+          "measured_rgb": [
+            255,
+            255,
+            205
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            204,
+            288,
+            224,
+            316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            1.0,
+            2.0,
+            14.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#a4e7d8",
+          "measured_rgb": [
+            164,
+            231,
+            216
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            244,
+            288,
+            264,
+            316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            28.0,
+            28.0,
+            28.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.1551,
+        "y_fraction": 0.181,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "04b00e2571264ae08c529b319bb658a1f5d84d474bef306635d4d2daaa829b93"
+    },
+    {
+      "id": "image-chart-147-06",
+      "label": "悠闲的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          383,
+          267,
+          503,
+          325
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#fcd473",
+          "measured_rgb": [
+            252,
+            212,
+            115
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            393,
+            282,
+            413,
+            310
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            16.0,
+            24.1,
+            22.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffd4",
+          "measured_rgb": [
+            255,
+            255,
+            212
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            433,
+            282,
+            453,
+            310
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            0.0,
+            2.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#c2c166",
+          "measured_rgb": [
+            194,
+            193,
+            102
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            473,
+            282,
+            493,
+            310
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            25.1,
+            23.0,
+            25.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.3513,
+        "y_fraction": 0.1764,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "fb5d8e7190abb892ddba838d71af118ab246564d977511b573419e41199706f7"
+    },
+    {
+      "id": "image-chart-147-07",
+      "label": "安宁的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          562,
+          281,
+          682,
+          339
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#dbc261",
+          "measured_rgb": [
+            219,
+            194,
+            97
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            572,
+            296,
+            592,
+            324
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            16.0,
+            16.0,
+            19.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffd6",
+          "measured_rgb": [
+            255,
+            255,
+            214
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            612,
+            296,
+            632,
+            324
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            1.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#acba63",
+          "measured_rgb": [
+            172,
+            186,
+            99
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            652,
+            296,
+            672,
+            324
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            28.0,
+            28.0,
+            27.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.5047,
+        "y_fraction": 0.1871,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "c36d8d2dd4ccfaebf6b3d0afc93df340ee784cccd4fbda2d5ee12b40e656dca2"
+    },
+    {
+      "id": "image-chart-147-08",
+      "label": "水灵灵的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          806,
+          301,
+          926,
+          359
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#a7b462",
+          "measured_rgb": [
+            167,
+            180,
+            98
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            816,
+            316,
+            836,
+            344
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            26.0,
+            25.0,
+            26.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#effdec",
+          "measured_rgb": [
+            239,
+            253,
+            236
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            856,
+            316,
+            876,
+            344
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#a0b6b7",
+          "measured_rgb": [
+            160,
+            182,
+            183
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            896,
+            316,
+            916,
+            344
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            28.1,
+            28.0,
+            28.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7138,
+        "y_fraction": 0.2025,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "8920fe94e5f474f24798c8ec09eeb1739c8acbfcd677d57afb606f74cd82259c"
+    },
+    {
+      "id": "image-chart-147-09",
+      "label": "清洁的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          996,
+          192,
+          1116,
+          249
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#f7fbfa",
+          "measured_rgb": [
+            247,
+            251,
+            250
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1006,
+            206,
+            1026,
+            235
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1046,
+            206,
+            1066,
+            235
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#f4fff7",
+          "measured_rgb": [
+            244,
+            255,
+            247
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1086,
+            206,
+            1106,
+            235
+          ],
+          "sample_pixels": 580,
+          "channel_p90_minus_p10": [
+            5.0,
+            3.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.8766,
+        "y_fraction": 0.1185,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "353eda958ef1388ad95a4d87e81f0a35132bcaa7479ac17f18a57b381f27f0eb"
+    },
+    {
+      "id": "image-chart-147-10",
+      "label": "清冷的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          1042,
+          324,
+          1162,
+          382
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#adecdf",
+          "measured_rgb": [
+            173,
+            236,
+            223
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1052,
+            338,
+            1072,
+            368
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            17.0,
+            17.0,
+            17.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1092,
+            338,
+            1112,
+            368
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            2.0,
+            2.0,
+            1.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#a8f0fd",
+          "measured_rgb": [
+            168,
+            240,
+            253
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1132,
+            338,
+            1152,
+            368
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            19.0,
+            15.0,
+            11.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.916,
+        "y_fraction": 0.2201,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "be4d8c5127998de061373f0775232d5ade87a64e949ff6b3620a5e2a615cd9a9"
+    },
+    {
+      "id": "image-chart-147-11",
+      "label": "幽默的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          166,
+          401,
+          286,
+          459
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#fef154",
+          "measured_rgb": [
+            254,
+            241,
+            84
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            176,
+            416,
+            196,
+            444
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#c186d5",
+          "measured_rgb": [
+            193,
+            134,
+            213
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            216,
+            416,
+            236,
+            444
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            27.1,
+            27.0,
+            28.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#b2e59f",
+          "measured_rgb": [
+            178,
+            229,
+            159
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            256,
+            416,
+            276,
+            444
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            24.0,
+            23.0,
+            35.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.1654,
+        "y_fraction": 0.2791,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "b35ebee33580b3b62baf9144a1f496128ccb8b03ec9056f1984f939468f59e50"
+    },
+    {
+      "id": "image-chart-147-12",
+      "label": "家居的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          335,
+          407,
+          455,
+          465
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#fa7740",
+          "measured_rgb": [
+            250,
+            119,
+            64
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            345,
+            422,
+            365,
+            450
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            11.0,
+            16.0,
+            13.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffc8",
+          "measured_rgb": [
+            255,
+            255,
+            200
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            385,
+            422,
+            405,
+            450
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            2.0,
+            1.0,
+            13.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#dabf5c",
+          "measured_rgb": [
+            218,
+            191,
+            92
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            425,
+            422,
+            445,
+            450
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            15.1,
+            16.0,
+            18.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.3102,
+        "y_fraction": 0.2837,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "154bd6b19b16f61052dbc3d44cff852e501a7568769911bb981d60561b1989da"
+    },
+    {
+      "id": "image-chart-147-13",
+      "label": "女性化的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          510,
+          413,
+          630,
+          471
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#bc5550",
+          "measured_rgb": [
+            188,
+            85,
+            80
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            520,
+            428,
+            540,
+            456
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            13.0,
+            11.0,
+            16.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ebd2e7",
+          "measured_rgb": [
+            235,
+            210,
+            231
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            560,
+            428,
+            580,
+            456
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            11.0,
+            11.0,
+            11.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#fffaef",
+          "measured_rgb": [
+            255,
+            250,
+            239
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            600,
+            428,
+            620,
+            456
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            2.0,
+            6.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.4602,
+        "y_fraction": 0.2883,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "0f57c123ca9b092a74fbe7507a17ccc72a3d5735a1b21c809e158d8072383f05"
+    },
+    {
+      "id": "image-chart-147-14",
+      "label": "新鲜的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          807,
+          413,
+          927,
+          471
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#cee552",
+          "measured_rgb": [
+            206,
+            229,
+            82
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            817,
+            428,
+            837,
+            456
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            11.0,
+            10.0,
+            13.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffc8",
+          "measured_rgb": [
+            255,
+            255,
+            200
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            857,
+            428,
+            877,
+            456
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            11.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#579163",
+          "measured_rgb": [
+            87,
+            145,
+            99
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            897,
+            428,
+            917,
+            456
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            24.0,
+            26.0,
+            25.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7147,
+        "y_fraction": 0.2883,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "fd6ff80daadda6e440bd89e623f919cdef3c7df1007ac9334d147482ea3a3696"
+    },
+    {
+      "id": "image-chart-147-15",
+      "label": "青春的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          997,
+          459,
+          1117,
+          517
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#feef52",
+          "measured_rgb": [
+            254,
+            239,
+            82
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1007,
+            474,
+            1027,
+            502
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#99d458",
+          "measured_rgb": [
+            153,
+            212,
+            88
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1047,
+            474,
+            1067,
+            502
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            19.0,
+            18.0,
+            19.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#4c54c2",
+          "measured_rgb": [
+            76,
+            84,
+            194
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1087,
+            474,
+            1107,
+            502
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            8.0,
+            6.0,
+            10.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.8775,
+        "y_fraction": 0.3236,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "c2c50866a417639117290ce53923f18a99dc80fcfb1a35b5c3a965422a41fc49"
+    },
+    {
+      "id": "image-chart-147-16",
+      "label": "快乐的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          46,
+          495,
+          166,
+          553
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#f0441c",
+          "measured_rgb": [
+            240,
+            68,
+            28
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            56,
+            510,
+            76,
+            538
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            9.0,
+            6.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#f7da31",
+          "measured_rgb": [
+            247,
+            218,
+            49
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            96,
+            510,
+            116,
+            538
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            8.0,
+            8.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#477893",
+          "measured_rgb": [
+            71,
+            120,
+            147
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            136,
+            510,
+            156,
+            538
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            17.0,
+            19.0,
+            18.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.0626,
+        "y_fraction": 0.3512,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "98897920bdaf49bd9f7d63ea80d2cc6668dca6a4d6b13c02012192fa5d7abba3"
+    },
+    {
+      "id": "image-chart-147-17",
+      "label": "时尚的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          176,
+          517,
+          296,
+          575
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#ed4940",
+          "measured_rgb": [
+            237,
+            73,
+            64
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            186,
+            532,
+            206,
+            560
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            6.1,
+            6.1,
+            6.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#feef51",
+          "measured_rgb": [
+            254,
+            239,
+            81
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            226,
+            532,
+            246,
+            560
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            7.0,
+            7.1,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#4f56bf",
+          "measured_rgb": [
+            79,
+            86,
+            191
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            266,
+            532,
+            286,
+            560
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            9.0,
+            9.0,
+            9.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.174,
+        "y_fraction": 0.3681,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "580c994d5b1d9f67f731dfffc6793b805a945e480d52a53507b116e0de0fa00c"
+    },
+    {
+      "id": "image-chart-147-18",
+      "label": "悠闲的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          335,
+          517,
+          455,
+          575
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#ffffcc",
+          "measured_rgb": [
+            255,
+            255,
+            204
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            345,
+            532,
+            365,
+            560
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ce603c",
+          "measured_rgb": [
+            206,
+            96,
+            60
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            385,
+            532,
+            405,
+            560
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            17.0,
+            16.0,
+            15.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#544031",
+          "measured_rgb": [
+            84,
+            64,
+            49
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            425,
+            532,
+            445,
+            560
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            8.0,
+            6.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.3102,
+        "y_fraction": 0.3681,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "0f4b5be62746e6b19ee50b8f0615a0d2ddf27a41c3ae5a2e522d9adcae5d1582"
+    },
+    {
+      "id": "image-chart-147-19",
+      "label": "秀丽的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          629,
+          490,
+          749,
+          548
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#bb9fc1",
+          "measured_rgb": [
+            187,
+            159,
+            193
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            639,
+            504,
+            659,
+            534
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            25.0,
+            25.0,
+            26.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            679,
+            504,
+            699,
+            534
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#a5b5b4",
+          "measured_rgb": [
+            165,
+            181,
+            180
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            719,
+            504,
+            739,
+            534
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            27.1,
+            28.1,
+            30.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.5621,
+        "y_fraction": 0.3474,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "f40ab2549a5303de84c9907aca2912743bed547ceefe2e0eadbf70ddcc18d8a4"
+    },
+    {
+      "id": "image-chart-147-20",
+      "label": "简约的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          807,
+          574,
+          927,
+          632
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#b99cc4",
+          "measured_rgb": [
+            185,
+            156,
+            196
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            817,
+            588,
+            837,
+            618
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            26.0,
+            25.0,
+            24.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#fefffa",
+          "measured_rgb": [
+            254,
+            255,
+            250
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            857,
+            588,
+            877,
+            618
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#9fa3c8",
+          "measured_rgb": [
+            159,
+            163,
+            200
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            897,
+            588,
+            917,
+            618
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            27.1,
+            27.0,
+            28.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7147,
+        "y_fraction": 0.4118,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "1d04dd5863fcc95f88cdaec76779fc38d5c8aae31d4b3f7fcefa3696bd7896bb"
+    },
+    {
+      "id": "image-chart-147-21",
+      "label": "闲适的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          59,
+          599,
+          179,
+          657
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#631911",
+          "measured_rgb": [
+            99,
+            25,
+            17
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            69,
+            614,
+            89,
+            642
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            6.0,
+            6.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            109,
+            614,
+            129,
+            642
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#27336a",
+          "measured_rgb": [
+            39,
+            51,
+            106
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            149,
+            614,
+            169,
+            642
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            4.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.0737,
+        "y_fraction": 0.431,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "b4149d1a5c8f98ee1a65536c7f4c178261c8180a19e0dbf811891818c65c07ad"
+    },
+    {
+      "id": "image-chart-147-22",
+      "label": "雅致的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          503,
+          568,
+          623,
+          626
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#5a4d4d",
+          "measured_rgb": [
+            90,
+            77,
+            77
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            513,
+            582,
+            533,
+            612
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            9.0,
+            8.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#b7554e",
+          "measured_rgb": [
+            183,
+            85,
+            78
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            553,
+            582,
+            573,
+            612
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            30.0,
+            15.0,
+            15.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#e1bc96",
+          "measured_rgb": [
+            225,
+            188,
+            150
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            593,
+            582,
+            613,
+            612
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            20.1,
+            20.0,
+            23.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.4542,
+        "y_fraction": 0.4072,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "f0bbb0464d0263d14ccf2bb7637b369363b1f97c00828d4625de10466091c171"
+    },
+    {
+      "id": "image-chart-147-23",
+      "label": "青春洋溢的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          1049,
+          588,
+          1169,
+          646
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#4d8a4e",
+          "measured_rgb": [
+            77,
+            138,
+            78
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1059,
+            602,
+            1079,
+            632
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            14.0,
+            16.0,
+            15.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1099,
+            602,
+            1119,
+            632
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#222a5e",
+          "measured_rgb": [
+            34,
+            42,
+            94
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1139,
+            602,
+            1159,
+            632
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            7.0,
+            6.0,
+            8.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.922,
+        "y_fraction": 0.4225,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "80f0b9d7dd698e82d2bf023bfdb26b1f8c794fd7b3ddc5496f4064177a387eb0"
+    },
+    {
+      "id": "image-chart-147-24",
+      "label": "温厚的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          335,
+          682,
+          455,
+          740
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#512f13",
+          "measured_rgb": [
+            81,
+            47,
+            19
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            345,
+            696,
+            365,
+            726
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            4.0,
+            4.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#6d5435",
+          "measured_rgb": [
+            109,
+            84,
+            53
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            385,
+            696,
+            405,
+            726
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            10.1,
+            10.0,
+            10.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#47391c",
+          "measured_rgb": [
+            71,
+            57,
+            28
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            425,
+            696,
+            445,
+            726
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            3.1,
+            3.1,
+            3.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.3102,
+        "y_fraction": 0.4946,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "1cc70e81d4fc5d78f393c5ed6e8ff0a25653a04ad37ae24f3c46000e90084a45"
+    },
+    {
+      "id": "image-chart-147-25",
+      "label": "热闹的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          159,
+          691,
+          279,
+          749
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#5e1810",
+          "measured_rgb": [
+            94,
+            24,
+            16
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            169,
+            706,
+            189,
+            734
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ea401b",
+          "measured_rgb": [
+            234,
+            64,
+            27
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            209,
+            706,
+            229,
+            734
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            7.0,
+            6.0,
+            9.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#314b1c",
+          "measured_rgb": [
+            49,
+            75,
+            28
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            249,
+            706,
+            269,
+            734
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.1594,
+        "y_fraction": 0.5015,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "fce65c886c79c715605b28f10ba099b281ef1ecc34c6b2e50a0440d44db82b7b"
+    },
+    {
+      "id": "image-chart-147-26",
+      "label": "优雅的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          534,
+          691,
+          654,
+          749
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#593c3d",
+          "measured_rgb": [
+            89,
+            60,
+            61
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            544,
+            706,
+            564,
+            734
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            6.1,
+            5.1,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#f8f5f4",
+          "measured_rgb": [
+            248,
+            245,
+            244
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            584,
+            706,
+            604,
+            734
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            8.0,
+            7.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#574e4c",
+          "measured_rgb": [
+            87,
+            78,
+            76
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            624,
+            706,
+            644,
+            734
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            8.0,
+            9.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.4807,
+        "y_fraction": 0.5015,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "999f2df61149377c6c342c68edd759a8976be1a608e2552397f804fee85912dc"
+    },
+    {
+      "id": "image-chart-147-27",
+      "label": "理性的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          808,
+          683,
+          928,
+          741
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#534b57",
+          "measured_rgb": [
+            83,
+            75,
+            87
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            818,
+            698,
+            838,
+            726
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            6.0,
+            6.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            858,
+            698,
+            878,
+            726
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#2b3145",
+          "measured_rgb": [
+            43,
+            49,
+            69
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            898,
+            698,
+            918,
+            726
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            4.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7155,
+        "y_fraction": 0.4954,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "a9b3dc862ef533701e476233c0e09aa01d878e91973572600e36d043e19efbff"
+    },
+    {
+      "id": "image-chart-147-28",
+      "label": "明快的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          994,
+          687,
+          1114,
+          745
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#70cae2",
+          "measured_rgb": [
+            112,
+            202,
+            226
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1004,
+            702,
+            1024,
+            730
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            16.0,
+            17.0,
+            18.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1044,
+            702,
+            1064,
+            730
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#090a0f",
+          "measured_rgb": [
+            9,
+            10,
+            15
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1084,
+            702,
+            1104,
+            730
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            3.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.8749,
+        "y_fraction": 0.4985,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "34d7edc3f1f9a18c6f87a87366ffe3171d3a5cbfc90fb2ee593e6c5ec3333986"
+    },
+    {
+      "id": "image-chart-147-29",
+      "label": "强烈的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          55,
+          846,
+          175,
+          904
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#f5c12d",
+          "measured_rgb": [
+            245,
+            193,
+            45
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            65,
+            860,
+            85,
+            890
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            12.0,
+            13.0,
+            14.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#5e170e",
+          "measured_rgb": [
+            94,
+            23,
+            14
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            105,
+            860,
+            125,
+            890
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            2.0,
+            3.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#020303",
+          "measured_rgb": [
+            2,
+            3,
+            3
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            145,
+            860,
+            165,
+            890
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            2.0,
+            2.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.0703,
+        "y_fraction": 0.6204,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "d4af1d98273126af5593644cbb15897c04819f259285667a4388eb90723189b3"
+    },
+    {
+      "id": "image-chart-147-30",
+      "label": "魅惑的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          269,
+          847,
+          389,
+          905
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#75303a",
+          "measured_rgb": [
+            117,
+            48,
+            58
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            279,
+            862,
+            299,
+            890
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            9.1,
+            8.0,
+            9.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            319,
+            862,
+            339,
+            890
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            3.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#372a45",
+          "measured_rgb": [
+            55,
+            42,
+            69
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            359,
+            862,
+            379,
+            890
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            3.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.2536,
+        "y_fraction": 0.6212,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "bfe5ddf9392665b4ab6d8ea3fdb4cdec463c91e8291fa5bf1240d5ad73a2d17b"
+    },
+    {
+      "id": "image-chart-147-31",
+      "label": "奢侈的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          270,
+          945,
+          390,
+          1003
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#3c1214",
+          "measured_rgb": [
+            60,
+            18,
+            20
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            280,
+            960,
+            300,
+            988
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            3.0,
+            2.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#945b22",
+          "measured_rgb": [
+            148,
+            91,
+            34
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            320,
+            960,
+            340,
+            988
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            15.0,
+            14.0,
+            13.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#180d1d",
+          "measured_rgb": [
+            24,
+            13,
+            29
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            360,
+            960,
+            380,
+            988
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.2545,
+        "y_fraction": 0.6963,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "8e479a53ef6576427f3bc1da14fa9c56eda28d15732b1d1225838f9613355fbc"
+    },
+    {
+      "id": "image-chart-147-32",
+      "label": "刺激的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          55,
+          987,
+          175,
+          1045
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            65,
+            1002,
+            85,
+            1030
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            3.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#5b160f",
+          "measured_rgb": [
+            91,
+            22,
+            15
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            105,
+            1002,
+            125,
+            1030
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            3.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#202a5a",
+          "measured_rgb": [
+            32,
+            42,
+            90
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            145,
+            1002,
+            165,
+            1030
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            9.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.0703,
+        "y_fraction": 0.7285,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "e2dd4f13430b86a9e1514293c04140714a97210d0a7314f7226f9d8c20d032dd"
+    },
+    {
+      "id": "image-chart-147-33",
+      "label": "精力旺盛的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          56,
+          1114,
+          176,
+          1172
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            66,
+            1128,
+            86,
+            1158
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            2.1,
+            3.0,
+            2.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#e6401b",
+          "measured_rgb": [
+            230,
+            64,
+            27
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            106,
+            1128,
+            126,
+            1158
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            11.0,
+            6.0,
+            6.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#270a0a",
+          "measured_rgb": [
+            39,
+            10,
+            10
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            146,
+            1128,
+            166,
+            1158
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.0711,
+        "y_fraction": 0.8259,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "e22ee6d481ed0b42e8a32ca2733543390aacc951e292751d9adbe91247e1fe15"
+    },
+    {
+      "id": "image-chart-147-34",
+      "label": "豪华的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          225,
+          1045,
+          345,
+          1103
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#39100c",
+          "measured_rgb": [
+            57,
+            16,
+            12
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            235,
+            1060,
+            255,
+            1088
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            3.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#020202",
+          "measured_rgb": [
+            2,
+            2,
+            2
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            275,
+            1060,
+            295,
+            1088
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#4f4019",
+          "measured_rgb": [
+            79,
+            64,
+            25
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            315,
+            1060,
+            335,
+            1088
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.2159,
+        "y_fraction": 0.773,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "c04ea43cf9d70b2a689de86d351b34b03bfd5fcfa29a756aa00bf6ab9ea19df1"
+    },
+    {
+      "id": "image-chart-147-35",
+      "label": "野性的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          222,
+          1172,
+          342,
+          1230
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#1d0d0a",
+          "measured_rgb": [
+            29,
+            13,
+            10
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            232,
+            1186,
+            252,
+            1216
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            9.0,
+            9.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#371011",
+          "measured_rgb": [
+            55,
+            16,
+            17
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            272,
+            1186,
+            292,
+            1216
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#241e0c",
+          "measured_rgb": [
+            36,
+            30,
+            12
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            312,
+            1186,
+            332,
+            1216
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            5.0,
+            4.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.2134,
+        "y_fraction": 0.8704,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "2533ebc7b73562732acbe6abe9a333d60bea2ab80a3d8b87c5f880baaf61b0c5"
+    },
+    {
+      "id": "image-chart-147-36",
+      "label": "粗犷的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          272,
+          1272,
+          392,
+          1330
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#140c0a",
+          "measured_rgb": [
+            20,
+            12,
+            10
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            282,
+            1286,
+            302,
+            1316
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#3f240f",
+          "measured_rgb": [
+            63,
+            36,
+            15
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            322,
+            1286,
+            342,
+            1316
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            3.0,
+            3.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            362,
+            1286,
+            382,
+            1316
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.2562,
+        "y_fraction": 0.9471,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "3ef2735b6593d8ea7a75c2724e2c567ab09630113ef547a8591096b922f32961"
+    },
+    {
+      "id": "image-chart-147-37",
+      "label": "风流的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          566,
+          802,
+          686,
+          860
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#463849",
+          "measured_rgb": [
+            70,
+            56,
+            73
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            576,
+            816,
+            596,
+            846
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#b2a196",
+          "measured_rgb": [
+            178,
+            161,
+            150
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            616,
+            816,
+            636,
+            846
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            28.0,
+            28.0,
+            29.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#54493c",
+          "measured_rgb": [
+            84,
+            73,
+            60
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            656,
+            816,
+            676,
+            846
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            7.0,
+            7.0,
+            9.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.5081,
+        "y_fraction": 0.5867,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "6ec286ef49981566ac90c6f3ed3274450842893337fa0e75d639cf0f9ec64296"
+    },
+    {
+      "id": "image-chart-147-38",
+      "label": "知性的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          810,
+          802,
+          930,
+          860
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#535143",
+          "measured_rgb": [
+            83,
+            81,
+            67
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            820,
+            816,
+            840,
+            846
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            10.0,
+            7.0,
+            10.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#9bc499",
+          "measured_rgb": [
+            155,
+            196,
+            153
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            860,
+            816,
+            880,
+            846
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            23.0,
+            22.1,
+            25.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#524c55",
+          "measured_rgb": [
+            82,
+            76,
+            85
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            900,
+            816,
+            920,
+            846
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            10.0,
+            9.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7172,
+        "y_fraction": 0.5867,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "0f9d16d3cba64bb74a3d7bdcb5376ec64098907cfef49a0873bdf2e36cd8d8dc"
+    },
+    {
+      "id": "image-chart-147-39",
+      "label": "迅捷的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          1049,
+          816,
+          1169,
+          874
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#070707",
+          "measured_rgb": [
+            7,
+            7,
+            7
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1059,
+            830,
+            1079,
+            860
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            7.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#f9df3b",
+          "measured_rgb": [
+            249,
+            223,
+            59
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1099,
+            830,
+            1119,
+            860
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            10.0,
+            10.0,
+            10.1
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#1f2a5b",
+          "measured_rgb": [
+            31,
+            42,
+            91
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1139,
+            830,
+            1159,
+            860
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            7.0,
+            6.0,
+            10.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.922,
+        "y_fraction": 0.5974,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "8fc5a02f0faf156b9e89d61df295ed89ce2a2d8d3589be81197d8aa340bf883f"
+    },
+    {
+      "id": "image-chart-147-40",
+      "label": "现代的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          1000,
+          916,
+          1120,
+          974
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#80736e",
+          "measured_rgb": [
+            128,
+            115,
+            110
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1010,
+            930,
+            1030,
+            960
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            21.0,
+            20.1,
+            21.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#060606",
+          "measured_rgb": [
+            6,
+            6,
+            6
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1050,
+            930,
+            1070,
+            960
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#2d3839",
+          "measured_rgb": [
+            45,
+            56,
+            57
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1090,
+            930,
+            1110,
+            960
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            5.0,
+            3.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.88,
+        "y_fraction": 0.6741,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "ce072f3702d05e3b70f6d2ea6bde1ae0bd4bbd2008276d59291dd2f6ea280342"
+    },
+    {
+      "id": "image-chart-147-41",
+      "label": "理性的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          1060,
+          1014,
+          1180,
+          1072
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#0b0a10",
+          "measured_rgb": [
+            11,
+            10,
+            16
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1070,
+            1028,
+            1090,
+            1058
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            4.0,
+            2.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#ffffff",
+          "measured_rgb": [
+            255,
+            255,
+            255
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1110,
+            1028,
+            1130,
+            1058
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1150,
+            1028,
+            1170,
+            1058
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            2.0,
+            2.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.9314,
+        "y_fraction": 0.7492,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "6194c5d9cb5409491d9c357373ef193fad565a6812583725168a0df0d5a326cf"
+    },
+    {
+      "id": "image-chart-147-42",
+      "label": "精密的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          1000,
+          1107,
+          1120,
+          1165
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#0b0a10",
+          "measured_rgb": [
+            11,
+            10,
+            16
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1010,
+            1122,
+            1030,
+            1150
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            3.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#43414d",
+          "measured_rgb": [
+            67,
+            65,
+            77
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1050,
+            1122,
+            1070,
+            1150
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            6.0,
+            6.0,
+            7.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            1090,
+            1122,
+            1110,
+            1150
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.88,
+        "y_fraction": 0.8206,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "9ea9fe2a93aea214ff9ae15248fd569ab5fec8473d94d5235606172e35690260"
+    },
+    {
+      "id": "image-chart-147-43",
+      "label": "有韵味的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          467,
+          934,
+          587,
+          992
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#573333",
+          "measured_rgb": [
+            87,
+            51,
+            51
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            477,
+            948,
+            497,
+            978
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            5.0,
+            4.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#0d0608",
+          "measured_rgb": [
+            13,
+            6,
+            8
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            517,
+            948,
+            537,
+            978
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            3.0,
+            2.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#5b4a43",
+          "measured_rgb": [
+            91,
+            74,
+            67
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            557,
+            948,
+            577,
+            978
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            7.0,
+            7.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.4233,
+        "y_fraction": 0.6879,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "e8add44a9bcc8aa2489ea3dc4d91ed776b5a730439f2fb536ee1b25b2753568b"
+    },
+    {
+      "id": "image-chart-147-44",
+      "label": "传统的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          467,
+          1045,
+          587,
+          1103
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#170d09",
+          "measured_rgb": [
+            23,
+            13,
+            9
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            477,
+            1060,
+            497,
+            1088
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#553a25",
+          "measured_rgb": [
+            85,
+            58,
+            37
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            517,
+            1060,
+            537,
+            1088
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            3.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            557,
+            1060,
+            577,
+            1088
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            1.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.4233,
+        "y_fraction": 0.773,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "9a66d444851d76677d065cc35f3a2629195fdd4b10ea3f25f119d2ca955cf4c1"
+    },
+    {
+      "id": "image-chart-147-45",
+      "label": "坚实的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          655,
+          1049,
+          775,
+          1107
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#0c0608",
+          "measured_rgb": [
+            12,
+            6,
+            8
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            665,
+            1064,
+            685,
+            1092
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            2.0,
+            0.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#50473a",
+          "measured_rgb": [
+            80,
+            71,
+            58
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            705,
+            1064,
+            725,
+            1092
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            7.0,
+            6.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#080708",
+          "measured_rgb": [
+            8,
+            7,
+            8
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            745,
+            1064,
+            765,
+            1092
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            3.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.5844,
+        "y_fraction": 0.7761,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "f3f0519839f48be0cea65a5cad99d78d190cbf496277778b4aec0e75f5cde2ea"
+    },
+    {
+      "id": "image-chart-147-46",
+      "label": "严肃的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          815,
+          986,
+          935,
+          1044
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#060606",
+          "measured_rgb": [
+            6,
+            6,
+            6
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            825,
+            1000,
+            845,
+            1030
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#eae3d8",
+          "measured_rgb": [
+            234,
+            227,
+            216
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            865,
+            1000,
+            885,
+            1030
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            8.0,
+            8.0,
+            11.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#0a0a0b",
+          "measured_rgb": [
+            10,
+            10,
+            11
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            905,
+            1000,
+            925,
+            1030
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            2.0,
+            2.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7215,
+        "y_fraction": 0.7278,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "daa6dd396c00c53ede3a9b8843255110fc434500beb440a11e56cde2bde90333"
+    },
+    {
+      "id": "image-chart-147-47",
+      "label": "锤炼的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          432,
+          1173,
+          552,
+          1231
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#140c0a",
+          "measured_rgb": [
+            20,
+            12,
+            10
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            442,
+            1188,
+            462,
+            1216
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            3.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#57473a",
+          "measured_rgb": [
+            87,
+            71,
+            58
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            482,
+            1188,
+            502,
+            1216
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            4.0,
+            5.0,
+            6.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#0c0608",
+          "measured_rgb": [
+            12,
+            6,
+            8
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            522,
+            1188,
+            542,
+            1216
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            2.0,
+            2.0,
+            2.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.3933,
+        "y_fraction": 0.8712,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "0fd8297764e1d6815682788c6f50265d0f9c80fcd9abcd45d58df77e92f871f7"
+    },
+    {
+      "id": "image-chart-147-48",
+      "label": "肃穆的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          835,
+          1172,
+          955,
+          1230
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#0e0d15",
+          "measured_rgb": [
+            14,
+            13,
+            21
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            845,
+            1186,
+            865,
+            1216
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            3.0,
+            2.0,
+            3.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#534d4e",
+          "measured_rgb": [
+            83,
+            77,
+            78
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            885,
+            1186,
+            905,
+            1216
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            7.0,
+            7.0,
+            8.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            925,
+            1186,
+            945,
+            1216
+          ],
+          "sample_pixels": 600,
+          "channel_p90_minus_p10": [
+            1.0,
+            2.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.7386,
+        "y_fraction": 0.8704,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "a1c36f52ad07bae094a7c51de0b7c09bc9b1e02c42c7af8ebff5b50f66fded77"
+    },
+    {
+      "id": "image-chart-147-49",
+      "label": "庄严的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          497,
+          1273,
+          617,
+          1331
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#060504",
+          "measured_rgb": [
+            6,
+            5,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            507,
+            1288,
+            527,
+            1316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            3.0,
+            2.0,
+            2.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#261e0b",
+          "measured_rgb": [
+            38,
+            30,
+            11
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            547,
+            1288,
+            567,
+            1316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            6.0,
+            6.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#0c0608",
+          "measured_rgb": [
+            12,
+            6,
+            8
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            587,
+            1288,
+            607,
+            1316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            2.0,
+            3.0,
+            2.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.449,
+        "y_fraction": 0.9479,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "9afe3bc8b45fee44b0c9c5848200053677cc0b0e39a491768f453787f9e68ee4"
+    },
+    {
+      "id": "image-chart-147-50",
+      "label": "有格调的",
+      "origin": "book_image_chart",
+      "source": {
+        "pdf_page": 147,
+        "printed_page": 142,
+        "also_pdf_page": 74,
+        "image": "docs/261003-color-improve/book-html/figures/page-147-fig01.png",
+        "image_sha256": "cd37f7228962802063a06ec9e65bc0b68aa08a9681a1f8ea681afc7bf6f9b983",
+        "bbox": [
+          677,
+          1273,
+          797,
+          1331
+        ]
+      },
+      "copyright": "2023 日本色彩设计研究所",
+      "colours": [
+        {
+          "order": 1,
+          "name": "C1",
+          "hex": "#0f0810",
+          "measured_rgb": [
+            15,
+            8,
+            16
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            687,
+            1288,
+            707,
+            1316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            1.0,
+            2.0,
+            4.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 2,
+          "name": "C2",
+          "hex": "#413c39",
+          "measured_rgb": [
+            65,
+            60,
+            57
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            727,
+            1288,
+            747,
+            1316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            5.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        },
+        {
+          "order": 3,
+          "name": "C3",
+          "hex": "#040404",
+          "measured_rgb": [
+            4,
+            4,
+            4
+          ],
+          "hex_source": "scan_measured",
+          "role": null,
+          "role_source": "not_assigned",
+          "sample_bbox": [
+            767,
+            1288,
+            787,
+            1316
+          ],
+          "sample_pixels": 560,
+          "channel_p90_minus_p10": [
+            6.0,
+            5.0,
+            5.0
+          ],
+          "measurement_status": "measured",
+          "calibration": "uncalibrated_print_scan"
+        }
+      ],
+      "chart_position": {
+        "x_fraction": 0.6033,
+        "y_fraction": 0.9479,
+        "meaning": "approximate position on printed chart, not a numerical colour metric"
+      },
+      "generation_validation": "untested",
+      "requires_region_binding": true,
+      "style_reference_allowed": false,
+      "measurement_review": "manual_roi_visual_check",
+      "palette_hash": "9e3287abdb6b04e650cde1866ac01a036a64d87ca761dd1c5c600ca28e081edc"
+    }
+  ]
+}

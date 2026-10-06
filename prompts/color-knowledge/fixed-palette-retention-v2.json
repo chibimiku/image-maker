@@ -1,0 +1,141 @@
+{
+  "kind": "retention",
+  "version": 2,
+  "id": "color-palette-retention-v2",
+  "title": "固定色板重绘保留验证（修复版）：有效 A/B 对照",
+  "date": "2026-10-04",
+  "out_dir": "data/test-result/20261004/color-palette-retention-v2",
+  "corrections_dir": "data/test-result/20261004/color-palette-retention-v2-corrections",
+  "purpose": "只回答两件事：① 首图的冷蓝基调与红色点缀（腰带 + 两只鞋蝴蝶结）在画风重绘后是否保留；② 候选能否穿过现有身份/质量/人体/终审门禁。不评画质、不排美感、不用全图冷色占比代替区域落点验收。",
+  "fixes_v1": [
+    "v1 的 B 支只改了顶层 prompt，没有同步 call_kwargs.prompt：四次实际发送的正文都是 11541 字符、同一个 hash，都没有带配色合同。旧四图必须视为同一实际请求的重复生成，不能作为有效 A/B 证据。",
+    "v1 的门禁预算按每支 4 项算成 8 次，实际四张 × 四项 = 16 次，导致 B 支审计被额度截断。",
+    "v1 报告写「四张全部需修订」不成立：B-r2 没有任何质量结论。",
+    "v1 报告写「仅 A-r2 为横图」只有在把首图也算进去时才成立，需要按候选逐一实测画幅。"
+  ],
+  "source_run": "data/test-result/20261004/color-fixed-palette-v1",
+  "sources": [
+    {
+      "sample_id": "gemini-flash-P1-knowledge-r1",
+      "group_id": "P1-knowledge",
+      "round": 1,
+      "image": "data/test-result/20261004/color-fixed-palette-v1/samples/gemini-flash/gemini-flash-P1-knowledge-r1/test-gemini-flash-P1-knowledge-r1_144341-6bef63.png",
+      "sha256": "e25e19c89fd3b6cfcc9f29dd33ee5b3175fb91198da8a05a1c3517aefdcdc8de"
+    },
+    {
+      "sample_id": "gemini-flash-P1-knowledge-r2",
+      "group_id": "P1-knowledge",
+      "round": 2,
+      "image": "data/test-result/20261004/color-fixed-palette-v1/samples/gemini-flash/gemini-flash-P1-knowledge-r2/test-gemini-flash-P1-knowledge-r2_144624-70b879.png",
+      "sha256": "05321e89c2112a4626485dff847f4aea74ff9af1338e83e83087e471adee3e81"
+    }
+  ],
+  "style": {
+    "name": "tid",
+    "source": "conf/config-styles.json",
+    "ref_image": "data/style-ref/tid-fullbody-background-candidate.jpg",
+    "ref_image_sha256": "188f0312021b78f4f1f7dbe33e95be7c8557284d3475a3a10791d5920e29e494",
+    "clauses_source": "derived",
+    "motif_clauses_used": false,
+    "reference_mode": "style",
+    "scope": "full",
+    "product_freeze": "后续配色功能只允许在没有画风参考图时选择；本次双参考是受控实验，不授权生产入口，也不实施 GUI 接线"
+  },
+  "generation": {
+    "model": "gemini-3-pro-image-preview",
+    "api_type": "aigc2d",
+    "resolution": "2K",
+    "aspect_ratio": "auto（跟随首图）",
+    "repeat": 1,
+    "use_detail_suffix": false,
+    "firmware": "prompts/gpt-image-optimize/repaint-system-conservative-v5.md",
+    "max_retries_env": { "IMAGE_MAKER_IMAGE_MAX_RETRIES": "0" }
+  },
+  "branches": {
+    "A": {
+      "id": "A",
+      "label": "现有画风重绘（基线）",
+      "intervention": "none",
+      "request": "assemble_repaint_request 的当前组装结果，逐字不改；沿用 v1 已付费的同请求产物，只要逐项 hash 证明一致就不重新生成"
+    },
+    "B": {
+      "id": "B",
+      "label": "同一请求 + 配色继承合同",
+      "intervention": "append_colour_contract",
+      "contract_source": "prompts/color-knowledge/repaint-colour-contract-v1-source.md",
+      "request": "与 A 相同的正文，末尾追加配色继承合同；合同必须同时写进顶层 prompt 与 call_kwargs.prompt"
+    }
+  },
+  "a_baseline_check": {
+    "enabled": true,
+    "legacy_run": "data/test-result/20261004/color-palette-retention-v1",
+    "must_match": [
+      "顶层 prompt 与实际发送的 call_kwargs.prompt 的 sha256（两者必须相同，且等于本次 A 基线）",
+      "源图 sha256",
+      "参考图顺序、mime 与传输字节 sha256",
+      "模型、api_type、resolution、aspect_ratio、repeat、use_detail_suffix",
+      "固件文件、画风渲染条款与画风参考图 hash"
+    ],
+    "on_mismatch": "停止并报告，不擅自重新生成 A，也不扩大样本"
+  },
+  "audit_reuse": {
+    "allowed_sources": ["data/test-result/20261004/color-palette-retention-v1"],
+    "rule": "只有「同候选内容 sha256 + 成功（无 audit_error / 有明确结论）」的审计才复用；复用不计新调用。缺的或不匹配的才新调用。",
+    "scope": "只用于 A 支（其候选产自同一请求），B 支候选必须全部新审计"
+  },
+  "gates": {
+    "note": "现有判据，不关闭、不放宽；四项审计各自绑定候选 hash",
+    "kinds": ["identity", "quality", "hands", "final_review"],
+    "hands_rule": "按现有生产判据：明确结构缺陷 / 结论无效 / 归属不确定都算不通过，不自行发明宽松判据",
+    "identity_expectation_source": "首图请求文本（subject + rendering + COLOUR PLAN + PRESERVE）"
+  },
+  "budget": {
+    "image_hard_limit": 3,
+    "image_breakdown": "本次最多 2 次图片请求（只生成真正带合同的 B-r1/B-r2）；上限 3 中余 1 个仅用于「第一次发送被本地预算层拒绝且没有发出 HTTP」的极端情况，不用于失败重试与补抽",
+    "text_hard_limit": 20,
+    "text_breakdown": "门禁最多 16 次新请求（4 候选 × 4 项，可复用匹配的成功审计）+ 配色保留评审 2 次（A 两张一次、B 两张一次）+ 额外最多 2 次（仅失败恢复或证据不足）",
+    "text_limit_for_gates": 16,
+    "text_gates_pending": 8,
+    "text_planned_now": 10,
+    "text_limit_for_colour_review": 2,
+    "text_limit_for_recovery": 2,
+    "env": {
+      "IMAGE_MAKER_SEND_BUDGET_LIMIT": "3",
+      "IMAGE_MAKER_TEXT_BUDGET_LIMIT": "20",
+      "IMAGE_MAKER_TEXT_BUDGET_PER_STAGE": "8",
+      "IMAGE_MAKER_IMAGE_MAX_RETRIES": "0"
+    },
+    "estimated_usd": "图片 2 × ~0.0364 ≈ 0.0728；文本按实际调用（最多 20 × ~0.0046 ≈ 0.0913，按多图输入口径另计）；与真实账单分开标注",
+    "stop_conditions": [
+      "同一支连续两次图片请求失败即停止",
+      "图片请求达到 2 次上限或文本达到 20 次即停止，不补抽、不扩批",
+      "发送前预算拒绝即停止，不降级、不绕过",
+      "A 基线核对不一致即停止并报告",
+      "发现新的身份或颜色授权冲突即停止并报告"
+    ]
+  },
+  "revision_policy": {
+    "this_round": "只生成 B 初始候选并审计；不做任何门禁修订生图，需要修订时记录「需修订」并停止",
+    "initial_candidates_are_permanent": "初始候选永久保留，不覆盖",
+    "no_gate_weakening": "不关闭、不放宽任何身份/人体/质量/终审判据；不得用普通 --repaint 或综合观察评审冒充完整门禁",
+    "quality_not_a_trade": "不得用画质提升抵消配色、身份或内容违约"
+  },
+  "evaluation": {
+    "per_image": ["环境主色（区域）", "红色点缀与腰带/两只鞋蝴蝶结落点", "受保护固有颜色",
+                  "新增显著色块", "内容变化（含画幅横竖）", "疑似参考图颜色泄漏或不可验证原因",
+                  "门禁四项结论与来源（复用/新调用/预算阻止/审计错误）"],
+    "metrics": ["初始配色保留（逐张判定 conform/partial/fail/unverifiable）", "门禁后可用候选数"],
+    "leak_rule": "颜色像参考图只支持「疑似泄漏」，不能自动证明因果",
+    "no_global_ratio": "不用全图冷色像素占比代替区域落点验收"
+  },
+  "deliverables": {
+    "dir": "data/test-result/20261004/color-palette-retention-v2",
+    "files": ["纠错说明", "执行报告", "逐张/逐阶段/汇总 JSON", "冻结请求与实际发送 hash",
+              "离线内嵌 A/B 评价页", "完整门禁记录", "调用账本（估算与真实账单分开）"]
+  },
+  "limitations": [
+    "A/B 只有两对，不宣称普遍可靠",
+    "首图是 Flash、重绘是 Pro：同批公平，但只能称「Pro 重绘保留实验」",
+    "tid 的派生条款里本身含「保留主体配色」的句子，所以 A 不是纯无保护基线；这是既有固件张力，不修改 A，只如实记录"
+  ]
+}

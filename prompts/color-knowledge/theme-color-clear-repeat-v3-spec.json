@@ -1,0 +1,115 @@
+{
+  "id": "theme-color-clear-repeat-v3",
+  "version": 3,
+  "kind": "app-theme-color-direction-validation",
+  "out_dir": "data/test-result/20261006/color-clear-repeat-validation-v3",
+  "generation_channel": "gemini_text_only",
+  "image_http_budget": 9,
+  "review_http_budget": 3,
+  "scenes_path": "prompts/color-knowledge/theme-color-clear-repeat-v3-scenes.json",
+  "review_prompt_path": "prompts/color-knowledge/theme-color-clear-repeat-v3-review.md",
+  "style_policy": "Drawing technique and materials are fixed inside the literal content text. No separately selected style, image reference, wardrobe, mood or season. One simplified still life, fixed frontal view, fixed object positions, gentle single-side light.",
+  "comparison_policy": "A is the first-stage fixed-palette baseline; B applies the current production clear rule; C is identical to B and only appends the frozen candidate text. All three conditions are the same declared direction (clear). Accent surfaces must remain recognizably red; muted is not tested in this round.",
+  "scenes": [
+    {
+      "id": "S1",
+      "label": "简化桌面静物（固定正面视点）",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands centred in a straight-on frontal view before a plain back wall, under soft gentle daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain matte mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, the matte ceramic mug surface, the paper notebook cover surface, table shape, object count and fixed positions: notebook on the left, mug on the right, plant pot behind them, all fully inside the frame. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces, with the same viewpoint, object scale and lighting direction throughout. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. Do not enlarge, move or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {
+        "profile_id": "cool-blue-red",
+        "environment": "back wall",
+        "accent_regions": "closed notebook cover, mug",
+        "confirmed": true
+      },
+      "auxiliary_regions": "tablecloth",
+      "auxiliary_note": "No auxiliary colour authorization in this round; the tablecloth stays warm light grey.",
+      "protected_facts": [
+        "zero people, faces or animals",
+        "one rectangular table",
+        "exactly one closed notebook",
+        "exactly one empty plain matte mug with a visible handle",
+        "one compact green-leaf plant",
+        "one natural-brown plant pot",
+        "notebook left, mug right, plant pot behind",
+        "fixed straight-on frontal viewpoint and object scale",
+        "table, mug and notebook shapes and materials",
+        "left daytime light",
+        "no labels or writing",
+        "drawing technique",
+        "warm light grey tablecloth"
+      ]
+    }
+  ],
+  "conditions": [
+    {
+      "variant_id": "A",
+      "label": "第一阶段固定色板基准",
+      "change": {},
+      "repeats": 3,
+      "candidate_text_id": null
+    },
+    {
+      "variant_id": "B",
+      "label": "当前生产清色规则",
+      "change": {"tone": "clear"},
+      "repeats": 3,
+      "candidate_text_id": null
+    },
+    {
+      "variant_id": "C",
+      "label": "清色候选：同一生产清色规则 + 唯一追加正文",
+      "change": {"tone": "clear"},
+      "repeats": 3,
+      "candidate_text_id": "clear-candidate-v3"
+    }
+  ],
+  "candidate_texts": {
+    "clear-candidate-v3": "On the explicitly authorized blue and red surfaces only, favour a modest reduction of grey admixture so their existing hue families read more distinctly. Keep the original illumination, local light-and-shadow modelling and material character; do not achieve this by increasing exposure, bleaching highlights or darkening the scene. Red accents must remain recognizably red, rather than pink, salmon, beige or neon. Preserve all protected colours and the existing geometry. This is a qualitative local preference, not a global saturation filter."
+  },
+  "candidate_text_sources": {
+    "clear-candidate-v3": "prompts/color-knowledge/theme-color-clear-candidate-v3.md"
+  },
+  "candidate_append_variants": ["C"],
+  "candidate_policy": "Only variant C carries the candidate text, and it carries it verbatim. A reuses the frozen first-stage palette unchanged; B and C share the identical production colour plan, so C differs from B by the appended text only. Nothing here is written back into the App palette templates or the shared configuration.",
+  "review_groups": [
+    {"id": "R1", "kind": "tone", "scene_id": "S1", "slot_ids": ["A1", "B1", "C1"], "neutral_order": ["A1", "B1", "C1"]},
+    {"id": "R2", "kind": "tone", "scene_id": "S1", "slot_ids": ["B2", "C2", "A2"], "neutral_order": ["B2", "C2", "A2"]},
+    {"id": "R3", "kind": "tone", "scene_id": "S1", "slot_ids": ["C3", "A3", "B3"], "neutral_order": ["C3", "A3", "B3"]}
+  ],
+  "comparisons": [
+    {"name": "clear_b_vs_a", "label": "B（当前生产清色）相对 A（基准）", "group_id": "R1", "scene_id": "S1", "repeat": 1, "baseline": "A1", "candidate": "B1", "expect": "candidate", "variant_id": "B"},
+    {"name": "clear_b_vs_a", "label": "B（当前生产清色）相对 A（基准）", "group_id": "R2", "scene_id": "S1", "repeat": 2, "baseline": "A2", "candidate": "B2", "expect": "candidate", "variant_id": "B"},
+    {"name": "clear_b_vs_a", "label": "B（当前生产清色）相对 A（基准）", "group_id": "R3", "scene_id": "S1", "repeat": 3, "baseline": "A3", "candidate": "B3", "expect": "candidate", "variant_id": "B"},
+    {"name": "clear_c_vs_a", "label": "C（清色追加正文）相对 A（基准）", "group_id": "R1", "scene_id": "S1", "repeat": 1, "baseline": "A1", "candidate": "C1", "expect": "candidate", "variant_id": "C"},
+    {"name": "clear_c_vs_a", "label": "C（清色追加正文）相对 A（基准）", "group_id": "R2", "scene_id": "S1", "repeat": 2, "baseline": "A2", "candidate": "C2", "expect": "candidate", "variant_id": "C"},
+    {"name": "clear_c_vs_a", "label": "C（清色追加正文）相对 A（基准）", "group_id": "R3", "scene_id": "S1", "repeat": 3, "baseline": "A3", "candidate": "C3", "expect": "candidate", "variant_id": "C"},
+    {"name": "clear_c_vs_b", "label": "C（清色追加正文）相对 B（当前生产清色）", "group_id": "R1", "scene_id": "S1", "repeat": 1, "baseline": "B1", "candidate": "C1", "expect": "candidate", "variant_id": "C"},
+    {"name": "clear_c_vs_b", "label": "C（清色追加正文）相对 B（当前生产清色）", "group_id": "R2", "scene_id": "S1", "repeat": 2, "baseline": "B2", "candidate": "C2", "expect": "candidate", "variant_id": "C"},
+    {"name": "clear_c_vs_b", "label": "C（清色追加正文）相对 B（当前生产清色）", "group_id": "R3", "scene_id": "S1", "repeat": 3, "baseline": "B3", "candidate": "C3", "expect": "candidate", "variant_id": "C"}
+  ],
+  "tone_pairwise_field": "chroma_pairwise",
+  "tone_measure": "more_distinct",
+  "verdict_texts": {
+    "clear_b_vs_a": "当前生产清色 B 相对基准 A 是否在绑定蓝／红表面减少灰混杂且红色仍为红色",
+    "clear_c_vs_a": "清色候选 C 相对基准 A 是否在绑定蓝／红表面减少灰混杂且红色仍为红色",
+    "clear_c_vs_b": "清色候选 C 相对当前生产清色 B 是否在绑定蓝／红表面减少灰混杂且红色仍为红色"
+  },
+  "limitations": [
+    "Single simplified still-life scene and one palette (cool blue + red); no second scene, no second palette, no person scene.",
+    "Three independent random draws per condition; no seed guarantee, so this only compares random spread with the wording effect and cannot give statistical significance.",
+    "Sameness and lighting are declared in the content text but the viewer still sees three independently composed illustrations; outline-only differences are reported separately from substantive confounds.",
+    "Only the clear direction is tested. Bright/deep, muted, area hierarchy, auxiliary-layer hierarchy, mood/season, material/perception, drawing-style transfer, GPT-image channel, reference images and repaint colour retention are all out of scope.",
+    "Deep feature metrics (Gram/AdaIN/LPIPS/CSD) describe whole-image change and cannot be attributed to local de-greying.",
+    "No production gate, no threshold and no promise of a stable universal effect."
+  ],
+  "source_files": [
+    "utils/theme_color.py",
+    "prompts/color-knowledge/theme-color-profiles-v1.json",
+    "prompts/color-knowledge/theme-color-contract-v1.md",
+    "prompts/color-knowledge/theme-color-direction-v2.json",
+    "prompts/color-knowledge/theme-color-direction-v2.md",
+    "prompts/color-knowledge/theme-color-binding-v2.md",
+    "prompts/color-knowledge/theme-color-auxiliary-v2.md",
+    "prompts/color-knowledge/book-generation-knowledge-v3.json"
+  ]
+}

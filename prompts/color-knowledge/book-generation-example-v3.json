@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "prompt": "One adult woman with black hair and brown eyes, wearing a white dress with a belt and shoe bows, beside a blue canal and a distant blue bank. One continuous landscape scene; preserve the person, pose, objects, white dress and skin.",
+  "style_reference_images": [],
+  "palette_id": "teaching-018-03",
+  "scene_kind": "outdoor",
+  "existing_regions": ["canal water", "distant bank", "belt", "both shoe bows", "skin", "hair", "eyes", "white dress"],
+  "authorized_regions": ["canal water", "distant bank", "belt", "both shoe bows"],
+  "protected_regions": ["skin", "hair", "eyes", "white dress"],
+  "bindings": [
+    {"region": "canal water", "role": "base", "colour_order": 1},
+    {"region": "distant bank", "role": "base", "colour_order": 1},
+    {"region": "belt", "role": "accent", "colour_order": 2},
+    {"region": "both shoe bows", "role": "accent", "colour_order": 2}
+  ],
+  "area_mode": "base-accent",
+  "arrangement_mode": "separation",
+  "composition_guard": "single-scene-v1",
+  "region_tones": {"canal water": "L", "distant bank": "L"},
+  "scoped_rules": [
+    {"id": "palette-hue-budget", "regions": ["canal water", "distant bank", "belt", "both shoe bows"]},
+    {"id": "local-value-gradation", "regions": ["canal water"]}
+  ],
+  "audit_rules": ["grayscale-readability", "perceived-depth", "lighting-context"]
+}

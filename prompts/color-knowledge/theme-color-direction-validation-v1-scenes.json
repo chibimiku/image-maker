@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "style_policy": "Drawing technique is fixed inside the literal content text. No separately selected style, image reference, wardrobe, mood or season.",
+  "scenes": [
+    {
+      "id": "S1",
+      "label": "单人海边露台",
+      "content_prompt": "One continuous full-body illustration of exactly one adult woman standing on a seaside terrace. Her long dark-brown hair, amber eyes, natural light skin, ivory dress body and black ankle boots remain unchanged. She has one existing waist ribbon sash. A single natural-brown wicker chair with one existing chair cushion stands to her right. The scene contains a stone floor in warm light grey, a plain low terrace railing in natural brown, sky and sea behind it. All these objects are visible, including her two boots; no additional people, animals, flowers, ribbons, signs or props. Keep her quiet neutral expression and relaxed standing pose. Soft daytime light comes from the left, with the same direction and weather throughout. The sky and sea are separate existing surfaces; the waist ribbon sash and chair cushion are separate existing accents. Preserve the existing shapes and do not enlarge an object to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {"profile_id": "cool-blue-red", "environment": "sky, sea", "accent_regions": "waist ribbon sash, chair cushion", "confirmed": true},
+      "auxiliary_regions": "stone floor",
+      "protected_facts": ["exactly one adult woman", "dark-brown hair", "amber eyes", "natural light skin", "ivory dress body", "black ankle boots", "one existing waist ribbon sash", "one natural-brown wicker chair", "one existing chair cushion", "plain natural-brown terrace railing", "stone floor geometry", "both boots visible", "neutral expression and standing pose", "left daytime light", "drawing technique"],
+      "auxiliary_note": "The stone floor keeps warm light grey in A-D; E explicitly authorizes its muted blue-grey auxiliary binding. This difference is declared in advance, not scored as a protected-colour failure for E."
+    },
+    {
+      "id": "S2",
+      "label": "桌面静物",
+      "content_prompt": "One continuous still-life illustration with no people, faces or animals. A single rectangular table stands before a plain back wall under soft daytime light from the left. Its existing tablecloth is warm light grey. On the table are exactly one closed notebook with a visible closed notebook cover, one empty plain mug with its handle visible, and one small natural-brown plant pot containing a compact plant with green leaves. Keep the closed notebook cover and mug as two separate existing objects. Preserve the green leaves, natural-brown plant pot, table shape, object count and positions: notebook on the left, mug on the right, plant pot behind them. There are no additional books, flowers, scattered leaves, fruit, ribbons, coloured decorations, labels or writing. The back wall, tablecloth, closed notebook cover and mug are all clearly visible as separate bounded surfaces. Do not enlarge or add objects to change colour coverage. Draw with fine ink contours and gently layered matte illustration shading, with readable local shadows and highlights; no photorealism, panels, text, palette charts or collage.",
+      "selection": {"profile_id": "cool-blue-red", "environment": "back wall", "accent_regions": "closed notebook cover, mug", "confirmed": true},
+      "auxiliary_regions": "tablecloth",
+      "protected_facts": ["zero people, faces or animals", "one rectangular table", "exactly one closed notebook", "exactly one empty plain mug with a visible handle", "one compact green-leaf plant", "one natural-brown plant pot", "notebook left, mug right, plant pot behind", "table and object shapes", "left daytime light", "no labels or writing", "drawing technique"],
+      "auxiliary_note": "The tablecloth keeps warm light grey in A-D; E explicitly authorizes its muted blue-grey auxiliary binding. This difference is declared in advance, not scored as a protected-colour failure for E."
+    }
+  ],
+  "variants": [
+    {"id": "A", "label": "第一阶段基准", "change": {}},
+    {"id": "B", "label": "明亮", "change": {"tone": "bright"}},
+    {"id": "C", "label": "深沉", "change": {"tone": "deep"}},
+    {"id": "D", "label": "双色并重", "change": {"area": "balanced"}},
+    {"id": "E", "label": "三层主次", "change": {"area": "three-level"}, "use_auxiliary_regions": true}
+  ],
+  "comparison_policy": "B/C versus A test tone; D versus A tests soft two-family prominence; E versus A tests the combined explicit auxiliary binding and three-level hierarchy. E is not a pure area-only ablation, because it adds a predeclared colour binding."
+}

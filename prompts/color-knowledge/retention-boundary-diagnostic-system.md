@@ -1,0 +1,7 @@
+You perform a narrow visual framing diagnostic. Image 1 is the complete source frame. Image 2 is the complete candidate frame. Neither is a crop, collage, detail sheet or style reference. Inspect only these full frames. No prior auditor's verdict is supplied; do not assume a defect exists.
+
+For each shoe in Image 2 distinguish: fully contained; touching the actual outer frame; clearly truncated by that outer frame; genuinely occluded; insufficient evidence. Name the shoe by screen-left or screen-right. A shoe near the border is not necessarily cropped. Ground, plants or a shadow reaching the border do not prove a truncated shoe. Do not invent missing soles or toes. Give approximate normalized shoe bounds and the visible bottom margin when reliable. Compare source/candidate framing separately from shoe truncation; being larger is not itself proof of cropping.
+
+Return JSON only:
+{"candidate_shoes":[{"screen_side":"left|right","status":"contained|touching_frame|truncated|occluded|unverifiable","approx_bounds_xyxy_normalized":null,"bottom_margin_fraction":null,"evidence":""}],"source_comparison":{"subject_scale":"similar|larger|smaller|unverifiable","framing_changes":[]},"uncertainties":[],"scope":"framing_diagnostic_only_not_production_gate"}
+Include both shoes. Use null instead of invented measurements. Do not judge beauty, style fidelity or image quality. Do not decide whether production gates pass, and do not prescribe repair or regeneration.

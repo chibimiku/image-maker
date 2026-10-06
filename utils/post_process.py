@@ -1411,6 +1411,10 @@ def assemble_repaint_request(current, cfg, *, firmware=None, style_ref_path=None
         "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest() if prompt else "",
         "prompt_chars": len(prompt),
         "reference_mode": ref_mode,
+        # 「文字模式」的显式开关：不发送画风参考图、只把条款当成重绘的文字规格（第三轮 P2 / 第四轮 E1）。
+        # 落进请求里是为了让预检与实际发送都能一眼核验，而不是只能从提示词反推。
+        "clauses_without_image": bool(cfg.get("clauses_without_image")),
+        "scope": str(cfg.get("scope") or ""),
         "style_clauses": [str(c).strip() for c in (style_clauses or []) if str(c).strip()],
         "model": call["model"],
         "api_type": call["api_type"],

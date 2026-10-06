@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "instruction_provenance": "Scoped engineering translations of verified book observations; not verbatim quotations or proven model capabilities",
+  "material_colour_guards": {
+    "provenance": "Conservative engineering conflict checks on approximate scan RGB, not book/NCD thresholds or a calibrated colour metric",
+    "max_channel_spread": 30,
+    "porcelain_min_channel": 200,
+    "porcelain_name_tokens": ["白", "white", "ivory"],
+    "steel_name_tokens": ["银", "灰", "silver", "grey", "gray"]
+  },
+  "generation_rules": [
+    {"id": "palette-hue-budget", "pdf_page": 17, "evidence": "减少色相的使用数量", "minimum_regions": 1, "instruction": "Within {regions}, use only the hue families already assigned by the palette bindings. Carry shading variation inside those families rather than introducing additional hues. Protected and unlisted regions keep their intrinsic colours; this is not a whole-image hue-count limit."},
+    {"id": "local-value-gradation", "pdf_page": 63, "evidence": "这种明暗渐变的排列方式", "minimum_regions": 1, "instruction": "Within {regions}, preserve the existing surfaces and lighting while forming subtle light-to-dark variation inside each assigned hue family. Do not turn the whole background into a gradient, change time of day, or smooth away object boundaries."},
+    {"id": "existing-separator", "pdf_page": 63, "evidence": "白色插在蓝色中间", "minimum_regions": 1, "required_fact": {"existing_separator": true}, "instruction": "Use the already-existing separator at {regions} with its assigned palette colour to distinguish adjacent colour areas. Preserve its actual shape and boundary; never add a cloud, label, line, outline or extra separator. Do not substitute white unless white is already assigned."},
+    {"id": "glass-transmission", "pdf_page": 91, "evidence": "玻璃越厚，越不透明", "minimum_regions": 1, "required_fact": {"material": "glass"}, "instruction": "At the existing glass regions {regions}, retain transparency and the visible background through the glass. Existing thicker portions may transmit less light; preserve local value/chroma attenuation within the assigned colour families. Do not turn glass opaque, recolour protected transmitted objects or invent a container."},
+    {"id": "glass-reflection", "pdf_page": 92, "evidence": "反射的色彩取决于被反射物体的色彩", "minimum_regions": 1, "required_fact": {"material": "glass", "existing_reflections": true}, "instruction": "At {regions}, keep existing reflections derived from the actual surrounding objects and distorted only by the existing glass shape. Preserve source hue families and lighting; do not introduce new reflected people, objects, sparkle particles or unrelated coloured highlights."},
+    {"id": "porcelain-gloss", "pdf_page": 91, "evidence": "表面的色彩由微妙的渐变色调构成", "minimum_regions": 1, "required_fact": {"material": "white_porcelain", "existing_highlights": true}, "instruction": "At existing white-porcelain regions {regions}, preserve the white intrinsic family and existing form through subtle surface tone variation, existing irregular lighter reflections and brighter existing rim highlights. Do not bleach the frame, add highlight particles, or convert fabric/skin to porcelain."},
+    {"id": "steel-reflection", "pdf_page": 92, "evidence": "由于背光，看起来会比实际颜色暗", "minimum_regions": 1, "required_fact": {"material": "stainless_steel", "existing_reflections": true}, "instruction": "At existing stainless-steel regions {regions}, retain the assigned metallic-neutral family, with existing shaded metal darker and existing reflections brighter under the unchanged lighting. Do not make a new metal object or apply silver globally."}
+  ],
+  "audit_rules": [
+    {"id": "grayscale-readability", "pdf_page": 28, "evidence": "相邻的色彩清晰可见", "mode": "read_only", "check": "Inspect a grayscale proxy for subject silhouette, adjacent colour-region readability and focal contrast; report uncertainty without recolouring or adding outlines."},
+    {"id": "perceived-depth", "pdf_page": 51, "evidence": "暖色比冷色更显前进", "mode": "read_only", "check": "Record whether existing warm/cool and light/dark assignments suggest advance/recession or expansion/contraction. Do not resize people or objects; perceptual effects are qualitative and scene dependent."},
+    {"id": "lighting-context", "pdf_page": 65, "evidence": "不同时间阳光散射的波长不同", "mode": "read_only", "check": "Check that palette execution did not change source time of day or light direction. The book's sky explanation is context, not a universal colour override; a fixed lavender sky is not automatically a physical-error failure."}
+  ],
+  "retrieval_metadata": [
+    {"id": "season-spring", "pdf_page": 37, "evidence": "明亮、柔和、清晰的色调", "tags": ["春", "明亮", "柔和"], "auto_inject": false},
+    {"id": "season-summer", "pdf_page": 37, "evidence": "华丽和明亮的色调", "tags": ["夏", "鲜明", "活跃"], "auto_inject": false},
+    {"id": "season-autumn", "pdf_page": 37, "evidence": "明度和饱和度较低的暗沉色调", "tags": ["秋", "暗沉", "低彩度"], "auto_inject": false},
+    {"id": "season-winter", "pdf_page": 37, "evidence": "暗沉色调和无彩色", "tags": ["冬", "无彩色", "安静"], "auto_inject": false},
+    {"id": "mood-active-pleasant", "pdf_page": 53, "evidence": "明亮清晰的暖色", "tags": ["喜悦", "高强度", "愉快"], "auto_inject": false},
+    {"id": "mood-relaxed-pleasant", "pdf_page": 53, "evidence": "较浅的浊色调", "tags": ["平静", "放松"], "auto_inject": false},
+    {"id": "mood-low-unpleasant", "pdf_page": 53, "evidence": "低饱和度和无彩色的色彩组合", "tags": ["忧郁", "悲伤"], "auto_inject": false},
+    {"id": "mood-high-unpleasant", "pdf_page": 53, "evidence": "略显暗淡的红色和黑色", "tags": ["愤怒", "恐惧"], "auto_inject": false}
+  ],
+  "excluded_defaults": [
+    {"pdf_page": 25, "reason": "Do not import case-process additions such as birds, objects or subject placement."},
+    {"pdf_page": 28, "reason": "Do not automatically add white particles or boost whole-frame saturation."},
+    {"pdf_page": 92, "reason": "Creative nonphysical eye/eyelid particles and airborne sparkles are not default material rules."},
+    {"pdf_page": 99, "reason": "Physiology and afterimages are explanatory knowledge, not unconditional generation commands."},
+    {"pdf_page": 19, "reason": "RGB/CMYK delivery is a colour-management workflow, not a prompt instruction to improve image quality."}
+  ]
+}

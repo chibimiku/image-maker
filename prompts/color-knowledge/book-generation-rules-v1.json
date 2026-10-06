@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "instruction_provenance": "Derived generation instructions, not verbatim book quotations",
+  "area_modes": {
+    "base-accent": {"pdf_page": 18, "evidence": "占据较大面积的色彩（基色调）构成配色基础", "instruction": "Keep the assigned base on existing large regions, auxiliary colours on existing medium regions, and accents on small existing details. Do not enlarge or add objects to meet colour coverage."},
+    "equal-opposition": {"pdf_page": 79, "evidence": "相同面积比例的两种相反色系", "instruction": "Give the two assigned colour families comparable visual area within authorized existing regions; distinguish their tones without redesigning the composition."},
+    "interior-three-level": {"pdf_page": 77, "evidence": "约占画面的 60%~70%", "scene_kind": "interior", "instruction": "Interior-only soft targets: existing floor/walls/ceiling base about 60-70%, existing furniture/curtains auxiliary about 20-30%, existing accessories accents under 10%. Preserve geometry and protected colours; never add objects or repaint protected regions to satisfy percentages."}
+  },
+  "arrangement_modes": {
+    "none": null,
+    "gradation": {"pdf_page": 18, "evidence": "按照色彩的属性排列", "instruction": "Within the authorized existing regions, order colour transitions by hue or value. Do not add a background gradient, change lighting, or rearrange objects."},
+    "separation": {"pdf_page": 18, "evidence": "色彩之间须有明度差", "instruction": "Keep assigned neighbouring colour regions distinguishable by value differences; use only palette colours and existing boundaries, without new outlines or colour blocks."}
+  },
+  "templates": {
+    "binding": "{role}: {region} -> {colour}{hex_note}.",
+    "tone": "For authorized regions only, use NCD {code} ({name}): {description}. This is a qualitative tone instruction, not an exact numeric threshold or global colour filter.",
+    "hex_note": " (approximate swatch {hex}; provenance {source}; not a pixel-exact target)",
+    "protection": "Protected existing regions, retaining their original intrinsic colours: {regions}."
+  },
+  "non_compiling_examples": [
+    {"pdf_page": 59, "scope": "case-specific base-to-each-accent comparison", "ratios": ["7:3", "9:1", "9.5:0.5"], "note": "These are separate base:accent examples, not a universal whole-frame split or a ratio between accents. Do not automatically compile them."}
+  ]
+}

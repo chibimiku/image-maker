@@ -1,0 +1,9 @@
+{
+  "extends": "prompts/color-knowledge/book-palette-ablation-v1.json",
+  "id": "book-palette-ablation-v2",
+  "version": 2,
+  "out_dir": "data/test-result/20261005/book-palette-ablation-v2",
+  "composition_guard": "single-scene-v1",
+  "review_addendum": "color-knowledge/book-single-scene-review-v1.md",
+  "purpose": "Repeat the same ten predetermined samples with a common single-scene/count guard in every group, including B0. Historical v1 is not a paired causal control; no replacements or automatic retries."
+}
