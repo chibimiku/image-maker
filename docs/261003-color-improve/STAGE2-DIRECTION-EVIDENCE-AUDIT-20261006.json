@@ -1,0 +1,175 @@
+{
+  "pack_hash": "3210d0796f8e5d385284c63e4a916be27ba6fff23fecd63d4fe4481a911d09ff",
+  "runtime_hash": "dfaa0c548d2ac02bd832191fa7e78b5b25b18b55cb24c633f633033677264de7",
+  "failures": [],
+  "changed_source_files": [],
+  "image_count": 10,
+  "counters": {
+    "image_sends": 11,
+    "review_sends": 4,
+    "authorized_extra_sends": 1
+  },
+  "review_summary": [
+    {
+      "group": "S1-tone",
+      "slot": "S1-C",
+      "content": "pass",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S1-tone",
+      "slot": "S1-B",
+      "content": "uncertain",
+      "palette": "conform",
+      "protected": "uncertain",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S1-tone",
+      "slot": "S1-A",
+      "content": "pass",
+      "palette": "partial",
+      "protected": "uncertain",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S2-tone",
+      "slot": "S2-C",
+      "content": "pass",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S2-tone",
+      "slot": "S2-A",
+      "content": "pass",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S2-tone",
+      "slot": "S2-B",
+      "content": "pass",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S1-hierarchy",
+      "slot": "S1-A",
+      "content": "uncertain",
+      "palette": "partial",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S1-hierarchy",
+      "slot": "S1-D",
+      "content": "uncertain",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S1-hierarchy",
+      "slot": "S1-E",
+      "content": "pass",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S2-hierarchy",
+      "slot": "S2-A",
+      "content": "pass",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    },
+    {
+      "group": "S2-hierarchy",
+      "slot": "S2-E",
+      "content": "pass",
+      "palette": "partial",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": [
+        "闭合笔记本封面",
+        "杯子"
+      ]
+    },
+    {
+      "group": "S2-hierarchy",
+      "slot": "S2-D",
+      "content": "pass",
+      "palette": "conform",
+      "protected": "pass",
+      "readability": "pass",
+      "binding_failures": []
+    }
+  ],
+  "unredacted_sensitive_json_fields": [],
+  "note": "Local offline audit; no new HTTP. Supplemental resend authorization is recorded in DS ledger; original human message not independently retrieved in this audit.",
+  "review_hash_semantics": "Review code hashes UTF-8 text after Python universal newline normalization, not raw on-disk Windows CRLF bytes; all 4 raw responses, rule texts and parsed responses verified with the actual recorded semantics.",
+  "limitations": [
+    "11 total image sends and 4 review sends reconstructed from DS ledger plus local HTTP evidence; this is not a provider billing audit.",
+    "No actual secret values were printed. Sensitive-header JSON scan covers this experiment directory; production replay writer still persists dict(headers), independently confirmed by source inspection.",
+    "Current automatic tone decoder checks content_status only; it does not gate palette/protected hues/readability or baseline validity. Its usable_success is not a full production compliance result."
+  ],
+  "actual_replay_prompt_checks": [
+    {
+      "slot": "S1-A",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S1-B",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S1-C",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S1-D",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S1-E",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S2-A",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S2-B",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S2-C",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S2-D",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    },
+    {
+      "slot": "S2-E",
+      "actual_replay_body_text_equals_frozen_prompt": true
+    }
+  ]
+}

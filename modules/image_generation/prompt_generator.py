@@ -66,10 +66,12 @@ class TextPromptGenThread(QThread):
             self.finish_signal.emit([])
 
 class PromptCellWidget(QFrame):
-    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, upscale_options_getter_func=None, style_ref_getter_func=None):
+    def __init__(self, prompt_text, style_getter_func, img_config_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, upscale_options_getter_func=None, style_ref_getter_func=None, color_getter_func=None):
         super().__init__()
         self.get_style = style_getter_func
         self.get_style_ref = style_ref_getter_func
+        self.get_color = color_getter_func
+        self._color_record = {}
         self.get_img_config = img_config_getter_func
         self.save_img_cfg = save_img_cfg_callback
         self.img_thread = None
@@ -142,6 +144,19 @@ class PromptCellWidget(QFrame):
         else:
             active_instructions = self.get_style()
             post_instructions, style_ref_paths = "", []
+
+        from utils.theme_color import apply_theme_color, theme_style, record_request
+        try:
+            color = self.get_color() if self.get_color else {}
+            current_prompt = apply_theme_color(current_prompt, color, image_paths=style_ref_paths)
+            active_instructions = theme_style(active_instructions, color)
+            self._color_record = record_request(color, current_prompt,
+                model=model_name, channel=api_type, context={"entry": "prompt_generator",
+                "instructions": active_instructions, "post_instructions": post_instructions,
+                "aspect_ratio": self._resolve_ar_for_second_stage("1:1")})
+        except (ValueError, OSError) as exc:
+            QMessageBox.warning(self, "配色设置", str(exc))
+            return
         
         self.gen_btn.setEnabled(False)
         self.gen_btn.setText("正在生成...")
@@ -164,6 +179,11 @@ class PromptCellWidget(QFrame):
     def on_image_finished(self, saved_files):
         self.gen_btn.setEnabled(True)
         self.gen_btn.setText("用此提示词生图")
+        from utils.theme_color import record_outputs
+        try:
+            record_outputs(self._color_record, saved_files or [])
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "配色记录未保存", str(exc))
         
         if saved_files and len(saved_files) > 0:
             file_path = saved_files[0]
@@ -249,6 +269,9 @@ class PromptGeneratorWidget(QWidget):
         self.style_ref_mode_combo = StyleRefModeCombo(self)
         self.style_ref_mode_combo.setMaximumWidth(130)
         style_layout.addWidget(self.style_ref_mode_combo)
+        from utils.theme_color_widget import ThemeColorSelector
+        self.color_selector = ThemeColorSelector(self, scope="prompt_generator", context_getter=lambda: self.keyword_input.text())
+        style_layout.addWidget(self.color_selector)
         self.main_style_combo.currentTextChanged.connect(self._on_style_changed)
         
         self.gen_prompts_btn = QPushButton("🚀 开始批量生成提示词")
@@ -444,7 +467,8 @@ class PromptGeneratorWidget(QWidget):
                 save_img_cfg_callback=self.save_img_cfg,
                 ar_policy_getter_func=self.get_ar_policy,
                 upscale_options_getter_func=self._collect_upscale_options,
-                style_ref_getter_func=self.get_current_style_ref
+                style_ref_getter_func=self.get_current_style_ref,
+                color_getter_func=self.color_selector.snapshot
             )
 
             self.grid_layout.addWidget(cell, row, col)

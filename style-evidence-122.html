@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>128 张历史产图的综合评估</title>
+<style>
+  :root { --line:#e4e4e8; --muted:#6b6b73; }
+  body { margin:0; padding:26px 30px 70px; background:#fafafb; color:#1b1b20;
+         font:15px/1.7 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:23px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:32px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line); }
+  .sub { color:var(--muted); font-size:13.5px; margin:0 0 12px; }
+  table { border-collapse:collapse; background:#fff; font-size:13px; margin:10px 0; }
+  th, td { border:1px solid var(--line); padding:4px 8px; text-align:left; white-space:nowrap; }
+  th { background:#f2f3f6; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:#14672c; font-weight:600; }
+  .bad { color:#a11f1f; font-weight:600; }
+  .warn { color:#8a5a06; font-weight:600; }
+  code { background:#f1f2f5; padding:1px 5px; border-radius:4px; }
+  .note { background:#eef5ff; border:1px solid #c3d8f0; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  .caveat { background:#fff8e6; border:1px solid #f0dfae; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  ol { margin:8px 0 0 20px; }
+  li { margin:4px 0; }
+</style>
+</head>
+<body>
+<h1>128 张历史产图的综合评估</h1>
+<p class="sub">2026-10-06 · 17 轮实验、全部出图（9 个画风 × 多条件 × 多内容源）·
+每张同时算 HSV 口径（palette / gram_hsv / render / copy）与深度口径（VGG Gram / AdaIN / LPIPS / CSD），
+用各画风自己的参考图作对照（GPU fp32；含同图自检与跨设备容差）。
+数据：<code>combined-all.json</code>（128 条，HSV + 深度双全）。</p>
+
+<div class="note">
+<b>一句话</b>：<span class="good">gram_deep（VGG Gram 距离）是目前最接近人眼判读的单项指标</span>
+（与 render ρ=+0.41、与 gram_hsv ρ=+0.24）；
+<b>palette 与深度口径近乎无关</b>（ρ=−0.15），<b>copy 也无关</b>（ρ=+0.08，它测的是内容相似不是画风）。
+判定分布：通过 65 / 存疑 29 / 不通过 28。
+<b>之前 6 个画风的落地决策，这次用成对实验复核：5 个被支持、1 个（millon-knots）只是"略优且样本内混杂"。</b>
+</div>
+
+<h2>1. 口径之间的一致性（n=128）</h2>
+<table>
+  <tr><th>关系</th><th class="num">Spearman ρ</th><th>解读</th></tr>
+  <tr><td>gram_deep ↔ render</td><td class="num good">+0.411</td><td>两种不同原理的指标指向同一件事，互相印证</td></tr>
+  <tr><td>gram_deep ↔ gram_hsv</td><td class="num">+0.240</td><td>HSV-CLIP 综合口径方向一致但更弱</td></tr>
+  <tr><td>gram_deep ↔ csd</td><td class="num">+0.207</td><td>弱正相关；CSD 方向性不稳，只作参考</td></tr>
+  <tr><td>palette ↔ gram_deep</td><td class="num bad">−0.151</td><td><b>近乎无关</b>（16 样本人工判读上更差：−0.39）</td></tr>
+  <tr><td>copy ↔ gram_deep</td><td class="num">+0.082</td><td>无关；copy 会把「同画风相似构图」也判高</td></tr>
+</table>
+
+<h2>2. 逐画风：最佳条件 vs 全条件均值</h2>
+<p class="sub">best = 该画风全部实验里 gram_deep 最小的一张；mean = 该画风所有样本均值。
+<b>best 大 = 这套画风在当前条件下复现不了参考画风</b>，不是条件问题。</p>
+<table>
+  <tr><th>画风</th><th>最佳条件</th><th class="num">best</th><th class="num">mean</th><th class="num">n</th>
+      <th class="num">csd</th><th class="num">palette</th><th class="num">copy</th><th>判定</th></tr>
+  <tr><td>goto-p</td><td>new（本轮重写）</td><td class="num good">1.14</td><td class="num">5.08</td><td class="num">5</td><td class="num">0.732</td><td class="num">0.516</td><td class="num">0.010</td><td class="good">通过</td></tr>
+  <tr><td>inf-nikki-v1</td><td>short（换锚）</td><td class="num good">1.61</td><td class="num">5.79</td><td class="num">3</td><td class="num">0.579</td><td class="num">0.151</td><td class="num">0.008</td><td class="good">通过</td></tr>
+  <tr><td>cccccanh-v4 / -v5</td><td>v4 / v5</td><td class="num good">1.53 / 1.49</td><td class="num">1.53 / 2.13</td><td class="num">1 / 4</td><td class="num">0.644</td><td class="num">0.28</td><td class="num">0.33</td><td class="good">通过</td></tr>
+  <tr><td>cccccanh</td><td><b>v7（已落地）</b></td><td class="num good">2.48</td><td class="num">4.18</td><td class="num">20</td><td class="num">0.611</td><td class="num">0.237</td><td class="num">0.012</td><td class="good">通过</td></tr>
+  <tr><td>komori-hikki-style</td><td>comp（旧压缩）</td><td class="num good">1.78</td><td class="num">5.86</td><td class="num">7</td><td class="num">0.703</td><td class="num">0.490</td><td class="num">0.322</td><td class="good">通过</td></tr>
+  <tr><td>puracotte-style</td><td><b>final（v3 已落地）</b></td><td class="num good">1.96</td><td class="num">5.32</td><td class="num">12</td><td class="num">0.674</td><td class="num">0.416</td><td class="num">0.351</td><td class="good">通过</td></tr>
+  <tr><td>noir-aiart</td><td>new（本轮重写）</td><td class="num">3.50</td><td class="num">6.01</td><td class="num">5</td><td class="num">0.590</td><td class="num">0.020</td><td class="num">0.012</td><td class="good">通过</td></tr>
+  <tr><td>iris-mix-style</td><td>short</td><td class="num">3.46</td><td class="num">4.73</td><td class="num">3</td><td class="num">0.778</td><td class="num">0.050</td><td class="num">0.257</td><td class="good">通过</td></tr>
+  <tr><td>myc0t0xin</td><td>short</td><td class="num">3.04</td><td class="num">5.01</td><td class="num">3</td><td class="num">0.738</td><td class="num">0.184</td><td class="num">0.006</td><td class="good">通过</td></tr>
+  <tr><td>millon-knots</td><td>v2（本轮重写）</td><td class="num">3.67</td><td class="num">5.27</td><td class="num">9</td><td class="num">0.680</td><td class="num">0.415</td><td class="num">0.353</td><td class="good">通过</td></tr>
+  <tr><td>kishida-mel-style</td><td>anchor_short</td><td class="num warn">4.48</td><td class="num">6.92</td><td class="num">4</td><td class="num">0.568</td><td class="num">0.237</td><td class="num">0.014</td><td class="good">通过</td></tr>
+  <tr><td>satou_kuuki-style-v2</td><td>cur</td><td class="num warn">6.02</td><td class="num">8.37</td><td class="num">2</td><td class="num">0.778</td><td class="num">0.355</td><td class="num">0.010</td><td class="warn">存疑</td></tr>
+  <tr><td>taya_oco</td><td>anchor_short</td><td class="num warn">7.17</td><td class="num">9.16</td><td class="num">6</td><td class="num">0.701</td><td class="num">0.236</td><td class="num">0.285</td><td class="warn">存疑</td></tr>
+  <tr><td>renian</td><td>short</td><td class="num warn">5.19</td><td class="num">9.90</td><td class="num">3</td><td class="num">0.646</td><td class="num">0.065</td><td class="num">0.380</td><td class="warn">存疑</td></tr>
+  <tr><td>shiratamaco-v2-style</td><td>cur（已回滚）</td><td class="num warn">7.85</td><td class="num">9.83</td><td class="num">3</td><td class="num">0.657</td><td class="num">0.365</td><td class="num">0.240</td><td class="warn">存疑</td></tr>
+  <tr><td>fuzichoco-v2</td><td>cur</td><td class="num bad">9.17</td><td class="num">15.38</td><td class="num">2</td><td class="num">0.461</td><td class="num">0.021</td><td class="num">0.010</td><td class="bad">不通过</td></tr>
+  <tr><td>sheya-style</td><td>compact</td><td class="num bad">9.22</td><td class="num">10.23</td><td class="num">3</td><td class="num">0.593</td><td class="num">0.021</td><td class="num">0.008</td><td class="bad">不通过</td></tr>
+  <tr><td>waterink-style</td><td>short</td><td class="num bad">9.29</td><td class="num">10.49</td><td class="num">2</td><td class="num">0.519</td><td class="num">0.203</td><td class="num">0.014</td><td class="bad">不通过</td></tr>
+  <tr><td>ajicoma</td><td>cur</td><td class="num bad">9.65</td><td class="num">20.27</td><td class="num">3</td><td class="num">0.602</td><td class="num">0.887</td><td class="num">0.014</td><td class="bad">不通过</td></tr>
+  <tr><td>tid</td><td>cur</td><td class="num bad">10.24</td><td class="num">15.96</td><td class="num">5</td><td class="num">0.399</td><td class="num">0.352</td><td class="num">0.002</td><td class="bad">不通过</td></tr>
+</table>
+
+<h2>3. 成对实验：复核之前的 6 个落地决策（同内容源、同条件）</h2>
+<table>
+  <tr><th>画风</th><th>条件 A（中位/n）</th><th>条件 B（中位/n）</th><th>结论</th></tr>
+  <tr><td>cccccanh</td><td><b>v7: 2.48(4)</b></td><td>cur: 6.79(2) ｜ compact(旧全文): 8.60(2)</td><td class="good">决策成立：v7 比旧写法好 2.7~3.5 倍</td></tr>
+  <tr><td>puracotte-style</td><td><b>final: 2.82(3)</b></td><td>cur: 5.40(2) ｜ compact: 7.63(2)</td><td class="good">成立：v3 明显更好</td></tr>
+  <tr><td>goto-p</td><td><b>new: 5.08(2)</b></td><td>comp: 8.82(3)</td><td class="good">成立</td></tr>
+  <tr><td>noir-aiart</td><td>new: 5.42(2)</td><td>comp: 5.49(3)</td><td>打平（重写没坏处也没好处）</td></tr>
+  <tr><td>millon-knots</td><td>v2: 4.62(3)</td><td>compact(旧全文): 5.43(2)</td><td class="warn">仅略优（差 0.8），且我第一版复验把两套画风的文字配错了，只作参考</td></tr>
+  <tr><td>komori-hikki-style</td><td><b>comp: 3.98(5)</b></td><td>new: 5.27(2)</td><td class="warn">数值支持旧压缩版，但 comp 样本 copy=0.322（疑似搬参考角色）→ <b>综合仍保留 new</b></td></tr>
+  <tr><td>inf-nikki-v1 / iris-mix / myc0t0xin / renian</td><td><b>short</b>（3.29 / 4.55 / 4.29 / 6.20）</td><td>cur（10.81 / 5.10 / 6.46 / 13.20）</td><td class="good">换锚有效，与之前结论一致</td></tr>
+  <tr><td>ajicoma / fuzichoco-v2 / noir-art-style / satou_kuuki-v2 / shiratamaco-v2</td><td><b>cur</b></td><td>short（10.51 / 21.59 / 18.04 / 10.71 / 11.25）</td><td class="bad">这些画风换锚会变差 → 印证"方法不是普适"</td></tr>
+  <tr><td>shiratamaco-v2-style 回滚</td><td><b>cur: 7.85</b></td><td>short: 11.25 ｜ comp: 10.38</td><td class="good">回滚正确</td></tr>
+</table>
+
+<div class="caveat">
+<b>方法学注意（必须写清）</b>
+<ol>
+  <li>经验带（≤4.5 通过 / ≥6.0 不通过）来自 16 个逐张人工判读样本，<b>单内容校准</b>，换内容要重标。</li>
+  <li>round16 里我把两套画风的文字与内容配错了（用 millon-knots 的内容锚测别的画风），那批 compact 数据不用于结论。</li>
+  <li>round17 的 3 张 millon-knots compact 全部因上游重试耗尽失败（当时 3 并发），<b>失败不算差评</b>，已从统计里剔除。</li>
+  <li>深度指标只在 CUDA fp32 上算（与 CPU 容差内一致）；<b>所有指标都是筛子，最终要人看图</b> —— 本轮就有「指标通过但背景被清空」的实例（用户反馈的两张）。</li>
+</ol>
+</div>
+
+<h2>4. 这批数字改变了什么</h2>
+<table>
+  <tr><th>之前的判断</th><th>128 张综合后</th></tr>
+  <tr><td>ccc canh 修好了</td><td class="good">成立且更强（v7 ≈2.5 vs 旧 8.60）</td></tr>
+  <tr><td>背景损失修好了（v7）</td><td class="good">成立：中间调 0.475→0.600、空场 0.247→0.149（限室内内容）</td></tr>
+  <tr><td>puracotte v3 更好</td><td class="good">成立（2.82 vs 5.40）</td></tr>
+  <tr><td>millon-knots 重写更好</td><td class="warn">降级为"略优、需再验"</td></tr>
+  <tr><td>komori-hikki-style 重写更好</td><td class="warn">数值反向，但旧版有搬内容嫌疑 → 保留现状</td></tr>
+  <tr><td>goto-p / noir-aiart 重写</td><td class="good">goto-p 成立；noir-aiart 打平</td></tr>
+  <tr><td>5 个画风"调不好"</td><td class="bad">确认是画风复现问题（fuzichoco-v2 / sheya / waterink / ajicoma / tid，best 9.2~10.2）</td></tr>
+</table>
+
+<h2>5. 下一批（按性价比）</h2>
+<ol>
+  <li><b>5 个复现不了的画风</b>先换参考图或补无主体风格板，再谈文字——现在怎么调条件都在 9 以上。</li>
+  <li><b>millon-knots 对等复验</b>：重跑 3×「旧全文锚 + compact」与 3×「v2 规格 + 短锚」，同内容源，n≥3 再定稿。</li>
+  <li><b>komori-hikki-style</b>：人眼看 comp 版是否真的搬了参考角色；若没有，回滚到压缩版。</li>
+  <li>把 <code>eval_style.py</code>（gram_deep + copy + 判定）接进日常出图流程，超阈值才需要人看。</li>
+</ol>
+</body></html>

@@ -7,6 +7,7 @@ import re
 import shutil
 import html
 import base64
+import time
 import mimetypes
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -72,8 +73,12 @@ def calculate_ranking(candidates, assessments, version=VERSION):
     ids = [c["id"] for c in candidates]
     if len(set(ids)) != len(ids) or not isinstance(assessments, list):
         raise ValueError("候选或评分格式错误")
-    if len(assessments) != len(ids) or {a.get("id") for a in assessments} != set(ids):
-        raise ValueError("评分必须恰好覆盖全部候选，不能遗漏、重复或添加未知候选")
+    returned = [a.get("id") if isinstance(a, dict) else None for a in assessments]
+    if len(returned) != len(ids) or set(returned) != set(ids) or len(set(returned)) != len(returned):
+        missing = sorted(set(ids) - set(returned))
+        unknown = sorted(str(i) for i in set(returned) - set(ids))
+        repeated = sorted(str(i) for i in set(returned) if returned.count(i) > 1)
+        raise ValueError(f"评分必须恰好覆盖全部候选：预期 {len(ids)} 项，返回 {len(returned)} 项；缺失={missing}；未知={unknown}；重复={repeated}")
     by_id = {a["id"]: a for a in assessments}
     rows = []
     for candidate in candidates:
@@ -153,15 +158,14 @@ def comparison_inputs(state, model, base_url, candidates=None):
 def write_comparison_report(state, result, directory):
     """自包含报告：原图、测试图、分项和版本对应的提示词均可离线查看。"""
     def picture(path):
-        with open(path, "rb") as source:
-            encoded = base64.b64encode(source.read()).decode()
-        mime = mimetypes.guess_type(path)[0] or "image/jpeg"
+        mime, encoded = compress_and_encode_image(path, max_dim=720, quality=85)
         return f'<img loading="lazy" src="data:{mime};base64,{encoded}">'
     esc = lambda value: html.escape(str(value))
     candidate_map = {c["id"]: c for c in candidates_from_state(state)}
     parameters = state.get("parameters") or {}
     training_rows = [("训练轮次（本次新增）", parameters.get("total_rounds", "未记录")),
                      ("每轮检查图片数", parameters.get("images_per_round", "未记录")),
+                     ("重绘参考模式（本次新增）", parameters.get("repaint_reference_mode", "style（历史完整画风图）")),
                      ("参考数据集图片数", len(state["dataset"]["images"])),
                      ("分析模型", ", ".join(sorted({str(it["model_used"]) for it in state.get("iterations", []) if it.get("model_used")})) or "未记录"),
                      ("评分模型", result["model"]), ("评分温度", 0),
@@ -192,8 +196,8 @@ def write_comparison_report(state, result, directory):
                 '<p>模型：' + esc(result["model"]) + '；输入摘要：' + esc(result["input_hash"]) + '</p>',
                 parameters_html,
                 research_html,
-                '<h2>原始画风图</h2>' + ''.join(picture(p) for p in state["dataset"]["images"]),
-                '<h2>最佳候选：' + esc(result["best_id"] or "无候选通过门禁") + '</h2>',
+                '<h2>原始画风图</h2>' + ''.join('<figure>' + picture(p) + '<figcaption>参考 ' + str(i) + '：' + esc(p) + '</figcaption></figure>' for i, p in enumerate(state["dataset"]["images"])),
+                '<h2>排序第一（默认行）：' + esc(result["best_id"] or "无候选通过门禁") + '</h2>',
                 '<p>' + esc("并列候选（默认行仅按 ID 排序，需手动复核）：" + ", ".join(result.get("tied_best_ids", [])) if len(result.get("tied_best_ids", [])) > 1 else "") + '</p>',
                 '<table><tr><th>候选</th>' + ''.join('<th>' + esc(DIMENSION_LABELS.get(k, k)) + '</th>' for k in (*dimensions, "style_score", "subject_fidelity", "total", "eligible")) + '</tr>']
     for row in result["rows"]:
@@ -221,14 +225,137 @@ def resume_seed(state, candidate_id, source_path):
     if not candidate or not candidate["record"].get("prompts_used"):
         raise ValueError("选中的版本没有可用分析提示词")
     record = candidate["record"]
-    return {"dataset": state["dataset"], "iterations": [{"round": 0, "type": "selected_version_seed", "art_style_prompts": record["prompts_used"]}],
+    return {"dataset": state["dataset"], "dataset_selection": state.get("dataset_selection"),
+            "parameters": {"repaint_reference_mode": candidate_repaint_mode(state, record)},
+            "iterations": [{"round": 0, "type": "selected_version_seed", "art_style_prompts": record["prompts_used"]}],
             "file_prefix": state.get("file_prefix", "style"),
             "resume_origin": {"source_json": os.path.abspath(source_path), "candidate_id": candidate_id,
                               "prompt_variants": record.get("prompt_variants", {})}}, record
 
 
+def candidate_repaint_mode(state, record):
+    mode = record.get("repaint_reference_mode", (state.get("parameters") or {}).get("repaint_reference_mode", "style"))
+    if mode not in {"none", "style"}:
+        raise ValueError("候选的重绘参考模式无效，请检查运行结果")
+    return mode
+
+
+def compare_state_in_process(path, config, timeout=600, progress=lambda message: None,
+                            cancelled=lambda: False):
+    """视觉复核的**唯一执行体**（GUI 线程与无头 CLI 共用同一段代码）。
+
+    原先这段逻辑直接写在 `StyleComparisonWorker.run()` 里，于是「无头复用同一套评分口径」
+    只能靠复制粘贴 —— 复制出来的代码会慢慢和 GUI 分叉（批次、证据字段、缓存键任一处漂移，
+    分数就不再可比）。现在线程只负责把进度/取消翻译成信号。
+    """
+    assessments, candidates = [], []
+    base_url, api_key, model = config
+    try:
+        with open(path, encoding="utf-8") as source:
+            state = json.load(source)
+        candidates, refs, prompt, digest = comparison_inputs(state, model, base_url)
+        cached = state.get("automatic_comparison") or {}
+        if cached.get("input_hash") == digest:
+            result = calculate_ranking(candidates, cached["assessments"])
+            result.update(input_hash=digest, assessments=cached["assessments"], model=model, endpoint=base_url, cached=True)
+            result.update(evaluation_policy=cached.get("evaluation_policy"), batch_count=cached.get("batch_count"))
+        else:
+            assessments = []
+            batch_records = {}
+            batch_path = os.path.join(os.path.dirname(path), "automatic-comparison-batches.json")
+            if os.path.isfile(batch_path):
+                with open(batch_path, encoding="utf-8") as source:
+                    batch_records = json.load(source)
+            client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+            def add_image(content, label, path):
+                mime, encoded = compress_and_encode_image(path, max_dim=1536, quality=90)
+                if not encoded:
+                    raise ValueError(f"无法读取图片: {path}")
+                content.extend([{"type": "text", "text": label},
+                                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}", "detail": "high"}}])
+            for offset in range(0, len(candidates), COMPARISON_BATCH_SIZE):
+                if cancelled():
+                    raise ValueError("比较已取消；已完成批次保留，重试可复用")
+                batch = candidates[offset:offset + COMPARISON_BATCH_SIZE]
+                progress(f"视觉复核批次 {offset // COMPARISON_BATCH_SIZE + 1}/{math.ceil(len(candidates) / COMPARISON_BATCH_SIZE)}；已完成 {len(assessments)}/{len(candidates)} 个候选")
+                batch_digest = comparison_inputs(state, model, base_url, candidates=batch)[3]
+                if batch_digest in batch_records:
+                    scores = batch_records[batch_digest]
+                else:
+                    content = [{"type": "text", "text": prompt}, {"type": "text", "text":
+                        "EXACT CANDIDATE IDS FOR THIS BATCH (copy verbatim, exactly one assessment each):\n" + json.dumps([c["id"] for c in batch])}]
+                    for index, path_item in enumerate(refs):
+                        add_image(content, f"STYLE DATASET REFERENCE {index}", path_item)
+                    for candidate in batch:
+                        add_image(content, "CANDIDATE " + candidate["id"] + "\nRequested subject: " + candidate["record"]["test_prompt"], candidate["path"])
+                    from modules.image_analysis.style_deep_comparison import atomic_json
+                    for attempt in range(2):
+                        if cancelled():
+                            raise ValueError("比较已取消")
+                        response = client.chat.completions.create(model=model, temperature=0,
+                            response_format={"type": "json_object"}, max_completion_tokens=12000,
+                            messages=[{"role": "user", "content": content}], timeout=timeout)
+                        choice = response.choices[0]
+                        raw = choice.message.content
+                        audit_path = os.path.join(os.path.dirname(path), "comparison-audit", f"{batch_digest}-{time.time_ns()}-attempt-{attempt + 1}.json")
+                        audit = {"candidate_ids": [c["id"] for c in batch], "finish_reason": getattr(choice, "finish_reason", None), "response": raw}
+                        atomic_json(audit_path, audit)
+                        try:
+                            scores = json.loads(raw)["assessments"]
+                            calculate_ranking(batch, scores)
+                            break
+                        except (ValueError, TypeError, KeyError) as exc:
+                            audit["validation_error"] = str(exc)
+                            atomic_json(audit_path, audit)
+                            if attempt:
+                                raise ValueError(f"批次 {offset // COMPARISON_BATCH_SIZE + 1} 校验失败（已重试一次）：{exc}；原始响应：{audit_path}") from exc
+                            progress(f"批次校验失败，重试一次：{exc}")
+                            content.append({"type": "text", "text": "Previous response failed validation: " + str(exc) + ". Re-evaluate only the exact candidate IDs listed above. Return all required dimensions and evidence. Do not rename, omit, duplicate or add IDs."})
+                    batch_records[batch_digest] = scores
+                    from modules.image_analysis.style_deep_comparison import atomic_json
+                    atomic_json(batch_path, batch_records)
+                calculate_ranking(batch, scores)
+                assessments.extend(scores)
+            result = calculate_ranking(candidates, assessments)
+            result.update(input_hash=digest, assessments=assessments, model=model, endpoint=base_url, cached=False,
+                          evaluation_policy={"batch_size": COMPARISON_BATCH_SIZE, "reference_count": len(refs)},
+                          batch_count=math.ceil(len(candidates) / COMPARISON_BATCH_SIZE))
+        if cancelled():
+            raise ValueError("比较已取消")
+        # 保留请求执行期间其他工序已经保存的字段。
+        with open(path, encoding="utf-8") as source:
+            latest = json.load(source)
+        if comparison_inputs(latest, model, base_url)[3] != digest:
+            raise ValueError("比较期间训练数据已变更，请重新比较")
+        latest["automatic_comparison"] = result
+        latest["automatic_comparison_status"] = {"status": "ok", "evaluated": len(candidates), "expected": len(candidates)}
+        result["report_path"] = write_comparison_report(latest, result, os.path.dirname(path))
+        from modules.image_analysis.style_deep_comparison import atomic_json
+        atomic_json(path, latest)
+        atomic_json(os.path.join(os.path.dirname(path), "automatic-comparison.json"), result)
+        if latest.get("deep_feature_comparison"):
+            from modules.image_analysis.style_deep_comparison import write_report
+            write_report(latest["deep_feature_comparison"], os.path.dirname(path), latest)
+        return result
+    except Exception as exc:
+        if candidates:
+            from modules.image_analysis.style_deep_comparison import atomic_json, write_report
+            try:
+                with open(path, encoding="utf-8") as source:
+                    latest = json.load(source)
+                latest["automatic_comparison_status"] = {"status": "failed", "error": str(exc), "model": model,
+                    "endpoint": base_url, "evaluated": len(assessments), "expected": len(candidates), "partial_assessments": assessments}
+                atomic_json(path, latest)
+                if latest.get("deep_feature_comparison"):
+                    write_report(latest["deep_feature_comparison"], os.path.dirname(path), latest)
+            except (OSError, ValueError):
+                pass
+        raise
+
+
 class StyleComparisonWorker(QThread):
     completed = pyqtSignal(object, str)
+    progress = pyqtSignal(str)
 
     def __init__(self, path, config, timeout=600, parent=None):
         super().__init__(parent)
@@ -236,68 +363,9 @@ class StyleComparisonWorker(QThread):
 
     def run(self):
         try:
-            with open(self.path, encoding="utf-8") as source:
-                state = json.load(source)
-            base_url, api_key, model = self.config
-            candidates, refs, prompt, digest = comparison_inputs(state, model, base_url)
-            cached = state.get("automatic_comparison") or {}
-            if cached.get("input_hash") == digest:
-                result = calculate_ranking(candidates, cached["assessments"])
-                result.update(input_hash=digest, assessments=cached["assessments"], model=model, endpoint=base_url, cached=True)
-                result.update(evaluation_policy=cached.get("evaluation_policy"), batch_count=cached.get("batch_count"))
-            else:
-                assessments = []
-                batch_records = {}
-                batch_path = os.path.join(os.path.dirname(self.path), "automatic-comparison-batches.json")
-                if os.path.isfile(batch_path):
-                    with open(batch_path, encoding="utf-8") as source:
-                        batch_records = json.load(source)
-                client = OpenAI(base_url=base_url, api_key=api_key, timeout=self.timeout)
-                def add_image(content, label, path):
-                    mime, encoded = compress_and_encode_image(path, max_dim=1536, quality=90)
-                    if not encoded:
-                        raise ValueError(f"无法读取图片: {path}")
-                    content.extend([{"type": "text", "text": label},
-                                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}", "detail": "high"}}])
-                for offset in range(0, len(candidates), COMPARISON_BATCH_SIZE):
-                    if self.isInterruptionRequested():
-                        raise ValueError("比较已取消；已完成批次保留，重试可复用")
-                    batch = candidates[offset:offset + COMPARISON_BATCH_SIZE]
-                    batch_digest = comparison_inputs(state, model, base_url, candidates=batch)[3]
-                    if batch_digest in batch_records:
-                        scores = batch_records[batch_digest]
-                    else:
-                        content = [{"type": "text", "text": prompt}]
-                        for index, path in enumerate(refs):
-                            add_image(content, f"STYLE DATASET REFERENCE {index}", path)
-                        for candidate in batch:
-                            add_image(content, "CANDIDATE " + candidate["id"] + "\nRequested subject: " + candidate["record"]["test_prompt"], candidate["path"])
-                        response = client.chat.completions.create(model=model, temperature=0,
-                            response_format={"type": "json_object"}, max_completion_tokens=12000,
-                            messages=[{"role": "user", "content": content}], timeout=self.timeout)
-                        scores = json.loads(response.choices[0].message.content)["assessments"]
-                        calculate_ranking(batch, scores)
-                        batch_records[batch_digest] = scores
-                        from modules.image_analysis.style_deep_comparison import atomic_json
-                        atomic_json(batch_path, batch_records)
-                    calculate_ranking(batch, scores)
-                    assessments.extend(scores)
-                result = calculate_ranking(candidates, assessments)
-                result.update(input_hash=digest, assessments=assessments, model=model, endpoint=base_url, cached=False,
-                              evaluation_policy={"batch_size": COMPARISON_BATCH_SIZE, "reference_count": len(refs)},
-                              batch_count=math.ceil(len(candidates) / COMPARISON_BATCH_SIZE))
-            if self.isInterruptionRequested():
-                raise ValueError("比较已取消")
-            # 保留请求执行期间其他工序已经保存的字段。
-            with open(self.path, encoding="utf-8") as source:
-                latest = json.load(source)
-            if comparison_inputs(latest, model, base_url)[3] != digest:
-                raise ValueError("比较期间训练数据已变更，请重新比较")
-            latest["automatic_comparison"] = result
-            result["report_path"] = write_comparison_report(latest, result, os.path.dirname(self.path))
-            from modules.image_analysis.style_deep_comparison import atomic_json
-            atomic_json(self.path, latest)
-            atomic_json(os.path.join(os.path.dirname(self.path), "automatic-comparison.json"), result)
+            result = compare_state_in_process(self.path, self.config, timeout=self.timeout,
+                                              progress=self.progress.emit,
+                                              cancelled=self.isInterruptionRequested)
             self.completed.emit(result, "")
         except Exception as exc:
             self.completed.emit({}, str(exc))
@@ -322,6 +390,11 @@ def import_style_candidate(state, candidate_id, name, config_path, reference_dir
     entry = dict(package.get("style_entry") or {})
     if not entry.get("prompt") or not entry.get("prompt_gpt") or not entry.get("repaint_clauses"):
         raise ValueError("该版本缺少完整描述、GPT 短版或重绘条款")
+    from utils.style_gpt import validate_prompt_gpt
+    valid, errors = validate_prompt_gpt(entry["prompt_gpt"])
+    if not valid:
+        raise ValueError("GPT 短版实际内容校验失败：" + "；".join(errors))
+    entry["repaint_reference_mode"] = candidate_repaint_mode(state, record)
     with open(config_path, encoding="utf-8") as source:
         styles = json.load(source)
     if name in styles:

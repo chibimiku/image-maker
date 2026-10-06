@@ -130,7 +130,9 @@ def run_gram(feats_a, feats_b, layers: Iterable[str] | None = None) -> MetricOut
     try:
         res = gram_mod.gram_distance(feats_a, feats_b, layers or VGG19_GRAM_LAYERS)
         return MetricOutcome(
-            "gram", "ok", res["distance"], {"layers": res["layers"], "summary": res["summary"]}
+            "gram", "ok", res["distance"], {"layers": res["layers"], "summary": res["summary"],
+                                          "formula_version": res["formula_version"],
+                                          "layer_weights": res["layer_weights"]}
         )
     except Exception as exc:
         return outcome_from_error("gram", exc)
@@ -174,7 +176,7 @@ def run_csd(img_a: Image.Image, img_b: Image.Image, backend: Backend) -> MetricO
     except WeightsMissing as exc:
         return MetricOutcome("csd", "unavailable", None, exc.as_dict(), error=str(exc))
     except Exception as exc:
-        return MetricOutcome("csd", "error", None, error=f"{type(exc).__name__}: {exc}")
+        return outcome_from_error("csd", exc)
 
 
 def outcome_from_error(metric: str, exc: BaseException) -> MetricOutcome:
@@ -183,6 +185,9 @@ def outcome_from_error(metric: str, exc: BaseException) -> MetricOutcome:
     权重缺失 → ``unavailable``（附修复信息，不冒充「计算失败」也不冒充「0 分」）；
     其它 → ``error``。
     """
+    if isinstance(exc, ModuleNotFoundError):
+        return MetricOutcome(metric, "unavailable", None, {"missing_dependency": exc.name},
+                             error=f"Missing dependency: {exc.name}; no substitute metric used")
     if isinstance(exc, WeightsMissing):
         return MetricOutcome(metric, "unavailable", None, exc.as_dict(), error=str(exc))
     return MetricOutcome(metric, "error", None, error=f"{type(exc).__name__}: {exc}")

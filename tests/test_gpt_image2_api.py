@@ -188,6 +188,46 @@ def test_moderation_rejection_is_not_retried_or_rerouted(tmp_path, monkeypatch):
     assert calls == ["https://example.invalid/v1/images/generations"]
 
 
+def test_unsupported_generation_image_falls_back_once_without_base64_form(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)
+    ref = tmp_path / "ref.png"
+    ref.write_bytes(TINY_PNG)
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append((url, kwargs))
+        if len(calls) == 1:
+            return _FakeResponse({"error": {"code": "unknown_parameter", "param": "image",
+                "message": "Unknown parameter: 'image'."}})
+        assert url.endswith("/images/edits")
+        assert "image" not in kwargs["data"]
+        assert kwargs["files"][0][0] == "image[]"
+        return _FakeResponse({"data": [{"b64_json": base64.b64encode(TINY_PNG).decode()}]})
+
+    monkeypatch.setattr(api_backend.requests, "post", post)
+    saved = api_backend.generate_image_aigc2d_gpt(
+        prompt="new scene", image_paths=[str(ref)], mode="generate", save_sub_dir="probe")
+    assert len(saved) == 1
+    assert len(calls) == 2
+    assert calls[0][0].endswith("/images/generations")
+
+
+def test_whatai_success_resolves_save_directory_before_downloading(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)
+    monkeypatch.setattr(api_backend.requests, "post", lambda *a, **k: _FakeResponse(
+        {"choices": [{"message": {"content": "![image](https://example.invalid/output.png)"}}]}))
+    response = _FakeResponse({})
+    response.content = TINY_PNG
+    monkeypatch.setattr(api_backend.requests, "get", lambda *a, **k: response)
+    output = tmp_path / "saved"
+    saved = api_backend.generate_image_whatai(prompt="test", api_type="whatai", save_sub_dir=str(output))
+    assert len(saved) == 1
+    assert Path(saved[0]).parent == output
+    assert Path(saved[0]).read_bytes() == TINY_PNG
+
+
 def test_generation_without_reference_uses_json_generations(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)

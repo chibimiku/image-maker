@@ -272,11 +272,12 @@ class GptImage2Worker(QThread):
     error = pyqtSignal(str)
     raw_done = pyqtSignal(list)   # 链式模式下先回传「未重绘的原始产物」
 
-    def __init__(self, backend, params: dict, parent=None, repaint_params: dict = None, wardrobe_spec=None):
+    def __init__(self, backend, params: dict, parent=None, repaint_params: dict = None, color_record=None, wardrobe_spec=None):
         super().__init__(parent)
         self.backend = backend
         self.params = dict(params or {})
         self.repaint_params = dict(repaint_params) if repaint_params else None
+        self.color_record = color_record or {}
         self.wardrobe_spec = dict(wardrobe_spec or {})
 
     def run(self):
@@ -301,6 +302,8 @@ class GptImage2Worker(QThread):
             saved = [p for p in (files or []) if p]
             from utils.wardrobe import record_wardrobe_outputs
             record_wardrobe_outputs(saved, self.wardrobe_spec, params.get("prompt", ""))
+            from utils.theme_color import record_outputs
+            record_outputs(self.color_record, saved)
             if saved:
                 self.log.emit(f"[后端] 成功返回 {len(saved)} 张，耗时 {elapsed:.1f}s")
             else:
@@ -334,6 +337,11 @@ class GptImage2Worker(QThread):
             self.done.emit(list(repainted))
         except Exception as exc:  # noqa: BLE001 - 线程内异常统一回传 UI
             elapsed = time.perf_counter() - started
+            from utils.theme_color import record_failure
+            try:
+                record_failure(self.color_record, type(exc).__name__)
+            except OSError as record_exc:
+                self.log.emit(f"[配色记录] 未能保存失败状态: {type(record_exc).__name__}")
             self.log.emit(f"[后端] 抛异常（耗时 {elapsed:.1f}s）: {type(exc).__name__}: {exc}")
             self.log.emit(traceback.format_exc())
             self.error.emit(f"{type(exc).__name__}: {exc}")
@@ -787,6 +795,10 @@ class GptImage2Widget(QWidget):
         self.wardrobe_selector = WardrobeSelector(self)
         style_row.addWidget(self.wardrobe_selector)
         self.wardrobe_selector.changed.connect(self._refresh_budget)
+        from utils.theme_color_widget import ThemeColorSelector
+        self.color_selector = ThemeColorSelector(self, scope="gpt_image2", context_getter=lambda: self.prompt_edit.toPlainText())
+        style_row.addWidget(self.color_selector)
+        self.color_selector.changed.connect(self._refresh_budget)
         self.style_info_label = QLabel("")
         self.style_info_label.setWordWrap(True)
         style_row.addWidget(self.style_info_label, stretch=1)
@@ -1511,6 +1523,15 @@ class GptImage2Widget(QWidget):
         from utils.styles import compose_style_prompt, ordered_reference_images
         style_text, style_ref = self.current_style_block()
         content_images = list(self.image_paths)
+        from utils.theme_color import apply_theme_color, theme_style
+        color = self.color_selector.snapshot() if hasattr(self, "color_selector") else {}
+        active_post = any(cfg.get("enabled") for cfg in self.post_pipeline_steps().values()) if color else False
+        raw_with_color = apply_theme_color(raw_prompt, color,
+            image_paths=ordered_reference_images(content_images, style_ref, style_ref_attached=bool(style_ref)),
+            mode="generate" if mode_text == MODE_GENERATE else "edit",
+            post_enabled=self.repaint_enabled() or active_post,
+            content_prompt=raw_prompt)
+        style_text = theme_style(style_text, color)
         prompt = compose_style_prompt(style_text, raw_prompt,
                                       style_ref_attached=bool(style_ref),
                                       content_image_count=len(content_images))
@@ -1519,6 +1540,10 @@ class GptImage2Widget(QWidget):
         self._prepared_wardrobe = wardrobe
         validate_wardrobe_style(self._styles_data, self.current_style_name(), wardrobe)
         prompt = apply_wardrobe(prompt, wardrobe)
+        # 配色只追加一次，且落点校验依据原正文，不把衣装注入视为已有授权物体。
+        if color:
+            prompt += raw_with_color[len(raw_prompt):]
+        self._prepared_color = color
         image_paths = ordered_reference_images(content_images, style_ref, style_ref_attached=bool(style_ref))
         # 按最终附件（含自动追加的画风图）选接口，避免 generate 强制把图片发到
         # generations 的非标准 image 字段，再因上游不支持而回退重发。
@@ -1571,6 +1596,9 @@ class GptImage2Widget(QWidget):
         site = self.current_site()
         mode = self.mode_combo.currentText()
         api_type = API_TYPE_BY_SITE.get(site, "")
+        if mode == MODE_REPAINT and hasattr(self, "color_selector") and self.color_selector.is_active():
+            QMessageBox.warning(self, "配色设置", "配色与色调规则仅用于无参考图首图，请在配色规则中关闭色调及配色后再重绘")
+            return
 
         # ---- 分支 1：重绘模式（输入=已拖入的产物）----
         if mode == MODE_REPAINT:
@@ -1639,6 +1667,10 @@ class GptImage2Widget(QWidget):
         self.save_defaults()
         try:
             backend, params = self.build_request()
+            from utils.theme_color import record_request
+            color_record = record_request(getattr(self, "_prepared_color", {}), params["prompt"],
+                model=params["model"], channel=params["api_type"],
+                context={"entry": "gpt_image2", "size": params.get("size"), "quality": params.get("quality")})
         except (ValueError, OSError) as exc:
             QMessageBox.warning(self, "生成设置", str(exc))
             return
@@ -1675,10 +1707,15 @@ class GptImage2Widget(QWidget):
         self.status_label.setText("生成中...(high 画质可能要几分钟)")
         self.preview_label.setText("请求中...")
 
-        wardrobe_kwargs = {"wardrobe_spec": self._prepared_wardrobe} if self._prepared_wardrobe else {}
-        self._worker = GptImage2Worker(backend, params, self, repaint_params=repaint_params, **wardrobe_kwargs)
+        color_kwargs = {"color_record": color_record} if color_record else {}
+        if self._prepared_wardrobe:
+            color_kwargs["wardrobe_spec"] = self._prepared_wardrobe
+        self._worker = GptImage2Worker(backend, params, self, repaint_params=repaint_params, **color_kwargs)
         self._worker.log.connect(self._append_log)
-        self._worker.done.connect(self.on_done)
+        if color_record:
+            self._worker.done.connect(lambda paths: self._on_theme_done(paths, True))
+        else:
+            self._worker.done.connect(self.on_done)
         self._worker.raw_done.connect(self._on_raw_products)
         self._worker.error.connect(self.on_error)
         self._worker.finished.connect(self._on_worker_finished)
@@ -1705,6 +1742,16 @@ class GptImage2Widget(QWidget):
         self._worker = None
         if worker is not None:
             worker.deleteLater()
+
+    def _on_theme_done(self, paths, frozen_color):
+        # UI 在收费调用期间可修改；本轮主题首图不能因此被追加新的后处理。
+        if frozen_color:
+            if paths:
+                self._show_results(paths)
+            else:
+                self.status_label.setText("完成(无图片) —— 详见下方日志")
+            return
+        self.on_done(paths)
 
     def on_done(self, paths):
         paths = [p for p in (paths or []) if p]
@@ -1831,6 +1878,11 @@ class GptImage2Widget(QWidget):
         if hasattr(self, "wardrobe_selector") and self.mode_combo.currentText() != MODE_REPAINT:
             from utils.wardrobe import wardrobe_prompt
             style_text += wardrobe_prompt(self.wardrobe_selector.snapshot())
+        if hasattr(self, "color_selector") and self.color_selector.is_active():
+            try:
+                style_text += self.color_selector.snapshot()["prompt"]
+            except ValueError:
+                pass  # 不完整落点在提交前报告，预算刷新不弹窗。
         budget = prompt_budget(len(text), style_chars=len(style_text))
         steps = self.post_pipeline_steps() if hasattr(self, "structure_check") else {}
         chain_repaint = bool(self.repaint_check.isChecked()) if hasattr(self, "repaint_check") else False

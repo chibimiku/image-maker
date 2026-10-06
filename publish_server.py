@@ -123,8 +123,8 @@ def find_metadata_json(image_path: str) -> str | None:
       JSON:  20260708-003608-ee721fed-紫苑の天光.json → 取 - 分割的第3段 "ee721fed"
     匹配即返回 JSON 路径。
 
-    兼容性增强：当同目录存在多个 key 相同的 JSON（如多个批次共享同一前缀）时，
-    优先选择 JSON 内 source_image_path 与原图路径完全一致的那一个，避免误配对。
+    同名 sidecar 优先，其次按 source_image_path 精确匹配，再兼容文件名 key。
+    同一源图重复分析时，按文件名时间戳选择最新结果（mtime 可能被同步成源图时间）。
     """
     img_file = os.path.basename(image_path)
     img_dir = os.path.dirname(image_path)
@@ -132,7 +132,7 @@ def find_metadata_json(image_path: str) -> str | None:
     # 新产物把任务 hash 固定在第一个下划线字段；兼容旧产物把画风名放在前面
     # （如 ajicoma-960cddea-...-final.jpg），从全名再提取独立的 8 位 hex hash。
     keys = []
-    first = img_file.split("_")[0]
+    first = stem.split("_")[0].lower()
     if first:
         keys.append(first)
     for match in re.finditer(r"(?<![0-9a-fA-F])([0-9a-fA-F]{8})(?![0-9a-fA-F])", stem):
@@ -154,19 +154,23 @@ def find_metadata_json(image_path: str) -> str | None:
         sidecar = os.path.join(img_dir, stem + suffix)
         if os.path.isfile(sidecar):
             return sidecar
-    for entry in entries:
+    for entry in sorted(entries, reverse=True):
         if not entry.lower().endswith(".json"):
             continue
         # JSON 文件名拆分，key 应在第3段（索引2）
         parts = os.path.splitext(entry)[0].split("-")
         json_key = parts[2].lower() if len(parts) >= 3 else ""
+        candidate = os.path.join(img_dir, entry)
+        src = _read_json_source_image_path(candidate)
+        if src and os.path.normcase(src) == os.path.normcase(abs_image_path):
+            return candidate
         if json_key in keys:
-            candidate = os.path.join(img_dir, entry)
+            # 原图共用 Gemini 等前缀时，不拿明确指向另一张原图的 JSON。
+            # 生成产物的 hash 关联仍可指向分析时的源图。
+            if (src and not re.fullmatch(r"[0-9a-f]{8}", first)
+                    and os.path.basename(src).split("_")[0].lower() == first):
+                continue
             candidates.append(candidate)
-            # 优先：JSON 内 source_image_path 与原图路径完全一致（无歧义）
-            src = _read_json_source_image_path(candidate)
-            if src and os.path.normcase(src) == os.path.normcase(abs_image_path):
-                return candidate
 
     return candidates[0] if candidates else None
 

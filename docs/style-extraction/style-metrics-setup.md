@@ -1,5 +1,7 @@
 # 画风深度特征指标：权重、代码与跨设备（GPU / NPU / CPU）验证环境
 
+> **2026-10-06 口径修正**：默认 Gram 已改为 `gatys-layer-sum/v2`；下文环境及跨设备数值表为 10 月 4 日历史记录，Gram 属于旧版 v1，不能当作新版验证。首轮未完成 LPIPS/CSD 验证，后续真实 CPU 双图八组完整验证见 [共享画风相似度说明](STYLE-SIMILARITY-20261006.md)。新版 CPU 验证与真实配对修复见 `STYLE-METRICS-GRAM-V2-20261006.md`。
+
 > 目标：在**不重装 PyTorch、不建虚拟环境、不改 App 评分公式、不训练 LoRA、不调用付费生图 API** 的前提下，
 > 为四种画风指标（Gram / AdaIN / LPIPS / CSD）准备可复现的权重、计算代码与跨设备验证环境。
 >
@@ -39,7 +41,7 @@
 
 | 指标 | 类型 | 骨干 / 权重 | 输出层 | 输入尺寸与预处理 | 标量定义 |
 |---|---|---|---|---|---|
-| Gram | **距离**（越小越像） | torchvision VGG-19 IMAGENET1K_V1 | `features[1,6,11,20,29]` = `relu1_1…relu5_1` | 512×512 直接缩放（bicubic，不留比例）+ ImageNet 归一化 | Gatys 式(11) 五层求和 |
+| Gram | **距离**（越小越像） | torchvision VGG-19 IMAGENET1K_V1 | `features[1,6,11,20,29]` = `relu1_1…relu5_1` | 512×512 直接缩放（bicubic，不留比例）+ ImageNet 归一化 | Gatys 单层归一化、五层等权求和（v2） |
 | AdaIN | **距离**（越小越像） | 同上（复用同一份特征） | `relu1_1…relu4_1` | 同上 | `Σ_l (‖Δμ_l‖₂ + ‖Δσ_l‖₂)` |
 | LPIPS | **距离**（越小越像） | richzhang LPIPS-AlexNet v0.1（官方实现） | AlexNet 5 层 + 校准 lin 层 | 256×256 直接缩放 + `[-1,1]` | 官方 `LPIPS.forward` 标量 |
 | CSD | **相似度**（越大越像） | OpenAI CLIP ViT-L/14 visual + CSD 官方 style 头 | ViT 输出 → 1024→768 头 → **L2 归一化** | 短边 Resize(224)+CenterCrop(224) + **CLIP** 归一化 | 768 维描述子的余弦（=内积） |
@@ -51,15 +53,14 @@
 对第 l 层特征 `F_l`（`C_l × H_l × W_l`）：
 
 ```
-G_l = (F_l @ F_lᵀ) / (C_l · H_l · W_l)          # 归一化 Gram（Gatys 式(4)，N = C·H·W）
-d_l = ‖G_l^a − G_l^b‖_F² / (4 · C_l²)          # Gatys 式(11) 的单层项（未乘权重 w_l，本实现全部取 1）
-gram_distance = Σ_l d_l                          # 五层求和
+G_l = (F_l @ F_lᵀ) / (C_l · H_l · W_l)    # 项目使用归一化 Gram
+ d_l = ‖G_l^a − G_l^b‖_F² / 4               # 已含 C²(HW)²，不再除 C²
+ gram_distance = Σ_l d_l                    # 五层权重全部为 1
 ```
 
-注意其**量级随层分辨率平方衰减**（本机实测落在 1e-7 ~ 1e-4），因此 JSON 里同时给出尺度无关的伴随量：
-
-- `summary.mean_layer_cosine_distance`：逐层 `1 − cos(vec(G_a), vec(G_b))` 的平均（∈[0,2]）
-- 每层 `frobenius` / `relative` / `cosine_distance`
+等价于对原始 Gram 使用 `‖ΔG_raw‖² / (4 C² (HW)²)`。单层归一化对应 [Gatys 原论文](https://arxiv.org/pdf/1508.06576) v2 式(3)–(5)，总层权重为项目约定，不宣称完全复现论文训练损失。
+旧版 `normalized-gram-extra-channel/v1` 重复除以 C²，只可显式用于历史复算；旧表数值保留。不同层通道数不同，不能按一个常数换算旧总分。
+归一化统计量没有统一的“随分辨率平方衰减”规律；重复相同空间样本的距离保持不变。JSON 同时保留逐层 Frobenius、relative、cosine_distance，不能将这些量合成未经校准的百分比。
 
 ### 1.3 AdaIN 的精确公式
 

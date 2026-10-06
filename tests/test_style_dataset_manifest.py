@@ -126,8 +126,30 @@ class StyleDatasetManifestTests(unittest.TestCase):
         self.assertEqual(widget._output_dir, "")
         self.assertEqual(widget._get_image_paths(), copied["image_paths"])
         self.assertEqual(widget.test_ref_input.text(), copied["reference_path"])
+        self.assertEqual(widget.total_rounds_spin.value(), 5)
+        self.assertFalse(widget.repaint_style_ref_cb.isChecked())
+        self.assertTrue(widget.auto_compare_cb.isChecked())
+        self.assertTrue(widget.auto_deep_cb.isChecked())
         worker = StyleIterativeWorkerThread(copied["image_paths"], "", "", "", dataset_selection=widget._dataset_selection)
         self.assertEqual(worker._build_state(0, [])["dataset_selection"]["source_manifest"], str(manifest))
+        from unittest.mock import patch
+        widget.get_config = lambda: ("https://example.invalid/v1", "test-key", "test-model")
+        widget.enable_test_gen_cb.setChecked(True)
+        widget.test_prompt_input.setText("A girl reading beside a window.")
+        widget.images_per_round_spin.setValue(2)  # 本用例只有两张入选图。
+        with patch("modules.image_analysis.style_analyzer.StyleIterativeWorkerThread") as factory, \
+                patch("modules.image_analysis.style_analyzer.new_style_run_directory",
+                      return_value=str(Path(self.temp.name) / "new-run")):
+            widget.analyze_btn.click()
+            factory.assert_called_once()
+            arguments = factory.call_args.kwargs
+            self.assertEqual(arguments["total_rounds"], 5)
+            self.assertEqual(arguments["test_style_ref_path"], copied["reference_path"])
+            self.assertEqual(arguments["repaint_reference_mode"], "none")
+            self.assertEqual(arguments["dataset_selection"]["source_manifest"], str(manifest))
+            self.assertIsNone(arguments["existing_state"])
+            factory.return_value.start.assert_called_once()
+            widget.thread = None
         dialog.close()
         widget.close()
 

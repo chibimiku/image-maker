@@ -65,6 +65,7 @@ ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure"
                             "auto_gen_original": False, "auto_gen_refined": False,
                             "style_selection": "",
                             "wardrobe_selection": {"name": "", "policy": "replace"},
+                            "atmosphere_selection": {"mood": "", "season": ""},
                             "local": False, "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
                             "quality": "high",
@@ -744,7 +745,9 @@ def _save_refine_diagnostic(request, source, *, error=None, path=None, log_callb
         return None
 
 
-def step_2_refine_description(original_json_data, client, model_name, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, status_callback=None, log_callback=None, cancel_check=None):
+def step_2_refine_description(original_json_data, client, model_name, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, status_callback=None, log_callback=None, cancel_check=None, atmosphere=None):
+    from utils.refine_atmosphere import freeze, refine_note
+    atmosphere_plan = freeze(atmosphere)
     original_description = original_json_data.get("english_description", "")
     jp_title = original_json_data.get("japanese_title", "")
     cn_title = original_json_data.get("chinese_title", "")
@@ -773,6 +776,7 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
             "Please optimize these booru-tags with your own understanding and keep only final high-quality tags."
         )
     refine_prompt = append_extra_llm_prompt(refine_prompt, extra_llm_prompt)
+    refine_prompt += refine_note(atmosphere_plan)
     if original_json_data.get("aspect_ratio"):
         refine_prompt += "\n输入 aspect_ratio: " + json.dumps(original_json_data["aspect_ratio"])
     request_kwargs = None
@@ -808,6 +812,8 @@ def step_2_refine_description(original_json_data, client, model_name, booru_tag_
         final_result_json = _normalize_analysis_result(final_result_json, fallback_data=original_json_data, booru_tag_limit=booru_tag_limit)
         # 将原始描述也存入最终结果，方便后续对比或同时生成
         final_result_json["original_english_description"] = original_description
+        if atmosphere_plan:
+            final_result_json["generation_atmosphere"] = atmosphere_plan
         return final_result_json
     except Exception as e:
         _log_step_diag(f"Step 2 二次加工时发生错误: {e}", log_callback)
@@ -1044,7 +1050,7 @@ class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
 
-    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override="", remove_photo_style=False, use_fallback=None, gpt_prompts=True):
+    def __init__(self, image_source, api_key, base_url, model_name, enable_refine=True, booru_tag_limit=30, extra_llm_prompt="", timeout_seconds=120, enable_outfit_check=False, outfit_style_override="", remove_photo_style=False, use_fallback=None, gpt_prompts=True, atmosphere=None):
         super().__init__()
         self.image_source = image_source
         self.api_key = api_key
@@ -1070,6 +1076,8 @@ class WorkerThread(QThread):
         # 或生图通道单选 Gemini）根本不会用到这两个字段，跑它们等于白花两次调用与等待时间 ——
         # 由界面按「本次任务会不会真的用上」传进来（见 `_compute_gpt_prompts_for_task`）。
         self.gpt_prompts = bool(gpt_prompts)
+        from utils.refine_atmosphere import freeze
+        self.atmosphere = freeze(atmosphere)
         self.last_status = "idle"
         self.last_error = ""
         # 右键「重跑并生图」时由界面指定本次分析完成后要生成的提示词类型（original / refined）
@@ -1174,6 +1182,7 @@ class WorkerThread(QThread):
                     self.model_name,
                     booru_tag_limit=self.booru_tag_limit,
                     extra_llm_prompt=self.extra_llm_prompt,
+                    atmosphere=self.atmosphere,
                     timeout_seconds=self.timeout_seconds,
                     status_callback=lambda status: stage_status.update({"value": status}),
                     log_callback=step_log,
@@ -1319,6 +1328,9 @@ class WorkerThread(QThread):
                     final_result["pixiv_tags"] = original_pixiv_tags
                 if original_booru_tags:
                     final_result["booru-tags"] = original_booru_tags
+                from utils.refine_atmosphere import apply_result
+                if self.enable_refine:
+                    apply_result(final_result, self.atmosphere)
                 # gpt-image 通道专用短提示词：单独字段，与 Gemini 用的长 prompts 分开（不混用）。
                 # 两档：full（≤1400，内容优先）与 short（≤500，要挂画风参考图时用）。
                 # 只出 Gemini 图的任务用不到这两个字段，整段跳过（每档各一次文本模型调用）。
@@ -1329,7 +1341,7 @@ class WorkerThread(QThread):
                     try:
                         from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
                                                                SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)
-                        desc = str(final_result.get("english_description") or "").strip()
+                        desc = str(final_result.get("factual_english_description") or final_result.get("english_description") or "").strip()
                         source_ratio = str(final_result.get("aspect_ratio") or "").strip()
                         if desc:
                             text_cfg = {"base_url": self.base_url, "api_key": self.api_key, "model": self.model_name}
@@ -1350,6 +1362,8 @@ class WorkerThread(QThread):
                     except Exception as exc:  # noqa: BLE001 - 附加步骤失败不影响分析结果
                         self.log_signal.emit(f"gpt-image 短提示词生成失败，已跳过: {type(exc).__name__}: {exc}")
                 self.last_status = "success"
+            if final_result and self.enable_refine:
+                apply_result(final_result, self.atmosphere, fields=("gpt_image_prompt", "gpt_image_prompt_short"))
             self.finish_signal.emit(final_result if final_result else {})
         else:
             if self.isInterruptionRequested() or self._force_cancel_requested:
@@ -2254,6 +2268,10 @@ class SingleAnalyzerWidget(QWidget):
         self.wardrobe_selector = WardrobeSelector(self)
         outfit_style_layout.addWidget(self.wardrobe_selector)
         self.wardrobe_selector.changed.connect(self._save_gpt_pipeline_ui)
+        from utils.refine_atmosphere_widget import RefineAtmosphereSelector
+        self.atmosphere_selector = RefineAtmosphereSelector(self)
+        outfit_style_layout.addWidget(self.atmosphere_selector)
+        self.atmosphere_selector.changed.connect(self._save_gpt_pipeline_ui)
         layout.addLayout(outfit_style_layout)
 
         upscale_layout = QHBoxLayout()
@@ -2743,7 +2761,7 @@ class SingleAnalyzerWidget(QWidget):
             "finish_time_text": "-",
             "source_desc": _describe_image_source(image_source_snapshot),
             "source_path": str(source_path or ""),
-            "source_origin": "clipboard" if isinstance(image_source_snapshot, Image.Image) else "file",
+            "source_origin": "clipboard" if self._is_clipboard_source(image_source_snapshot) else "file",
             "title": "处理中",
             "result_json": None,
             "saved_json_path": "",
@@ -2850,8 +2868,7 @@ class SingleAnalyzerWidget(QWidget):
     def _finalize_task_pipeline(self, task_hash, final_products=None, require_products=True):
         """只有「没有待跑线程 + 有最终产物」时，队列才置为绿色已完成。
 
-        `require_products=False`：这条任务本来就不产图（没勾自动生图 / 生图线程一个都没启动），
-        只要有线程活着就不再吊着队列，直接标完成 —— 否则它会永远停在「进行中」。
+        `require_products=False`：只用于本来就不产图的任务，启动生图失败不得降为只分析。
         """
         pending = self._pipeline_pending_for_hash(task_hash)
         if pending:
@@ -2886,8 +2903,10 @@ class SingleAnalyzerWidget(QWidget):
                     )
                     self.log_msg(f"❌ 队列标记失败（{failure}）：{record.get('title', '未命名')}")
                     continue
-                self._update_history_record(task_id, status="running", phase="等待最终产物")
-                self.log_msg(f"⚠️ 任务 {task_hash} 的线程都结束了，但还没有最终产物，暂不标记完成。")
+                self._update_history_record(
+                    task_id, status="error", phase="", pipeline_error="生图工序已结束，但没有最终产物",
+                    finish_time_text=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                self.log_msg(f"❌ 任务 {task_hash} 的线程都结束了，但没有最终产物，队列标记失败。")
                 continue
             self._update_history_record(
                 task_id,
@@ -3150,7 +3169,7 @@ class SingleAnalyzerWidget(QWidget):
         self.log_msg(f"🔁 重新分析：线程#{record.get('thread_no', '?')} / {task_hash or '无任务号'}"
                      f" → {os.path.basename(source_path)}（通道 {channel_text}，"
                      f"{'分析后自动生图' if gen_targets else '只做分析'}）")
-        return bool(self._rerun_history_record(record, gen_targets=gen_targets or None,
+        return bool(self._rerun_history_record(record, gen_targets=gen_targets,
                                                header_note=f"拾取历史 → 重新分析（{channel_text}）"))
 
     # -------- Gemini 生图重跑（没有 GPT 断点时的「拾取历史」） --------
@@ -3392,6 +3411,8 @@ class SingleAnalyzerWidget(QWidget):
         thread = self._launch_analysis_task(
             _clone_image_source(usable_path),
             gen_targets=gen_targets,
+            atmosphere=dict((record.get("analysis_options") or {}).get("generation_atmosphere")
+                            or (record.get("result_json") or {}).get("generation_atmosphere") or {}),
             wardrobe=dict(record.get("wardrobe") or (record.get("generation_params") or {}).get("wardrobe")
                           or (record.get("result_json") or {}).get("generation_wardrobe") or {}),
             header_note=header_note or f"重跑来源: 线程#{record.get('thread_no', '?')}"
@@ -3507,7 +3528,33 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"⚠️ 剪贴板图片快照保存失败，本次记录将无法右键重跑: {e}")
             return ""
 
-    def _launch_analysis_task(self, image_source_snapshot, gen_targets=None, header_note=None, wardrobe=None):
+    def _is_clipboard_source(self, source):
+        if isinstance(source, Image.Image):
+            return True
+        if not isinstance(source, str) or not source:
+            return False
+        try:
+            root = os.path.normcase(os.path.abspath(CLIPBOARD_SNAPSHOT_DIR))
+            path = os.path.normcase(os.path.abspath(source))
+            return os.path.commonpath([root, path]) == root
+        except ValueError:
+            return False
+
+    def _snapshot_analysis_options(self, source, gen_targets=None):
+        """提交时固定任务意图；剪贴板快照路径不属于用户的原图目录。"""
+        forced = [t for t in (gen_targets or []) if t in ("original", "refined")]
+        save_to_source = bool(
+            not forced and self.save_to_source_dir_cb.isChecked()
+            and isinstance(source, str) and os.path.isfile(source)
+            and not self._is_clipboard_source(source))
+        targets = forced or ([t for t, cb in (("original", self.auto_gen_orig_cb),
+                                              ("refined", self.auto_gen_ref_cb)) if cb.isChecked()]
+                             if gen_targets is None else [])
+        return {"save_to_source": save_to_source,
+                "gen_targets": [] if save_to_source else targets,
+                "channel": "gpt-image" if self._gpt_image_channel_active() else "gemini"}
+
+    def _launch_analysis_task(self, image_source_snapshot, gen_targets=None, header_note=None, wardrobe=None, atmosphere=None):
         """统一的分析任务提交入口：单图分析 / 目录批量 / 右键重跑都走这里。
 
         负责预检（prompt 文件、文本 API 配置）→ 建历史记录 → 装配 WorkerThread 并启动。
@@ -3586,6 +3633,14 @@ class SingleAnalyzerWidget(QWidget):
         )
         history_record["style_name"] = selected_style_name
         history_record["wardrobe"] = self.wardrobe_selector.snapshot() if wardrobe is None else dict(wardrobe)
+        task_options = self._snapshot_analysis_options(image_source_snapshot, gen_targets)
+        atmosphere_plan = self.atmosphere_selector.snapshot() if atmosphere is None else dict(atmosphere)
+        task_options["generation_atmosphere"] = atmosphere_plan
+        history_record["analysis_options"] = task_options
+        self.log_msg(
+            f"本次任务：{'仅保存到原图目录' if task_options['save_to_source'] else '保存到日期目录'}；"
+            f"生图目标 {', '.join(task_options['gen_targets']) or '无'}；通道 {task_options['channel']}",
+            prefix=thread_prefix)
         self._insert_history_record(history_record)
 
         thread = WorkerThread(
@@ -3599,6 +3654,7 @@ class SingleAnalyzerWidget(QWidget):
             outfit_style_override=self.outfit_style_combo.currentText().strip(),
             remove_photo_style=remove_photo_style,
             use_fallback=bool(self.use_fallback_cb.isChecked()),
+            atmosphere=atmosphere_plan,
             gpt_prompts=self._compute_gpt_prompts_for_task(
                 forced_targets=[t for t in (gen_targets or []) if t in ("original", "refined")]),
         )
@@ -3608,6 +3664,7 @@ class SingleAnalyzerWidget(QWidget):
         thread.meta_task_hash = task_hash
         thread.meta_style_name = selected_style_name
         thread.meta_wardrobe = dict(history_record["wardrobe"])
+        thread.meta_analysis_options = task_options
         thread.meta_force_gen_targets = [t for t in (gen_targets or []) if t in ("original", "refined")]
         self._active_analysis_threads.append(thread)
         self._update_analysis_cancel_btn()
@@ -3830,7 +3887,7 @@ class SingleAnalyzerWidget(QWidget):
         self.send_btn.setEnabled(bool(self.image_source))
         self._update_analysis_cancel_btn()
         # 兜底检查：如果线程已退出但历史记录仍处于"处理中"状态，说明 on_process_finished
-        # 未能成功更新历史记录（可能是 task_id 不匹配或信号丢失），此时强制更新为完成。
+        # 未能成功更新历史记录（可能是回调异常或信号丢失），此时标记失败，不能凭线程退出标绿。
         # 【例外】本任务还要自动生图/后处理时，记录是**故意**留在 running 的（phase=生图/后处理中），
         # 那种情况必须跳过兜底，否则会把标题改成「已完成（兜底更新）」并抢跑标绿，
         # 随后生图完成又被改回 running —— 队列文案来回跳（用户 2026-09-24 截图就是这个）。
@@ -3860,8 +3917,9 @@ class SingleAnalyzerWidget(QWidget):
                 )
                 self._update_history_record(
                     task_id,
-                    status="success",
-                    title="已完成（兜底更新）",
+                    status="error",
+                    phase="",
+                    pipeline_error=last_error or "分析线程已退出，但任务未完成收尾",
                     finish_time_text=finish_time_text,
                 )
 
@@ -3922,10 +3980,16 @@ class SingleAnalyzerWidget(QWidget):
         safe_task_hash = task_hash or "nohash"
 
         # 确定保存目录和基础文件名（支持保存到原图同目录）
+        task_options = getattr(thread, "meta_analysis_options", None)
+        if task_options is None:
+            task_options = self._snapshot_analysis_options(
+                source_snapshot, getattr(thread, "meta_force_gen_targets", None) or None)
+        requested_targets = list(task_options["gen_targets"])
         save_to_source = (
-            self.save_to_source_dir_cb.isChecked()
+            task_options["save_to_source"]
             and isinstance(source_snapshot, str)
             and os.path.isfile(source_snapshot)
+            and not self._is_clipboard_source(source_snapshot)
         )
         if save_to_source:
             save_dir = os.path.dirname(os.path.abspath(source_snapshot))
@@ -4027,14 +4091,8 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg(f"❌ 保存提示词 txt 文件时出错: {e}", prefix=thread_prefix)
 
         # 后面还会自动生图/跑工序时，这一条**不能**先标完成（队列绿得太早就是这里造成的）
-        will_auto_gen = (not save_to_source) and (
-            bool(getattr(thread, "meta_force_gen_targets", None))
-            or self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked()
-        )
-        pipeline_next = will_auto_gen and bool(
-            str(result_json.get("original_english_description") or "").strip()
-            or str(result_json.get("english_description") or "").strip()
-        )
+        will_auto_gen = (not save_to_source) and bool(requested_targets)
+        pipeline_next = will_auto_gen
         self._update_history_record(
             task_id,
             status="running" if pipeline_next else "success",
@@ -4067,24 +4125,7 @@ class SingleAnalyzerWidget(QWidget):
             local_orig_desc = result_json.get("original_english_description", "")
             local_refine_desc = result_json.get("english_description", "")
             
-            auto_targets = []
-            # 右键「重跑分析并生图」时，本次任务自带生成目标，优先于全局勾选框
-            forced_targets = [
-                target for target in (getattr(thread, "meta_force_gen_targets", None) or [])
-                if target in ("original", "refined")
-            ]
-            if forced_targets:
-                if "original" in forced_targets and str(local_orig_desc).strip():
-                    auto_targets.append("original")
-                if "refined" in forced_targets and str(local_refine_desc).strip():
-                    auto_targets.append("refined")
-                if not auto_targets:
-                    self.log_msg("⚠️ 本次重跑要求生图，但分析结果里没有可用的提示词，已跳过自动生图。", prefix=thread_prefix)
-            else:
-                if self.auto_gen_orig_cb.isChecked() and str(local_orig_desc).strip():
-                    auto_targets.append("original")
-                if self.auto_gen_ref_cb.isChecked() and str(local_refine_desc).strip():
-                    auto_targets.append("refined")
+            auto_targets = requested_targets
             prompt_bundle = {
                 "task_hash": local_task_hash,
                 "wardrobe": result_json["generation_wardrobe"],
@@ -4111,14 +4152,23 @@ class SingleAnalyzerWidget(QWidget):
                 }
                 started_count = 0
                 for prompt_type in auto_targets:
-                    if self.trigger_image_generation(
-                        prompt_type,
-                        is_auto=True,
-                        prompt_bundle=prompt_bundle,
-                        analysis_thread_no=analysis_thread_no,
-                        auto_group_id=auto_group_id
-                    ):
+                    try:
+                        started = self.trigger_image_generation(
+                            prompt_type,
+                            is_auto=True,
+                            prompt_bundle=prompt_bundle,
+                            analysis_thread_no=analysis_thread_no,
+                            auto_group_id=auto_group_id,
+                            channel=task_options["channel"],
+                        )
+                    except Exception as exc:
+                        started = False
+                        self.log_msg(f"❌ 自动生图启动失败: {exc}", prefix=thread_prefix)
+                    if started:
                         started_count += 1
+                    else:
+                        self._update_history_record(
+                            task_id, pipeline_error=f"自动生图未能启动（{prompt_type}），请查看上方生图错误")
                 if started_count > 0:
                     self._auto_gen_groups[auto_group_id]["expected"] = started_count
                     self.log_msg(f"🤖 检测到自动生图任务，共 {started_count} 项，通知将于全部生图结束后发送。", prefix=thread_prefix)
@@ -4126,15 +4176,11 @@ class SingleAnalyzerWidget(QWidget):
                     # 一个生图线程都没起来（缺 key / 目标提示词为空…）：本任务到此结束，
                     # 不能因为前面按「还会生图」把记录留在 running，就让它永远吊在「进行中」。
                     self._auto_gen_groups.pop(auto_group_id, None)
-                    self.log_msg("⚠️ 自动生图没有启动任何任务（上方有原因），本任务按「只做分析」收尾。",
+                    self.log_msg("❌ 自动生图没有启动任何任务，分析结果已保留，队列标记失败。",
                                  prefix=thread_prefix)
-                    self._finalize_task_pipeline(local_task_hash, require_products=False)
-                    self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
+                    self._finalize_task_pipeline(local_task_hash)
+                    self._send_system_notification("单图生图失败", "分析结果已保存，但自动生图未能启动。")
             else:
-                # 勾了自动生图但没拿到可用提示词 → 同样按「只做分析」收尾（同上）
-                if (getattr(thread, "meta_force_gen_targets", None)
-                        or self.auto_gen_orig_cb.isChecked() or self.auto_gen_ref_cb.isChecked()):
-                    self._finalize_task_pipeline(local_task_hash, require_products=False)
                 self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
 
     def _start_image_gen_runtime(self, timeout_seconds):
@@ -4247,6 +4293,7 @@ class SingleAnalyzerWidget(QWidget):
         self.wardrobe_selector.blockSignals(True)
         self.wardrobe_selector.restore(state.get("wardrobe_selection"))
         self.wardrobe_selector.blockSignals(False)
+        self.atmosphere_selector.restore(state.get("atmosphere_selection"))
         self._saved_style_selection = str(state.get("style_selection") or "")
         self.auto_gen_orig_cb.setChecked(bool(state.get("auto_gen_original", False)))
         self.auto_gen_ref_cb.setChecked(bool(state.get("auto_gen_refined", False)))
@@ -4291,6 +4338,7 @@ class SingleAnalyzerWidget(QWidget):
         return {
             "channel": "gpt-image" if self._gpt_image_channel_active() else "gemini",
             "wardrobe_selection": self.wardrobe_selector.selection(),
+            "atmosphere_selection": self.atmosphere_selector.selection(),
             "style_selection": self.main_style_combo.currentText() or getattr(self, "_saved_style_selection", ""),
             "auto_gen_original": bool(self.auto_gen_orig_cb.isChecked()),
             "auto_gen_refined": bool(self.auto_gen_ref_cb.isChecked()),

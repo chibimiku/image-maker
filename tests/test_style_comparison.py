@@ -37,9 +37,13 @@ class StyleComparisonTests(unittest.TestCase):
             ref, image = root / "ref.png", root / "output.png"
             Image.new("RGB", (20, 20), "red").save(ref)
             Image.new("RGB", (20, 20), "blue").save(image)
-            entry = {"prompt": "GEMINI", "prompt_gpt": "GPT", "repaint_clauses": ["LINES"], "motif_clauses": ["OPTIONAL"]}
+            short = "\n".join(("Palette: soft cool pastel colors", "Lighting: diffuse warm highlights",
+                               "Brushwork: smooth digital gradients", "Edges: tinted thin contours",
+                               "Texture: restrained paper grain", "Composition density: balanced layered space",
+                               "Detail level: selective clean accents", "Avoid: photorealism and muddy shadows"))
+            entry = {"prompt": "GEMINI", "prompt_gpt": short, "repaint_clauses": ["LINES"], "motif_clauses": ["OPTIONAL"]}
             record = {"generated_files": {"gemini_direct": [str(image)]}, "prompts_used": "ROUND ONE",
-                      "style_reference": str(ref), "test_prompt": "girl beside lake",
+                      "style_reference": str(ref), "test_prompt": "girl beside lake", "repaint_reference_mode": "none",
                       "prompt_variants": {"gpt_image_prompt_valid": True, "style_entry": entry}}
             state = {"dataset": {"images": [str(ref)]}, "test_images": {"round_1": record}, "file_prefix": "new-style", "parameters": {"total_rounds": 3, "images_per_round": 4}}
             candidates, _, _, digest = comparison_inputs(state, "model", "endpoint")
@@ -49,7 +53,8 @@ class StyleComparisonTests(unittest.TestCase):
             state["automatic_comparison"] = result
             report = write_comparison_report(state, result, str(root))
             text = Path(report).read_text(encoding="utf-8")
-            self.assertIn("data:image/png;base64", text)
+            self.assertIn("data:image/", text)
+            self.assertIn(";base64,", text)
             self.assertIn("ROUND ONE", text)
             self.assertIn("运行参数", text)
             self.assertIn("每轮检查图片数</th><td>4", text)
@@ -67,8 +72,17 @@ class StyleComparisonTests(unittest.TestCase):
             imported = import_style_candidate(state, candidates[0]["id"], "new-style", str(config), str(root / "refs"))
             self.assertEqual(imported["repaint_clauses"], ["LINES"])
             self.assertFalse(imported["motif_enabled"])
+            self.assertEqual(imported["repaint_reference_mode"], "none")
+            self.assertEqual(seed["parameters"]["repaint_reference_mode"], "none")
             self.assertTrue(Path(imported["ref_image"]).exists())
             self.assertEqual(json.loads(config.read_text())["old"]["prompt"], "PRESERVE")
+            record["prompt_variants"]["style_entry"]["prompt_gpt"] = "INVALID"
+            candidates, _, _, changed_digest = comparison_inputs(state, "model", "endpoint")
+            state["automatic_comparison"]["input_hash"] = changed_digest
+            with self.assertRaisesRegex(ValueError, "实际内容校验失败"):
+                import_style_candidate(state, candidates[0]["id"], "invalid-style", str(config), str(root / "refs"))
+            record["prompt_variants"]["style_entry"]["prompt_gpt"] = short
+            state["automatic_comparison"]["input_hash"] = digest
             with self.assertRaises(ValueError):
                 import_style_candidate(state, candidates[0]["id"], "new-style", str(config), str(root / "refs"))
             Image.new("RGB", (20, 20), "green").save(image)
@@ -146,7 +160,7 @@ class StyleComparisonTests(unittest.TestCase):
             image = root / "ref.png"
             Image.new("RGB", (12, 12)).save(image)
             record = {"generated_files": {"gemini_direct": [str(image)]}, "style_reference": str(image),
-                      "test_prompt": "a girl", "prompts_used": "SELECTED ROUND"}
+                      "test_prompt": "a girl", "prompts_used": "SELECTED ROUND", "repaint_reference_mode": "none"}
             state = {"dataset": {"images": [str(image)]}, "test_images": {"round_2": record}, "file_prefix": "new-style"}
             path = root / "source.json"
             original = json.dumps(state)
@@ -163,8 +177,59 @@ class StyleComparisonTests(unittest.TestCase):
                 start.assert_called_once()
             self.assertEqual(widget.total_rounds_spin.value(), 4)
             self.assertEqual(widget._existing_state["iterations"][0]["art_style_prompts"], "SELECTED ROUND")
+            self.assertFalse(widget.repaint_style_ref_cb.isChecked())
             self.assertNotEqual(widget._output_dir, str(root))
             self.assertEqual(path.read_text(encoding="utf-8"), original)
+            widget.close()
+
+    def test_bad_coverage_is_audited_retried_and_never_silently_selected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "image.png"
+            Image.new("RGB", (16, 16)).save(image)
+            path = root / "state.json"
+            state = {"dataset": {"images": [str(image)]}, "test_images": {"round_1": {
+                "generated_files": {"gemini_direct": [str(image)]}, "style_reference": str(image), "test_prompt": "girl"}}}
+            path.write_text(json.dumps(state), encoding="utf-8")
+            def response(scores):
+                return SimpleNamespace(choices=[SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content=json.dumps({"assessments": scores})))])
+            with patch("modules.image_analysis.style_comparison.OpenAI") as client:
+                create = client.return_value.chat.completions.create
+                create.return_value = response([self.score("wrong")])
+                worker = StyleComparisonWorker(str(path), ("endpoint", "secret", "model"))
+                completed = []
+                worker.completed.connect(lambda result, error: completed.append((result, error)))
+                worker.run()
+                self.assertEqual(create.call_count, 2)
+                self.assertEqual(completed[-1][0], {})
+                self.assertIn("缺失=['round_1/gemini_direct/0']", completed[-1][1])
+                failed = json.loads(path.read_text(encoding="utf-8"))
+                self.assertNotIn("automatic_comparison", failed)
+                self.assertEqual(failed["automatic_comparison_status"]["evaluated"], 0)
+                audit = list((root / "comparison-audit").glob("*.json"))
+                self.assertEqual(len(audit), 2)
+                self.assertIn("validation_error", json.loads(audit[-1].read_text(encoding="utf-8")))
+                create.side_effect = [response([]), response([self.score("round_1/gemini_direct/0")])]
+                worker.run()
+                self.assertEqual(completed[-1][1], "")
+                self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["automatic_comparison_status"]["status"], "ok")
+
+    def test_ui_failure_is_not_hidden_by_successful_local_metrics(self):
+        import os
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PyQt6.QtWidgets import QApplication
+        from modules.image_analysis.style_analyzer import StyleAnalyzerWidget
+        app = QApplication.instance() or QApplication([])
+        widget = StyleAnalyzerWidget(lambda: ("", "", ""))
+        try:
+            widget.on_comparison_completed({}, "缺失候选 r4")
+            widget.on_deep_completed({"rows": [], "backend": {"actual": "npu", "precision": "fp16"}, "status": "ok", "report_path": "report.html"}, "")
+            self.assertIn("未选型", widget.status_label.text())
+            self.assertIn("未完成", widget.progress_label.text())
+            self.assertIn("缺失候选 r4", widget.score_details.toPlainText())
+            self.assertFalse(widget.import_style_btn.isEnabled())
+            self.assertFalse(widget.repaint_style_ref_cb.isChecked())
+        finally:
             widget.close()
 
     def test_v2_group_weights_evidence_and_legacy_scores(self):

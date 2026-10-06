@@ -1,3 +1,4 @@
+from pathlib import Path
 import os
 import json
 import random
@@ -200,7 +201,7 @@ def format_style_test_results(record):
     for channel, label in labels.items():
         files = (record.get("generated_files") or {}).get(channel) or []
         detail = (record.get("channel_status") or {}).get(channel) or {}
-        lines.append(f"{label}: {len(files)} 张")
+        lines.append(f"{label}: {statuses.get(detail.get('status'), '未记录状态')}，{len(files)} 张")
         lines.extend(str(path) for path in files)
         if detail.get("error"):
             lines.append(str(detail["error"]))
@@ -276,10 +277,11 @@ class StyleIterativeWorkerThread(QThread):
                  enable_test_gen=False, test_prompt="",
                  img_api_type="", img_instructions="", img_aspect_ratio="auto",
                  img_model_name="", file_prefix="", seed_prompts="", test_style_ref_path="",
-                 dataset_selection=None):
+                 dataset_selection=None, repaint_reference_mode="none"):
         super().__init__()
         self.image_paths = list(image_paths)
         self.dataset_selection = dataset_selection
+        self.repaint_reference_mode = "style" if repaint_reference_mode == "style" else "none"
         self.api_key = api_key
         self.base_url = base_url
         self.model_name = model_name
@@ -350,6 +352,7 @@ class StyleIterativeWorkerThread(QThread):
             "parameters": {
                 "total_rounds": self.total_rounds,
                 "images_per_round": self.images_per_round,
+                "repaint_reference_mode": self.repaint_reference_mode,
             },
             "iterations": iterations,
             "final_art_style_prompts": "",
@@ -425,9 +428,89 @@ class StyleIterativeWorkerThread(QThread):
                 return it.get("art_style_prompts", "")
         return ""
 
+    def _assemble_test_generation_requests(self, variants, style_ref, aspect_ratio, motif_prompt,
+                                           model_overrides=None):
+        """把三路测试**要发出去的东西**组装出来（唯一组装点，不发送任何请求）。
+
+        第四轮 P0.3 的教训：预检与实际发送必须共用同一段组装代码，否则「dry-run 对了」不能
+        证明真正发出去的文字和图片是对的。跨字段合并验证（无联网预检）就是靠调用这个方法
+        拿到「实际生效提示词 / 输入图顺序 / 参数」，而不是自己另拼一份。
+
+        `model_overrides` 只给无头/验证链路用：节点没配模型时（或要做跨模型对照时）显式指定，
+        值记进请求审计；界面链路不传它，行为与以前完全一致。
+        """
+        from utils.analysis_gen import build_gpt_image_request
+        from utils.post_process import default_pipeline
+        from utils.styles import compose_style_prompt
+        from utils.style_gpt import resolve_style_clauses
+
+        overrides = dict(model_overrides or {})
+        assembled = {
+            "gemini_direct": {},
+            "gpt_first_pass": {},
+            "gpt_repaint": {"steps": {}, "style_ref_path": style_ref, "style_clauses": []},
+            "errors": {},
+        }
+        # Gemini 那一段单独收口：它失败（例如节点没配模型）不能阻止 GPT 那一路的组装，
+        # 预检也要能把「哪一路为什么没组装出来」如实报出来。
+        try:
+            gemini_cfg = get_api_config(api_type="aigc2d")
+            gemini_model = str(overrides.get("gemini_model") or gemini_cfg.get("model") or "").strip()
+            if not gemini_model:
+                raise RuntimeError("aigc2d 节点未配置 Gemini 图片模型")
+            gemini_style = "\n\n".join(v for v in (
+                variants.get("gemini_full_prompt") or "", motif_prompt) if v)
+            gemini_prompt = compose_style_prompt(
+                gemini_style,
+                self.test_prompt, style_ref_attached=bool(style_ref), content_image_count=0)
+            assembled["gemini_direct"] = {
+                "prompt": gemini_prompt, "image_paths": [style_ref] if style_ref else [],
+                "model": gemini_model, "aspect_ratio": aspect_ratio, "resolution": "2K",
+                "api_type": "aigc2d", "face_quality_boost": False,
+            }
+        except Exception as exc:  # noqa: BLE001 - 记下来交给调用方决定，不吞掉原因
+            assembled["gemini_error"] = f"{type(exc).__name__}: {exc}"
+
+        # GPT 那一段单独收口：短版校验失败或节点没配模型时，Gemini 那一路的组装结果仍要返回 ——
+        # 否则「不发 GPT 请求」会退化成「连预检都做不出来」，调用方也拿不到失败原因。
+        try:
+            if not variants.get("gpt_image_prompt_valid"):
+                raise ValueError("GPT 短版校验失败，未发送 GPT 生图请求："
+                                 + "；".join(variants.get("gpt_image_prompt_errors") or []))
+            gpt_prompt = str(variants.get("gpt_image_prompt") or "").strip()
+            repaint_clauses = [str(v).strip() for v in
+                               (variants.get("gemini_repaint_clauses") or []) if str(v).strip()]
+            if not repaint_clauses:
+                repaint_clauses, _ = resolve_style_clauses({"prompt_gpt": gpt_prompt})
+            generation_clauses = repaint_clauses + ([motif_prompt] if motif_prompt else [])
+            request_payload = build_gpt_image_request(
+                {}, style_text=gpt_prompt, style_ref_path=style_ref,
+                content_text=self.test_prompt, extra_clauses=generation_clauses)
+            gpt_cfg = get_api_config(api_type="aigc-2d-gpt")
+            gpt_model = str(overrides.get("gpt_model") or gpt_cfg.get("model") or "").strip()
+            if not gpt_model:
+                raise RuntimeError("aigc-2d-gpt 节点未配置 GPT 图片模型")
+            assembled["gpt_first_pass"] = {
+                "prompt": request_payload["prompt"], "image_paths": request_payload["image_paths"],
+                "model": gpt_model, "aspect_ratio": aspect_ratio, "api_type": "aigc-2d-gpt",
+                "mode": "generate", "quality": None, "size": None,
+                "content_chars": request_payload.get("content_chars"),
+                "style_chars": request_payload.get("style_chars"),
+                "clauses": list(generation_clauses),
+            }
+            steps = default_pipeline()
+            steps["repaint"].update({"enabled": True, "reference_mode": self.repaint_reference_mode,
+                                     "scope": "full",
+                                     "clauses_without_image": self.repaint_reference_mode == "none"})
+            assembled["gpt_repaint"] = {"steps": steps, "style_ref_path": style_ref,
+                                        "style_clauses": list(repaint_clauses)}
+        except Exception as exc:  # noqa: BLE001 - 记下来交给调用方决定，不吞掉原因
+            assembled["gpt_error"] = f"{type(exc).__name__}: {exc}"
+        return assembled
+
     def _generate_test_image(self, current_prompts, round_num, output_path, prompt_variants=None,
                              stage="round"):
-        """每轮固定输出 Gemini 直出、GPT 首图和 GPT→Gemini 完整画风重绘。"""
+        """每轮输出三路，重绘参考图是否附带由显式模式决定。"""
         self._check_cancel()
         variants = normalize_style_prompt_package(prompt_variants or {}, current_prompts)
         style_ref = self.test_style_ref_path if os.path.isfile(self.test_style_ref_path) else ""
@@ -441,29 +524,27 @@ class StyleIterativeWorkerThread(QThread):
         round_dir = os.path.join(self.output_dir, "test-generations", test_id)
         os.makedirs(round_dir, exist_ok=True)
         self.log_signal.emit(
-            f"[{test_label}] 三路测试：Gemini 直出 + GPT-image-2 首图 + Gemini 完整画风重绘")
+            f"[{test_label}] 三路测试：Gemini 直出 + GPT-image-2 首图 + Gemini 重绘（参考模式={self.repaint_reference_mode}）")
         self.log_signal.emit(f"  测试画风参考图: {style_ref or '(无有效参考图)'}")
         self.progress_signal.emit(f"{test_label} — Gemini / GPT / 重绘测试生图中…")
         cancel_check = lambda: self._cancel_requested or self.isInterruptionRequested()
         outputs = {"gemini_direct": [], "gpt_first_pass": [], "gpt_repainted": []}
         self._test_generation_errors = {}
-        from utils.styles import compose_style_prompt, motif_prompt_from_clauses
+        from utils.styles import motif_prompt_from_clauses
         motif_prompt = motif_prompt_from_clauses(variants.get("optional_motifs") or [])
 
+        gemini_request = {}
+        assembled = self._assemble_test_generation_requests(
+            variants, style_ref, aspect_ratio, motif_prompt,
+            model_overrides=getattr(self, "model_overrides", None))
         try:
-            gemini_cfg = get_api_config(api_type="aigc2d")
-            gemini_model = str(gemini_cfg.get("model") or "").strip()
-            if not gemini_model:
-                raise RuntimeError("aigc2d 节点未配置 Gemini 图片模型")
-            gemini_style = "\n\n".join(v for v in (
-                variants.get("gemini_full_prompt") or current_prompts, motif_prompt) if v)
-            gemini_prompt = compose_style_prompt(
-                gemini_style,
-                self.test_prompt, style_ref_attached=bool(style_ref), content_image_count=0)
+            if assembled.get("gemini_error"):
+                raise RuntimeError(assembled["gemini_error"])
+            gemini_request = assembled["gemini_direct"]
             outputs["gemini_direct"] = generate_image_aigc2d(
-                prompt=gemini_prompt, image_paths=[style_ref] if style_ref else None,
-                model=gemini_model, aspect_ratio=aspect_ratio, resolution="2K",
-                api_type="aigc2d", save_sub_dir=round_dir,
+                prompt=gemini_request["prompt"], image_paths=gemini_request["image_paths"] or None,
+                model=gemini_request["model"], aspect_ratio=aspect_ratio,
+                resolution=gemini_request["resolution"], api_type="aigc2d", save_sub_dir=round_dir,
                 file_prefix=f"{test_id}-gemini-direct", face_quality_boost=False,
                 cancel_check=cancel_check, log_callback=self.log_signal.emit) or []
         except Exception as exc:
@@ -472,39 +553,23 @@ class StyleIterativeWorkerThread(QThread):
 
         self._check_cancel()
         try:
-            from utils.analysis_gen import build_gpt_image_request, run_gpt_image_pipeline
-            from utils.post_process import default_pipeline
-            from utils.style_gpt import resolve_style_clauses
-            gpt_prompt = str(variants.get("gpt_image_prompt") or "").strip()
-            repaint_clauses = [str(v).strip() for v in
-                               (variants.get("gemini_repaint_clauses") or []) if str(v).strip()]
-            if not repaint_clauses:
-                repaint_clauses, _ = resolve_style_clauses({"prompt_gpt": gpt_prompt})
-            generation_clauses = repaint_clauses + ([motif_prompt] if motif_prompt else [])
-            request_payload = build_gpt_image_request(
-                {},
-                style_text=gpt_prompt or current_prompts,
-                style_ref_path=style_ref,
-                content_text=self.test_prompt,
-                extra_clauses=generation_clauses)
-            gpt_cfg = get_api_config(api_type="aigc-2d-gpt")
-            gpt_model = str(gpt_cfg.get("model") or "").strip()
-            if not gpt_model:
-                raise RuntimeError("aigc-2d-gpt 节点未配置 GPT 图片模型")
+            if assembled.get("gpt_error"):
+                raise ValueError(assembled["gpt_error"])
+            from utils.analysis_gen import run_gpt_image_pipeline
+            first_payload = assembled["gpt_first_pass"]
             first = generate_image_aigc2d_gpt(
-                prompt=request_payload["prompt"], image_paths=request_payload["image_paths"],
-                model=gpt_model, aspect_ratio=aspect_ratio,
+                prompt=first_payload["prompt"], image_paths=first_payload["image_paths"],
+                model=first_payload["model"], aspect_ratio=aspect_ratio,
                 api_type="aigc-2d-gpt", save_sub_dir=round_dir,
                 file_prefix=f"{test_id}-gpt-first", mode="generate",
                 cancel_check=cancel_check, log_callback=self.log_signal.emit) or []
             outputs["gpt_first_pass"] = list(first)
             if first:
-                steps = default_pipeline()
-                steps["repaint"].update({"enabled": True, "reference_mode": "style", "scope": "full"})
+                repaint = assembled["gpt_repaint"]
                 outputs["gpt_repainted"] = run_gpt_image_pipeline(
-                    first, steps, final_dir=round_dir,
+                    first, repaint["steps"], final_dir=round_dir,
                     work_dir=os.path.join(round_dir, "gpt-repaint-steps"),
-                    style_ref_path=style_ref, style_clauses=repaint_clauses,
+                    style_ref_path=repaint["style_ref_path"], style_clauses=repaint["style_clauses"],
                     log_callback=self.log_signal.emit) or []
         except Exception as exc:
             failed_channel = "gpt_repainted" if outputs["gpt_first_pass"] else "gpt_first_pass"
@@ -527,6 +592,8 @@ class StyleIterativeWorkerThread(QThread):
             error = "" if files else errors.get(channel, "接口未返回图片；此通道未通过测试")
             if not enabled:
                 status, error = "not_run", "测试生图已关闭"
+            elif channel == "gpt_first_pass" and not files and variants.get("gpt_image_prompt_valid") is False:
+                status, error = "not_run", errors.get(channel) or ("GPT 短版校验失败，未发送 GPT 生图请求：" + "；".join(variants.get("gpt_image_prompt_errors") or []))
             elif channel == "gpt_repainted" and not outputs.get("gpt_first_pass"):
                 status, error = "not_run", "GPT 首图未成功，无法进行重绘测试"
             channel_status[channel] = {"status": status, "image_count": len(files), "error": error}
@@ -540,6 +607,7 @@ class StyleIterativeWorkerThread(QThread):
             "style_reference": self.test_style_ref_path or (
                 self.image_paths[0] if self.image_paths else ""),
             "generated_files": outputs, "status": status, "channel_status": channel_status,
+            "repaint_reference_mode": self.repaint_reference_mode,
             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         if round_num is not None:
@@ -1464,7 +1532,7 @@ class StyleAnalyzerWidget(QWidget):
         self.enable_test_gen_cb = QCheckBox("每轮及终审后测试：Gemini 直出 / GPT 首图 / GPT→Gemini 重绘")
         self.enable_test_gen_cb.setToolTip(
             "勾选后，每轮使用相同主体和同一画风参考图生成三份可比产物：Gemini 直接生成、"
-            "GPT-image-2 首图，以及该首图经 Gemini 完整画风图重绘后的结果。"
+            "GPT-image-2 首图，以及该首图经 Gemini 画风文字重绘后的结果（可选附带完整画风图）。"
             "局部细化和终审后，再用最终提示词包额外测试这三路，结果单独保存，不覆盖每轮产物。"
         )
         self.enable_test_gen_cb.setChecked(
@@ -1496,6 +1564,10 @@ class StyleAnalyzerWidget(QWidget):
         ref_row.addWidget(self.test_ref_input)
         ref_row.addWidget(self.test_ref_btn)
         test_gen_layout.addRow("测试画风参考图:", ref_row)
+        self.repaint_style_ref_cb = QCheckBox("重绘附带完整画风图（可能复制参考角色）")
+        self.repaint_style_ref_cb.setChecked(False)
+        self.repaint_style_ref_cb.setToolTip("默认只以 GPT 首图和本轮画风文字重绘；勾选后增加完整画风图作对照。两种模式都需主体复核。")
+        test_gen_layout.addRow(self.repaint_style_ref_cb)
 
         test_gen_group.setLayout(test_gen_layout)
         layout.addWidget(test_gen_group)
@@ -1563,7 +1635,7 @@ class StyleAnalyzerWidget(QWidget):
         result_header.addStretch()
         self.auto_compare_cb = QCheckBox("完成后自动比较")
         self.auto_compare_cb.setChecked(True)
-        self.auto_compare_cb.setToolTip("额外调用一次当前文本视觉模型评分；相同图片、主体、模型和评分模板复用已保存结果。")
+        self.auto_compare_cb.setToolTip("分批调用当前文本视觉模型评分，每批最多 4 个候选；覆盖校验失败最多补试一次。相同批次复用已保存评分，不重新生图。")
         result_header.addWidget(self.auto_compare_cb)
         self.compare_btn = QPushButton("比较并选最佳")
         self.compare_btn.clicked.connect(self.start_comparison)
@@ -1626,14 +1698,29 @@ class StyleAnalyzerWidget(QWidget):
         deep_layout = QVBoxLayout(deep_page)
         self.deep_report_btn = QPushButton("查看深度指标报告")
         self.deep_report_btn.clicked.connect(self.open_deep_report)
-        deep_layout.addWidget(self.deep_report_btn)
+        deep_actions = QHBoxLayout()
+        deep_actions.addWidget(self.deep_report_btn)
+        self.face_regions_btn = QPushButton("面部 / 发丝定位…")
+        self.face_regions_btn.clicked.connect(self.edit_face_regions)
+        deep_actions.addWidget(self.face_regions_btn)
+        self.deep_auto_regions = QCheckBox("自动面部定位（文本 API）")
+        self.deep_auto_regions.setToolTip("开启后逐张请求 / 复用面部发丝候选，未确认定位不计正式均值。旧提取任务默认关闭，避免自动追加文本调用。")
+        deep_actions.addWidget(self.deep_auto_regions)
+        deep_layout.addLayout(deep_actions)
         self.deep_table = QTableWidget(0, 6)
-        self.deep_table.setHorizontalHeaderLabels(["候选", "CSD ↑", "Gram ↓", "AdaIN ↓", "LPIPS ↓", "有效配对"])
+        self.deep_table.setColumnCount(10)
+        self.deep_table.setHorizontalHeaderLabels(["候选", "CSD ↑", "Gram ↓", "AdaIN ↓", "LPIPS ↓", "明度 ↑", "边缘 ↑", "线条 ↑", "负空间 ↑", "有效配对"])
         self.deep_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.deep_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.deep_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.deep_table.itemSelectionChanged.connect(self.show_deep_details)
-        deep_layout.addWidget(self.deep_table, 1)
+        self.deep_metric_tabs = QTabWidget()
+        self.deep_metric_tabs.addTab(self.deep_table, "整图八组")
+        self.deep_face_table = QTableWidget(0, 4)
+        self.deep_face_table.setHorizontalHeaderLabels(["候选", "面部 / 发丝指标", "正式均值", "有效配对"])
+        self.deep_face_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.deep_metric_tabs.addTab(self.deep_face_table, "面部与发丝细项")
+        deep_layout.addWidget(self.deep_metric_tabs, 1)
         self.deep_details = QTextEdit()
         self.deep_details.setReadOnly(True)
         self.deep_details.setMinimumHeight(45)
@@ -1683,12 +1770,39 @@ class StyleAnalyzerWidget(QWidget):
         self.score_details.setPlainText("正在对全部原图和各轮/终审测试图统一评分…")
         self.result_tabs.setCurrentIndex(1)
         self.log_msg("自动比较：" + FORMULA)
-        timeout = self.get_timeout() if self.get_timeout else 600
+        timeout = max(600, int(self.get_timeout())) if self.get_timeout else 600
         self.comparison_thread = StyleComparisonWorker(self._loaded_json_path, self.get_config(), timeout, self)
+        self.comparison_thread.progress.connect(self.log_msg)
+        self.comparison_thread.progress.connect(self.progress_label.setText)
         self._run_deep_after_comparison = self.auto_deep_cb.isChecked()
         self.comparison_thread.completed.connect(self.on_comparison_completed)
         self.comparison_thread.finished.connect(self._comparison_stopped)
         self.comparison_thread.start()
+
+    def edit_face_regions(self):
+        if self.thread or self.comparison_thread or self.deep_thread:
+            return
+        if not self._loaded_json_path:
+            QMessageBox.information(self, "需要结果", "请先打开含源图和候选图的提取结果。")
+            return
+        from PyQt6.QtWidgets import QInputDialog
+        from modules.image_analysis.style_deep_comparison import input_manifest
+        from modules.image_analysis.style_regions_dialog import StyleRegionsDialog
+        try:
+            state = json.loads(Path(self._loaded_json_path).read_text(encoding="utf-8"))
+            inputs = input_manifest(state)
+            entries = [("参考 " + str(i), r["path"]) for i, r in enumerate(inputs["references"], 1)] + [(c["id"], c["path"]) for c in inputs["candidates"]]
+            labels = [f"{i + 1}. {label} · {os.path.basename(path)}" for i, (label, path) in enumerate(entries)]
+            selected, accepted = QInputDialog.getItem(self, "选择定位图片", "源图 / 各轮候选图", labels, 0, False)
+            if accepted:
+                path = entries[labels.index(selected)][1]
+                if StyleRegionsDialog(path, self.get_config, self).exec():
+                    self._deep_result = {}
+                    self.deep_table.setRowCount(0)
+                    self.deep_face_table.setRowCount(0)
+                    self.deep_details.setPlainText("区域定位已更新；请重新计算指标。")
+        except Exception as exc:
+            QMessageBox.information(self, "定位", str(exc))
 
     def start_deep_comparison(self):
         if self.thread or self.comparison_thread or self.deep_thread:
@@ -1699,9 +1813,12 @@ class StyleAnalyzerWidget(QWidget):
         self.set_running_state(True)
         self._deep_result = {}
         self.deep_table.setRowCount(0)
+        self.deep_face_table.setRowCount(0)
         self.result_tabs.setCurrentIndex(2)
         self.deep_details.setPlainText("正在独立进程计算本地指标；不调用评分或生图 API。首次加载模型可能较慢。")
-        self.deep_thread = create_worker(self._loaded_json_path, self.deep_device_combo.currentData(), self)
+        self.deep_thread = create_worker(self._loaded_json_path, self.deep_device_combo.currentData(), self,
+                                        locate_regions=self.deep_auto_regions.isChecked(),
+                                        region_config=self.get_config() if self.deep_auto_regions.isChecked() else None)
         self.deep_thread.progress.connect(self.progress_label.setText)
         self.deep_thread.completed.connect(self.on_deep_completed)
         self.deep_thread.finished.connect(self._deep_stopped)
@@ -1722,13 +1839,26 @@ class StyleAnalyzerWidget(QWidget):
         self._deep_result = result
         self.deep_table.setRowCount(len(result["rows"]))
         for index, row in enumerate(result["rows"]):
-            order = ("csd", "gram", "adain", "lpips")
-            values = [row["id"], *[format(row["summary"][m]["mean"], ".8g") if row["summary"][m]["mean"] is not None else "缺失" for m in order],
-                      " / ".join(f"{m}:{row['summary'][m]['count']}/{row['summary'][m]['expected']}" for m in order)]
+            order = ("csd", "gram", "adain", "lpips", "tone", "edges", "lines", "space")
+            summary = {m: row["summary"].get(m, {"mean": None, "count": 0, "expected": len(result["inputs"]["references"])}) for m in order}
+            values = [row["id"], *[format(summary[m]["mean"], ".8g") if summary[m]["mean"] is not None else "缺失" for m in order],
+                      " / ".join(f"{m}:{summary[m]['count']}/{summary[m]['expected']}" for m in order)]
             for column, value in enumerate(values):
                 self.deep_table.setItem(index, column, QTableWidgetItem(value))
         self.deep_table.resizeColumnsToContents()
+        from utils.style_face_metrics import LABELS as FACE_LABELS
+        face_rows = [(row["id"], m, summary) for row in result["rows"] for m, summary in row.get("face_summary", {}).items()]
+        self.deep_face_table.setRowCount(len(face_rows))
+        for index, (ident, metric, summary) in enumerate(face_rows):
+            values = (ident, FACE_LABELS[metric], format(summary["mean"], ".6g") if summary["mean"] is not None else "未确认 / 缺失", f"{summary['count']}/{summary['expected']}")
+            for column, text in enumerate(values):
+                self.deep_face_table.setItem(index, column, QTableWidgetItem(text))
+        self.deep_face_table.resizeColumnsToContents()
         self.deep_details.setPlainText(json.dumps(result["backend"], ensure_ascii=False, indent=2) + "\n" + LIMITS)
+        if not self._comparison_result:
+            self.set_task_state("error", "深度指标完成；视觉复核未完成，未选型")
+            self.progress_label.setText("深度指标完成；视觉复核未完成，尚未选用任何画风版本")
+            self.deep_details.append("\n视觉复核未完成：本地指标不检查主体替换。请重新比较并观察报告。")
         self.log_msg(f"深度指标 {result['status']}：{result['backend']['actual']} / {result['backend']['precision']}；报告 {result['report_path']}")
 
     def show_deep_details(self):
@@ -1771,6 +1901,8 @@ class StyleAnalyzerWidget(QWidget):
             self._loaded_image_paths = self._get_image_paths()
             self.test_prompt_input.setText(record["test_prompt"])
             self.test_ref_input.setText(record["style_reference"])
+            self.repaint_style_ref_cb.setChecked(seed["parameters"]["repaint_reference_mode"] == "style")
+            self._dataset_selection = seed.get("dataset_selection")
             self.total_rounds_spin.setValue(rounds)
             self.file_prefix_input.setText(seed["file_prefix"])
             self._output_dir = os.path.join(os.path.dirname(self._loaded_json_path), "resume-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
@@ -1794,6 +1926,11 @@ class StyleAnalyzerWidget(QWidget):
     def on_comparison_completed(self, result, error):
         self._comparison_result = result
         if error:
+            self.set_task_state("error", "视觉复核失败，未选型")
+            self.score_table.setRowCount(0)
+            self.import_style_btn.setEnabled(False)
+            self.formula_label.setText("视觉复核失败：未选出最佳版本；深度指标独立完成也不能替代主体复核。点击比较可复用已完成批次。")
+            self.progress_label.setText("分析已完成；视觉比较失败，选型未完成")
             self.score_details.setPlainText("比较失败；未选择最佳版本：" + error)
             self.log_msg("比较失败：" + error)
             return
@@ -1822,6 +1959,7 @@ class StyleAnalyzerWidget(QWidget):
         else:
             self.score_details.setPlainText("全部候选被排除，没有可自动选用的版本。")
         tied = result.get("tied_best_ids", [])
+        self.set_task_state("success", "视觉复核完成；并列候选待人工选择" if len(tied) > 1 else "视觉复核完成；观察报告后手动选用")
         if len(tied) > 1:
             self.formula_label.setText(self.formula_label.text() + f"\n{len(tied)} 个候选并列；默认行仅按 ID 排序，请结合图片与深度报告手动选用。")
         self.log_msg("比较完成，" + (f"{len(tied)} 个并列候选，待人工选择：" if len(tied) > 1 else "最佳：") + str(result["best_id"]) + ("（复用评分）" if result.get("cached") else ""))
@@ -1976,6 +2114,7 @@ class StyleAnalyzerWidget(QWidget):
         self._existing_state = existing_state
         self.total_rounds_spin.setValue(3)
         self.images_per_round_spin.setValue(int((existing_state.get("parameters") or {}).get("images_per_round", 4)))
+        self.repaint_style_ref_cb.setChecked((existing_state.get("parameters") or {}).get("repaint_reference_mode", "style") == "style")
         test_record = existing_state.get("final_test_images") or next(iter((existing_state.get("test_images") or {}).values()), {})
         self.test_prompt_input.setText(test_record.get("test_prompt", ""))
         self.test_ref_input.setText(test_record.get("style_reference", ""))
@@ -1986,10 +2125,14 @@ class StyleAnalyzerWidget(QWidget):
         self.import_style_btn.setEnabled(False)
         self.score_table.setRowCount(0)
         cached = existing_state.get("automatic_comparison")
-        if cached:
+        review_status = existing_state.get("automatic_comparison_status") or {}
+        if review_status.get("status") == "failed":
+            self.on_comparison_completed({}, f"已完成 {review_status.get('evaluated', 0)}/{review_status.get('expected', 0)} 个候选；" + review_status.get("error", ""))
+        elif cached:
             self.on_comparison_completed(cached, "")
         self._deep_result = {}
         self.deep_table.setRowCount(0)
+        self.deep_face_table.setRowCount(0)
         self.deep_details.setPlainText(LIMITS)
         if existing_state.get("deep_feature_comparison"):
             self.on_deep_completed(existing_state["deep_feature_comparison"], "")
@@ -2039,10 +2182,12 @@ class StyleAnalyzerWidget(QWidget):
     def clear_imported_state(self):
         self._deep_result = {}
         self.deep_table.setRowCount(0)
+        self.deep_face_table.setRowCount(0)
         self.deep_details.setPlainText(LIMITS)
         self._existing_state = None
         self._output_dir = ""
         self.total_rounds_spin.setValue(5)
+        self.repaint_style_ref_cb.setChecked(False)
         self._loaded_json_path = ""
         self._loaded_image_paths = []
         self._imported_prompts = ""
@@ -2083,6 +2228,8 @@ class StyleAnalyzerWidget(QWidget):
 
     def set_running_state(self, running, cancelling=False):
         self.deep_btn.setEnabled(not running)
+        self.face_regions_btn.setEnabled(not running)
+        self.deep_auto_regions.setEnabled(not running)
         self.deep_device_combo.setEnabled(not running)
         self.compare_btn.setEnabled(not running)
         self.resume_btn.setEnabled(not running)
@@ -2098,6 +2245,7 @@ class StyleAnalyzerWidget(QWidget):
         self.total_rounds_spin.setEnabled(not running)
         self.images_per_round_spin.setEnabled(not running)
         self.enable_test_gen_cb.setEnabled(not running)
+        self.repaint_style_ref_cb.setEnabled(not running)
         self.test_prompt_input.setEnabled(not running)
         self.test_ref_input.setEnabled(not running)
         self.test_ref_btn.setEnabled(not running)
@@ -2213,6 +2361,7 @@ class StyleAnalyzerWidget(QWidget):
             file_prefix=file_prefix,
             seed_prompts=self._imported_prompts if not self._existing_state else "",
             test_style_ref_path=test_style_ref_path,
+            repaint_reference_mode="style" if self.repaint_style_ref_cb.isChecked() else "none",
             dataset_selection=({**self._dataset_selection,
                 "manual_image_list_modified": effective_paths != self._dataset_selection.get("image_paths")}
                 if self._dataset_selection else None),
@@ -2251,6 +2400,7 @@ class StyleAnalyzerWidget(QWidget):
     def on_analysis_finished(self, status, text, output_path):
         self._deep_result = {}
         self.deep_table.setRowCount(0)
+        self.deep_face_table.setRowCount(0)
         self.deep_details.setPlainText(LIMITS)
         thread = self.thread
         self.thread = None

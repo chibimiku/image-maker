@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QDialog, QLineEdit
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread
+from PyQt6.QtGui import QPixmap
 
 from modules.image_analysis.single_analyzer import ImageGenWorkerThread
 from modules.others.api_backend import fetch_llm_json, _extract_json_object, resolve_text_api_key

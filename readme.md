@@ -6,9 +6,48 @@
 
 「多图画风提取」首次默认 5 轮、每轮检查 4 张图，支持导入外部 Agent 的筛图清单、三路测试生图、十二维视觉比较、观察报告后手动选版本及从指定结果续训。打开已有结果后默认新增 3 轮，例如已有 3 轮时继续第 4–6 轮。每次运行使用独立目录，并保留旧终审候选供比较。
 
-默认勾选「自动比较」与「自动深度指标」：视觉比较每批最多 4 个候选，保留成功批次缓存；Gram、AdaIN、LPIPS、CSD 独立运行，默认 **NPU 优先**。选「仅 Intel NPU」可避免回退到 CUDA。报告包含逐张对照、覆盖率、模型参数和实际设备证据，指标不换算百分比、不自动覆盖画风。更新 Python 代码后须重启 app。
+默认勾选「自动比较」与「自动深度指标」：视觉比较每批最多 4 个候选，保留成功批次缓存；Gram、AdaIN、LPIPS、CSD 独立运行，默认 **NPU 优先**。选「仅 Intel NPU」可避免回退到 CUDA。报告包含逐张对照、覆盖率、模型参数和实际设备证据，指标不换算百分比、不自动覆盖画风。更新 Python 代码后通常须重启 app；2026-10-06 本轮按用户要求暂不重启，已有 GUI 不会热更新，新 CLI 立即读取新版。
 
 详见 [操作与字段说明](docs/style-analyzer-workflow.md)、[深度指标验证记录](docs/style-extraction/deep-metrics-integration-20261004.md) 和 [DeepSeek 的 taya_oco 再识别 3 轮提示词](docs/style-extraction/deepseek-taya-oco-resume-3rounds.md)。
+
+## 双图画风相似度与面部 / 发丝指标
+
+`图片生成 → 画风相似度` 支持输入两张图片，显示 **8 组整图指标 + 13 项面部 / 发丝细项**。双图页、CLI 和「多图画风提取」统一调用 `utils/style_similarity.py` 的 `compare_images`；提取流程将各轮及终审的每张候选与每张源图分别配对，不另写一套评分逻辑。
+
+- 整图：Gram、AdaIN、LPIPS、CSD，以及明度层次、多尺度边缘、线条连续性、负空间。
+- 面部 / 发丝：发丝细腻程度、**仅发丝**连贯性、眼睛亮度、上下眼睑间距、睫毛画法统计、眼宽、双眼间距、眼睑弧度；另补虹膜占比、虹膜内高光、上下眼线粗细、眼角倾斜、眼鼻口比例。几何分量按脸宽或眼宽归一化。
+- 距离与局部统计贴近度分别报告，保留原始分量、逐对结果、覆盖率及版本；不合成未经校准的相似百分比，也不冒充 LoRA 训练 loss。任意参考配对缺失，该项正式均值保持空值。
+- 双图页默认开启「自动面部定位（文本 API）」，会调用当前看图文本模型生成并缓存定位候选；关闭后仅用已保存定位。画风提取的同名开关默认关闭，需手动开启。
+
+「面部 / 发丝定位…」可查看叠加曲线、滚轮放大、中键平移、逐点校正及确认定位。自动候选标记 `provisional`，仅显示暂定测量；两图定位都经过人工确认后才计正式均值。闭眼、遮挡、低分辨率或视角不可比不补分；发丝采样带必须全部位于标出的头发内部。定位按图片 SHA-256 保存到 `cache/style-regions/`，修改保留历史，结果缓存区分公式、图片 / 定位 hash、设备与精度。
+
+在项目根目录运行：
+
+```powershell
+# 本地指标；面部细项使用已保存定位，首次无定位时标为 unavailable：
+python tools/style_metrics_verify.py --similarity A.png B.png --device cpu --out cache/temp/similarity/result.json
+# 自动生成面部 / 发丝定位候选（会调用文本 API）：
+python tools/style_metrics_verify.py --similarity A.png B.png --locate-regions --device auto-npu
+# 一张候选逐张比较多张参考图：
+python tools/style_metrics_verify.py --similarity A.png B.png --reference C.png --reference D.png --device cpu
+# 已有画风提取结果：各轮候选 × 全部源图：
+python tools/style_metrics_verify.py --comparison-state path/to/state.json --device auto-npu
+# 导入已检查且匹配图片 hash 的定位：
+python tools/style_metrics_verify.py --similarity A.png B.png --regions A-regions.json --regions B-regions.json --device cpu
+# 共享入口及面部细项 unittest：
+python -m unittest discover -s tests -p test_style_similarity.py
+python -m unittest discover -s tests -p test_style_face_metrics.py
+```
+
+`--similarity` 是日常比较入口；原有 `--pair` 保留为四项深度指标的部署验证入口。默认双图 JSON / HTML 输出到 `cache/temp/style-similarity/<时间戳>/`。整图 `status` 与面部 `face_status` 分开，自动候选不能算面部完整成功。
+
+验证：相关完整回归 **138 passed / 5 skipped**，最后调整另复跑 **42 项全部通过**；真实 CPU 双图的整图八组均成功。局部测量通过可控图样验证，**自动定位尚未完成真实动漫图在线精度验收**。本轮不重启正在运行的 app，新页面待正常重启后加载。
+
+完整公式、字段与边界见 [共享画风相似度说明](docs/style-extraction/STYLE-SIMILARITY-20261006.md)。
+
+真实 Gemini 带参考图测试见 [Puracotte / Sakurapion 实测](docs/style-extraction/GEMINI-SIMILARITY-TEST-20261006.md)：两张产物×两张参考的全图八组指标均成功；Sakurapion 产物的深度指标更偏向 Puracotte。自动面部/发丝定位叠图精度未通过，细项仍需人工校正确认，不能把候选分数当正式相似度。
+
+下一步可靠性验收按 [DeepSeek 受控实验协议](docs/style-extraction/DEEPSEEK-SIMILARITY-CONTROLLED-EXPERIMENT-20261006.md) 执行，允许有账本的技术失败重试，禁止按分数挑选成功尝试；目前协议待执行。
 
 ## 画风参考图模式
 

@@ -144,7 +144,11 @@ def test_round_test_generation_returns_gemini_gpt_and_repaint(monkeypatch, tmp_p
     monkeypatch.setattr(styles, "compose_style_prompt", lambda *args, **kwargs: "gemini prompt")
     monkeypatch.setattr(ag, "build_gpt_image_request", lambda *args, **kwargs: {
         "prompt": "gpt prompt", "image_paths": [str(ref)]})
-    monkeypatch.setattr(ag, "run_gpt_image_pipeline", lambda *args, **kwargs: [str(repainted)])
+    def repaint(*args, **kwargs):
+        calls["repaint_steps"] = args[1]
+        calls["repaint_args"] = kwargs
+        return [str(repainted)]
+    monkeypatch.setattr(ag, "run_gpt_image_pipeline", repaint)
 
     worker = StyleIterativeWorkerThread(
         image_paths=[str(ref)], api_key="key", base_url="https://example.invalid/v1",
@@ -167,9 +171,15 @@ def test_round_test_generation_returns_gemini_gpt_and_repaint(monkeypatch, tmp_p
     }
     assert calls["gemini"]["aspect_ratio"] == "2:3"
     assert calls["gpt"]["aspect_ratio"] == "2:3"
+    assert calls["repaint_steps"]["repaint"]["reference_mode"] == "none"
+    assert calls["repaint_steps"]["repaint"]["clauses_without_image"] is True
+    assert calls["repaint_args"]["style_clauses"] == ["Keep contours continuous."]
+    worker.repaint_reference_mode = "style"
 
     worker._generate_test_image("FINAL MASTER", 1, "unused.json", package, stage="final")
     assert (tmp_path / "test-generations" / "final").is_dir()
+    assert calls["repaint_steps"]["repaint"]["reference_mode"] == "style"
+    assert calls["repaint_steps"]["repaint"]["clauses_without_image"] is False
 
 
 def test_gemini_config_failure_does_not_prevent_gpt_test(monkeypatch, tmp_path):
@@ -189,7 +199,12 @@ def test_gemini_config_failure_does_not_prevent_gpt_test(monkeypatch, tmp_path):
     worker = StyleIterativeWorkerThread(
         [], "key", "https://example.invalid/v1", "text", output_dir=str(tmp_path),
         test_prompt="subject")
-    outputs = worker._generate_test_image("MASTER", 1, "unused", stage="final")
+    package = {"gpt_image_prompt": (
+        "Palette: muted jewel tones\nLighting: soft side light\n"
+        "Brushwork: layered opaque strokes\nEdges: tapered coloured contours\n"
+        "Texture: fine paper grain\nComposition density: balanced negative space\n"
+        "Detail level: selective focal detail\nAvoid: global haze and copied content")}
+    outputs = worker._generate_test_image("MASTER", 1, "unused", package, stage="final")
     record = worker._test_image_record("MASTER", {}, outputs)
     assert outputs["gpt_first_pass"] == ["gpt.png"]
     assert outputs["gpt_repainted"] == ["repaint.png"]
@@ -206,6 +221,39 @@ def test_empty_output_is_failed_and_repaint_requires_first_pass(tmp_path):
     assert record["channel_status"]["gemini_direct"]["status"] == "failed"
     assert record["channel_status"]["gpt_first_pass"]["status"] == "failed"
     assert record["channel_status"]["gpt_repainted"]["status"] == "not_run"
+
+
+def test_invalid_gpt_short_never_sends_or_falls_back_but_gemini_still_runs(monkeypatch, tmp_path):
+    from unittest.mock import Mock
+    import modules.image_analysis.style_analyzer as sa
+    import utils.analysis_gen as ag
+    monkeypatch.setattr(sa, "get_api_config", lambda api_type: {"model": "configured-model"})
+    gemini = Mock(return_value=["gemini.png"])
+    gpt = Mock(return_value=["must-not-exist.png"])
+    build = Mock()
+    repaint = Mock()
+    monkeypatch.setattr(sa, "generate_image_aigc2d", gemini)
+    monkeypatch.setattr(sa, "generate_image_aigc2d_gpt", gpt)
+    monkeypatch.setattr(ag, "build_gpt_image_request", build)
+    monkeypatch.setattr(ag, "run_gpt_image_pipeline", repaint)
+    worker = StyleIterativeWorkerThread([], "key", "https://example.invalid/v1", "text",
+                                       output_dir=str(tmp_path), test_prompt="subject")
+    for short in ("", "broken short description", "Palette: muted tones"):
+        # Even an untrusted saved validity flag must not bypass fresh validation.
+        raw = {"gemini_full_prompt": "GEMINI FULL", "gpt_image_prompt": short, "gpt_image_prompt_valid": True}
+        package = normalize_style_prompt_package(raw, "MASTER MUST NOT BE SENT TO GPT")
+        outputs = worker._generate_test_image("MASTER MUST NOT BE SENT TO GPT", 1, "unused", raw)
+        assert outputs == {"gemini_direct": ["gemini.png"], "gpt_first_pass": [], "gpt_repainted": []}
+        record = worker._test_image_record("MASTER", package, outputs)
+        assert record["status"] == "partial"
+        assert record["channel_status"]["gpt_first_pass"]["status"] == "not_run"
+        assert "校验失败" in record["channel_status"]["gpt_first_pass"]["error"]
+        assert record["channel_status"]["gpt_repainted"]["status"] == "not_run"
+        assert "GPT 首图: 未测试" in sa.format_style_test_results(record)
+    assert gemini.call_count == 3
+    gpt.assert_not_called()
+    build.assert_not_called()
+    repaint.assert_not_called()
 
 
 def _stub_style_steps(monkeypatch, worker):
@@ -283,7 +331,8 @@ def test_gui_does_not_show_partial_final_test_as_full_success(tmp_path):
     states = []
     widget = SimpleNamespace(
         thread=None, set_running_state=lambda value: None,
-        deep_table=SimpleNamespace(setRowCount=lambda count: None), deep_details=Label(),
+        deep_table=SimpleNamespace(setRowCount=lambda count: None),
+        deep_face_table=SimpleNamespace(setRowCount=lambda count: None), deep_details=Label(),
         output_path_label=Label(), open_output_dir_btn=Label(), result_edit=Label(),
         progress_label=Label(), set_task_state=lambda status, text: states.append((status, text)),
         log_msg=lambda text: None)

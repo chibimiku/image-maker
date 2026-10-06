@@ -115,6 +115,8 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
     remove_photo_style = bool(config.get("remove_photo_style_single", False))
     outfit_style_override = str(config.get("outfit_style_override_single", "") or "").strip()
     enable_recompute_pixiv_tags = enable_outfit_check or remove_photo_style
+    from utils.refine_atmosphere import freeze
+    atmosphere_plan = freeze(config.get("refine_atmosphere"))
 
     if not api_key or not model_name:
         raise RuntimeError(
@@ -162,6 +164,7 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
         client,
         model_name,
         booru_tag_limit=booru_tag_limit,
+        atmosphere=atmosphere_plan,
         timeout_seconds=timeout_seconds,
         log_callback=(lambda m: _log(log_callback, m)),
     )
@@ -225,6 +228,8 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
         if original_booru_tags:
             final_result["booru-tags"] = original_booru_tags
 
+    from utils.refine_atmosphere import apply_result
+    apply_result(final_result, atmosphere_plan)
     # gpt-image 通道专用短提示词：单独字段（与 Gemini 用的长 prompts 分开，不混用）。
     # 两档：full（≤1400，不挂参考图/内容优先）与 short（≤500，要挂画风参考图时用；短文本才压得住参考图）。
     # 只有 gpt-image 通道会用这两个字段。判据：调用方显式 `compute_gpt_prompts=False`（只出
@@ -245,7 +250,7 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
         try:
             from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
                                                    SHORT_FIELD_MAX_CHARS, build_gpt_image_prompt)
-            desc = str(final_result.get("english_description") or "").strip()
+            desc = str(final_result.get("factual_english_description") or final_result.get("english_description") or "").strip()
             source_ratio = str(final_result.get("aspect_ratio") or "").strip()
             if desc:
                 text_cfg = {"base_url": base_url, "api_key": api_key, "model": model_name}
@@ -269,6 +274,8 @@ def analyze_single_image(image_path: str, config: dict, timeout_seconds: int = 3
         except Exception as exc:  # noqa: BLE001 - 该附加步骤失败不影响分析结果
             _log(log_callback, f"⚠️ gpt-image 短提示词生成失败，已跳过: {type(exc).__name__}: {exc}")
 
+    apply_result(final_result, atmosphere_plan,
+                 fields=("gpt_image_prompt", "gpt_image_prompt_short"))
     return final_result
 
 

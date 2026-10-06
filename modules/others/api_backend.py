@@ -576,16 +576,32 @@ def main():
         data = json.load(f)
 
     url = data["url"]
-    headers = data["headers"]
+    headers = dict(data["headers"])
     body = data.get("body")
+    # Resolve secrets only in memory; never print resolved values.
+    for name, spec in data.get("credential_headers", {}).items():
+        value = os.environ.get(spec["env"])
+        if not value:
+            raise SystemExit("Missing credential environment variable: " + spec["env"])
+        headers[name] = spec.get("prefix", "") + value
+    for field, env_field in (("url", "url_env"), ("body", "body_env")):
+        env = data.get(env_field)
+        if env:
+            value = os.environ.get(env)
+            if not value:
+                raise SystemExit("Missing replay environment variable: " + env)
+            if field == "url":
+                url = value
+            else:
+                body = json.loads(value)
 
     print(f"=== 请求 URL ===")
-    print(url)
+    print(data["url"])
     print(f"\n=== 请求 Headers ===")
-    print(json.dumps(headers, ensure_ascii=False, indent=2))
+    print(json.dumps(data["headers"], ensure_ascii=False, indent=2))
     if body:
         print(f"\n=== 请求 Body ===")
-        print(json.dumps(body, ensure_ascii=False, indent=2))
+        print(json.dumps(data.get("body"), ensure_ascii=False, indent=2))
     print("\n" + "=" * 60 + "\n正在发送请求...\n")
 
     resp = requests.post(url, headers=headers, json=body, timeout=120)
@@ -611,13 +627,9 @@ def _generate_request_replay(save_dir: str, file_prefix: str, api_tag: str,
         if isinstance(safe_body, dict):
             safe_body = _sanitize_log_data(safe_body)
 
-        request_data = {
-            "url": str(url or ""),
-            "headers": dict(headers or {}),
-            "body": safe_body,
-            "api_tag": api_tag,
-            "generated_at": datetime.now().isoformat()
-        }
+        from utils.request_replay import safe_request_snapshot
+        request_data = safe_request_snapshot(url, headers, safe_body)
+        request_data.update(api_tag=api_tag, generated_at=datetime.now().isoformat())
 
         json_path = os.path.join(save_dir, f"{base_name}.json")
         with open(json_path, "w", encoding="utf-8") as f:
@@ -835,6 +847,25 @@ def pick_gpt_image2_size_for_images(image_paths, fallback: str = None, tolerance
         except Exception:  # noqa: BLE001 - 读不了就继续尝试下一张
             continue
     return fallback_size
+
+
+def resolve_save_dir(save_sub_dir, today_str: str, fail_today: str = "") -> str:
+    """把 `save_sub_dir` 解析成实际落盘目录，并保护**绝对路径**不被 `data/<日期>/` 前缀污染。
+
+    历史写法是 `os.path.join("data", today_str, save_sub_dir)`。当调用方传的是相对子目录
+    （GUI 与分析链路的常规用法）时这没问题；但传绝对路径时会拼成
+    `data/20261005/D:\\code\\...` 这种畸形路径，产物散落且极难定位。
+    受控实验（每个候选包每次独立绝对输出目录）只能传绝对路径，所以这里统一收口：
+    绝对路径原样使用，相对路径仍拼在 `data/<日期>/` 下，行为与改动前一致。
+    `fail_today` 给了就用它当日期段（失败目录沿用调用方的日期）。
+    """
+    text = str(save_sub_dir or "").strip()
+    base = os.path.join("data", fail_today or today_str)
+    if not text:
+        return base
+    if os.path.isabs(text) or os.path.splitdrive(text)[0]:
+        return text
+    return os.path.join(base, text)
 
 
 def normalize_gpt_image2_size(size: str = None, aspect_ratio: str = None) -> str:
@@ -1242,7 +1273,7 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
             else:
                 logger.error("达到最大重试次数，openai-image 图片生成请求最终失败。")
                 fail_today = datetime.now().strftime("%Y%m%d")
-                fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+                fail_dir = resolve_save_dir(save_sub_dir, fail_today)
                 if debug_dump_full_http:
                     _save_debug_http_trace(
                         save_dir=fail_dir,
@@ -1278,7 +1309,7 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     except (KeyError, json.JSONDecodeError) as e:
         logger.error(f"解析 openai-image 返回 JSON 失败: {e}")
         fail_today = datetime.now().strftime("%Y%m%d")
-        fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+        fail_dir = resolve_save_dir(save_sub_dir, fail_today)
         if debug_dump_full_http:
             _save_debug_http_trace(
                 save_dir=fail_dir,
@@ -1306,7 +1337,7 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
     today_str = datetime.now().strftime("%Y%m%d")
-    save_dir = os.path.join("data", today_str, save_sub_dir) if save_sub_dir else os.path.join("data", today_str)
+    save_dir = resolve_save_dir(save_sub_dir, today_str)
     os.makedirs(save_dir, exist_ok=True)
     if debug_dump_full_http:
         _save_debug_http_trace(
@@ -1499,7 +1530,7 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
             else:
                 logger.error("达到最大重试次数，openrouter-image 图片生成请求最终失败。")
                 fail_today = datetime.now().strftime("%Y%m%d")
-                fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+                fail_dir = resolve_save_dir(save_sub_dir, fail_today)
                 if debug_dump_full_http:
                     _save_debug_http_trace(
                         save_dir=fail_dir,
@@ -1529,7 +1560,7 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
         except requests.exceptions.RequestException as e:
             logger.error(f"openrouter-image 请求失败: {e}")
             fail_today = datetime.now().strftime("%Y%m%d")
-            fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+            fail_dir = resolve_save_dir(save_sub_dir, fail_today)
             if debug_dump_full_http:
                 _save_debug_http_trace(
                     save_dir=fail_dir,
@@ -1566,7 +1597,7 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
     except (KeyError, json.JSONDecodeError) as e:
         logger.error(f"解析 openrouter-image 返回 JSON 失败: {e}")
         fail_today = datetime.now().strftime("%Y%m%d")
-        fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+        fail_dir = resolve_save_dir(save_sub_dir, fail_today)
         if debug_dump_full_http:
             _save_debug_http_trace(
                 save_dir=fail_dir,
@@ -1594,7 +1625,7 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
     today_str = datetime.now().strftime("%Y%m%d")
-    save_dir = os.path.join("data", today_str, save_sub_dir) if save_sub_dir else os.path.join("data", today_str)
+    save_dir = resolve_save_dir(save_sub_dir, today_str)
     os.makedirs(save_dir, exist_ok=True)
     if debug_dump_full_http:
         _save_debug_http_trace(
@@ -1854,7 +1885,7 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
                 time.sleep(retry_backoff_s * (attempt + 1))
 
     today_str = datetime.now().strftime("%Y%m%d")
-    save_dir = os.path.join("data", today_str, save_sub_dir) if save_sub_dir else os.path.join("data", today_str)
+    save_dir = resolve_save_dir(save_sub_dir, today_str)
     os.makedirs(save_dir, exist_ok=True)
 
     if resp is None:
@@ -1924,8 +1955,19 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         text = str(error or "").lower()
         return any(term in text for term in ("moderation_blocked", "safety system", "content_policy_violation"))
 
+    def _unsupported_generation_image(body):
+        error = body.get("error") if isinstance(body, dict) else None
+        if not isinstance(error, dict) or not valid_image_paths or use_edits_mode:
+            return False
+        message = str(error.get("message") or "").lower()
+        return (str(error.get("param") or "").lower() == "image"
+                and str(error.get("code") or "").lower() == "unknown_parameter") or (
+                    "unknown parameter: 'image'" in message
+                    or 'unknown parameter: "image"' in message)
+
     while (not isinstance(data_items, list) or not data_items) and upstream_retries > 0 \
-            and isinstance(resp_json, dict) and resp_json.get("error") and not _terminal_image_error(resp_json):
+            and isinstance(resp_json, dict) and resp_json.get("error") and not _terminal_image_error(resp_json) \
+            and not _unsupported_generation_image(resp_json):
         upstream_retries -= 1
         err_text = str((resp_json.get("error") or {}).get("message") or resp_json.get("error"))[:200]
         logger.warning(f"AIGC-2D-GPT 上游返回错误（{err_text}），重新发起请求（还剩 {upstream_retries} 次）…")
@@ -1957,12 +1999,13 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     if (not isinstance(data_items, list) or not data_items) and isinstance(resp_json, dict) \
             and resp_json.get("error") and not use_edits_mode \
             and not _terminal_image_error(resp_json) \
-            and "unknown parameter" in str(resp_json.get("error")).lower() \
-            and "image" in str(resp_json.get("error")).lower():
+            and _unsupported_generation_image(resp_json):
         logger.warning("AIGC-2D-GPT 上游不认 generations 的 image 字段 → 回退 /images/edits 重发一次")
         _emit("上游不支持「新建图片」模式的参考图字段，已回退到编辑端点重发")
         use_edits_mode = True
         request_url = _derive_edits_url_from_generations_url(url)
+        # multipart 已使用 image[] 文件；不要再把 generations 的 base64 image 字段当普通表单发送。
+        payload.pop("image", None)
         try:
             resp, request_trace_body = _post_once()
             if getattr(resp, "encoding", None) is None:
@@ -2220,7 +2263,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
             else:
                 logger.error("达到最大重试次数，图片生成请求最终失败。")
                 fail_today = datetime.now().strftime("%Y%m%d")
-                fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+                fail_dir = resolve_save_dir(save_sub_dir, fail_today)
                 if debug_dump_full_http:
                     _save_debug_http_trace(
                         save_dir=fail_dir,
@@ -2260,7 +2303,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
     except (KeyError, json.JSONDecodeError) as e:
         logger.error(f"解析返回 JSON 失败: {e}")
         fail_today = datetime.now().strftime("%Y%m%d")
-        fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+        fail_dir = resolve_save_dir(save_sub_dir, fail_today)
         raw_text = _response_text_utf8(resp) if resp is not None else str(e)
         if debug_dump_full_http:
             _save_debug_http_trace(
@@ -2299,10 +2342,7 @@ def generate_image_whatai(prompt: str, image_paths: list = None, model: str = "n
         return []
 
     today_str = datetime.now().strftime("%Y%m%d")
-    if save_sub_dir:
-        save_dir = os.path.join("data", today_str, save_sub_dir)
-    else:
-        save_dir = os.path.join("data", today_str)
+    save_dir = resolve_save_dir(save_sub_dir, today_str)
     os.makedirs(save_dir, exist_ok=True)
     if debug_dump_full_http:
         _save_debug_http_trace(
@@ -2662,7 +2702,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                 logger.error("达到最大重试次数，AIGC2D 图片生成请求最终失败。")
                 _log(f"[生成/api] 请求最终失败: {e}")
                 fail_today = datetime.now().strftime("%Y%m%d")
-                fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+                fail_dir = resolve_save_dir(save_sub_dir, fail_today)
                 if debug_dump_full_http:
                     _save_debug_http_trace(
                         save_dir=fail_dir,
@@ -2716,7 +2756,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     except (KeyError, json.JSONDecodeError) as e:
         logger.error(f"解析 AIGC2D 返回 JSON 失败: {e}")
         fail_today = datetime.now().strftime("%Y%m%d")
-        fail_dir = os.path.join("data", fail_today, save_sub_dir) if save_sub_dir else os.path.join("data", fail_today)
+        fail_dir = resolve_save_dir(save_sub_dir, fail_today)
         if debug_dump_full_http:
             _save_debug_http_trace(
                 save_dir=fail_dir,
@@ -2756,10 +2796,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
 
     # 提取图片并保存
     today_str = datetime.now().strftime("%Y%m%d")
-    if save_sub_dir:
-        save_dir = os.path.join("data", today_str, save_sub_dir)
-    else:
-        save_dir = os.path.join("data", today_str)
+    save_dir = resolve_save_dir(save_sub_dir, today_str)
+
     os.makedirs(save_dir, exist_ok=True)
     if debug_dump_full_http:
         _save_debug_http_trace(

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>prompt_gemini + 参考图 专项优化对照</title>
+<style>
+body { margin:0; padding:26px 30px 70px; background:#fafafb; color:#1b1b20;
+        font:14px/1.65 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+h1 { font-size:23px; margin:0 0 8px; }
+h2 { font-size:17px; margin:34px 0 6px; padding-bottom:5px; border-bottom:2px solid #e4e4e8; }
+.sub { color:#6b6b73; margin:0 0 12px; font-size:13.5px; }
+.row { display:flex; gap:12px; flex-wrap:wrap; }
+.card { background:#fff; border:1px solid #e4e4e8; border-radius:10px; padding:8px; width:298px; }
+.card img { width:100%; height:auto; display:block; border-radius:6px; }
+.card.missing { display:flex; align-items:center; justify-content:center; min-height:180px; color:#999; }
+.cap { font-size:12.5px; margin-top:6px; color:#3a3a42; }
+.cap b { display:block; font-size:13.5px; }
+.cap span { display:block; color:#6b6b73; }
+.cap .m { color:#1d6b31; font-variant-numeric:tabular-nums; }
+code { background:#f1f2f5; padding:1px 5px; border-radius:4px; }
+table { border-collapse:collapse; background:#fff; font-size:13.5px; margin:10px 0; }
+th, td { border:1px solid #e4e4e8; padding:6px 10px; text-align:left; vertical-align:top; }
+th { background:#f2f3f6; }
+</style></head><body>
+<h1>prompt_gemini + 参考图 · 专项优化对照</h1>
+<p class="sub">2026-10-06 · <code>gemini-3-pro-image-preview</code> · 2K · 参考优先模式（priority）·
+指标来自 <code>tests/calc_style_similarity.py</code>（palette、gram 越低越接近参考图；copy 越高越像搬了参考图的角色/构图）。
+点图可看原图。</p>
+<h2>① ccccanh｜优化前后（同一内容源：紫薔薇の微笑み）</h2><p class="sub">条件全部相同：Gemini 直出 + 参考优先 + <code>gemini_content_field=gpt_image_prompt_short</code>。palette / gram 越低越像参考图，copy 越高越像「把参考角色搬进来」。</p><div class="row"><div class="card"><a href="data/test-result/style-lab/assets-final/cccccanh.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/cccccanh.jpg"></a><div class="cap"><b>参考图</b><span>水彩、湿边、留白多</span><span class="m"></span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/cccccanh-compact_021552-a100d5.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/cccccanh-compact_021552-a100d5.jpg"></a><div class="cap"><b>改前：塞全文 5250 字符</b><span>请求文本 13877；参考图被自己的文字压死</span><span class="m"></span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/cccccanh-compact_short_022433-6642a7.png" target="_blank"><img src="data/test-result/style-lab/assets-final/cccccanh-compact_short_022433-6642a7.png"></a><div class="cap"><b>第一次修复（1889 字符）</b><span>水彩感出来了，但背景出现暗块</span><span class="m"></span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/cccccanh-v5-anchor_short_023612-6d2ca4.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/cccccanh-v5-anchor_short_023612-6d2ca4.jpg"></a><div class="cap"><b>本轮最优 v5（1985 字符）</b><span>负向约束 + 让边缘溶解进背景</span><span class="m">palette 0.304 · gram 0.878 · copy 0.004</span></div></div></div><h2>② ccccanh｜换浅色内容源复验（白き浮輪と金糸の午後）</h2><p class="sub">上一行的暗块其实来自内容锚里的 “dark panels”。换一个全浅色的内容源，检验颜色是不是被内容本身带暗。</p><div class="row"><div class="card"><a href="data/test-result/style-lab/assets-final/cccccanh-anchor_short_023844-b51da5.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/cccccanh-anchor_short_023844-b51da5.jpg"></a><div class="cap"><b>落地配置复验</b><span>当前 conf 的 ccccanh（v5）</span><span class="m">palette 0.332 · gram 0.906 · copy 0.316</span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/cccccanh-v5-anchor_short_023612-6d2ca4.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/cccccanh-v5-anchor_short_023612-6d2ca4.jpg"></a><div class="cap"><b>v5 · 浅色内容</b><span>水彩 + 淡彩 + 大面积留白</span><span class="m">palette 0.304 · gram 0.878 · copy 0.004</span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/cccccanh-anchor_short_023613-79324f.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/cccccanh-anchor_short_023613-79324f.jpg"></a><div class="cap"><b>v4 · 浅色内容</b><span>对照版本</span><span class="m">palette 0.282 · gram 0.933 · copy 0.328</span></div></div></div><h2>③ puracotte-style｜参考图是「清透高光」型，旧说明写的是「现代动漫 + 宝石高光」</h2><p class="sub">旧 <code>prompt_compressed</code> 只有 820 字符、且强调 specular / gem-like；本轮重写成 1755 字符的描绘画法版。</p><div class="row"><div class="card"><a href="data/test-result/style-lab/assets-final/puracotte-style.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/puracotte-style.jpg"></a><div class="cap"><b>参考图</b><span>白/淡紫、通透、发丝细节、柔和气泡光</span><span class="m"></span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/puracotte-style-compact_short_022510-2963ae.png" target="_blank"><img src="data/test-result/style-lab/assets-final/puracotte-style-compact_short_022510-2963ae.png"></a><div class="cap"><b>改前：820 字符 matte 版（旧写法）</b><span>偏平、偏暗、细节糊</span><span class="m"></span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/puracotte-style-anchor_short_023712-fa30f3.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/puracotte-style-anchor_short_023712-fa30f3.jpg"></a><div class="cap"><b>改前 + 短内容锚</b><span>偏柔、质感弱</span><span class="m">palette 0.279 · gram 0.930 · copy 0.006</span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/puracotte-style-v3-anchor_short_023640-c85dda.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/puracotte-style-v3-anchor_short_023640-c85dda.jpg"></a><div class="cap"><b>本轮最优 v3（1755 字符）</b><span>清透、通透、质感更强</span><span class="m">palette 0.354 · gram 0.915 · copy 0.008</span></div></div></div><h2>④ millon-knots｜同类根因未修（prompt_gemini 与 prompt 逐字相同，5632 字符）</h2><p class="sub">priority 模式下头部实收 5632 字符、且缺 <code>gemini_content_field</code>：文字把参考图的角色、配色一起带走。</p><div class="row"><div class="card"><a href="data/test-result/style-lab/assets-final/millon-knots.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/millon-knots.jpg"></a><div class="cap"><b>参考图</b><span>明亮、水感、蓝金</span><span class="m"></span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/millon-knots-compact_022008-99b4e2.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/millon-knots-compact_022008-99b4e2.jpg"></a><div class="cap"><b>现状（5632 字符）</b><span>蓝发角色整只被搬进来</span><span class="m"></span></div></div><div class="card"><a href="data/test-result/style-lab/assets-final/millon-knots-anchor_short_022040-b3b502.jpg" target="_blank"><img src="data/test-result/style-lab/assets-final/millon-knots-anchor_short_022040-b3b502.jpg"></a><div class="cap"><b>短规格 + 短锚</b><span>palette 最接近参考图，但仍需身份锁</span><span class="m"></span></div></div></div>
+<h2>⑤ 结论与判据</h2>
+<table>
+<tr><th style="width:34%">结论</th><th>证据</th></tr>
+<tr><td>画风说明越长，配色越偏</td>
+    <td>ccc canh：请求 13877 字符 → palette 0.387；4708 字符 → 0.25~0.28。横向 8 个画风也呈同向。</td></tr>
+<tr><td>内容锚必须用<b>短</b>的（<code>gpt_image_prompt_short</code>）</td>
+    <td>ccc canh：长锚 palette 0.376 / 短锚 0.239；puracotte：长锚 0.210 / 短锚 0.109，copy 从 0.24 降到 0.01。</td></tr>
+<tr><td>只砍文字、不挂内容锚 → 参考角色被整只搬进来</td>
+    <td>ccc canh「只换短说明」copy-risk 0.885；millon-knots 现状 copy 0.19~0.32。</td></tr>
+<tr><td>负向约束写具体才有效</td>
+    <td>ccc canh v5 写明 no dark panel / vignette / rim glow / bloom / bokeh → palette 0.275、copy 0.012。</td></tr>
+<tr><td>「matte」写太狠会连参考图的高光质感一起删掉</td>
+    <td>puracotte v2「完全不反光」→ render 0.83；v3/v6 改回「柔和高光 + 发丝细节」→ render 0.94。</td></tr>
+<tr><td>内容锚里的词会直接决定画面</td>
+    <td>「dark panels」把暗块画进背景；换全浅色内容源后同一套画风说明不再出暗块。</td></tr>
+</table>
+<p class="sub">脚本与原始记录：<code>data/test-result/style-lab/</code>（<code>style_lab.py</code> / <code>run_plan.py</code> /
+<code>score_round.py</code> / <code>mkround1..6 + final-check 的 jsonl</code> / <code>sim-*.json</code> / <code>variants/</code>）。</p>
+</body></html>

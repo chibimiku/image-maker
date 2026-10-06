@@ -200,7 +200,7 @@ def test_rerun_history_record_resubmits_same_source_with_gen_target(qapp, monkey
 
     calls = []
 
-    def fake_launch(image_source_snapshot, gen_targets=None, header_note=None):
+    def fake_launch(image_source_snapshot, gen_targets=None, header_note=None, **kwargs):
         calls.append({
             "image_source": image_source_snapshot,
             "gen_targets": list(gen_targets or []),
@@ -370,6 +370,80 @@ def test_on_process_finished_honours_forced_gen_targets(qapp, monkeypatch, tmp_p
 
 
 # ==================== 终止分析（含重试等待） ====================
+
+
+@pytest.mark.parametrize("initial_save", [False, True])
+def test_analysis_submission_freezes_save_and_generation_options(qapp, monkeypatch, tmp_path, initial_save):
+    widget = _make_widget(monkeypatch)
+    _patch_fake_worker_thread(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(single_analyzer_module, "get_single_analyzer_missing_prompt_files", lambda **kw: [])
+    source = tmp_path / "source" / "girl.png"
+    source.parent.mkdir()
+    Image.new("RGB", (4, 4)).save(source)
+    widget.auto_gen_ref_cb.setChecked(True)
+    widget.save_to_source_dir_cb.setChecked(initial_save)
+    widget.gen_channel_gemini.setChecked(True)
+    thread = widget._launch_analysis_task(str(source))
+    # 分析尚未返回时，切到相反模式和另一生图通道。
+    widget.save_to_source_dir_cb.setChecked(not initial_save)
+    widget.auto_gen_ref_cb.setChecked(False)
+    widget.gen_channel_gpt.setChecked(True)
+    calls = []
+    monkeypatch.setattr(widget, "trigger_image_generation", lambda *a, **kw: calls.append(kw) or False)
+    widget.on_process_finished(thread, {
+        "japanese_title": "題", "english_description": "refined", "original_english_description": "original"})
+    record = widget._analysis_history[thread.meta_task_id]
+    if initial_save:
+        assert not calls
+        assert os.path.dirname(record["saved_json_path"]) == str(source.parent)
+        assert record["status"] == "success"
+    else:
+        assert len(calls) == 1 and calls[0]["channel"] == "gemini"
+        assert os.path.dirname(record["saved_json_path"]) != str(source.parent)
+        assert record["status"] == "error"
+    widget.close()
+
+
+def test_clipboard_rerun_never_saves_analysis_into_snapshot_directory(qapp, monkeypatch, tmp_path):
+    widget = _make_widget(monkeypatch)
+    _patch_fake_worker_thread(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(single_analyzer_module, "get_single_analyzer_missing_prompt_files", lambda **kw: [])
+    snapshot = widget._save_clipboard_snapshot(Image.new("RGB", (4, 4)))
+    widget.save_to_source_dir_cb.setChecked(True)
+    widget.auto_gen_ref_cb.setChecked(True)
+    # 显式重跑并生图须胜过「仅保存」；没有显式目标的快照也不能使用原图目录。
+    assert not widget._snapshot_analysis_options(snapshot)["save_to_source"]
+    thread = widget._launch_analysis_task(snapshot, gen_targets=["refined"])
+    assert widget._analysis_history[thread.meta_task_id]["source_origin"] == "clipboard"
+    calls = []
+    monkeypatch.setattr(widget, "trigger_image_generation", lambda *a, **kw: calls.append(a) or False)
+    widget.on_process_finished(thread, {"japanese_title": "題", "english_description": "refined"})
+    record = widget._analysis_history[thread.meta_task_id]
+    assert calls == [("refined",)]
+    assert os.path.dirname(record["saved_json_path"]) != os.path.dirname(snapshot)
+    assert all(p.endswith(".png") for p in os.listdir(os.path.dirname(snapshot)))
+    widget.close()
+
+
+def test_switch_generation_save_generation_applies_only_to_new_submissions(qapp, monkeypatch, tmp_path):
+    widget = _make_widget(monkeypatch)
+    _patch_fake_worker_thread(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(single_analyzer_module, "get_single_analyzer_missing_prompt_files", lambda **kw: [])
+    source = tmp_path / "girl.png"
+    Image.new("RGB", (4, 4)).save(source)
+    widget.auto_gen_ref_cb.setChecked(True)
+    first = widget._launch_analysis_task(str(source))
+    widget.save_to_source_dir_cb.setChecked(True)
+    second = widget._launch_analysis_task(str(source))
+    widget.show_clipboard_preview(Image.new("RGB", (4, 4)))
+    third = widget._launch_analysis_task(Image.new("RGB", (4, 4)))
+    assert [t.meta_analysis_options["gen_targets"] for t in (first, second, third)] == [["refined"], [], ["refined"]]
+    assert [t.meta_analysis_options["save_to_source"] for t in (first, second, third)] == [False, True, False]
+    assert widget.auto_gen_ref_cb.isEnabled()
+    widget.close()
 
 
 class _StubAnalysisThread:
@@ -693,7 +767,7 @@ def test_pickup_without_checkpoints_without_prompts_offers_rerun_analysis(qapp, 
     assert widget._pickup_generation_history(record) is True
     assert seen["channel"] == "gemini"          # 记录没标通道 → 按 Gemini 记录处理
     assert seen["summary"]                      # 确认框里有参数清单
-    assert launched and launched[0]["targets"] is None      # 只做分析
+    assert launched and launched[0]["targets"] == []      # 只做分析
     assert launched[0]["snapshot"] == record["source_path"]
     widget.close()
 
@@ -788,7 +862,7 @@ def test_pickup_without_checkpoints_keeps_gpt_records_on_gpt_path(qapp, monkeypa
 
     assert widget._pickup_generation_history(record) is True
     assert seen["channel"] == "gpt-image"       # 通道沿记录走，不改成 Gemini
-    assert launched and launched[0]["targets"] is None
+    assert launched and launched[0]["targets"] == []
     widget.close()
 
 

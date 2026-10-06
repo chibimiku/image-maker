@@ -1,0 +1,255 @@
+{
+  "kind": "independent-offline-evidence-audit",
+  "pack_hash": "e8ef077a0079b91ba5829d120a6d719762b0608ed38d7611f0f380c249058334",
+  "runtime_hash": "4a3ec9c9f6bf589c08b00e6c581f0f1c796db947e31572aa8dec0a0f61984856",
+  "no_network": true,
+  "original_evidence_modified": false,
+  "checks": [
+    {
+      "check": "pack canonical hash",
+      "passed": true
+    },
+    {
+      "check": "pack bytes same as source",
+      "passed": true
+    },
+    {
+      "check": "runtime hash",
+      "passed": true
+    },
+    {
+      "check": "source:utils/theme_color.py",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-profiles-v1.json",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-contract-v1.md",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-direction-v2.json",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-binding-v2.md",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-auxiliary-v2.md",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-direction-v2.md",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/book-generation-knowledge-v3.json",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-chroma-validation-v2-scenes.json",
+      "passed": true
+    },
+    {
+      "check": "source:prompts/color-knowledge/theme-color-chroma-validation-v2-review.md",
+      "passed": true
+    },
+    {
+      "check": "S1-A:request body",
+      "passed": true
+    },
+    {
+      "check": "S1-A:image hash",
+      "passed": true
+    },
+    {
+      "check": "S1-A:plan sidecar",
+      "passed": true
+    },
+    {
+      "check": "S1-A:one wire replay",
+      "passed": true
+    },
+    {
+      "check": "S1-A:wire literal prompt",
+      "passed": true
+    },
+    {
+      "check": "S1-A:credentials redacted",
+      "passed": true
+    },
+    {
+      "check": "S1-B:request body",
+      "passed": true
+    },
+    {
+      "check": "S1-B:image hash",
+      "passed": true
+    },
+    {
+      "check": "S1-B:plan sidecar",
+      "passed": true
+    },
+    {
+      "check": "S1-B:one wire replay",
+      "passed": true
+    },
+    {
+      "check": "S1-B:wire literal prompt",
+      "passed": true
+    },
+    {
+      "check": "S1-B:credentials redacted",
+      "passed": true
+    },
+    {
+      "check": "S1-C:request body",
+      "passed": true
+    },
+    {
+      "check": "S1-C:image hash",
+      "passed": true
+    },
+    {
+      "check": "S1-C:plan sidecar",
+      "passed": true
+    },
+    {
+      "check": "S1-C:one wire replay",
+      "passed": true
+    },
+    {
+      "check": "S1-C:wire literal prompt",
+      "passed": true
+    },
+    {
+      "check": "S1-C:credentials redacted",
+      "passed": true
+    },
+    {
+      "check": "S2-A:request body",
+      "passed": true
+    },
+    {
+      "check": "S2-A:image hash",
+      "passed": true
+    },
+    {
+      "check": "S2-A:plan sidecar",
+      "passed": true
+    },
+    {
+      "check": "S2-A:one wire replay",
+      "passed": true
+    },
+    {
+      "check": "S2-A:wire literal prompt",
+      "passed": true
+    },
+    {
+      "check": "S2-A:credentials redacted",
+      "passed": true
+    },
+    {
+      "check": "S2-B:request body",
+      "passed": true
+    },
+    {
+      "check": "S2-B:image hash",
+      "passed": true
+    },
+    {
+      "check": "S2-B:plan sidecar",
+      "passed": true
+    },
+    {
+      "check": "S2-B:one wire replay",
+      "passed": true
+    },
+    {
+      "check": "S2-B:wire literal prompt",
+      "passed": true
+    },
+    {
+      "check": "S2-B:credentials redacted",
+      "passed": true
+    },
+    {
+      "check": "S2-C:request body",
+      "passed": true
+    },
+    {
+      "check": "S2-C:image hash",
+      "passed": true
+    },
+    {
+      "check": "S2-C:plan sidecar",
+      "passed": true
+    },
+    {
+      "check": "S2-C:one wire replay",
+      "passed": true
+    },
+    {
+      "check": "S2-C:wire literal prompt",
+      "passed": true
+    },
+    {
+      "check": "S2-C:credentials redacted",
+      "passed": true
+    },
+    {
+      "check": "S1-tone:review hashes",
+      "passed": true
+    },
+    {
+      "check": "S1-tone:mapping",
+      "passed": true
+    },
+    {
+      "check": "S1-tone:input image S1-A",
+      "passed": true
+    },
+    {
+      "check": "S1-tone:input image S1-B",
+      "passed": true
+    },
+    {
+      "check": "S1-tone:input image S1-C",
+      "passed": true
+    },
+    {
+      "check": "S2-tone:review hashes",
+      "passed": true
+    },
+    {
+      "check": "S2-tone:mapping",
+      "passed": true
+    },
+    {
+      "check": "S2-tone:input image S2-A",
+      "passed": true
+    },
+    {
+      "check": "S2-tone:input image S2-B",
+      "passed": true
+    },
+    {
+      "check": "S2-tone:input image S2-C",
+      "passed": true
+    },
+    {
+      "check": "budget",
+      "passed": true
+    },
+    {
+      "check": "derived statistics reproducible",
+      "passed": true
+    }
+  ],
+  "failed": [],
+  "hash_conventions": "Image/source files: bytes SHA-256; text records: UTF-8 with universal newline; response: ensure_ascii=False, sort_keys=True JSON with default separators; color sidecar embeds color_plan."
+}

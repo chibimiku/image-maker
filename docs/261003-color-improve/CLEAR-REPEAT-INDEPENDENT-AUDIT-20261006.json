@@ -1,0 +1,967 @@
+{
+  "checks": 181,
+  "passed": 181,
+  "direction_counts": {
+    "B-A": 0,
+    "C-A": 2,
+    "C-B": 3
+  },
+  "binding_observations": 27,
+  "truncated_replay_slots": [
+    "C1",
+    "C2",
+    "C3"
+  ],
+  "metric_status_counts": {
+    "metrics": [
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd",
+      "gram",
+      "adain",
+      "lpips",
+      "csd"
+    ],
+    "status_counts": {
+      "ok": 36
+    },
+    "all_ok": true
+  },
+  "scope": "Read-only offline checks; no model calls; no original evidence or images modified",
+  "checks_detail": [
+    {
+      "name": "pack canonical",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "ledger pack",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "sources",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "image counter",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "review counter",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "retained timeout",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "recorded resend",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 replay prefix dir-A1_aigc2d_replay_102837_14af0f.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A1 replay prefix dir-A1_aigc2d_replay_103933_5968eb.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A2 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A2 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A2 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A2 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A2 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A2 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A2 replay prefix dir-A2_aigc2d_replay_103959_7b0b37.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A3 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A3 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A3 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A3 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A3 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A3 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "A3 replay prefix dir-A3_aigc2d_replay_104024_ca34ae.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1 replay prefix dir-B1_aigc2d_replay_104048_75b172.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B2 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B2 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B2 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B2 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B2 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B2 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B2 replay prefix dir-B2_aigc2d_replay_104109_ee82a7.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B3 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B3 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B3 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B3 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B3 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B3 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B3 replay prefix dir-B3_aigc2d_replay_104143_ff945b.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1 replay prefix dir-C1_aigc2d_replay_104204_96169b.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C2 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C2 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C2 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C2 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C2 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C2 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C2 replay prefix dir-C2_aigc2d_replay_104233_8c3a56.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C3 production plan",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C3 compile",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C3 prompt hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C3 actual arguments",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C3 prompt file",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C3 original image hash",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C3 replay prefix dir-C3_aigc2d_replay_104253_7b0660.json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R1 balanced mapping",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R1 raw hash",
+      "passed": true,
+      "detail": "Producer hash convention: UTF-8 text with universal newline decoding; parsed JSON uses sorted keys and default separators."
+    },
+    {
+      "name": "R1 response hash",
+      "passed": true,
+      "detail": "Producer hash convention: UTF-8 text with universal newline decoding; parsed JSON uses sorted keys and default separators."
+    },
+    {
+      "name": "R1 input hash N1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R1 input hash N2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R1 input hash N3",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R1 binding coverage N1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R1 binding coverage N2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R1 binding coverage N3",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R2 balanced mapping",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R2 raw hash",
+      "passed": true,
+      "detail": "Producer hash convention: UTF-8 text with universal newline decoding; parsed JSON uses sorted keys and default separators."
+    },
+    {
+      "name": "R2 response hash",
+      "passed": true,
+      "detail": "Producer hash convention: UTF-8 text with universal newline decoding; parsed JSON uses sorted keys and default separators."
+    },
+    {
+      "name": "R2 input hash N1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R2 input hash N2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R2 input hash N3",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R2 binding coverage N1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R2 binding coverage N2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R2 binding coverage N3",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R3 balanced mapping",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R3 raw hash",
+      "passed": true,
+      "detail": "Producer hash convention: UTF-8 text with universal newline decoding; parsed JSON uses sorted keys and default separators."
+    },
+    {
+      "name": "R3 response hash",
+      "passed": true,
+      "detail": "Producer hash convention: UTF-8 text with universal newline decoding; parsed JSON uses sorted keys and default separators."
+    },
+    {
+      "name": "R3 input hash N1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R3 input hash N2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R3 input hash N3",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R3 binding coverage N1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R3 binding coverage N2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R3 binding coverage N3",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metrics36",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 0 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 0 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 0 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 1 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 1 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 2 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 2 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 3 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 3 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 4 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 4 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 4 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 5 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 5 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 6 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 6 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 7 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 7 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 8 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 8 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 8 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 9 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 9 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 10 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 10 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 11 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 11 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 12 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 12 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 12 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 13 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 13 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 14 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 14 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 15 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 15 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 16 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 16 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 16 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 17 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 17 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 18 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 18 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 19 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 19 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 20 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 20 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 20 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 21 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 21 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 22 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 22 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 23 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 23 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 24 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 24 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 24 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 25 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 25 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 26 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 26 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 27 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 27 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 28 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 28 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 28 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 29 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 29 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 30 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 30 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 31 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 31 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 32 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 32 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 32 gram version",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 33 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 33 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 34 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 34 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 35 validity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "metric 35 original hashes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "nine correct pairs",
+      "passed": true,
+      "detail": null
+    }
+  ]
+}

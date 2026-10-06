@@ -12,6 +12,19 @@ from utils.style_metrics import gram, adain
 
 
 class DeepComparisonTests(unittest.TestCase):
+    def test_report_keeps_partial_visual_gates_and_pending_candidates_visible(self):
+        from modules.image_analysis.style_deep_comparison import write_report
+        with tempfile.TemporaryDirectory() as directory:
+            image = Path(directory) / "reference.png"
+            Image.new("RGB", (16, 16), "red").save(image)
+            result = {"inputs": {"references": [{"path": str(image)}]}, "rows": [
+                {"id": name, "path": str(image), "summary": {m: {"mean": 1} for m in ("gram", "adain", "lpips", "csd")}} for name in ("copied", "pending")]}
+            state = {"automatic_comparison_status": {"status": "failed", "evaluated": 1, "expected": 2,
+                "partial_assessments": [{"id": "copied", "reference_content_copied": True, "reason": "复制了书本"}]}}
+            report = Path(write_report(result, directory, state)).read_text(encoding="utf-8")
+            for text in ("1/2", "未选出最佳版本", "排除：复制参考内容", "待复核", "原始参考数据", "reference.png", "复制了书本"):
+                self.assertIn(text, report)
+
     def test_statistics_match_deployed_formula(self):
         generator = torch.Generator().manual_seed(47)
         a = {k: torch.rand(1, c, 12, 9, generator=generator) for k, c in (("a", 4), ("b", 8))}
@@ -46,7 +59,8 @@ class DeepComparisonTests(unittest.TestCase):
             publish(path, inputs, result, root / "result.json")
             self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["unrelated"], "preserve")
             report = Path(result["report_path"]).read_text(encoding="utf-8")
-            self.assertIn("data:image/png;base64", report)
+            self.assertIn("data:image/", report)
+            self.assertIn(";base64,", report)
             self.assertIn("Gatys", report)
             before = path.read_bytes()
             Image.new("RGB", (16, 16), "blue").save(image)

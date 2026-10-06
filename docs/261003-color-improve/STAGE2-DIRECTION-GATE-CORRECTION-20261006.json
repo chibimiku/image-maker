@@ -1,0 +1,725 @@
+{
+  "kind": "offline-requalification-v2",
+  "source": "data/test-result/20261005/color-direction-app-v2-validation-v1",
+  "original_results_sha256": "3ba38fb8f3d8336aa0d67deebae66e541f6f8d001eceb317faa4eba758ae5d8a",
+  "no_network": true,
+  "original_files_modified": false,
+  "legacy_region_labels": "Chinese labels retained; literal coverage is not inferred and requires human inspection.",
+  "directions": {
+    "bright": {
+      "scenes": [
+        {
+          "scene_id": "S1",
+          "slot_id": "S1-B",
+          "variant_id": "B",
+          "review_status": "reviewed",
+          "pairwise": {
+            "lighter": "N2",
+            "ids": [
+              "N2",
+              "N3"
+            ],
+            "evidence_regions": [
+              "天空",
+              "海面",
+              "石地",
+              "藤椅"
+            ],
+            "measure": "lighter",
+            "confounded": true,
+            "reason": "N2 的天空和海面整体更接近浅蓝灰，地面也更明亮；N3 的地面和藤椅阴影更明显。但两者人物和椅子的尺寸、位置及地面暴露范围不同，结论受几何差异影响。",
+            "other_is_lighter": true,
+            "a_is_lighter": false,
+            "tie_or_uncertain": false
+          },
+          "content_status": "uncertain",
+          "verdict": "observed_but_content_uncertain",
+          "observation": {
+            "id": "N2",
+            "content_status": "uncertain",
+            "content_issues": [
+              "画面下方清楚可见一只黑色靴子，另一只靴子可能被裙摆或裁切遮挡，因此无法确认双靴均完整可见。",
+              "人物姿态较接近迈步或重心偏移，不完全像明确的放松站立姿势。"
+            ],
+            "palette_status": "conform",
+            "binding_observations": [
+              {
+                "region": "天空",
+                "visible": "yes",
+                "observed_hue_family": "浅冷蓝和蓝灰",
+                "status": "conform",
+                "evidence": "天空呈浅冷蓝色，属于声明的冷蓝/ muted blue-grey 范围。"
+              },
+              {
+                "region": "海面",
+                "visible": "yes",
+                "observed_hue_family": "浅蓝灰",
+                "status": "conform",
+                "evidence": "海面是独立可见的浅蓝灰色表面。"
+              },
+              {
+                "region": "腰部飘带",
+                "visible": "yes",
+                "observed_hue_family": "中等红色",
+                "status": "conform",
+                "evidence": "腰部飘带为红色，未见明显粉色化。"
+              },
+              {
+                "region": "椅垫",
+                "visible": "yes",
+                "observed_hue_family": "红色",
+                "status": "conform",
+                "evidence": "单个藤椅椅垫清楚可见，呈红色。"
+              }
+            ],
+            "protected_hues_status": "uncertain",
+            "protected_hues_issues": [
+              "另一只黑色靴子被遮挡或未显示，双靴可见性无法确认。",
+              "人物姿态和画面构图与声明的放松站立姿势存在可见差异。"
+            ],
+            "tonal_expression": "整体表达最明亮，天空和海面接近浅蓝灰，石地与象牙色礼服的高光区域较多；人物和藤椅的局部阴影仍可读。与 N1 相比，背景和地面明显更亮，但比较受到构图、地面暴露面积和人物尺度差异影响。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "not evaluated in tone group",
+            "geometry_confounds": [
+              "人物比例、站位和视角与 N1、N3 不同。",
+              "天空和海面暴露面积较大，浅色背景会抬高整体明亮感。",
+              "裙摆遮挡下方腿部，影响对双靴和下部覆盖范围的判断。",
+              "椅子位置和尺寸不同，椅垫的可见面积也不同。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": [
+              "无法确认第二只靴子是否完整存在于裙摆后方。",
+              "姿态是否仍可归为放松站立存在一定不确定性。"
+            ]
+          },
+          "candidate_gate": {
+            "usable": false,
+            "issues": [
+              "content_status:uncertain",
+              "protected_hues_status:uncertain",
+              "reported_compliance_issues"
+            ],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": false,
+            "issues": [
+              "palette_status:partial",
+              "protected_hues_status:uncertain",
+              "binding:腰部飘带",
+              "binding:椅垫",
+              "reported_compliance_issues"
+            ],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": true,
+          "candidate_usable_success": false,
+          "usable_success": false
+        },
+        {
+          "scene_id": "S2",
+          "slot_id": "S2-B",
+          "variant_id": "B",
+          "review_status": "reviewed",
+          "pairwise": {
+            "lighter": "tie|uncertain",
+            "ids": [
+              "N2",
+              "N3"
+            ],
+            "evidence_regions": [
+              "后墙：N3 的墙面平均观感较浅，但 N2 也有较大的浅蓝墙面区域。",
+              "闭合笔记本封面与空白马克杯：两图均有明亮红色高光，局部深浅受物体尺寸和阴影位置影响较大。"
+            ],
+            "measure": "lighter",
+            "confounded": true,
+            "reason": "N2 的桌面和物体更大、红色更醒目，而 N3 的背景暴露面积更大且墙面更浅，无法可靠区分整体谁更亮。",
+            "other_is_lighter": false,
+            "a_is_lighter": false,
+            "tie_or_uncertain": true
+          },
+          "content_status": "pass",
+          "verdict": "no_clear_difference",
+          "observation": {
+            "id": "N3",
+            "content_status": "pass",
+            "content_issues": [],
+            "palette_status": "conform",
+            "binding_observations": [
+              {
+                "region": "后墙",
+                "visible": "yes",
+                "observed_hue_family": "浅冷蓝与蓝灰",
+                "status": "conform",
+                "evidence": "后墙大面积为浅冷蓝和蓝灰色，并保留左侧较浅、右侧相对较深的层次。"
+              },
+              {
+                "region": "闭合笔记本封面",
+                "visible": "yes",
+                "observed_hue_family": "中等鲜红色",
+                "status": "conform",
+                "evidence": "左侧闭合笔记本封面清楚可见，为红色系。"
+              },
+              {
+                "region": "空白马克杯",
+                "visible": "yes",
+                "observed_hue_family": "中等鲜红色",
+                "status": "conform",
+                "evidence": "右侧带可见杯柄的空杯为红色系，杯口和杯身明暗可见。"
+              }
+            ],
+            "protected_hues_status": "pass",
+            "protected_hues_issues": [],
+            "tonal_expression": "整体偏浅、柔和；后墙和桌布的浅色面积较大，红色物体仍有清晰高光与阴影，棕色花盆和绿色叶片保持原有色相族。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "not evaluated in tone group",
+            "geometry_confounds": [
+              "物体相对画面更小，背景暴露面积更大，浅色背景会抬高整体明亮感。",
+              "桌面视角、物体覆盖范围和前景桌布比例与 N1、N2 不同。",
+              "花盆与马克杯距离较近，局部遮挡关系不同，但各物体仍可辨认。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": []
+          },
+          "candidate_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": false,
+          "candidate_usable_success": false,
+          "usable_success": false
+        }
+      ],
+      "valid_samples": 2,
+      "usable_success": 0,
+      "summary_note": "S1：B 在三组两两里都更亮（N2=B 相对 C 与 A 都判更亮），方向可观察，但 B 的内容被判 uncertain（第二只靴子被裙摆遮挡、站姿不确定）→ 不算可用成功。S2：A 与 B 的配对记为 tie|uncertain，未建立差异。两图评审都标注几何/取景混杂。",
+      "decoded_by": "assistant_reading_of_frozen_review_observations",
+      "gate_version": 2,
+      "observed_direction_count": 1,
+      "candidate_usable_success": 0
+    },
+    "deep": {
+      "scenes": [
+        {
+          "scene_id": "S1",
+          "slot_id": "S1-C",
+          "variant_id": "C",
+          "review_status": "reviewed",
+          "pairwise": {
+            "lighter": "N3",
+            "ids": [
+              "N1",
+              "N3"
+            ],
+            "evidence_regions": [
+              "天空",
+              "海面",
+              "石地",
+              "象牙色礼服"
+            ],
+            "measure": "lighter",
+            "confounded": true,
+            "reason": "N3 的天空和礼服表现较亮，N1 的海面和地面更深；两图的构图、人物大小、椅子覆盖和地面可见范围明显不同。",
+            "other_is_lighter": false,
+            "a_is_lighter": true,
+            "tie_or_uncertain": false
+          },
+          "content_status": "pass",
+          "verdict": "direction_observed",
+          "observation": {
+            "id": "N1",
+            "content_status": "pass",
+            "content_issues": [],
+            "palette_status": "conform",
+            "binding_observations": [
+              {
+                "region": "天空",
+                "visible": "yes",
+                "observed_hue_family": "冷蓝至蓝灰",
+                "status": "conform",
+                "evidence": "天空整体呈冷蓝和低饱和蓝灰色。"
+              },
+              {
+                "region": "海面",
+                "visible": "yes",
+                "observed_hue_family": "深蓝灰",
+                "status": "conform",
+                "evidence": "海面为蓝灰色，并与天空保持独立可见的表面。"
+              },
+              {
+                "region": "腰部飘带",
+                "visible": "yes",
+                "observed_hue_family": "深红至酒红",
+                "status": "conform",
+                "evidence": "腰部现有飘带为明显红色，未见粉色倾向。"
+              },
+              {
+                "region": "椅垫",
+                "visible": "yes",
+                "observed_hue_family": "深红至酒红",
+                "status": "conform",
+                "evidence": "藤椅上的单个椅垫为红色，并与椅子结构分离可见。"
+              }
+            ],
+            "protected_hues_status": "pass",
+            "protected_hues_issues": [],
+            "tonal_expression": "整体色调较深，天空、海面、石地和头发的阴影较明显；白色礼服仍保持象牙色，棕色头发仍为深棕色而非黑色。左侧天空和地面较亮，符合从左侧来的日间光线。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "not evaluated in tone group",
+            "geometry_confounds": [
+              "人物和椅子在画面中占比明显较大，视角和裁切不同于其他图像。",
+              "椅子右侧部分接近画面边缘，场景覆盖范围不同。",
+              "较大面积的深色海面和地面会影响整体明暗判断。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": []
+          },
+          "candidate_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": false,
+            "issues": [
+              "palette_status:partial",
+              "protected_hues_status:uncertain",
+              "binding:腰部飘带",
+              "binding:椅垫",
+              "reported_compliance_issues"
+            ],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": true,
+          "candidate_usable_success": true,
+          "usable_success": false
+        },
+        {
+          "scene_id": "S2",
+          "slot_id": "S2-C",
+          "variant_id": "C",
+          "review_status": "reviewed",
+          "pairwise": {
+            "lighter": "N2",
+            "ids": [
+              "N1",
+              "N2"
+            ],
+            "evidence_regions": [
+              "后墙：N2 的可见墙面整体更浅、更开放，N1 右侧墙面较深。",
+              "闭合笔记本封面与空白马克杯：N2 的红色高光和明亮面更突出，N1 的红色整体更深。"
+            ],
+            "measure": "lighter",
+            "confounded": true,
+            "reason": "两图的视角、桌面暴露面积以及物体大小不同，可能影响整体明暗和色彩覆盖判断。",
+            "other_is_lighter": false,
+            "a_is_lighter": true,
+            "tie_or_uncertain": false
+          },
+          "content_status": "pass",
+          "verdict": "direction_observed",
+          "observation": {
+            "id": "N1",
+            "content_status": "pass",
+            "content_issues": [],
+            "palette_status": "conform",
+            "binding_observations": [
+              {
+                "region": "后墙",
+                "visible": "yes",
+                "observed_hue_family": "冷蓝与 muted 蓝灰",
+                "status": "conform",
+                "evidence": "后墙大面积呈蓝色和蓝灰色，未见明显越界到其他绑定表面。"
+              },
+              {
+                "region": "闭合笔记本封面",
+                "visible": "yes",
+                "observed_hue_family": "深红至酒红",
+                "status": "conform",
+                "evidence": "左侧闭合笔记本的封面清楚可见，为红色系而非粉色。"
+              },
+              {
+                "region": "空白马克杯",
+                "visible": "yes",
+                "observed_hue_family": "深红至酒红",
+                "status": "conform",
+                "evidence": "右侧带可见杯柄的马克杯整体为红色系。"
+              }
+            ],
+            "protected_hues_status": "pass",
+            "protected_hues_issues": [],
+            "tonal_expression": "整体呈较深、对比明确的色调；后墙右侧较深，笔记本和马克杯的红色较浓，植物叶片和棕色花盆仍保留局部明暗层次。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "not evaluated in tone group",
+            "geometry_confounds": [
+              "桌面和物体在画面中占据较大面积，与其他图像的视角和物体覆盖范围不同。",
+              "较大的物体尺寸会使红色和阴影区域显得更突出，影响整体深浅判断。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": []
+          },
+          "candidate_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": true,
+          "candidate_usable_success": true,
+          "usable_success": false
+        }
+      ],
+      "valid_samples": 2,
+      "usable_success": 0,
+      "summary_note": "S1 与 S2 都观察到「基准 A 比 C 更亮」（即 C 更深），两图内容均 pass、色板 conform/partial 无 fail；S1 的 A 被记为 palette partial（缎带/椅垫偏粉）但 protected hues pass。属于两个单次样本方向一致，值得下一轮验证，仍不是统计证据。",
+      "decoded_by": "assistant_reading_of_frozen_review_observations",
+      "gate_version": 2,
+      "observed_direction_count": 2,
+      "candidate_usable_success": 2
+    },
+    "balanced": {
+      "scenes": [
+        {
+          "scene_id": "S1",
+          "slot_id": "S1-D",
+          "variant_id": "D",
+          "review_status": "reviewed",
+          "content_status": "uncertain",
+          "observation": {
+            "id": "N2",
+            "content_status": "uncertain",
+            "content_issues": [
+              "一名成人女性和一把椅子可见，两只黑色靴子均可见。",
+              "人物一条腿略向后交叠，是否完全符合所述放松站立姿态存在轻微不确定性。"
+            ],
+            "palette_status": "conform",
+            "binding_observations": [
+              {
+                "region": "天空",
+                "visible": "yes",
+                "observed_hue_family": "冷蓝与 muted 蓝灰色",
+                "status": "conform",
+                "evidence": "天空为大面积浅冷蓝色，并带蓝灰色层次。"
+              },
+              {
+                "region": "海面",
+                "visible": "yes",
+                "observed_hue_family": " muted 蓝灰色",
+                "status": "conform",
+                "evidence": "海面在栏杆后清晰可见，呈低饱和蓝灰色。"
+              },
+              {
+                "region": "腰部缎带",
+                "visible": "yes",
+                "observed_hue_family": "明确的深红色",
+                "status": "conform",
+                "evidence": "腰部既有缎带呈较饱和的红色，未见明显粉红倾向。"
+              },
+              {
+                "region": "椅垫",
+                "visible": "yes",
+                "observed_hue_family": "红色",
+                "status": "conform",
+                "evidence": "椅垫为清晰的红色，并保持在椅子坐垫区域内。"
+              }
+            ],
+            "protected_hues_status": "pass",
+            "protected_hues_issues": [],
+            "tonal_expression": "未评估色调处理；可见柔和日间光照和局部阴影。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "蓝色基底覆盖天空和海面的大面积区域；红色第二色集中在较宽的腰部缎带和椅垫，两个绑定区域都具有清晰的视觉辨识度。未观察到通过新增道具、扩大既有物体或向受保护区域溢出来提升红色面积的证据。",
+            "geometry_confounds": [
+              "人物位于左侧，椅子位于右侧，人物和椅子的相对尺寸与第一张图不同。",
+              "椅子右侧接近画面边缘，构图裁切影响可见覆盖面积判断。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": [
+              "人物腿部交叠造成姿态与两腿间距的轻微判断不确定性。"
+            ]
+          },
+          "verdict": "no_clear_difference",
+          "decode_note": "评审确认 D 的两个绑定区域（腰部缎带、椅垫）都清晰可辨，且未见新增道具、放大既有物体或向受保护区域溢出；但**没有**建立「第二色视觉份量相对 A 提高」，评审明确拒绝跨图比较覆盖面积。同时该图内容被判 uncertain（腿部交叠、站姿不确定）。",
+          "decode_evidence": "hierarchy_observation：「蓝色基底覆盖天空和海面的大面积区域；红色第二色集中在较宽的腰部缎带和椅垫，两个绑定区域都具有清晰的视觉辨识度。未观察到通过新增道具、扩大既有物体或向受保护区域溢出来提升红色面积的证据。」；geometry_confounds：「人物位于左侧，椅子位于右侧，人物和椅子的相对尺寸与第一张图不同。」；uncertainty：「人物腿部交叠造成姿态与两腿间距的轻微判断不确定性。」",
+          "decode_basis": "评审原文 + 冻结映射；未把跨图几何差异当因果证据",
+          "decoded_by": null,
+          "candidate_gate": {
+            "usable": false,
+            "issues": [
+              "content_status:uncertain",
+              "reported_compliance_issues"
+            ],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": false,
+            "issues": [
+              "content_status:uncertain",
+              "palette_status:partial",
+              "binding:腰部缎带",
+              "binding:椅垫",
+              "reported_compliance_issues"
+            ],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": false,
+          "candidate_usable_success": false,
+          "usable_success": false
+        },
+        {
+          "scene_id": "S2",
+          "slot_id": "S2-D",
+          "variant_id": "D",
+          "review_status": "reviewed",
+          "content_status": "pass",
+          "observation": {
+            "id": "N3",
+            "content_status": "pass",
+            "content_issues": [],
+            "palette_status": "conform",
+            "binding_observations": [
+              {
+                "region": "后墙",
+                "visible": "yes",
+                "observed_hue_family": "冷蓝与 muted 蓝灰",
+                "status": "conform",
+                "evidence": "后墙为清晰可见的冷蓝至蓝灰色独立表面。"
+              },
+              {
+                "region": "闭合笔记本封面",
+                "visible": "yes",
+                "observed_hue_family": "红色",
+                "status": "conform",
+                "evidence": "左侧闭合笔记本封面清晰可见，呈红色。"
+              },
+              {
+                "region": "杯子",
+                "visible": "yes",
+                "observed_hue_family": "红色",
+                "status": "conform",
+                "evidence": "右侧空杯和可见杯柄清晰可见，杯体呈红色。"
+              }
+            ],
+            "protected_hues_status": "pass",
+            "protected_hues_issues": [],
+            "tonal_expression": "冷蓝后墙构成大面积基底，红色集中在左侧笔记本封面和右侧杯子；桌布保持暖浅灰，绿色叶片和自然棕色花盆仍保留原有色系。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "基底色主要依靠后墙形成大面积视觉层，第二色在两个现有红色物体上形成清晰但较集中的层级。物体数量、左右位置和前后关系可辨认，未见新增道具、物体放大或红色扩散至受保护区域。",
+            "geometry_confounds": [
+              "相机视角、桌面形状和物体相对尺寸与其他独立生成图不同；这些构图差异会影响颜色覆盖度判断。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": []
+          },
+          "verdict": "no_clear_difference",
+          "decode_note": "D 内容与配色都通过：后墙为大面积冷蓝基底、笔记本封面与杯子为红色第二色，桌布保持暖浅灰；未见新增道具/放大/溢出。但同样没有建立第二色份量提高，评审把桌面/物体尺寸差异列为不能归因的构图因素。",
+          "decode_evidence": "hierarchy_observation：「基底色主要依靠后墙形成大面积视觉层，第二色在两个现有红色物体上形成清晰但较集中的层级。物体数量、左右位置和前后关系可辨认，未见新增道具、物体放大或红色扩散至受保护区域。」；tonal_expression：「…桌布保持暖浅灰，绿色叶片和自然棕色花盆仍保留原有色系。」；geometry_confounds：「相机视角、桌面形状和物体相对尺寸与其他独立生成图不同；这些构图差异会影响颜色覆盖度判断。」",
+          "decode_basis": "评审原文 + 冻结映射",
+          "decoded_by": null,
+          "candidate_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": false,
+          "candidate_usable_success": false,
+          "usable_success": false
+        }
+      ],
+      "valid_samples": 2,
+      "usable_success": 0,
+      "summary_note": "S1-D 与 S2-D 都没有被评审建立「第二色视觉份量相对 A 提高」；两图评审都明确说明独立生成的几何/取景差异不能用于推断覆盖变化。可以确认的是两图都没有扩大物件、没有新增道具、没有串色（S1-D 内容 uncertain、S2-D 内容 pass）。按任务口径记无明显差异/不确定，不撤掉构图保护来提高通过率。",
+      "decoded_by": "assistant_reading_of_frozen_review_observations",
+      "gate_version": 2,
+      "observed_direction_count": 0,
+      "candidate_usable_success": 0
+    },
+    "three_level": {
+      "scenes": [
+        {
+          "scene_id": "S1",
+          "slot_id": "S1-E",
+          "variant_id": "E",
+          "review_status": "reviewed",
+          "content_status": "pass",
+          "observation": {
+            "id": "N3",
+            "content_status": "pass",
+            "content_issues": [],
+            "palette_status": "conform",
+            "binding_observations": [
+              {
+                "region": "天空",
+                "visible": "yes",
+                "observed_hue_family": "冷蓝和 muted 蓝灰色",
+                "status": "conform",
+                "evidence": "天空呈连续的冷蓝灰色调。"
+              },
+              {
+                "region": "海面",
+                "visible": "yes",
+                "observed_hue_family": " muted 蓝灰色",
+                "status": "conform",
+                "evidence": "海面清晰可见，呈蓝灰色并有细微水面层次。"
+              },
+              {
+                "region": "腰部缎带",
+                "visible": "yes",
+                "observed_hue_family": "红色至红珊瑚色",
+                "status": "conform",
+                "evidence": "腰部既有缎带为可辨识的红色，未明显变成粉色。"
+              },
+              {
+                "region": "椅垫",
+                "visible": "yes",
+                "observed_hue_family": "红色",
+                "status": "conform",
+                "evidence": "椅垫为红色，位置仍限于椅子的既有坐垫区域。"
+              },
+              {
+                "region": "石质地面",
+                "visible": "yes",
+                "observed_hue_family": "muted 蓝灰色",
+                "status": "conform",
+                "evidence": "地面明显呈蓝灰色；该区域有预先声明的辅助色绑定，因此不视为未授权改色。"
+              }
+            ],
+            "protected_hues_status": "pass",
+            "protected_hues_issues": [],
+            "tonal_expression": "未评估色调处理；光线方向和柔和的分层阴影可见。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "蓝色基底不仅出现在大面积天空和海面，也出现在已声明允许改色的石质地面辅助层；红色第二色集中于腰部缎带和椅垫。辅助地面层与天空、海面在视觉上可区分，没有证据表明其为新增装饰或未经授权的颜色溢出。",
+            "geometry_confounds": [
+              "人物位于左侧，椅子位于右侧，构图和物体大小与其他图像不同。",
+              "蓝灰色地面增加了基底色的可见范围，但这是明确声明的辅助绑定，不能与天空和海面的绑定范围混同。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": [
+              "红色缎带带有轻微珊瑚色倾向，但仍属于可见红色方向。"
+            ]
+          },
+          "verdict": "layer_observed",
+          "decode_note": "E 的辅助层在预先声明的区域（石质地面）可辨且被判为 conform；基底（天空+海面）与强调（缎带+椅垫）层级成立，内容通过、无未授权新增。评审同时提醒：地面变蓝灰是已声明授权，不能与天空/海面的绑定范围混同。",
+          "decode_evidence": "binding_observations 石质地面：「muted 蓝灰色 … 该区域有预先声明的辅助色绑定，因此不视为未授权改色。」；hierarchy_observation：「蓝色基底不仅出现在大面积天空和海面，也出现在已声明允许改色的石质地面辅助层；红色第二色集中于腰部缎带和椅垫。辅助地面层与天空、海面在视觉上可区分，没有证据表明其为新增装饰或未经授权的颜色溢出。」",
+          "decode_basis": "评审原文 + 冻结映射（E 的辅助绑定是事先声明的授权）",
+          "decoded_by": null,
+          "candidate_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": false,
+            "issues": [
+              "content_status:uncertain",
+              "palette_status:partial",
+              "binding:腰部缎带",
+              "binding:椅垫",
+              "reported_compliance_issues"
+            ],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": true,
+          "candidate_usable_success": true,
+          "usable_success": false
+        },
+        {
+          "scene_id": "S2",
+          "slot_id": "S2-E",
+          "variant_id": "E",
+          "review_status": "reviewed",
+          "content_status": "pass",
+          "observation": {
+            "id": "N2",
+            "content_status": "pass",
+            "content_issues": [],
+            "palette_status": "partial",
+            "binding_observations": [
+              {
+                "region": "后墙",
+                "visible": "yes",
+                "observed_hue_family": "浅冷蓝与 muted 蓝灰",
+                "status": "conform",
+                "evidence": "后墙清晰可见，整体为冷蓝至蓝灰色。"
+              },
+              {
+                "region": "闭合笔记本封面",
+                "visible": "yes",
+                "observed_hue_family": "浅珊瑚粉红，偏粉而非明确红色",
+                "status": "fail",
+                "evidence": "左侧闭合笔记本封面可见，但颜色明显偏浅粉/珊瑚粉，与声明的红色而非粉色不完全相符。"
+              },
+              {
+                "region": "杯子",
+                "visible": "yes",
+                "observed_hue_family": "浅粉红",
+                "status": "fail",
+                "evidence": "右侧空杯及可见杯柄清晰可见，杯体呈浅粉红色，偏离要求的红色而非粉色。"
+              },
+              {
+                "region": "桌布（预先声明的辅助绑定）",
+                "visible": "yes",
+                "observed_hue_family": "muted 蓝灰",
+                "status": "conform",
+                "evidence": "桌面及垂落桌布呈蓝灰色；该区域的改色已被明确声明为允许的辅助绑定。"
+              }
+            ],
+            "protected_hues_status": "pass",
+            "protected_hues_issues": [],
+            "tonal_expression": "蓝色后墙与蓝灰桌布共同形成大面积基底层；第二色仅集中在粉红笔记本和粉红杯子上。基底层的可见覆盖度明显扩展到桌布区域。",
+            "detail_readability": "pass",
+            "hierarchy_observation": "由于预先声明允许桌布改为 muted 蓝灰，基底色不仅出现在后墙，也出现在桌布上，因此基底层的视觉占比更大。笔记本和杯子仍为两个现有物体，没有发现通过新增道具或明显溢出到受保护区域来增加第二色覆盖的情况；但第二色的色相表现偏粉。",
+            "geometry_confounds": [
+              "该图的桌子、桌布和物体相对更小且视角不同，基底覆盖度受构图和对象尺寸影响，不能单独归因于处理。"
+            ],
+            "unauthorized_additions": [],
+            "uncertainty": []
+          },
+          "verdict": "layer_observed_with_palette_failure",
+          "decode_note": "辅助层成立：桌布（预先声明的辅助区域）呈 muted 蓝灰、被判 conform，基底覆盖因此扩大、主次关系可辨。但同一图的两个强调色落点被判 fail：笔记本封面「浅珊瑚粉红，偏粉而非明确红色」、杯子「浅粉红」，与色板的「red, not pink」不符，故整体 palette_status=partial，不算可用成功。",
+          "decode_evidence": "binding_observations 桌布（预先声明的辅助绑定）：「muted 蓝灰 … 该区域的改色已被明确声明为允许的辅助绑定。」；闭合笔记本封面：「浅珊瑚粉红，偏粉而非明确红色 … 与声明的红色而非粉色不完全相符。」（status=fail）；杯子：「浅粉红 … 偏离要求的红色而非粉色。」（status=fail）；limitations：「N2 的桌布蓝灰色是明确声明允许的辅助绑定，因此不作为未授权色彩漂移；但其笔记本和杯子仍可见地偏粉。」",
+          "decode_basis": "评审原文 + 冻结映射；palette fail 优先于“辅助层可辨”",
+          "decoded_by": null,
+          "candidate_gate": {
+            "usable": false,
+            "issues": [
+              "palette_status:partial",
+              "binding:闭合笔记本封面",
+              "binding:杯子"
+            ],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "baseline_gate": {
+            "usable": true,
+            "issues": [],
+            "coverage": "legacy_labels_require_human_check"
+          },
+          "direction_observed": false,
+          "candidate_usable_success": false,
+          "usable_success": false
+        }
+      ],
+      "valid_samples": 2,
+      "usable_success": 0,
+      "summary_note": "S1-E：辅助层（石质地面 muted 蓝灰）在预先声明区域可辨、主次成立、内容通过 → 可用成功；S2-E：辅助层（桌布）同样可辨且被认定为已声明授权，但同一图的两个强调色落点被判偏粉、与「red, not pink」不符 → palette partial，不算可用成功。整体 1/2，属不稳定，不能当作「三层主次整体有效」。",
+      "decoded_by": "assistant_reading_of_frozen_review_observations",
+      "gate_version": 2,
+      "observed_direction_count": 1,
+      "candidate_usable_success": 1
+    }
+  }
+}

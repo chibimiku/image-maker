@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import platform
 import sys
@@ -40,6 +41,7 @@ from utils.style_metrics import devices, imaging, inventory, runner  # noqa: E40
 from utils.style_metrics import csd_metric as csd_mod  # noqa: E402
 from utils.style_metrics.config import (  # noqa: E402
     CSD_INPUT_SIZE,
+    GRAM_FORMULA_VERSION,
     IMAGENET_MEAN,
     IMAGENET_STD,
     LPIPS_INPUT_SIZE,
@@ -51,7 +53,7 @@ from utils.style_metrics.config import (  # noqa: E402
     WEIGHTS,
 )
 
-SCHEMA = "style-metrics-verification/1"
+SCHEMA = "style-metrics-verification/2"
 
 
 # --------------------------------------------------------------------------- #
@@ -59,63 +61,7 @@ SCHEMA = "style-metrics-verification/1"
 # --------------------------------------------------------------------------- #
 
 
-def preprocessing_for(metric: str) -> dict:
-    if metric in ("gram", "adain"):
-        return {
-            "resize": f"直接缩放到 {VGG_INPUT_SIZE}x{VGG_INPUT_SIZE}（bicubic, 不保持长宽比）",
-            "color": "PIL convert('RGB')，丢弃 alpha",
-            "to_tensor": "[0,1] float32",
-            "normalize": {"mean": list(IMAGENET_MEAN), "std": list(IMAGENET_STD), "scheme": "ImageNet"},
-            "output_layers": list(VGG19_GRAM_LAYERS if metric == "gram" else VGG19_ADAIN_LAYERS),
-        }
-    if metric == "lpips":
-        return {
-            "resize": f"直接缩放到 {LPIPS_INPUT_SIZE}x{LPIPS_INPUT_SIZE}（bicubic, 不保持长宽比）",
-            "color": "PIL convert('RGB')",
-            "range": "[-1, 1]（tensor*2-1，官方 normalize=False 分支）",
-            "normalize": "由官方 ScalingLayer 内部完成（shift/scale 缓冲）",
-            "output_layers": ["relu1", "relu2", "relu3", "relu4", "relu5"],
-        }
-    if metric == "csd":
-        return {
-            "resize": f"Resize({CSD_INPUT_SIZE}, BICUBIC) 短边 + CenterCrop({CSD_INPUT_SIZE})",
-            "color": "PIL convert('RGB')",
-            "to_tensor": "[0,1] float32",
-            "normalize": {"mean": list(csd_mod.CSD_MEAN), "std": list(csd_mod.CSD_STD), "scheme": "CLIP"},
-            "output_layers": ["style head（last_layer_style 之后 L2 归一化）"],
-            "descriptor_dim": 768,
-        }
-    raise KeyError(metric)
-
-
-def model_for(metric: str) -> dict:
-    if metric in ("gram", "adain"):
-        return {
-            "name": "torchvision VGG-19 (features)",
-            "weights_file": str(WEIGHTS["vgg19"]["path"]),
-            "weights_origin": WEIGHTS["vgg19"]["origin"],
-            "source_url": WEIGHTS["vgg19"]["source"],
-            "license": WEIGHTS["vgg19"]["license"],
-        }
-    if metric == "lpips":
-        return {
-            "name": "LPIPS-AlexNet (richzhang/PerceptualSimilarity)",
-            "weights_file": str(WEIGHTS["lpips_alex"]["path"]),
-            "weights_origin": WEIGHTS["lpips_alex"]["origin"],
-            "source_url": WEIGHTS["lpips_alex"]["source"],
-            "license": WEIGHTS["lpips_alex"]["license"],
-            "trunk_file": str(WEIGHTS["lpips_alex_trunk"]["path"]),
-            "trunk_origin": WEIGHTS["lpips_alex_trunk"]["origin"],
-            "version": LPIPS_VERSION,
-        }
-    return {
-        "name": "CSD ViT-L (learn2phoenix/CSD)",
-        "weights_file": str(csd_mod.DEFAULT_CSD_WEIGHTS),
-        "weights_origin": "Hugging Face tomg-group-umd/CSD-ViT-L",
-        "source_url": "https://huggingface.co/tomg-group-umd/CSD-ViT-L",
-        "license": "CC-BY-4.0（模型卡）；GitHub 仓库代码见 LICENSE",
-        "backbone": "OpenAI CLIP ViT-L/14（clip.load 官方实现）",
-    }
+from utils.style_metrics.metadata import preprocessing_for, model_for
 
 
 def weights_sha256_for(metric: str) -> dict:
@@ -371,22 +317,59 @@ def download_missing(report: dict) -> dict:
     return done
 
 
+def run_pair_mode(args, pairs):
+    from utils.style_metrics.pairs import compare_pairs
+    payload = {"schema": SCHEMA, "mode": "real-pairs", "generated_at": datetime.now().isoformat(timespec="seconds"),
+               "metric_versions": {"gram": GRAM_FORMULA_VERSION}, "results": [],
+               "notes": ["只读真实图片配对；不修改图片、不合成百分比、不判配色成功。"],
+               "weights": inventory.list_inventory(verify=args.verify_weights)}
+    # No hidden downloads in pair mode; opt-in downloads still use the same helper.
+    pre = inventory.preflight(args.metrics)
+    if pre and args.download_missing:
+        payload["downloads"] = download_missing(pre)
+        pre = inventory.preflight(args.metrics)
+    try:
+        backend = devices.resolve_device(args.device, precision=args.precision, probe_npu=not args.no_probe)
+    except devices.DeviceUnavailableError as exc:
+        payload["results"] = blocked_records(args.metrics, pre, args, str(exc))
+        payload["summary"] = summarize(payload["results"])
+        return payload
+    payload["backend"] = backend.as_dict()
+    payload["results"] = compare_pairs(pairs, args.metrics, backend)
+    for row in payload["results"]:
+        row["model"] = model_for(row["metric"])
+        row["preprocessing"] = preprocessing_for(row["metric"])
+        row["weights_sha256"] = weights_sha256_for(row["metric"])
+    if backend.actual != "cpu" and args.compare_cpu:
+        baseline = compare_pairs(pairs, args.metrics, devices.resolve_device("cpu"))
+        for row, reference in zip(payload["results"], baseline):
+            if row["status"] == reference["status"] == "ok":
+                tolerance = runner.tolerance_for(row["metric"], backend.precision)
+                passed, limit = runner.within_tolerance(row["value"], reference["value"], tolerance)
+                row["validation"]["cross_device"] = {"baseline": reference["value"], "baseline_device": "cpu", "baseline_precision": "fp32", "within_tolerance": passed, "limit": limit}
+                if not passed:
+                    row.update(status="partial", error="Pair cross-device comparison outside declared tolerance")
+            else:
+                row["validation"]["cross_device"] = {"within_tolerance": None, "baseline_status": reference["status"], "note": "Comparison unavailable; not a tolerance pass"}
+                if row["status"] == "ok":
+                    row.update(status="partial", error="CPU baseline unavailable for requested comparison")
+    payload["summary"] = summarize(payload["results"])
+    return payload
+
+
 def run(args) -> dict:
-    images = imaging.make_test_images()
     pairs = [(Path(a), Path(b)) for a, b in (args.pair or [])]
     if pairs:
         missing_imgs = [str(p) for pair in pairs for p in pair if not p.exists()]
         if missing_imgs:
             raise FileNotFoundError("--pair 指定的图片不存在：\n  " + "\n  ".join(missing_imgs))
-        images = {
-            "base": imaging.load_rgb(pairs[0][0]),
-            "base_png": imaging.load_rgb(pairs[0][1]),
-            "variant_soft": imaging.load_rgb(pairs[-1][0]),
-            "variant_hard": imaging.load_rgb(pairs[-1][1]),
-        }
+        return run_pair_mode(args, pairs)
+
+    images = imaging.make_test_images()
 
     payload: dict = {
         "schema": SCHEMA,
+        "metric_versions": {"gram": GRAM_FORMULA_VERSION},
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "python": sys.version.split()[0],
         "executable": sys.executable,
@@ -468,6 +451,7 @@ def run(args) -> dict:
             "model": model_for(metric),
             "weights_sha256": weights_sha256_for(metric),
             "preprocessing": preprocessing_for(metric),
+            "formula_version": GRAM_FORMULA_VERSION if metric == "gram" else None,
             "requested_device": args.device,
             "actual_device": backend.actual,
             "backend": backend.backend,
@@ -569,6 +553,7 @@ def blocked_records(metrics, pre: dict, args, reason: str) -> list[dict]:
                 "model": model_for(metric),
                 "weights_sha256": weights_sha256_for(metric),
                 "preprocessing": preprocessing_for(metric),
+            "formula_version": GRAM_FORMULA_VERSION if metric == "gram" else None,
                 "requested_device": args.device,
                 "actual_device": None,
                 "backend": None,
@@ -603,6 +588,10 @@ def main(argv=None) -> int:
         help="逗号分隔的子集，默认全跑",
     )
     ap.add_argument("--pair", nargs=2, action="append", metavar=("A", "B"), help="真实图片对")
+    ap.add_argument("--locate-regions", action="store_true", help="为待比较图和参考图调用文本模型生成面部/发丝定位候选（未人工确认）")
+    ap.add_argument("--regions", action="append", default=[], help="导入与图片 hash 绑定的区域 JSON，可重复")
+    ap.add_argument("--similarity", nargs=2, metavar=("IMAGE", "REFERENCE"), help="共享八组画风指标双图计算")
+    ap.add_argument("--reference", action="append", default=[], help="追加参考图（与 --similarity 使用，逐张计算）")
     ap.add_argument("--comparison-state", help="对画风提取结果的全部候选与全部源图计算本地指标并生成报告")
     ap.add_argument("--out", default=None, help="输出 JSON 路径（默认 data/test-result/…）")
     ap.add_argument("--no-compare-cpu", action="store_true", help="跳过 CPU 基准对比")
@@ -616,7 +605,66 @@ def main(argv=None) -> int:
     ap.add_argument("--no-probe", action="store_true", help="跳过 NPU 运行期探针")
     ap.add_argument("--inventory", action="store_true", help="只打印权重清单与依赖状态")
     args = ap.parse_args(argv)
+    args.compare_cpu = not args.no_compare_cpu
 
+    if args.reference and not args.similarity:
+        ap.error("--reference 需要 --similarity")
+    if args.similarity and args.comparison_state:
+        ap.error("--similarity 与 --comparison-state 不能同时使用")
+    if (args.locate_regions or args.regions) and not (args.similarity or args.comparison_state):
+        ap.error("定位选项需要 --similarity 或 --comparison-state")
+    if args.locate_regions or args.regions:
+        from utils.style_regions import propose_regions, save_annotation
+        from utils.style_face_metrics import digest
+        if args.similarity:
+            paths = [args.similarity[0], args.similarity[1], *args.reference]
+        else:
+            from modules.image_analysis.style_deep_comparison import input_manifest
+            manifest = input_manifest(json.loads(Path(args.comparison_state).read_text(encoding="utf-8")))
+            paths = [r["path"] for r in manifest["references"] + manifest["candidates"]]
+        try:
+            by_hash = {digest(path): path for path in paths}
+            for filename in args.regions:
+                annotation = json.loads(Path(filename).read_text(encoding="utf-8"))
+                image_path = by_hash.get(annotation.get("image_sha256"))
+                if not image_path:
+                    raise ValueError("区域 JSON 不属于本次输入图片：" + filename)
+                save_annotation(image_path, annotation)
+            if args.locate_regions:
+                from utils.analysis_gpt_prompt import load_text_api_config
+                config = load_text_api_config()
+                config = {**config, **{key: os.environ[name] for key, name in (
+                    ("base_url", "IMAGE_MAKER_REGIONS_BASE_URL"), ("api_key", "IMAGE_MAKER_REGIONS_API_KEY"),
+                    ("model", "IMAGE_MAKER_REGIONS_MODEL")) if name in os.environ}}
+                for path in dict.fromkeys(paths):
+                    try:
+                        propose_regions(path, (config["base_url"], config["api_key"], config["model"]))
+                        print("REGIONS 候选定位已缓存：" + str(path), flush=True)
+                    except Exception as exc:
+                        print("REGIONS 未完成：" + str(path) + " · " + str(exc), flush=True)
+        except Exception:
+            traceback.print_exc()
+            return 1
+    if args.similarity:
+        from utils.style_similarity import image_manifest, compare_images, atomic_json, ALL_METRICS
+        from modules.image_analysis.style_deep_comparison import write_report
+        try:
+            inputs = image_manifest([args.similarity[0]], [args.similarity[1], *args.reference])
+            output = Path(args.out).resolve() if args.out else PROJECT_ROOT / "cache/temp/style-similarity" / datetime.now().strftime("%Y%m%d-%H%M%S-%f") / "result.json"
+            output.parent.mkdir(parents=True, exist_ok=True)
+            result = compare_images(inputs, args.device, lambda message: print("PROGRESS " + message, flush=True))
+            result["report_path"] = write_report(result, output.parent)
+            atomic_json(output, result)
+            for row in result["rows"]:
+                for m in ALL_METRICS:
+                    print(f"{m}: {row['summary'][m]}")
+                for m, summary in row.get("face_summary", {}).items():
+                    print(f"face.{m}: {summary}")
+            print(f"整图 {result['status']} / 面部 {result.get('face_status', '未定位')}: {output}")
+            return 0 if result["status"] == "ok" else 1
+        except Exception:
+            traceback.print_exc()
+            return 1
     if args.comparison_state:
         from modules.image_analysis.style_deep_comparison import compute
         try:
@@ -672,7 +720,7 @@ def main(argv=None) -> int:
         first_line = (r["error"] or "").splitlines()[0] if r["error"] else ""
         print(f"  {r['metric']:<6} status={r['status']:<18} {first_line}")
     summary = payload.get("summary", {})
-    if summary.get("status_counts", {}).get("unavailable"):
+    if any(row.get("remediation") for row in payload["results"]):
         print("\n[缺权重] 修复命令（也可直接加 --download-missing 让 CLI 自己下）：")
         for r in payload["results"]:
             for item in r.get("remediation") or []:

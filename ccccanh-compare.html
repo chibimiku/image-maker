@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ccccanh 画风修复对照 + 横向检查</title>
+<style>
+  :root { --line:#e3e3e6; --muted:#6b6b73; --bg:#fafafb; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 32px 60px; background:var(--bg); color:#1c1c20;
+         font:15px/1.7 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:24px; margin:0 0 6px; }
+  h2 { font-size:19px; margin:38px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--line); }
+  h3 { font-size:16px; margin:22px 0 8px; color:#33333a; }
+  .sub { color:var(--muted); margin:0 0 18px; }
+  .note { background:#fff8e6; border:1px solid #f0dfae; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:14px; }
+  .ok { background:#eefaf0; border-color:#bfe6c8; }
+  .bad { background:#fdeeee; border-color:#f0c3c3; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; margin:14px 0 6px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px; width:262px; }
+  .card img { width:100%; height:auto; display:block; border-radius:6px; }
+  .card .cap { font-size:13px; margin-top:8px; color:#33333a; }
+  .card .cap b { display:block; font-size:14px; }
+  .card .cap span { color:var(--muted); }
+  .tag { display:inline-block; font-size:12px; padding:1px 7px; border-radius:99px; margin-right:5px;
+         background:#eef0f4; color:#41414b; }
+  .tag.good { background:#e2f6e6; color:#1d6b31; }
+  .tag.warn { background:#fdf0d9; color:#8a5a06; }
+  .tag.bad  { background:#fbe3e3; color:#8e2020; }
+  table { border-collapse:collapse; background:#fff; font-size:14px; margin:10px 0 4px; }
+  th, td { border:1px solid var(--line); padding:6px 11px; text-align:left; white-space:nowrap; }
+  th { background:#f2f3f6; font-weight:600; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  code { background:#f2f3f6; padding:1px 5px; border-radius:4px; font-size:13px; }
+  .small { font-size:13px; color:var(--muted); }
+  .files { font-size:13px; color:var(--muted); margin-top:8px; word-break:break-all; }
+</style>
+</head>
+<body>
+
+<h1>ccccanh 画风「直出 Gemini 不像」修复对照</h1>
+<p class="sub">2026-10-06 · 同一分析产物、同一张参考图、<code>gemini-3-pro-image-preview</code>、2:3 / 2K。左为画风参考图，中为修复前（旧配置），右为修复后（新配置）。</p>
+
+<h2>1. ccccanh（已修复）</h2>
+<div class="row">
+  <div class="card">
+    <img src="data/test-result/ccccanh-fix-20261006-0155/refs/cccccanh.png" alt="cccccanh 参考图">
+    <div class="cap"><b>画风参考图</b><span>1024×1024 · 疏松水彩、薄涂、留白</span></div>
+  </div>
+  <div class="card">
+    <img src="data/20261006/test-result/ccccanh-fix/1-baseline/styletest-1-baseline_014827-741659.jpg" alt="修复前">
+    <div class="cap"><b>修复前（旧配置）</b>
+      <span>请求文本 13877 字符 · 画风说明 5250（图片前后各一遍） · 无内容锚</span><br>
+      <span class="tag bad">palette 0.387</span><span class="tag">gram 0.931</span>
+      <span>光面 cel、生硬数字渐变、深紫墙、边界硬</span>
+    </div>
+  </div>
+  <div class="card">
+    <img src="data/20261006/test-result/ccccanh-fix/7-short-anchor/styletest-7-short-anchor_015307-9a580e.jpg" alt="修复后">
+    <div class="cap"><b>修复后（新配置）</b>
+      <span>请求文本 4708 字符 · 画风说明 1889（一遍） · 内容锚 532</span><br>
+      <span class="tag good">palette 0.264</span><span class="tag">gram 0.933</span>
+      <span>湿边水彩、薄涂肤色、发丝成束、留白变多，身份按描述保持</span>
+    </div>
+  </div>
+</div>
+<div class="note ok">
+  <b>改了什么</b>：<code>prompt_gemini</code> / <code>prompt_compressed</code> 从「与 prompt 逐字相同的 5250 字符」换成 1889 字符的只讲画法短规格；
+  新增 <code>gemini_content_field: "gpt_image_prompt_short"</code>（全库第 4 个配这个字段的画风）。
+  <code>prompt</code> 全文原样保留。
+</div>
+<div class="row">
+  <div class="card" style="width:340px">
+    <img src="data/20261006/test-result/ccccanh-fix/8-final-check/styletest-8-final-check_015417-4b0dcd.jpg" alt="复验">
+    <div class="cap"><b>复验（直接读 conf 再抽一张）</b>
+      <span class="tag good">palette 0.269</span><span class="tag">gram 0.931</span><span class="tag">render 0.948</span>
+      <span>同条件第二次采样：仍是薄涂水彩，这次抽到一块深色背景</span>
+    </div>
+  </div>
+  <div class="card" style="width:340px">
+    <img src="data/20261006/test-result/ccccanh-fix/3-short-plus-anchor/styletest-3-short-plus-anchor_014931-2c7766.jpg" alt="长内容锚版本">
+    <div class="cap"><b>对照：内容锚用长的（gpt_image_prompt 1.3k）</b>
+      <span class="tag warn">palette 0.306</span><span class="tag bad">copy-risk 0.224</span>
+      <span>水彩感有了但吸了参考角色的紫黑发；说明锚越短越利落</span>
+    </div>
+  </div>
+  <div class="card" style="width:340px">
+    <img src="data/20261006/test-result/ccccanh-fix/2-shortstyle/styletest-2-shortstyle_014855-a36ad1.jpg" alt="无内容锚版本">
+    <div class="cap"><b>对照：只换短画风说明、不挂内容锚</b>
+      <span class="tag bad">copy-risk 0.885</span>
+      <span>配色最贴（palette 0.971）但**把参考角色整个搬进来了**，所以不能只砍画风说明</span>
+    </div>
+  </div>
+</div>
+
+<h2>2. 横向检查：millon-knots（同类根因，待修）</h2>
+<p class="small">审计结论：<code>prompt_gemini</code> 与 <code>prompt</code> 逐字相同（5632 字符，超 2000 软上限 2.8 倍），且缺 <code>gemini_content_field</code> —— 与 ccccanh 改前完全同一个毛病。</p>
+<div class="row">
+  <div class="card">
+    <img src="data/style-ref/millon-knots.jpg" alt="millon-knots 参考图">
+    <div class="cap"><b>画风参考图</b><span>1248×1729 · 明亮高饱和、清亮水面、锐利宝石高光</span></div>
+  </div>
+  <div class="card">
+    <img src="data/20261006/test-result/ccccanh-fix/millon-knots-A-baseline/styletest-millon-knots-A-baseline_015848-d64b6a.jpg" alt="millon-knots 原配置">
+    <div class="cap"><b>原配置（头部实收 5632 字符）</b>
+      <span class="tag warn">palette 0.885</span><span class="tag">gram 0.704</span>
+      <span>蓝发紫眼角色来自参考图，与本次内容无关（测试用了另一条任务的内容锚）；画面偏暗、没有参考图的明亮水感</span>
+    </div>
+  </div>
+  <div class="card">
+    <img src="data/20261006/test-result/ccccanh-fix/millon-knots-B-fixed/styletest-millon-knots-B-fixed_015918-f0beb0.jpg" alt="millon-knots 改后">
+    <div class="cap"><b>短画风说明 + 内容锚</b>
+      <span class="tag good">palette 0.917</span><span class="tag">gram 0.739</span>
+      <span>配色明显靠拢参考图；但**本次测试的内容锚取自另一条任务**，身份项不作数，只作趋势参考</span>
+    </div>
+  </div>
+</div>
+
+<h2>3. 横向检查：taya_oco（疑似，未确证）</h2>
+<p class="small">审计结论：<code>prompt</code> 5384 → 头部实收 590 字符（压缩比 1:9）。A/B 实测差别很小 —— 这是"短过头"这一类里**不能确证**的例子，两个版本都偏普通动漫，都没复现参考图「近乎白上白」的观感。</p>
+<div class="row">
+  <div class="card">
+    <img src="data/test-result/ccccanh-fix-20261006-0155/refs/taya_oco.png" alt="taya_oco 参考图">
+    <div class="cap"><b>画风参考图</b><span>2250×3539 · 极高亮度、极低饱和、发丝级细线</span></div>
+  </div>
+  <div class="card">
+    <img src="data/20261006/test-result/ccccanh-fix/taya_oco-A-baseline/styletest-taya_oco-A-baseline_020004-b0c49e.jpg" alt="taya_oco 原配置">
+    <div class="cap"><b>原配置（头部实收 590 字符）</b>
+      <span class="tag">palette 0.571</span><span class="tag">gram 0.859</span>
+      <span>标准动漫渲染，浓度正常</span>
+    </div>
+  </div>
+  <div class="card">
+    <img src="data/20261006/test-result/ccccanh-fix/taya_oco-B-fixed/styletest-taya_oco-B-fixed_020045-ddb972.jpg" alt="taya_oco 改后">
+    <div class="cap"><b>短画风说明 + 内容锚</b>
+      <span class="tag">palette 0.543</span><span class="tag">gram 0.863</span>
+      <span>指标几乎不动、观感也没变 → 未确证，别急着改</span>
+    </div>
+  </div>
+</div>
+
+<h2>4. 逐画风审计表（38 个画风）</h2>
+<p class="small">「实收」= priority 模式下头部实际塞进去的画风文字字符数（不含 389 字符声明）。2000 字符是项目里记的「参考图失效线」。</p>
+<table>
+  <thead><tr>
+    <th>画风</th><th>启用</th><th>参考图</th><th>prompt</th><th>prompt_gemini</th><th>compressed</th>
+    <th>实收</th><th>实际取用</th><th>内容锚</th><th>风险</th>
+  </tr></thead>
+  <tbody id="auditBody">
+<tr><td>millon-knots</td><td>是</td><td>有</td><td class=num>5632</td><td class=num>5632</td><td class=num>633</td><td class=num>5632</td><td>prompt_gemini</td><td>—</td><td><span class="tag bad">prompt_gemini=prompt 全文 / 实收 5632&gt;3000 / 缺内容锚</span></td></tr>
+<tr><td>sakurapion-style</td><td>是</td><td>有</td><td class=num>5379</td><td class=num>—</td><td class=num>2573</td><td class=num>2573</td><td>prompt_compressed</td><td>gpt_image_prompt_short</td><td><span class="tag ">实收 2573&gt;2000</span></td></tr>
+<tr><td>cccccanh</td><td>是</td><td>有</td><td class=num>5250</td><td class=num>1889</td><td class=num>1889</td><td class=num>1889</td><td>prompt_gemini</td><td>gpt_image_prompt_short</td><td><span class="tag good">正常</span></td></tr>
+<tr><td>puracotte-v3</td><td>否</td><td>有</td><td class=num>12429</td><td class=num>—</td><td class=num>1630</td><td class=num>1630</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>cute-lingerie-wardrobe</td><td>是</td><td>有</td><td class=num>2725</td><td class=num>—</td><td class=num>1468</td><td class=num>1468</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>satou_kuuki-style-v2</td><td>是</td><td>有</td><td class=num>3453</td><td class=num>—</td><td class=num>1457</td><td class=num>1457</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>say-hana-v4</td><td>是</td><td>有</td><td class=num>3699</td><td class=num>1337</td><td class=num>1324</td><td class=num>1337</td><td>prompt_gemini</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>say-hana-v3</td><td>否</td><td>有</td><td class=num>2578</td><td class=num>—</td><td class=num>1329</td><td class=num>1329</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>kishida-mel-style</td><td>是</td><td>有</td><td class=num>3588</td><td class=num>1314</td><td class=num>1735</td><td class=num>1314</td><td>prompt_gemini</td><td>gpt_image_prompt_short</td><td><span class="tag good">正常</span></td></tr>
+<tr><td>inf-nikki-v1</td><td>是</td><td>有</td><td class=num>4948</td><td class=num>—</td><td class=num>1310</td><td class=num>1310</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>shiratamaco-style</td><td>否</td><td>有</td><td class=num>3873</td><td class=num>—</td><td class=num>1302</td><td class=num>1302</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>tinkle</td><td>否</td><td>有</td><td class=num>4059</td><td class=num>1292</td><td class=num>—</td><td class=num>1292</td><td>prompt_gemini</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>ajicoma</td><td>是</td><td>有</td><td class=num>5007</td><td class=num>—</td><td class=num>1286</td><td class=num>1286</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>tid</td><td>是</td><td>有</td><td class=num>11186</td><td class=num>1224</td><td class=num>1758</td><td class=num>1224</td><td>prompt_gemini</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>fuzichoco-v2</td><td>是</td><td>有</td><td class=num>4023</td><td class=num>—</td><td class=num>1219</td><td class=num>1219</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>say-hana-v2</td><td>否</td><td>有</td><td class=num>3498</td><td class=num>—</td><td class=num>1219</td><td class=num>1219</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>noir-aiart</td><td>是</td><td>有</td><td class=num>11194</td><td class=num>—</td><td class=num>1181</td><td class=num>1181</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>fuzichoco</td><td>否</td><td>有</td><td class=num>4045</td><td class=num>—</td><td class=num>1171</td><td class=num>1171</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>satou_kuuki-style</td><td>否</td><td>有</td><td class=num>3343</td><td class=num>—</td><td class=num>1171</td><td class=num>1171</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>shiratamaco-v2-style</td><td>是</td><td>有</td><td class=num>3835</td><td class=num>—</td><td class=num>1157</td><td class=num>1157</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>say-hana-style</td><td>否</td><td>有</td><td class=num>3854</td><td class=num>—</td><td class=num>1117</td><td class=num>1117</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>waterink-style</td><td>是</td><td>有</td><td class=num>3123</td><td class=num>—</td><td class=num>1110</td><td class=num>1110</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>say-hana-v5</td><td>否</td><td>有</td><td class=num>3551</td><td class=num>—</td><td class=num>1107</td><td class=num>1107</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>dall-e-v3</td><td>否</td><td>有</td><td class=num>4197</td><td class=num>—</td><td class=num>1103</td><td class=num>1103</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>noir-art-style</td><td>是</td><td>有</td><td class=num>3764</td><td class=num>—</td><td class=num>1097</td><td class=num>1097</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>sheya-style</td><td>是</td><td>有</td><td class=num>1097</td><td class=num>1097</td><td class=num>1097</td><td class=num>1097</td><td>prompt_gemini</td><td>gpt_image_prompt</td><td><span class="tag bad">prompt_gemini=prompt 全文 / compressed=prompt 全文</span></td></tr>
+<tr><td>iris-mix-style</td><td>是</td><td>有</td><td class=num>4728</td><td class=num>—</td><td class=num>1096</td><td class=num>1096</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>komori-hikki-style</td><td>是</td><td>有</td><td class=num>16266</td><td class=num>—</td><td class=num>1091</td><td class=num>1091</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>dall-e-v2</td><td>是</td><td>有</td><td class=num>3116</td><td class=num>—</td><td class=num>1044</td><td class=num>1044</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>goto-p</td><td>是</td><td>有</td><td class=num>18809</td><td class=num>—</td><td class=num>1031</td><td class=num>1031</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>tinkle-style</td><td>是</td><td>有</td><td class=num>5298</td><td class=num>1029</td><td class=num>860</td><td class=num>1029</td><td>prompt_gemini</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>puracotte-style-v2</td><td>是</td><td>有</td><td class=num>3458</td><td class=num>—</td><td class=num>1010</td><td class=num>1010</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>dall-e</td><td>否</td><td>有</td><td class=num>3037</td><td class=num>—</td><td class=num>903</td><td class=num>903</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>puracotte-style</td><td>否</td><td>有</td><td class=num>1834</td><td class=num>—</td><td class=num>820</td><td class=num>820</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚 / 已停用</span></td></tr>
+<tr><td>taya_oco</td><td>是</td><td>有</td><td class=num>5384</td><td class=num>—</td><td class=num>590</td><td class=num>590</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>myc0t0xin</td><td>是</td><td>有</td><td class=num>5992</td><td class=num>—</td><td class=num>—</td><td class=num>584</td><td>prompt_gpt</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+<tr><td>renian</td><td>是</td><td>有</td><td class=num>5287</td><td class=num>—</td><td class=num>531</td><td class=num>531</td><td>prompt_compressed</td><td>—</td><td><span class="tag warn">缺内容锚</span></td></tr>
+</tbody>
+</table>
+<p class="small">完整数据：<code>style-audit.json</code> / <code>style-ref-stats.csv</code>（同目录）。</p>
+
+<h2>5. 结论速览</h2>
+<ul>
+  <li><b>甲级（同类根因）</b>：<code>millon-knots</code> —— <code>prompt_gemini</code> 与 <code>prompt</code> 逐字相同且缺内容锚。<code>sheya-style</code> 写法相同但只有 1097 字符，不构成问题。</li>
+  <li><b>乙级（系统性缺口）</b>：启用且有参考图的 25 个画风里，<b>21 个缺 <code>gemini_content_field</code></b>。旁证：原本唯一配了该字段的 3 个画风（sheya / kishida-mel / sakurapion）正是历史上被反复判「不像」的那几个，`GEMINI-STYLE-SIMILARITY-20260927.md` 记 tid 补了 `prompt_gemini` 后 0.7052 → 0.8558。</li>
+  <li><b>隐藏依赖</b>：内容锚字段只在本次任务算过 gpt prompts 时才存在；今天 <code>20261006-014944-abc123-白发少女.json</code> 就是 0 字符 → 会<b>静默退回长描述</b>。</li>
+  <li><b>丙级（疑似未确证）</b>：<code>taya_oco</code>（1:9）、<code>renian</code>（1:10）、<code>myc0t0xin</code>（无 compressed，回落 prompt_gpt 584）、<code>sakurapion-style</code>（实收 2573）。</li>
+  <li><b>指标口径提醒</b>：Gram / AdaIN / LPIPS / CSD 与 <code>render_score</code> 都是诊断量，不是验收标准 —— 这次 <code>taya_oco</code> 就是「指标不动、观感也没变」的例子。</li>
+</ul>
+
+<div class="files">
+  数据目录：<code>data/test-result/ccccanh-fix-20261006-0155/</code> ·
+  明细报告 <code>REPORT.md</code> · 审计 <code>style-audit.json</code> · 指标 <code>style-similarity-final.json</code>、<code>sim-millon-knots.json</code>、<code>sim-taya_oco.json</code>
+</div>
+
+<!-- 表格数据已内联，无需脚本 -->
+</body>
+</html>
+

@@ -119,6 +119,9 @@ VGG19_LAYERS = {
 }
 #: Gram 距离默认参与层（沿用 Gatys 的 conv1_1..conv5_1 五层）。
 VGG19_GRAM_LAYERS = ("relu1_1", "relu2_1", "relu3_1", "relu4_1", "relu5_1")
+# Scalar formula versions; archived v1 results must never be mixed with v2.
+GRAM_FORMULA_VERSION = "gatys-layer-sum/v2"
+GRAM_LEGACY_VERSION = "normalized-gram-extra-channel/v1"
 #: AdaIN 距离默认参与层（AdaIN 论文使用 relu1_1..relu4_1 的统计量）。
 VGG19_ADAIN_LAYERS = ("relu1_1", "relu2_1", "relu3_1", "relu4_1")
 

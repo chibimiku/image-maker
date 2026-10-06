@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ccccanh 背景损失：诊断与修复</title>
+<style>
+  :root { --line:#e4e4e8; --muted:#6b6b73; }
+  body { margin:0; padding:26px 30px 70px; background:#fafafb; color:#1b1b20;
+         font:15px/1.7 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:23px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:32px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line); }
+  .sub { color:var(--muted); font-size:13.5px; margin:0 0 12px; }
+  table { border-collapse:collapse; background:#fff; font-size:13.5px; margin:10px 0; }
+  th, td { border:1px solid var(--line); padding:5px 10px; text-align:left; white-space:nowrap; }
+  th { background:#f2f3f6; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:#14672c; font-weight:600; }
+  .bad { color:#a11f1f; font-weight:600; }
+  .warn { color:#8a5a06; font-weight:600; }
+  code { background:#f1f2f5; padding:1px 5px; border-radius:4px; }
+  pre { background:#f7f8fa; border:1px solid var(--line); border-radius:8px; padding:12px 14px; overflow:auto; font-size:12.5px; line-height:1.55; }
+  img { max-width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .note { background:#fdeeee; border:1px solid #f0c3c3; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+</style>
+</head>
+<body>
+<h1>ccccanh 背景损失：诊断与修复</h1>
+<p class="sub">2026-10-06 · 用户反馈「画风接近了，但背景损失太多」·
+案例 <code>4a77c81e_100608-12c5a3.jpg</code>、<code>be15e922_100608-688176.jpg</code>（均为 ccccanh + 直出 Gemini）。</p>
+
+<h2>1. 根因：三条叠加</h2>
+<div class="note">
+① <b>内容锚太薄</b>：priority 模式用的是 <code>gpt_image_prompt_short</code>，只有 351 / 480 字符；
+完整场景在 <code>english_description</code>（3317 / 3264 字符）里 —— 抓娃娃机、玻璃柜、价格标签、玩偶、书架、窗、墙纸
+<b>根本没进请求</b>。<br>
+② <b>我上一轮的 v5 规格里有"少画"指令</b>：<code>background painted only where the description asks</code> +
+<code>pale subordinated surroundings</code> —— 锚已经薄了，这句等于判定"背景没被要求"。<br>
+③ 参考图是<b>高饱和洗色</b>（饱和度 53.8），纯度不足时模型退化成"白底上画个人"。
+</div>
+
+<h2>2. 量化（新工具 bg_empty.py）</h2>
+<table>
+  <tr><th>图</th><th class="num">近白空场占比</th><th class="num">最大连通空场</th><th class="num">中间调占比</th><th class="num">均值亮度</th><th class="num">均值饱和</th></tr>
+  <tr><td>参考图 ccccanh.png</td><td class="num">0.050</td><td class="num">0.029</td><td class="num good">0.867</td><td class="num">161.6</td><td class="num">53.8</td></tr>
+  <tr><td>4a77c81e（现状）</td><td class="num bad">0.258</td><td class="num bad">0.160</td><td class="num bad">0.475</td><td class="num">209.3</td><td class="num">30.9</td></tr>
+  <tr><td>be15e922（现状）</td><td class="num bad">0.247</td><td class="num">0.066</td><td class="num bad">0.416</td><td class="num">231.0</td><td class="num">23.1</td></tr>
+</table>
+<p class="sub">中间调占比从 0.867 掉到 0.42~0.48 —— 少了一半画面信息，这就是"背景损失"的量化形态。</p>
+
+<h2>3. 三种改法（round13，两个案例上都测）</h2>
+<img src="data/test-result/style-lab/judge-C1.jpg" alt="case 4a77c81e">
+<p class="sub">每行左边是参考图。第 1 行=现状（背景几乎全空）、第 2 行=v7 规格+短锚（房间/窗/书架回来了）、第 3 行=v7 规格+长锚（结构最全但湿边被削弱）。</p>
+<img src="data/test-result/style-lab/judge-C2.jpg" alt="case be15e922">
+<p class="sub">案例 2：第 2 行新增了墙面与灯的层次、床品结构；第 3 行进一步补齐但整体偏干。</p>
+
+<h2>4. v7 规格加了什么</h2>
+<pre>SCENE COMPLETENESS (do not skip):
+7. Paint the ENTIRE setting the text describes — every wall, window, furniture, prop, object,
+   plant, decoration and background figure it names — in the same watercolour language.
+8. Lightness is a matter of VALUE and EDGE, not of deletion: keep each background element readable
+   at a pale value with soft edges. Never replace the described setting with an empty or blank field,
+   never delete or merge objects the text names separately, never move the subject onto a bare backdrop.
+9. Keep the number of subjects and background elements exactly as described.
+Density: a finished watercolour plate, not a cut-out figure on blank paper.</pre>
+
+<h2>5. 验证（round14：v7 × 4 个内容源）</h2>
+<table>
+  <tr><th>内容源</th><th class="num">近白空场</th><th class="num">最大空场块</th><th class="num">中间调</th><th>对比现状</th></tr>
+  <tr><td>4a77c81e（案例1）</td><td class="num good">0.186</td><td class="num">0.126</td><td class="num good">0.600</td><td class="good">中间调 0.475 → 0.600，明显改善</td></tr>
+  <tr><td>be15e922（案例2）</td><td class="num good">0.149</td><td class="num good">0.014</td><td class="num">0.416</td><td class="good">空场 0.247 → 0.149、最大块 0.066 → 0.014</td></tr>
+  <tr><td>紫薔薇の微笑み（旧样本）</td><td class="num">0.218</td><td class="num">0.210</td><td class="num">0.468</td><td>持平（该内容本身背景就少）</td></tr>
+  <tr><td>白き浮輪と金糸の午後（旧样本）</td><td class="num bad">0.313</td><td class="num">0.198</td><td class="num bad">0.294</td><td class="bad">变差：明亮户外场景被压暗压白</td></tr>
+</table>
+<p class="sub"><b>不是每张都赢</b>：4 个内容源 2 改善 / 1 持平 / 1 变差。v7 的收益集中在「室内 + 有道具」的内容上。</p>
+
+<h2>6. 已落地</h2>
+<table>
+  <tr><th>字段</th><th>改前</th><th>改后</th></tr>
+  <tr><td><code>cccccanh.prompt_gemini</code></td><td>v5 · 1985 字符</td><td><b>v7 · 2459 字符</b>（含 SCENE COMPLETENESS）</td></tr>
+  <tr><td><code>cccccanh.prompt_compressed</code></td><td>v5 · 1985</td><td><b>v7 · 2459</b></td></tr>
+  <tr><td><code>cccccanh.gemini_content_field</code></td><td><code>gpt_image_prompt_short</code></td><td>不变（短锚仍是最佳平衡）</td></tr>
+</table>
+<p class="sub">备份在 <code>data/test-result/style-lab/backups/config-styles.before-batch.json</code>；<b>重启 app 生效</b>。</p>
+
+<h2>7. 还没解决</h2>
+<table>
+  <tr><th>问题</th><th>下一步</th></tr>
+  <tr><td>长锚 + v7 背景最全但观感偏干</td><td>做一个「中等锚」（把 <code>gpt_image_prompt</code> 压到 700~900 字符）字段，落到链路里</td></tr>
+  <tr><td>短锚只有 ~450 字符，是内容上限</td><td>给 <code>resolve_gemini_reference_content</code> 加回退链并记录实际使用字段</td></tr>
+  <tr><td>明亮户外场景会被 v7 压白</td><td>规格加一句「亮度随内容：明亮场景保留暖光与饱和点缀」，需 ≥2 个明亮内容验证</td></tr>
+  <tr><td>整体浅色内容（白床品 vs 白背景）</td><td>验收改看「物体是否可读」，不只看空场占比</td></tr>
+</table>
+</body></html>

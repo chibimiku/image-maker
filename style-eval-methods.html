@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>画风评估：为什么不能只看 palette</title>
+<style>
+  :root { --line:#e4e4e8; --muted:#6b6b73; }
+  body { margin:0; padding:26px 30px 70px; background:#fafafb; color:#1b1b20;
+         font:15px/1.7 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:23px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:34px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line); }
+  h3 { font-size:15.5px; margin:20px 0 6px; }
+  .sub { color:var(--muted); font-size:13.5px; margin:0 0 12px; }
+  table { border-collapse:collapse; background:#fff; font-size:13.5px; margin:10px 0; }
+  th, td { border:1px solid var(--line); padding:5px 9px; text-align:left; white-space:nowrap; }
+  th { background:#f2f3f6; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:#14672c; font-weight:600; }
+  .bad { color:#a11f1f; font-weight:600; }
+  .warn { color:#8a5a06; font-weight:600; }
+  code { background:#f1f2f5; padding:1px 5px; border-radius:4px; }
+  img { max-width:100%; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .note { background:#fff8e6; border:1px solid #f0dfae; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+</style>
+</head>
+<body>
+<h1>画风评估：为什么不能只看 palette</h1>
+<p class="sub">2026-10-06 · 16 个样本（9 个画风 × 多条件）· 三种评估层交叉对比：
+① HSV 口径（<code>palette / gram_hsv / render / copy</code>）② 深度口径（VGG Gram / AdaIN / LPIPS / CSD）③ 我逐张看图的多维判读。</p>
+
+<h2>1. 结论先说</h2>
+<div class="note">
+<b>palette 是颜色直方图距离，不是画风指标</b>：它把「明度基调是否同族」量出来了，但把线条、笔触、材质、留白、构图密度全丢了；
+在这 16 个样本上，palette 与我的判读呈 <b>负相关（ρ = −0.39）</b>——也就是说，<b>按 palette 排序会挑错</b>。
+真正与判读同向的是深度指标：<span class="good">VGG Gram 距离 ρ = +0.37~0.43</span>、
+<span class="good">AdaIN 统计距离 ρ = +0.43~0.45</span>（取负号后）、
+以及 <span class="warn">copy 风险 ρ = +0.42</span>（高 copy 常伴随「画得更像参考」，但也可能是搬了参考角色）。
+</div>
+
+<h3>ccc canh 组内四项的实算对照（人工排序 = 最下面那张最好）</h3>
+<table>
+  <tr><th>样本</th><th class="num">palette ↓好</th><th class="num">gram_deep ↓好</th><th class="num">copy</th><th>palette 给的排序</th><th>我判读后的真实排序</th></tr>
+  <tr><td>v5 规格（浅色内容）</td><td class="num">0.304</td><td class="num good">1.49</td><td class="num">0.004</td><td class="num">第 3</td><td class="num good">第 1</td></tr>
+  <tr><td>v5 规格（深色内容）</td><td class="num">0.332</td><td class="num good">1.59</td><td class="num">0.316</td><td class="num">第 4</td><td class="num good">第 2</td></tr>
+  <tr><td>旧全文 5250 + 短锚</td><td class="num">0.274</td><td class="num warn">3.85</td><td class="num">0.010</td><td class="num">第 2</td><td class="num warn">第 3</td></tr>
+  <tr><td>旧全文 5250（原样）</td><td class="num bad">0.239</td><td class="num bad">7.62</td><td class="num">0.316</td><td class="num bad">第 1</td><td class="num bad">第 4</td></tr>
+</table>
+<p class="sub">palette 眼里的「第一名」（0.239）恰恰是我判读的最差一张；gram_deep 把顺序排对了。</p>
+
+<h2>2. 逐维 Spearman（越接近 +1 越说明该指标能代表这一维）</h2>
+<table>
+  <tr><th>判读维度</th><th class="num">palette</th><th class="num">gram_hsv</th><th class="num">render</th><th class="num">copy</th><th class="num">gram_deep</th><th class="num">adain</th><th class="num">lpips</th><th class="num">csd</th></tr>
+  <tr><td>配色 / 明度基调</td><td class="num bad">−0.44</td><td class="num">−0.14</td><td class="num">+0.09</td><td class="num">+0.34</td><td class="num">+0.34</td><td class="num">+0.32</td><td class="num">+0.18</td><td class="num">−0.18</td></tr>
+  <tr><td>线条 / 边缘</td><td class="num bad">−0.45</td><td class="num">+0.04</td><td class="num">+0.19</td><td class="num">+0.21</td><td class="num good">+0.50</td><td class="num">+0.37</td><td class="num">+0.30</td><td class="num">−0.25</td></tr>
+  <tr><td>材质 / 留白 / 氛围</td><td class="num">−0.28</td><td class="num">−0.10</td><td class="num">+0.20</td><td class="num good">+0.55</td><td class="num good">+0.41</td><td class="num">+0.43</td><td class="num">+0.21</td><td class="num">−0.26</td></tr>
+  <tr><td>构图密度（内容有没有被清空）</td><td class="num">+0.02</td><td class="num">−0.05</td><td class="num">+0.03</td><td class="num good">+0.48</td><td class="num">+0.33</td><td class="num">+0.20</td><td class="num">+0.15</td><td class="num">−0.17</td></tr>
+  <tr><td>身份保真（没搬参考角色）</td><td class="num">−0.35</td><td class="num">−0.15</td><td class="num">−0.02</td><td class="num">+0.29</td><td class="num">+0.36</td><td class="num">+0.34</td><td class="num">+0.10</td><td class="num">−0.23</td></tr>
+  <tr><td><b>综合（纯风格 A1）</b></td><td class="num bad">−0.39</td><td class="num">−0.06</td><td class="num">+0.18</td><td class="num">+0.42</td><td class="num good">+0.43</td><td class="num good">+0.45</td><td class="num">+0.24</td><td class="num">−0.27</td></tr>
+</table>
+<p class="sub">n=16；|ρ|&lt;0.3 视为无信息。注意 CSD 在本样本里方向是反的（越低越像），与它公开的语义相反，
+说明<b>单指标都要先在自己数据上标定方向与强度</b>，不能拿来就用。</p>
+
+<h2>3. 校准出来的经验带（单内容、16 样本，换内容需重标）</h2>
+<table>
+  <tr><th>分组</th><th class="num">n</th><th class="num">gram_deep 中位</th><th class="num">palette 中位</th><th class="num">csd 中位</th></tr>
+  <tr><td>高分组（A1 ≥ 4.0）</td><td class="num">5</td><td class="num good">5.49（1.49~8.54）</td><td class="num">0.287</td><td class="num">0.629</td></tr>
+  <tr><td>中分组（3.0~4.0）</td><td class="num">4</td><td class="num warn">5.80（2.82~9.65）</td><td class="num">0.408</td><td class="num">0.633</td></tr>
+  <tr><td>低分组（≤3.0）</td><td class="num">7</td><td class="num bad">7.77（3.85~10.51）</td><td class="num">0.121</td><td class="num">0.693</td></tr>
+</table>
+<p class="sub">低分组的 palette 中位（0.121）<b>比高分组更小</b> —— 又一次说明 palette 的绝对大小不能当画风接近度。
+gram_deep 在「ccc canh 这种强纹理差异」上分得很开（1.5 vs 7.6），但在跨画风混样本里重叠较大（5.5 vs 7.8），
+所以门槛只能定成三段：<code>≤4.5 通过</code> / <code>4.5~6.0 存疑</code> / <code>≥6.0 不通过</code>。</p>
+
+<h2>4. 我逐张看图的分（1~5；D1 配色 D2 线条 D3 材质留白 D4 构图密度 D5 身份保真）</h2>
+<table>
+  <tr><th>样本</th><th class="num">D1</th><th class="num">D2</th><th class="num">D3</th><th class="num">D4</th><th class="num">D5</th><th class="num">A1 纯风格</th><th class="num">A3 落地</th><th class="num">gram_deep</th></tr>
+  <tr><td>cccccanh · v5（浅色内容）</td><td class="num">5</td><td class="num">5</td><td class="num">5</td><td class="num">5</td><td class="num">5</td><td class="num good">5.00</td><td class="num good">5.00</td><td class="num good">1.49</td></tr>
+  <tr><td>cccccanh · v5（深色内容）</td><td class="num">5</td><td class="num">5</td><td class="num">5</td><td class="num">4</td><td class="num">5</td><td class="num good">5.00</td><td class="num good">4.80</td><td class="num good">1.59</td></tr>
+  <tr><td>noir-aiart · 重写（浅色内容）</td><td class="num">5</td><td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num">3</td><td class="num good">4.67</td><td class="num">4.40</td><td class="num">5.49</td></tr>
+  <tr><td>millon-knots · 重写 v2</td><td class="num">4</td><td class="num">4</td><td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num good">4.00</td><td class="num">4.40</td><td class="num">8.18</td></tr>
+  <tr><td>noir-aiart · 现规格</td><td class="num">4</td><td class="num">4</td><td class="num">4</td><td class="num">5</td><td class="num">3</td><td class="num good">4.00</td><td class="num">4.00</td><td class="num">8.54</td></tr>
+  <tr><td>puracotte · v3（已落地）</td><td class="num">4</td><td class="num">4</td><td class="num">3</td><td class="num">5</td><td class="num">5</td><td class="num">3.67</td><td class="num">4.20</td><td class="num good">2.82</td></tr>
+  <tr><td>ajicoma · 全文描述</td><td class="num">3</td><td class="num">4</td><td class="num">4</td><td class="num">5</td><td class="num">4</td><td class="num">3.67</td><td class="num">4.00</td><td class="num">9.65</td></tr>
+  <tr><td>cccccanh · 全文 5250</td><td class="num">4</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3.33</td><td class="num">3.20</td><td class="num">7.62</td></tr>
+  <tr><td>millon-knots · 全文 5632</td><td class="num">3</td><td class="num">3</td><td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num">3.33</td><td class="num">4.00</td><td class="num">3.97</td></tr>
+  <tr><td>millon-knots · 只加短锚</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">2</td><td class="num warn">3.00</td><td class="num warn">2.80</td><td class="num">6.15</td></tr>
+  <tr><td>ajicoma · 只加短锚</td><td class="num">4</td><td class="num">3</td><td class="num">2</td><td class="num">2</td><td class="num">4</td><td class="num warn">3.00</td><td class="num warn">3.00</td><td class="num bad">10.51</td></tr>
+  <tr><td>puracotte · 旧 820 字符</td><td class="num">3</td><td class="num">3</td><td class="num">2</td><td class="num">4</td><td class="num">2</td><td class="num warn">2.67</td><td class="num warn">2.80</td><td class="num">7.93</td></tr>
+  <tr><td>taya_oco · 现状（最好的一版）</td><td class="num">3</td><td class="num">2</td><td class="num">3</td><td class="num">4</td><td class="num">4</td><td class="num warn">2.67</td><td class="num">3.20</td><td class="num">6.84</td></tr>
+  <tr><td>cccccanh · 旧全文 + 短锚</td><td class="num">2</td><td class="num">3</td><td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num bad">2.33</td><td class="num bad">2.20</td><td class="num warn">3.85</td></tr>
+  <tr><td>taya_oco · 重写 v2（失败）</td><td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num">3</td><td class="num">2</td><td class="num bad">2.00</td><td class="num bad">2.20</td><td class="num">7.77</td></tr>
+  <tr><td>sheya-style · 现状</td><td class="num">1</td><td class="num">2</td><td class="num">1</td><td class="num">3</td><td class="num">2</td><td class="num bad">1.33</td><td class="num bad">1.80</td><td class="num">9.22</td></tr>
+</table>
+
+<h2>5. 看图证据（左=参考，右=生成；同一行同条件）</h2>
+<h3>ccc canh：全文字 vs v5</h3>
+<img src="data/test-result/style-lab/judge-A.jpg" alt="judge A">
+<h3>sheya / taya_oco / ajicoma + noir-aiart / shiratamaco</h3>
+<img src="data/test-result/style-lab/judge-B.jpg" alt="judge B">
+
+<h2>6. 以后怎么评（落地建议）</h2>
+<table>
+  <tr><th>用途</th><th>用什么</th><th>不要用什么</th></tr>
+  <tr><td>快速筛（几十张一批）</td><td><code>gram_deep</code>（VGG Gram 距离）+ <code>copy</code> 标记</td><td>palette 排序、style_score 排序</td></tr>
+  <tr><td>正式验收</td><td>深度四指标（Gram/AdaIN/LPIPS/CSD）分别报告 + 我看图的多维判读</td><td>任何单一自动指标下结论</td></tr>
+  <tr><td>配色是否同族（粗判）</td><td>palette 只看「是否 &gt; 0.45」这一档（明显不同族）</td><td>用 palette 比大小挑最优</td></tr>
+  <tr><td>内容保真</td><td>copy + 人工确认是否搬了参考角色/构图</td><td>只信 copy（同画风相似构图也会高分）</td></tr>
+</table>
+<p class="sub">工具：<code>data/test-result/style-lab/eval_style.py</code>（统一评估器）、<code>eval_compare3.py</code>（三层交叉）、
+<code>eval_judge.py</code>（多维判读）、<code>make_judge_grid.py</code>（拼对照网格）。</p>
+</body></html>

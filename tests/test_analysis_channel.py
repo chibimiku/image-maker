@@ -444,13 +444,13 @@ def test_queue_stays_running_while_post_process_running(analyzer):
     analyzer._active_post_threads.clear()
 
 
-def test_queue_stays_running_without_final_product(analyzer):
-    """线程都结束了但没有最终产物 → 不能标绿（提示等待最终产物）。"""
+def test_queue_fails_without_final_product(analyzer):
+    """线程都结束了但没有最终产物 → 标红，不能等待一个不会再产生的产物。"""
     task_id = _seed_record(analyzer, task_hash="nofile999")
     ok = analyzer._finalize_task_pipeline("nofile999")
     assert ok is False
-    assert analyzer._analysis_history[task_id]["status"] == "running"
-    assert analyzer._analysis_history[task_id]["phase"] == "等待最终产物"
+    assert analyzer._analysis_history[task_id]["status"] == "error"
+    assert analyzer._analysis_history[task_id]["pipeline_error"]
 
 
 def test_history_status_text_shows_phase(analyzer):
@@ -556,7 +556,8 @@ def test_analysis_thread_fallback_does_not_clobber_live_pipeline(analyzer):
     # 管线真死了（没有任何线程）→ 兜底仍然生效
     analyzer._active_img_threads.clear()
     analyzer._on_analysis_thread_stopped(analysis_thread)
-    assert record["status"] == "success" and record["title"] == "已完成（兜底更新）"
+    assert record["status"] == "error" and record["title"] == "白发少女"
+    assert record["pipeline_error"]
 
 
 def test_generation_failure_marks_record_error(analyzer):
@@ -675,7 +676,7 @@ def test_queue_lifecycle_from_analysis_to_green(analyzer, monkeypatch):
     gen_threads = []
 
     def _fake_trigger(prompt_type, is_auto=False, prompt_bundle=None, analysis_thread_no=None,
-                      auto_group_id=None):
+                      auto_group_id=None, channel=None):
         thread = _FakeGenThread(str(prompt_bundle.get("task_hash") or ""), auto_group_id=auto_group_id)
         analyzer._active_img_threads.append(thread)
         gen_threads.append(thread)
@@ -704,7 +705,7 @@ def test_queue_lifecycle_from_analysis_to_green(analyzer, monkeypatch):
 
 
 def test_auto_gen_that_never_starts_does_not_hang_queue(analyzer, monkeypatch):
-    """勾了自动生图但一个线程都没起来（缺 key 等）→ 记录按「只做分析」收尾，不能吊在「进行中」。"""
+    """勾了自动生图但一个线程都没起来 → 标红，保留分析结果。"""
     task_id = _seed_record(analyzer)
     analyzer.auto_gen_ref_cb.setChecked(True)
     monkeypatch.setattr(analyzer, "trigger_image_generation", lambda *a, **k: False)
@@ -716,7 +717,8 @@ def test_auto_gen_that_never_starts_does_not_hang_queue(analyzer, monkeypatch):
     })
 
     record = analyzer._analysis_history[task_id]
-    assert record["status"] == "success" and record["phase"] == ""
+    assert record["status"] == "error" and record["phase"] == ""
+    assert record["pipeline_error"] and record["saved_json_path"]
     assert not analyzer._auto_gen_groups
 
 

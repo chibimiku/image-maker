@@ -15,6 +15,7 @@ from openai import OpenAI
 
 # 引入抽离出去的独立组件
 from modules.image_analysis.style_analyzer import StyleAnalyzerWidget
+from modules.image_analysis.style_similarity_tab import StyleSimilarityWidget
 from modules.image_analysis.single_analyzer import SingleAnalyzerWidget, RANDOM_STYLE_LABEL
 # 【新增】引入批量提示词生成组件
 from modules.image_generation.prompt_generator import PromptGeneratorWidget
@@ -416,6 +417,8 @@ class AppWindow(QWidget):
         self.generation_tabs.addTab(self.char_design_tab, "角色设计生成")
         self.generation_tabs.addTab(self.single_gen_debug_tab, "单图调试生图")
         self.generation_tabs.addTab(self.style_analyzer_tab, "多图画风提取")
+        self.style_similarity_tab = StyleSimilarityWidget(config_getter=self.get_text_config)
+        self.generation_tabs.addTab(self.style_similarity_tab, "画风相似度")
         self.generation_tabs.addTab(self.compressor_tab, "PNG/WebP压缩")
         self.generation_tabs.addTab(self.upscaler_tab, "图片Upscaler")
         self.generation_tabs.addTab(self.flux2_client_tab, "WebUI Img2Img")

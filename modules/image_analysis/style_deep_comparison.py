@@ -12,14 +12,10 @@ import statistics
 import subprocess
 import sys
 
-VERSION = "style-deep-comparison-v1"
+VERSION = "style-deep-comparison-v2"
 METRICS = ("gram", "adain", "lpips", "csd")
-LIMITS = ("CSD 越大越接近；Gram、AdaIN、LPIPS 越小越接近。全部参考图等权，报告算术平均、"
-          "中位数与范围；缺失任意配对则均值不参与比较。不换算百分比、不合并视觉总分。"
-          "LPIPS 受人物、姿势和构图影响；VGG/LPIPS 方形拉伸，CSD 中心裁剪会遗漏边缘。"
-          "NPU FP16 与 CUDA/CPU FP32 分开保存。CSD 上游权重有复现声明，本项目没有人类标注校准。"
-          "Gram 沿用已部署实现：G=FFᵀ/(CHW)，每层 ||G₁−G₂||²/(4C²)，"
-          "额外通道归一化使其数值不等同于 Gatys 原论文 loss。当前提示词迭代没有 LoRA 训练 loss。")
+from utils.style_similarity import LIMITS
+
 
 
 def file_hash(path):
@@ -42,219 +38,69 @@ def input_manifest(state):
             "candidates": [{"id": c["id"], "path": c["path"], "sha256": file_hash(c["path"])} for c in candidates]}
 
 
-def aggregate(pairs, metric, expected):
-    valid = [p[metric]["value"] for p in pairs if p[metric]["status"] == "ok"
-             and isinstance(p[metric]["value"], (int, float)) and math.isfinite(p[metric]["value"])]
-    complete = expected > 0 and len(pairs) == expected and len(valid) == expected
-    return {"count": len(valid), "expected": expected, "status": "ok" if complete else "partial",
-            "mean": statistics.mean(valid) if complete else None,
-            "median": statistics.median(valid) if complete else None,
-            "min": min(valid) if valid else None, "max": max(valid) if valid else None}
+from utils.style_similarity import aggregate, statistics_distance, resolve_backend, ALL_METRICS, LABELS
 
 
-def statistics_distance(first, second, metric):
-    """batch=1 压缩统计量；保持部署版本的归一化和减法精度。"""
-    import torch
-    ga, sa = first
-    gb, sb = second
-    if metric == "gram":
-        layers = {k: float(((ga[k] - gb[k]).double() ** 2).sum() / (4 * ga[k].shape[-1] ** 2)) for k in ga}
-    else:
-        layers = {k: float(torch.linalg.vector_norm(sa[k][0].double() - sb[k][0].double()) + torch.linalg.vector_norm(sa[k][1].double() - sb[k][1].double())) for k in sa}
-    return sum(layers.values()), layers
-
-
-def resolve_backend(requested):
-    from utils.style_metrics import devices
-    if requested != "auto-npu":
-        return devices.resolve_device(requested)
-    failures = {}
-    for choice in ("npu", "cuda", "cpu"):
-        try:
-            backend = devices.resolve_device(choice)
-            backend.requested = "auto-npu"
-            backend.fallback = choice != "npu"
-            backend.note = f"NPU 优先选择 {choice}" + ("；前序设备不可用：" + str(failures) if failures else "")
-            backend.evidence = {**backend.evidence, "preceding_device_errors": failures}
-            return backend
-        except devices.DeviceUnavailableError as exc:
-            failures[choice] = str(exc)
-    raise devices.DeviceUnavailableError(str(failures))
-
-
-def write_report(result, directory):
+def write_report(result, directory, state=None):
     def esc(value):
         return html.escape(str(value))
     def picture(path):
-        data = base64.b64encode(Path(path).read_bytes()).decode()
-        mime = mimetypes.guess_type(path)[0] or "image/png"
+        from utils.image_encoding import compress_and_encode_image
+        mime, data = compress_and_encode_image(path, max_dim=720, quality=85)
         return f'<img style="max-height:240px;max-width:260px" src="data:{mime};base64,{data}">'
     parts = ['<!doctype html><meta charset="utf-8"><title>画风深度指标报告</title>',
              '<style>body{font-family:system-ui;margin:24px}td,th{padding:8px;border:1px solid #ccc}table{border-collapse:collapse}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>',
              '<h1>画风深度指标报告</h1><p>' + esc(LIMITS) + '</p>',
-             '<pre>' + esc(json.dumps({k: result.get(k) for k in ("version", "backend", "input_hash", "models", "weights", "training_parameters", "self_check", "execution")}, ensure_ascii=False, indent=2)) + '</pre>',
-             '<h2>源图</h2>' + ''.join(picture(r["path"]) for r in result["inputs"]["references"]),
-             '<h2>全部候选 · 全参考集等权均值</h2><table><tr><th>候选</th><th>CSD ↑</th><th>Gram ↓</th><th>AdaIN ↓</th><th>LPIPS ↓</th></tr>']
+             '<pre>' + esc(json.dumps({k: result.get(k) for k in ("version", "backend", "input_hash", "models", "weights", "training_parameters", "self_check", "execution", "metric_contract", "face_contract", "region_annotations", "region_geometry")}, ensure_ascii=False, indent=2)) + '</pre>',
+             '<h2>源图 · 原始参考数据</h2>' + ''.join('<figure>' + picture(r["path"]) + '<figcaption>参考 ' + str(i) + '：' + esc(r["path"]) + '</figcaption></figure>' for i, r in enumerate(result["inputs"]["references"])),
+             '<h2>全部候选 · 全参考集等权均值</h2><table><tr><th>候选</th>' + ''.join('<th>' + esc(LABELS[m]) + '</th>' for m in ALL_METRICS) + '</tr>']
     for row in result["rows"]:
         parts.append('<tr><td>' + esc(row["id"]) + '</td>' + ''.join(
-            '<td>' + (format(row["summary"][m]["mean"], '.8g') if row["summary"][m]["mean"] is not None else '缺失') + '</td>'
-            for m in ("csd", "gram", "adain", "lpips")) + '</tr>')
+            '<td>' + (format(row["summary"].get(m, {}).get("mean"), '.8g') if row["summary"].get(m, {}).get("mean") is not None else '缺失') + '</td>'
+            for m in ALL_METRICS) + '</tr>')
+    parts.append('</table>')
+    if any(row.get("face_summary") for row in result["rows"]):
+        from utils.style_face_metrics import LABELS as FACE_LABELS
+        parts.append('<h2>面部与发丝 · 已确认定位的完整配对均值</h2><p>自动定位为 provisional，只在逐对详情展示暂定数值，不计正式均值。不可见眼睛 / 未标发丝 / 视角不一致不补分。发丝连贯性只沿标出的发丝路径采样。</p><table><tr><th>候选</th><th>指标</th><th>均值</th><th>有效配对</th></tr>')
+        for row in result["rows"]:
+            for metric, summary in row.get("face_summary", {}).items():
+                mean = format(summary["mean"], '.6g') if summary["mean"] is not None else '未形成正式均值'
+                parts.append('<tr><td>' + esc(row["id"]) + '</td><td>' + esc(FACE_LABELS[metric]) + '</td><td>' + mean + '</td><td>' + esc(str(summary["count"]) + '/' + str(summary["expected"])) + '</td></tr>')
+        parts.append('</table>')
+    state = state or {}
+    visual = state.get("automatic_comparison") or {}
+    status = state.get("automatic_comparison_status") or {}
+    parts.append('<h2>原有视觉评分与主体复核</h2><p>深度指标成功不代表主体复核通过，不自动选择或导入画风。复制参考角色可能让距离更低，但仍应排除。</p>')
+    if status.get("status") == "failed" or not visual:
+        parts.append('<p>视觉比较未完成；未选出最佳版本。已复核 ' + esc(status.get("evaluated", 0)) + '/' + esc(status.get("expected", len(result["rows"]))) + ' 个候选。' + esc(status.get("error", "尚未运行视觉比较")) + '</p>')
+        scores = {a["id"]: a for a in status.get("partial_assessments", [])}
+    else:
+        parts.append('<p>' + esc(visual.get("formula", "")) + '；排序第一：' + esc(visual.get("best_id")) + '（观察报告后手动选用，尚不代表已写入配置）。</p>')
+        if len(visual.get("tied_best_ids", [])) > 1:
+            parts.append('<p>并列候选，需人工选择：' + esc('、'.join(visual["tied_best_ids"])) + '</p>')
+        scores = {a["id"]: a for a in visual.get("assessments", [])}
+    from modules.image_analysis.style_comparison import DIMENSIONS, DIMENSION_LABELS
+    parts.append('<table><tr><th>候选</th>' + ''.join('<th>' + esc(DIMENSION_LABELS[k]) + '</th>' for k in DIMENSIONS) + '<th>主体符合度</th><th>复核门禁与依据</th></tr>')
+    for row in result["rows"]:
+        score = scores.get(row["id"], {})
+        gates = [label for key, label in (("reference_content_copied", "复制参考内容"), ("major_structure_defect", "严重结构缺陷"), ("explicit_subject_mismatch", "主体不符"), ("uncertain", "证据不确定")) if score.get(key)]
+        parts.append('<tr><td>' + esc(row["id"]) + '</td>' + ''.join('<td>' + esc(score.get(k, "待复核")) + '</td>' for k in (*DIMENSIONS, "subject_fidelity")) + '<td>' + esc(("排除：" + '、'.join(gates) if gates else ("门禁通过" if score else "待复核")) + '；' + str(score.get("reason", ""))) + '</td></tr>')
     parts.append('</table>')
     for row in result["rows"]:
         parts.extend(['<h2>' + esc(row["id"]) + '</h2>', picture(row["path"]),
                       '<details><summary>逐张源图数值、分层参数、错误与覆盖率</summary><pre>' + esc(json.dumps(row, ensure_ascii=False, indent=2)) + '</pre></details>'])
-    target = Path(directory) / "deep-feature-comparison.html"
+    target = Path(directory) / ("style-similarity-v2.html" if result.get("version") == "style-similarity/2" else "style-similarity-v1.html" if result.get("version") == "style-similarity/1" else "deep-feature-comparison-gram-v2.html" if result.get("version") == VERSION else "deep-feature-comparison.html")
     target.write_text('\n'.join(parts), encoding="utf-8")
     return str(target.resolve())
 
 
 def compute(state_path, requested="auto", progress=lambda message: None):
-    # 子进程先导入 torch；避免 Qt/ORT 先加载造成 Windows DLL 初始化失败。
-    import torch
-    from utils.style_metrics import devices, imaging, runner, inventory, gram, adain
-    from utils.style_metrics import csd_metric, lpips_metric
-    from utils.style_metrics.config import ONNX_CACHE, VGG_INPUT_SIZE, VGG19_GRAM_LAYERS, VGG19_ADAIN_LAYERS
-    from tools.style_metrics_verify import model_for, preprocessing_for
+    from utils.style_similarity import compare_images
     state_path = Path(state_path).resolve()
     state = json.loads(state_path.read_text(encoding="utf-8"))
     inputs = input_manifest(state)
-    progress("验证设备与本地权重…")
-    backend = resolve_backend(requested)
-    weights = inventory.list_inventory(keys=["vgg19", "lpips_alex", "lpips_alex_trunk", "csd", "clip_vit_l14"], verify=True)
-    models = {m: {"model": model_for(m), "preprocessing": preprocessing_for(m)} for m in METRICS}
-    sources = {p.name: file_hash(p) for p in (Path(__file__).resolve().parents[2] / "utils/style_metrics").glob("*.py")}
-    runtime = {}
-    for package in ("torch", "torchvision", "numpy", "Pillow", "lpips", "clip", "openvino"):
-        try:
-            runtime[package] = importlib.metadata.version(package)
-        except importlib.metadata.PackageNotFoundError:
-            runtime[package] = "unavailable"
-    signature = {"version": VERSION, "inputs": inputs, "device": backend.actual, "precision": backend.precision,
-                 "models": models, "weights": weights, "sources": sources, "adapter": file_hash(__file__),
-                 "runtime": runtime, "device_name": backend.device_name}
-    fingerprint = hashlib.sha256(json.dumps(signature, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    output = state_path.parent / f"deep-feature-comparison-{backend.actual}-{backend.precision}.json"
-    if output.exists():
-        cached = json.loads(output.read_text(encoding="utf-8"))
-        if cached.get("input_hash") == fingerprint and cached.get("status") == "ok":
-            progress("复用完整深度指标缓存")
-            result = cached
-            result["backend"] = backend.as_dict()
-            result["cache_hit"] = True
-            return publish(state_path, inputs, result, output)
-    unavailable = inventory.preflight(METRICS)
-    for m in METRICS:
-        for key in inventory.METRIC_WEIGHTS[m]:
-            if weights[key].get("sha256_matches") is not True:
-                unavailable.setdefault(m, []).append({"error": f"{key} 权重 SHA-256 不匹配或缺失"})
-    npu_encoder = None
-    npu_lpips = None
-    csd = None
-    init_errors = {}
-    if backend.is_npu and "gram" not in unavailable:
-        try:
-            from utils.style_metrics.openvino_backend import NPUEncoder, export_vgg19_onnx
-            npu_encoder = NPUEncoder(export_vgg19_onnx(ONNX_CACHE / f"vgg19_features_{VGG_INPUT_SIZE}.onnx"))
-            npu_encoder.compile()
-        except Exception as exc:
-            init_errors.update(gram=exc, adain=exc)
-    if "lpips" not in unavailable and backend.is_npu:
-        try:
-            npu_lpips = lpips_metric.NPULPIPSMetric()
-        except Exception as exc:
-            init_errors["lpips"] = exc
-    if "csd" not in unavailable:
-        try:
-            csd = csd_metric.NPUCSDMetric() if backend.is_npu else csd_metric.get_metric(device=devices.torch_device(backend), precision=backend.precision)
-        except Exception as exc:
-            init_errors["csd"] = exc
-    descriptor_cache, stats_cache = {}, {}
-    def stats(path):
-        if path not in stats_cache:
-            image = imaging.load_rgb(path)
-            feats = runner.vgg_features_npu(npu_encoder, [image]) if backend.is_npu else runner.vgg_features_torch([image], backend)
-            stats_cache[path] = ({k: gram.gram_matrix(feats[k]) for k in VGG19_GRAM_LAYERS},
-                                 {k: adain.feature_stats(feats[k]) for k in VGG19_ADAIN_LAYERS})
-        return stats_cache[path]
-    def descriptor(path):
-        if path not in descriptor_cache:
-            descriptor_cache[path] = torch.nn.functional.normalize(csd.descriptor([imaging.load_rgb(path)]).float().cpu(), dim=1)
-        return descriptor_cache[path]
-    self_check = {}
-    self_path = inputs["references"][0]["path"]
-    self_image = imaging.load_rgb(self_path)
-    for m in METRICS:
-        if m in unavailable or m in init_errors:
-            self_check[m] = {"status": "unavailable", "value": None}
-            continue
-        try:
-            if m in ("gram", "adain"):
-                value, _ = statistics_distance(stats(self_path), stats(self_path), m)
-            elif m == "csd":
-                value = float((descriptor(self_path) ** 2).sum())
-            elif backend.is_npu:
-                value, _ = npu_lpips.distance_images(self_image, self_image)
-            else:
-                outcome = runner.run_lpips(self_image, self_image, backend)
-                if outcome.status != "ok":
-                    raise RuntimeError(outcome.error)
-                value = outcome.value
-            target = 1.0 if m == "csd" else 0.0
-            tolerance = runner.SELF_TOLERANCE[runner.METRIC_KIND[m]]
-            if not math.isfinite(value) or abs(value - target) > tolerance:
-                raise ValueError(f"同图自比失败：{value}；期望 {target} ± {tolerance}")
-            self_check[m] = {"status": "ok", "value": value, "target": target, "tolerance": tolerance}
-        except Exception as exc:
-            init_errors[m] = exc
-            self_check[m] = {"status": "failed_self_check", "value": None, "error": str(exc)}
-    rows = []
-    total = len(inputs["candidates"]) * len(inputs["references"])
-    done = 0
-    for candidate in inputs["candidates"]:
-        pairs = []
-        for reference in inputs["references"]:
-            pair = {"reference": reference["path"], "reference_sha256": reference["sha256"]}
-            for m in METRICS:
-                try:
-                    if m in unavailable:
-                        pair[m] = {"status": "unavailable", "value": None, "error": unavailable[m]}
-                        continue
-                    if m in init_errors:
-                        raise init_errors[m]
-                    details = {}
-                    if m in ("gram", "adain"):
-                        value, details = statistics_distance(stats(candidate["path"]), stats(reference["path"]), m)
-                    elif m == "lpips":
-                        a, b = imaging.load_rgb(candidate["path"]), imaging.load_rgb(reference["path"])
-                        if backend.is_npu:
-                            value, layers = npu_lpips.distance_images(a, b)
-                            details = {"layers": layers}
-                        else:
-                            outcome = runner.run_lpips(a, b, backend)
-                            if outcome.status != "ok":
-                                pair[m] = outcome.as_dict()
-                                continue
-                            value, details = outcome.value, outcome.detail
-                    else:
-                        value = float((descriptor(candidate["path"]) * descriptor(reference["path"])).sum())
-                    if not math.isfinite(value):
-                        raise ValueError("输出不是有限数值")
-                    pair[m] = {"status": "ok", "value": value, "detail": details}
-                except Exception as exc:
-                    pair[m] = runner.outcome_from_error(m, exc).as_dict()
-            pairs.append(pair)
-            done += 1
-            progress(f"{done}/{total} · {candidate['id']}")
-        rows.append({**candidate, "pairs": pairs, "summary": {m: aggregate(pairs, m, len(inputs["references"])) for m in METRICS}})
-    result = {"version": VERSION, "input_hash": fingerprint, "inputs": inputs, "backend": backend.as_dict(),
-              "models": models, "weights": weights, "cache_hit": False, "rows": rows, "limits": LIMITS,
-              "runtime": runtime, "self_check": self_check,
-              "status": "ok" if all(r["summary"][m]["status"] == "ok" for r in rows for m in METRICS) else "partial"}
-    if backend.is_npu:
-        result["execution"] = {"vgg": npu_encoder.describe() if npu_encoder else None,
-                               "lpips": npu_lpips.describe() if npu_lpips else None,
-                               "csd": csd.describe() if csd else None,
-                               "split": "编码器在 NPU；Gram/AdaIN 统计与 CSD 点积在 CPU"}
+    result = compare_images(inputs, requested, progress, state_path.parent)
+    output = state_path.parent / f"deep-feature-comparison-{result['backend']['actual']}-{result['backend']['precision']}-gram-v2.json"
     return publish(state_path, inputs, result, output)
 
 
@@ -262,8 +108,13 @@ def publish(state_path, inputs, result, output):
     latest = json.loads(state_path.read_text(encoding="utf-8"))
     if input_manifest(latest) != inputs:
         raise ValueError("计算期间源图或候选列表变化，结果未写回")
+    if result.get("region_annotations") is not None:
+        from utils.style_face_metrics import annotation_snapshot
+        paths = [r["path"] for r in inputs["references"] + inputs["candidates"]]
+        if annotation_snapshot(paths) != result["region_annotations"]:
+            raise ValueError("发布报告前区域定位变化，结果未写回")
     result["training_parameters"] = latest.get("parameters", {})
-    result["report_path"] = write_report(result, state_path.parent)
+    result["report_path"] = write_report(result, state_path.parent, latest)
     atomic_json(output, result)
     latest["deep_feature_comparison"] = result
     if latest.get("automatic_comparison"):
@@ -275,6 +126,7 @@ def publish(state_path, inputs, result, output):
 
 def atomic_json(path, value):
     path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
     try:
         temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -284,7 +136,7 @@ def atomic_json(path, value):
             temporary.unlink()
 
 
-def create_worker(state_path, device, parent=None):
+def create_worker(state_path, device, parent=None, locate_regions=False, region_config=None):
     from PyQt6.QtCore import QThread, pyqtSignal
     class Worker(QThread):
         completed = pyqtSignal(object, str)
@@ -299,8 +151,13 @@ def create_worker(state_path, device, parent=None):
                     python = python.with_name("python.exe")
                 with log_path.open("w", encoding="utf-8") as log:
                     environment = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-                    process = subprocess.Popen([str(python), "-u", str(root / "tools/style_metrics_verify.py"),
-                                                "--comparison-state", str(Path(state_path).resolve()), "--device", device],
+                    arguments = [str(python), "-u", str(root / "tools/style_metrics_verify.py"),
+                                 "--comparison-state", str(Path(state_path).resolve()), "--device", device]
+                    if locate_regions:
+                        arguments.append("--locate-regions")
+                        if region_config:
+                            environment.update(dict(zip(("IMAGE_MAKER_REGIONS_BASE_URL", "IMAGE_MAKER_REGIONS_API_KEY", "IMAGE_MAKER_REGIONS_MODEL"), region_config)))
+                    process = subprocess.Popen(arguments,
                                                cwd=root, env=environment, stdout=log, stderr=subprocess.STDOUT,
                                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
                     offset = 0
