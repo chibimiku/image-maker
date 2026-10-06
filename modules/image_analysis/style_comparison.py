@@ -155,8 +155,14 @@ def comparison_inputs(state, model, base_url, candidates=None):
     return candidates, refs, prompt, digest
 
 
-def write_comparison_report(state, result, directory):
-    """自包含报告：原图、测试图、分项和版本对应的提示词均可离线查看。"""
+def write_comparison_report(state, result, directory, output_name="automatic-comparison.html", title="画风比较报告"):
+    """自包含报告：原图、测试图、分项和版本对应的提示词均可离线查看。
+
+    `output_name` / `title` 可覆盖：多图画风提取现在**每一轮**都会出报告
+    （`per-round-NN.html`），固定文件名会互相覆盖，所以调用方必须能指定名字。
+    报告本身与画风无关：参考图取 `state["dataset"]["images"]`，候选取 `candidates_from_state(state)`，
+    任何画风/任何轮次都能用。
+    """
     def picture(path):
         mime, encoded = compress_and_encode_image(path, max_dim=720, quality=85)
         return f'<img loading="lazy" src="data:{mime};base64,{encoded}">'
@@ -189,9 +195,9 @@ def write_comparison_report(state, result, directory):
     research_html += '</table>'
     if state.get("resume_origin"):
         parameters_html += '<p>续训来源：' + esc(state["resume_origin"].get("candidate_id", "未记录")) + '</p>'
-    sections = ['<!doctype html><meta charset="utf-8"><title>画风比较报告</title>',
+    sections = ['<!doctype html><meta charset="utf-8"><title>' + esc(title) + '</title>',
                 '<style>body{font:16px sans-serif;margin:24px;background:#f5f5f5}img{max-width:260px;max-height:360px}article{background:white;padding:20px;margin:16px 0}table{border-collapse:collapse}td,th{padding:8px;border:1px solid #aaa}pre{white-space:pre-wrap}a{margin-right:12px}</style>',
-                '<h1>画风比较报告</h1><p>' + esc(result.get("formula", FORMULA)) + '</p>',
+                '<h1>' + esc(title) + '</h1><p>' + esc(result.get("formula", FORMULA)) + '</p>',
                 '<p>视觉分项是模型判断，不是相似度百分比。四项门禁任何一项为真均不入选；同分按候选 ID 排序。排名选择提示词版本，图像仍属于表中具体通道。</p>',
                 '<p>模型：' + esc(result["model"]) + '；输入摘要：' + esc(result["input_hash"]) + '</p>',
                 parameters_html,
@@ -214,7 +220,7 @@ def write_comparison_report(state, result, directory):
         record = candidate_map[row["id"]]["record"]
         sections.append('<h3>' + esc(row["id"]) + '：分组分数与分项依据</h3><p>' + esc(json.dumps(row.get("group_scores", {}), ensure_ascii=False)) + '</p><table><tr><th>维度</th><th>源图依据</th><th>候选依据</th><th>差异</th></tr>' + ''.join('<tr><th>' + esc(DIMENSION_LABELS.get(key, key)) + '</th>' + ''.join('<td>' + esc(item[field]) + '</td>' for field in ("reference", "candidate", "difference")) + '</tr>' for key, item in row.get("dimension_evidence", {}).items()) + '</table>')
         sections.append('<article id="' + esc(row["id"]) + '"><h2>' + esc(row["id"]) + '</h2>' + picture(row["path"]) + '<p>' + esc(row["reason"]) + '</p><p>门禁：' + esc(json.dumps(row["gates"], ensure_ascii=False)) + '</p><p>测试主体：' + esc(record["test_prompt"]) + '</p><p>测试画风参考图：' + esc(record.get("style_reference", "未记录")) + '</p><details><summary>本版本完整提示词包</summary><pre>' + esc(json.dumps({"master": record.get("prompts_used"), "variants": record.get("prompt_variants")}, ensure_ascii=False, indent=2)) + '</pre></details></article>')
-    path = os.path.join(directory, "automatic-comparison.html")
+    path = os.path.join(directory, output_name)
     with open(path, "w", encoding="utf-8") as target:
         target.write('\n'.join(sections))
     return path
@@ -241,8 +247,13 @@ def candidate_repaint_mode(state, record):
 
 
 def compare_state_in_process(path, config, timeout=600, progress=lambda message: None,
-                            cancelled=lambda: False):
+                            cancelled=lambda: False, output_name="automatic-comparison.html",
+                            title="画风比较报告"):
     """视觉复核的**唯一执行体**（GUI 线程与无头 CLI 共用同一段代码）。
+
+    `output_name` / `title` 供「每轮出报告」使用：多图画风提取每轮产一份 `per-round-NN.html`，
+    不传时保持历史行为（写 `automatic-comparison.html`）。
+    报告与画风无关：参考图来自 state 的 dataset、候选取 `candidates_from_state`，任何画风都能出。
 
     原先这段逻辑直接写在 `StyleComparisonWorker.run()` 里，于是「无头复用同一套评分口径」
     只能靠复制粘贴 —— 复制出来的代码会慢慢和 GUI 分叉（批次、证据字段、缓存键任一处漂移，
@@ -329,7 +340,8 @@ def compare_state_in_process(path, config, timeout=600, progress=lambda message:
             raise ValueError("比较期间训练数据已变更，请重新比较")
         latest["automatic_comparison"] = result
         latest["automatic_comparison_status"] = {"status": "ok", "evaluated": len(candidates), "expected": len(candidates)}
-        result["report_path"] = write_comparison_report(latest, result, os.path.dirname(path))
+        result["report_path"] = write_comparison_report(latest, result, os.path.dirname(path),
+                                                       output_name=output_name, title=title)
         from modules.image_analysis.style_deep_comparison import atomic_json
         atomic_json(path, latest)
         atomic_json(os.path.join(os.path.dirname(path), "automatic-comparison.json"), result)

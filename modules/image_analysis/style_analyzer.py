@@ -31,6 +31,9 @@ from PyQt6.QtGui import QIcon, QPixmap
 STYLE_ITER_COMMON_PROMPT_FILE = "style-iter-common.md"
 STYLE_ITER_RECONCILE_PROMPT_FILE = "style-iter-reconcile.md"
 STYLE_ITER_REFINE_PROMPT_FILE = "style-iter-refine.md"
+# 项目根目录：用于把「本地指标报告」放到独立子进程里生成（QThread 里先加载 PyQt 再加载 torch 会踩
+# WinError 1114，深度指标必须走子进程 —— 与 style_deep_comparison.create_worker 同一约束）。
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 STYLE_ITER_FINAL_REVIEW_PROMPT_FILE = "style-iter-final-review.md"
 STYLE_ITER_LOCAL_EXTRACT_PROMPT_FILE = "style-iter-local-extract.md"
 STYLE_ITER_LOCAL_MERGE_PROMPT_FILE = "style-iter-local-merge.md"
@@ -301,6 +304,9 @@ class StyleIterativeWorkerThread(QThread):
         self.file_prefix = str(file_prefix).strip()
         self.seed_prompts = str(seed_prompts or "").strip()
         self.test_style_ref_path = str(test_style_ref_path or "").strip()
+        # 每轮/终审出图后自动产出一份本地对比报告（参考图对照 + 泛化对照 + 推荐 prompt 组合）。
+        # 纯本地指标计算，不联网、不产生费用；关掉它不会影响提取结果。
+        self.per_round_report = True
         # 图片编码缓存：同一张图在一次任务中通常会被多个阶段重复编码，
         # 缓存避免重复的 CPU 压缩与 base64 开销。
         self._image_cache = {}
@@ -613,6 +619,76 @@ class StyleIterativeWorkerThread(QThread):
         if round_num is not None:
             record["round"] = round_num
         return record
+
+    def _write_round_report(self, state, round_num, label="round"):
+        """每轮出图后产出一份自包含对比报告（与画风无关，任何数据集/轮次都能出）。
+
+        - 参考图 = 本次提取用到的**全部**源图（`state["dataset"]["images"]`），
+          候选 = 本轮/终审生成的三路图；指标走共享入口 `utils.style_similarity.compare_images`
+          （**不复制任何公式**），因此报告里的数字与「双图页 / 多图画风提取的深度指标」同源。
+        - 内容：候选×参考八组指标、**泛化对照**（每个候选 × 每一张参考图的中位/最好/最差）、
+          参考图墙、**推荐的 prompt 组合**（按 gram 中位排序）。
+        - 纯本地计算，不调用任何联网 API；失败只记日志，不影响主流程。
+        """
+        if not getattr(self, "per_round_report", True):
+            return ""
+        refs = [p for p in (state.get("dataset", {}).get("images") or []) if os.path.isfile(p)]
+        tests = state.get("test_images") or {}
+        if label == "final":
+            # 终审记录优先；历史 state 里的键名不一致时（旧任务只有 round_*）退到最后一个出图轮次
+            record = state.get("final_test_images") or tests.get("final") or (
+                tests[sorted(tests)[-1]] if tests else {})
+        else:
+            record = tests.get(f"round_{round_num}") or {}
+        candidates = []
+        for channel, files in (record.get("generated_files") or {}).items():
+            for index, path in enumerate(files or []):
+                if path and os.path.isfile(path):
+                    candidates.append({"id": f"{channel}#{index + 1} · {os.path.basename(path)}",
+                                       "path": path})
+        if not refs or not candidates:
+            self.log_signal.emit(f"  （对比报告跳过：参考图 {len(refs)} 张 / 候选 {len(candidates)} 张）")
+            return ""
+        name = f"comparison-{label}.html" if label == "final" else f"comparison-{label}-{round_num:02d}.html"
+        target = os.path.join(self.output_dir, name)
+        self.log_signal.emit(
+            f"  📊 生成对比报告：{len(candidates)} 候选 × {len(refs)} 参考图（本地指标，不发 API）…")
+        try:
+            from utils.generation_report import build_payload, write_report
+            payload = build_payload(
+                refs, candidates,
+                meta={"画风": self.file_prefix or "style", "轮次": label,
+                      "参考图数": len(refs), "候选数": len(candidates),
+                      "状态": record.get("status", "未记录"),
+                      "重绘参考模式": record.get("repaint_reference_mode", "未记录"),
+                      "指标口径": "style-similarity/2（整图八组，与双图页同源）"})
+            path = write_report(payload, target)
+            self.log_signal.emit(f"  📊 已写出 {name}")
+            return path
+        except Exception as exc:  # noqa: BLE001 —— 报告失败不能影响提取主流程
+            # GUI 进程里 PyQt 先于 torch 加载会让 c10.dll 初始化失败（WinError 1114），
+            # 这是项目已知约束：深度指标必须走独立子进程（与 style_deep_comparison 一致）。
+            self.log_signal.emit(
+                f"  ⚠️ 进程内计算失败（{type(exc).__name__}），改用独立子进程重算…")
+        try:
+            import subprocess
+            import sys as _sys
+            python = _sys.executable
+            if os.path.basename(python).lower() == "pythonw.exe":
+                python = os.path.join(os.path.dirname(python), "python.exe")
+            arguments = [python, "-u", os.path.join(BASE_DIR, "tools", "make_generation_report.py"),
+                         "--references"] + refs + ["--images"] + [c["path"] for c in candidates] + \
+                        ["--out", target, "--device", "auto-cpu"]
+            result = subprocess.run(arguments, cwd=BASE_DIR, capture_output=True, text=True,
+                                    encoding="utf-8", errors="replace", timeout=3600,
+                                    env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            if os.path.isfile(target):
+                self.log_signal.emit(f"  📊 已写出 {name}（子进程）")
+                return target
+            self.log_signal.emit(f"  ⚠️ 子进程报告失败：{(result.stderr or result.stdout or '')[-300:]}")
+        except Exception as exc:  # noqa: BLE001
+            self.log_signal.emit(f"  ⚠️ 对比报告生成失败（不影响提取）：{type(exc).__name__}: {exc}")
+        return ""
 
     def _step_commonality_extraction(self, client, iterations, current_round, current_prompts):
         self._check_cancel()
@@ -1203,6 +1279,7 @@ class StyleIterativeWorkerThread(QThread):
                     state["test_images"][f"round_{round_num}"] = self._test_image_record(
                         current_prompts, round_variants, test_outputs, round_num)
                     self._save_state(state, output_path)
+                    self._write_round_report(state, round_num)
 
                 self.log_signal.emit(f"✅ Round {round_num} 完成。")
 
@@ -1243,6 +1320,7 @@ class StyleIterativeWorkerThread(QThread):
             state["final_test_images"] = self._test_image_record(
                 current_prompts, prompt_variants, final_outputs, enabled=test_enabled)
             self._save_state(state, output_path)
+            self._write_round_report(state, self.end_round, label="final")
             display_text = format_style_prompt_package(current_prompts, prompt_variants)
             display_text += "\n\n" + format_style_test_results(state["final_test_images"])
             self.log_signal.emit(format_style_test_results(state["final_test_images"]))

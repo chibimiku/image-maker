@@ -104,8 +104,8 @@ def purpose_conclusions(results) -> list[dict]:
                       f"未验证维度 " + "、".join(sorted(((e3.get('analysis') or {}).get('diagnostics') or {}))))},
         {"purpose": "自动选最佳候选（候选排序）",
          "verdict": "未验证",
-         "evidence": (f"人类盲评有效独立题 {blind.get('valid_independent_questions')}"
-                      f"（门槛 {ACCEPTANCE['candidate_ranking_assist']['min_items']}）；"
+         "evidence": (f"人类作答 0；盲评包 {blind.get('valid_independent_questions')} 个问题中真正的候选 A/B 比较只有 1 题，"
+                      f"门槛 {ACCEPTANCE['candidate_ranking_assist']['min_items']} 个有效独立题；"
                       f"视觉模型已复核 {sum(len(v) for v in ((e5.get('review') or {}).get('runs') or {}).values())} 次运行，"
                       f"但两人一致性、方向一致率均无法计算")},
     ]
@@ -268,9 +268,18 @@ def markdown_report(results, paths) -> str:
     add("")
     analysis = e3.get("analysis") or {}
     gate = analysis.get("gate") or {}
-    add(f"- 目标响应方向命中：**{_fmt(gate.get('direction_hit'), 4)}**（门槛 {ACCEPTANCE['local_measurement_assist']['value']}）")
-    add(f"- 负对照：{'全部通过' if gate.get('negative_controls_passed') else '未全部通过'}"
-        f"（{len(analysis.get('negative_controls') or [])} 个案例级负对照）")
+    add(f"- 目标响应方向命中：**{_fmt(gate.get('direction_hit'), 4)}**（门槛 {ACCEPTANCE['local_measurement_assist']['value']}）"
+        f"；达标 {(analysis.get('target_direction_counts') or {}).get('k')}/"
+        f"{(analysis.get('target_direction_counts') or {}).get('n')} 个（案例 × 干预）")
+    responses = analysis.get("responses") or []
+    passing = sorted({row["intervention"] for row in responses if row.get("status") == "pass"})
+    failing = sorted({row["intervention"] for row in responses if row.get("status") == "fail"})
+    add(f"- 通过单调性检验的干预：{', '.join(passing) or '无'}")
+    add(f"- 未通过单调性检验的干预：{', '.join(failing) or '无'}")
+    add(f"- 负对照：{len([row for row in (analysis.get('negative_controls') or []) if row['status'] == 'pass'])}/"
+        f"{len(analysis.get('negative_controls') or [])} 个案例级负对照通过（要求贴近度精确为 1.0）")
+    add(f"- 门槛判定：{'通过' if gate.get('passed') else '未通过'}"
+        f"（需同时满足方向命中 ≥ {ACCEPTANCE['local_measurement_assist']['value']} 与负对照全通过）")
     add(f"- 受控干预维度：{', '.join(((e3.get('coverage') or {}).get('controlled_metrics')) or [])}")
     add(f"- 诊断维度（无对应干预，**不得**宣称已验证）："
         f"{', '.join(sorted(analysis.get('diagnostics') or {}))}")
@@ -310,7 +319,8 @@ def markdown_report(results, paths) -> str:
     add("## 7. E4 自动定位与人工标注误差")
     add("")
     coverage = (e4.get("coverage") or {})
-    add(f"分母含全部 **{coverage.get('images')}** 张（6 个可控案例 + 4 张历史图，历史失败图保留）："
+    add(f"分母含全部 **{coverage.get('images')}** 张：6 个可控案例 + **2** 张历史 Gemini 图"
+        f"（协议写的是 6 + 4 = 10 张；该次历史测试只产出 2 张，已单列为协议偏离，历史失败图全部保留）。"
         f"自动返回 {coverage.get('returned')}、可用 {coverage.get('usable')}、人工确认 {coverage.get('confirmed')}；"
         f"返回率 {_fmt(coverage.get('return_rate'), 4)}、可用率 {_fmt(coverage.get('usable_rate'), 4)}。")
     add("")
@@ -335,6 +345,11 @@ def markdown_report(results, paths) -> str:
         add(_table(["图", "曲线", "平均偏差 / 眼宽", "95 分位 / 眼宽"], rows))
         add("")
     add("人工部分：**" + str(((e4.get("awaiting_human") or {}).get("note"))) + "**")
+    add("")
+    add("叠图人工观察（自动候选，未确认，仅作证据；已核对 `GEMINI-puracotte-auto-overlay.png`）："
+        "发丝路径整条落在面部与马甲上、头发区域多边形越出头发并压住脸与衣服，"
+        "与叠图里可见的实际发束不一致；这也解释了为什么该图的 `hair_fineness`/`hair_continuity` 保持 unavailable，"
+        "而 E3-PU-03 / E3-SA-01 两个合成案例出现同类越界。")
     add("")
     add("A↔H1 / H1↔H2 / H1↔H1-repeat 的偏差与排名翻转率：**未计算（awaiting_human）**。"
         "标注入口见 `E4/human-annotation-entry.html`，schema 见 `E4/annotation-brief.json`。")
@@ -382,6 +397,13 @@ def markdown_report(results, paths) -> str:
     add("计费：本轮唯一产生外部请求的是「E4 自动区域定位」（文本/视觉端点）与「E5 视觉复核」（同族端点）；"
         "两者按次计费但账户分项单价未知，统一记 `cost=unknown`、`may_have_charged=true`，"
         "且不声称符合费用上限。**没有发出任何新增生图请求**（18 槽位待额度）。")
+    add("")
+    ledger_summary = results.get("ledger_summary") or {}
+    add(f"计费 job 共 **{len(ledger_summary.get('charged_jobs') or [])}** 个：E4 自动定位 8 张 + "
+        f"E5 视觉复核 4 次运行（两画风 × 参考图正序/倒序）。其中 3 个 E4 job 首次响应不符合 schema、"
+        f"重试一次后成功；1 个 E5 job 的连续失败来自本地状态接线的实现缺陷（已修），不是服务端拒绝。"
+        f"`attempt_id` 在同一 job_id 上**跨多次 CLI 调用累计**，所以会出现大于 3 的编号；"
+        f"协议允许的「首次 + 2 次重试」是单次运行的规则。")
     add("")
 
     add("## 10. 用途结论")
@@ -502,6 +524,9 @@ def write_failure_evidence(results, directory) -> list[str]:
                              "error": row.get("error"), "may_have_charged": row.get("may_have_charged")})
     target = directory / "failures.json"
     atomic_json(target, {"generated_at": now(), "count": len(failures), "failures": failures,
+                         "attempt_numbering": "attempt_id 在**同一 job_id 上跨多次 CLI 调用累计**；"
+                                              "协议允许的同一次运行内重试是「首次 + 最多 2 次」，"
+                                              "所以这里的 attempt_id 可以大于 3（多轮调试/补齐命令各计一次）。",
                          "note": "原始响应/回放保存在各阶段自己的目录；此处不含任何密钥。"})
     return [str(target)]
 
@@ -523,7 +548,9 @@ def write_reports(results, plan, run_dir) -> dict:
     (results_dir / "RESULTS.md").write_text(markdown, encoding="utf-8")
     (results_dir / "report.html").write_text(html_report(results, {}), encoding="utf-8")
     atomic_json(results_dir / "results.json", results)
-    docs_copy = run_dir.parents[3] / "docs/style-extraction/DEEPSEEK-SIMILARITY-CONTROLLED-RESULTS-20261006.md"
+    repo_root = Path(__file__).resolve().parents[1]
+    docs_copy = repo_root / "docs/style-extraction/DEEPSEEK-SIMILARITY-CONTROLLED-RESULTS-20261006.md"
+    docs_copy.parent.mkdir(parents=True, exist_ok=True)
     docs_copy.write_text(markdown, encoding="utf-8")
     return {"markdown": str(results_dir / "RESULTS.md"), "html": str(results_dir / "report.html"),
             "json": str(results_dir / "results.json"), "docs_markdown": str(docs_copy),

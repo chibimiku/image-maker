@@ -15,8 +15,8 @@ from utils import style_experiment_attributes as attrs
 from utils.style_experiment_controlled import (
     ACCEPTANCE, DEVICE, E0_SYMMETRY_ABS, E0_SYMMETRY_RTOL, FACE_METRIC_DIRECTION, MAIN_METRIC,
     METRIC_DIRECTION, SEED, TIE_RTOL, AttemptLedger, atomic_json, cluster_bootstrap, compare,
-    exact_counts, icc_a1, json_hash, kendall_tau_b, metric_value, now,
-    pair_lookup, prompt_dir, read_json, run_root, sha256_file, wilson, with_retries,
+    exact_counts, face_status, face_value, icc_a1, json_hash, kendall_tau_b, metric_value, now,
+    pair_lookup, prompt_dir, read_json, run_root, sha256_file, stage_result_path, wilson, with_retries,
 )
 
 #: 十三项面部指标里，本轮建立了受控干预的 8 项；其余 5 项只能作诊断
@@ -134,29 +134,80 @@ def e0(ledger: AttemptLedger, plan, progress=None, device=DEVICE) -> dict:
     check("E0.3-完整缓存复用", cached.get("cache_hit") is True and cache_values == b_values,
           {"cache_hit": cached.get("cache_hit"), "values": cache_values})
 
-    # 0.3b 图片 hash 变化后旧结果不得被误复用
-    import shutil
-    mutated = run / "e0" / "mutated.png"
+    # 0.3b 图片 hash 变化后旧结果不得被误复用（三条子检查）
+    mutated = run / "e0" / "mutated-one-pixel.png"
     mutated.parent.mkdir(parents=True, exist_ok=True)
     _reencode_with_one_pixel_change(originals[0]["path"], mutated)
     mutated_sha = sha256_file(mutated)
-    mutation = {"note": "同一 cache 目录，用改了一个像素的同名逻辑图重新计算", "path": str(mutated),
-                "sha256": mutated_sha, "original_sha256": originals[0]["sha256"]}
+    block = run / "e0" / "mutated-block.png"
+    _reencode_with_block_change(originals[0]["path"], block)
+    block_sha = sha256_file(block)
+    hash_evidence = {}
+    # (a) 指纹不同 → 不得 cache_hit；一像素扰动在 512px 预处理下数值可不变，如实记录
     try:
         changed = compare([{"path": str(mutated), "sha256": mutated_sha}],
                           [{"path": generated[0]["path"], "sha256": generated[0]["sha256"]}],
                           cache / "repeat-a", device)
-        changed_values = {metric: metric_value(pair_lookup(changed)[(str(mutated), generated[0]["path"])], metric)
-                          for metric in METRIC_DIRECTION}
-        identical = all(changed_values[metric] == b_values[metric] for metric in changed_values)
-        # 期望：cache_hit=False（指纹不同）且数值按 1 像素改动发生真实变化；
-        # 若算出完全相同的数值，说明旧结果被误复用（协议禁止）。
-        check("E0.3-hash变化不复用",
-              changed.get("cache_hit") is not True and not identical,
-              {**mutation, "changed_values": changed_values, "cache_hit": changed.get("cache_hit"),
-               "values_identical_to_original": identical})
+        one_pixel_values = {metric: metric_value(pair_lookup(changed)[(str(mutated), generated[0]["path"])], metric)
+                            for metric in METRIC_DIRECTION}
+        hash_evidence["one_pixel"] = {
+            "sha256": mutated_sha, "cache_hit": changed.get("cache_hit"), "values": one_pixel_values,
+            "values_identical_to_original": all(one_pixel_values[metric] == b_values[metric]
+                                               for metric in one_pixel_values),
+            "note": "一像素扰动经 512px bicubic 预处理后可能完全被吸收；这一条只证 cache_hit 必须为假"}
+        check("E0.3-hash变化不复用（指纹）", changed.get("cache_hit") is not True, hash_evidence["one_pixel"])
     except Exception as exc:
-        check("E0.3-hash变化不复用", False, mutation, error=f"{type(exc).__name__}: {exc}")
+        check("E0.3-hash变化不复用（指纹）", False, {"sha256": mutated_sha}, error=f"{type(exc).__name__}: {exc}")
+    # (b) 明显的像素改动必须让数值真实变化（证明不是把旧结果搬过来）
+    try:
+        changed = compare([{"path": str(block), "sha256": block_sha}],
+                          [{"path": generated[0]["path"], "sha256": generated[0]["sha256"]}],
+                          cache / "repeat-a", device)
+        block_values = {metric: metric_value(pair_lookup(changed)[(str(block), generated[0]["path"])], metric)
+                        for metric in METRIC_DIRECTION}
+        differ = {metric: (block_values[metric] != b_values[metric]) for metric in block_values}
+        hash_evidence["block_change"] = {"sha256": block_sha, "cache_hit": changed.get("cache_hit"),
+                                         "values": block_values, "differ_from_original": differ}
+        check("E0.3-hash变化不复用（数值）", changed.get("cache_hit") is not True and any(differ.values()),
+              hash_evidence["block_change"])
+    except Exception as exc:
+        check("E0.3-hash变化不复用（数值）", False, {"sha256": block_sha}, error=f"{type(exc).__name__}: {exc}")
+    # (c) 文件内容与声明的 hash 不一致时必须拒绝，不得拿旧缓存凑答案
+    import shutil as _shutil
+    from utils.style_similarity import compare_images, validate_manifest
+    overwritten = run / "e0" / "same-path-overwritten.png"
+    overwritten.write_bytes(Path(originals[0]["path"]).read_bytes())
+    original_sha = sha256_file(overwritten)
+    _reencode_with_block_change(overwritten, overwritten)
+    modified_sha = sha256_file(overwritten)
+    mismatched_inputs = {
+        "references": [{"path": generated[0]["path"], "sha256": generated[0]["sha256"]}],
+        "candidates": [{"id": "mismatched", "path": str(overwritten), "sha256": original_sha}]}
+    if modified_sha == original_sha:
+        check("E0.3-hash不一致拒绝", False,
+              {"note": "构造失败：本地改写没有生效，无法验证 hash 校验", "sha256": original_sha})
+    else:
+        try:
+            validate_manifest(mismatched_inputs)
+            manifest_error = None
+        except Exception as exc:
+            manifest_error = f"{type(exc).__name__}: {exc}"
+        # 清掉该配对的缓存目录，避免缓存契约（指纹含声明的 hash）掩盖校验路径
+        mismatch_cache = cache / "mismatch"
+        if mismatch_cache.exists():
+            _shutil.rmtree(mismatch_cache, ignore_errors=True)
+        try:
+            result = compare_images(mismatched_inputs, device, lambda message: None, mismatch_cache)
+            statuses = {metric: (result["rows"][0]["pairs"][0].get(metric) or {}).get("status")
+                        for metric in METRIC_DIRECTION}
+            compute_error = None
+        except Exception as exc:
+            statuses, compute_error = {}, f"{type(exc).__name__}: {exc}"
+        detail = {"claimed": original_sha, "actual": modified_sha, "content_was_changed": True,
+                  "validate_manifest_error": manifest_error, "compare_error": compute_error,
+                  "metric_status_if_returned": statuses}
+        rejected = bool(manifest_error and "图片已变化" in manifest_error) or bool(compute_error)
+        check("E0.3-hash不一致拒绝", rejected, detail)
 
     # 0.4 入口一致性：CLI / 提取页计算路径 / 双图 UI（offscreen）
     entry_points = e0_entries(ledger, plan, progress)
@@ -164,8 +215,14 @@ def e0(ledger: AttemptLedger, plan, progress=None, device=DEVICE) -> dict:
 
     # 0.5 失败状态
     failure = e0_failures(ledger, plan, run, device)
+    face_states = failure.pop("E0.5-闭眼遮挡视角", {})
     for name, value in failure.items():
         check(name, value.get("status") == "pass", value, error=value.get("error"))
+    for name, value in face_states.items():
+        expected = value.get("expected_status")
+        statuses = list((value.get("metric_status") or {}).values())
+        passed = bool(statuses) and all(item == expected for item in statuses)
+        check(f"E0.5-{name}", passed, value, error=value.get("error"))
 
     result = {"stage": "E0", "device": device, "generated_at": now(), "checks": checks,
               "self_check_rows": self_rows, "symmetry": symmetry,
@@ -183,6 +240,19 @@ def _reencode_with_one_pixel_change(source, target):
     with Image.open(source) as image:
         array = np.asarray(ImageOps.exif_transpose(image).convert("RGB")).copy()
     array[0, 0] = (array[0, 0].astype(int) + 7) % 256
+    target.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(array).save(target, format="PNG")
+
+
+def _reencode_with_block_change(source, target):
+    """改动一个明显的像素块（约 1/8 边长），确保预处理后数值必然变化。"""
+    import numpy as np
+    from PIL import Image, ImageOps
+    with Image.open(source) as image:
+        array = np.asarray(ImageOps.exif_transpose(image).convert("RGB")).copy()
+    height, width = array.shape[:2]
+    size = max(8, min(height, width) // 8)
+    array[:size, :size] = 255 - array[:size, :size]
     target.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(array).save(target, format="PNG")
 
@@ -373,8 +443,10 @@ def e0_face_states(directory) -> dict:
     from utils.style_regions import save_annotation
 
     def base_annotation(sha, pose, state_left="open", state_right="open"):
+        # 上/下眼睑在眼角处必须共用端点（否则共享规则先判「眼角端点不一致」，
+        # 就测不到「视角不同」这一条）；中段仍留出眼开口。
         curve = [[0.30 + 0.02 * i, 0.40] for i in range(7)]
-        lower = [[0.30 + 0.02 * i, 0.44] for i in range(7)]
+        lower = [[0.30 + 0.02 * i, 0.40 if i in (0, 6) else 0.44] for i in range(7)]
         iris = [[0.33 + 0.005 * i, 0.42] for i in range(5)]
         return {"version": "style-regions/1", "image_sha256": sha, "pose": pose, "confirmed": False,
                 "face_outline": [[0.25, 0.2], [0.45, 0.2], [0.48, 0.5], [0.35, 0.6], [0.22, 0.5]],
@@ -401,6 +473,7 @@ def e0_face_states(directory) -> dict:
             statuses = {metric: features[metric]["status"] for metric in ("eye_brightness", "eye_height", "eye_width")}
             results["闭眼" if label == "closed" else "遮挡"] = {
                 "status": "pass" if all(value != "ok" for value in statuses.values()) else "fail",
+                "expected_status": "unavailable",
                 "metric_status": statuses,
                 "specific_status_values": sorted(set(statuses.values()))}
         except Exception as exc:
@@ -415,7 +488,9 @@ def e0_face_states(directory) -> dict:
                        str(profile_image): face_metrics.read_annotation(str(profile_image))}
         pairs = face_metrics.compare_face_features(str(frontal), str(profile_image), annotations, {})
         statuses = {metric: pairs[metric]["status"] for metric in ("eye_brightness", "eye_height", "eye_width")}
-        results["视角不同"] = {"status": "pass" if all(value == "not_comparable" for value in statuses.values()) else "fail",
+        results["视角不同"] = {"status": "pass" if all(value == "not_comparable" for value in statuses.values())
+                            else "fail",
+                            "expected_status": "not_comparable",
                             "metric_status": statuses}
     except Exception as exc:
         results["视角不同"] = {"status": "fail", "error": f"{type(exc).__name__}: {exc}"}
@@ -728,7 +803,7 @@ def e2(ledger: AttemptLedger, plan, e2_plan, variants, progress=None, device=DEV
             charged=False)
         lookup = pair_lookup(result)
         for candidate in candidate_rows:
-            by_style, missing = {}, []
+            by_style, missing, metrics_by_style = {}, [], {}
             for style_id in style_ids:
                 values = []
                 for reference in plan["split"][style_id]["references"]:
@@ -740,15 +815,21 @@ def e2(ledger: AttemptLedger, plan, e2_plan, variants, progress=None, device=DEV
                     by_style[style_id] = None
                 else:
                     by_style[style_id] = statistics.mean(values)
+                for metric in METRIC_DIRECTION:
+                    if metric == "csd":
+                        continue
+                    metric_values = [metric_value(lookup.get((candidate["path"], reference["path"])), metric)
+                                     for reference in plan["split"][style_id]["references"]]
+                    metrics_by_style.setdefault(metric, {})[style_id] = (
+                        statistics.mean(metric_values)
+                        if metric_values and all(value is not None for value in metric_values) else None)
             comparison_rows.append({
                 "anchor_id": anchor["image_id"], "anchor_style": anchor["style_id"], "kind": candidate["id"],
                 "path": candidate["path"], "candidate_style": (anchor["style_id"] if candidate["id"] == "P"
                                                                else negative["match_detail"]["style_id"]),
                 "match_detail": positive["match_detail"] if candidate["id"] == "P" else negative["match_detail"],
-                "csd_by_style": by_style, "missing_styles": missing,
-                "metrics": {metric: metric_value(lookup.get((candidate["path"], reference_rows[0]["path"])), metric)
-                            for metric in METRIC_DIRECTION},
-                "primary_target_style": anchor["style_id"]})
+                "csd_by_style": by_style, "by_style": {"csd": by_style, **metrics_by_style},
+                "missing_styles": missing, "primary_target_style": anchor["style_id"]})
 
         # 变体：只测「仅改颜色/背景/构图是否改变画风判断」，同一参考集
         variant_candidates = [{"path": anchor["path"], "sha256": anchor["sha256"], "id": "original"}]
@@ -796,7 +877,8 @@ def e2_stats(comparison_rows, variant_rows, style_ids) -> dict:
         if not positive or not negative:
             continue
         for metric in metrics:
-            first, second = positive["csd_by_style"], negative["csd_by_style"]
+            first = (positive.get("by_style") or {}).get(metric, {}).get(positive["anchor_style"])
+            second = (negative.get("by_style") or {}).get(metric, {}).get(positive["anchor_style"])
             if first is None or second is None:
                 preference[metric]["detail"].append({"anchor": anchor_id, "status": "missing"})
                 continue
@@ -815,6 +897,8 @@ def e2_stats(comparison_rows, variant_rows, style_ids) -> dict:
             preference[metric]["detail"].append({
                 "anchor": anchor_id, "status": status, "rule": rule,
                 "positive_style_score": first, "negative_style_score": second,
+                "anchor_style": positive["anchor_style"],
+                "positive_style": positive["candidate_style"], "negative_style": negative["candidate_style"],
                 "negative_hue_distance_degrees": color_close,
                 "composition_match": {key: (negative.get("match_detail") or {}).get(key)
                                       for key in ("framing_match", "background_density_match", "brightness_match")}})
@@ -939,6 +1023,17 @@ def e3(ledger: AttemptLedger, plan, frozen, progress=None, device=DEVICE) -> dic
             request={"case": case_id, "variants": [row["path"] for row in candidates]}, charged=False)
         lookup = pair_lookup(result)
         base_descriptor = face_metrics.descriptors(base["image"], face_metrics.read_annotation(base["image"]))
+        # 原图行必须进 rows：剂量序列要有 level 1.0 的起点，否则所有响应都判不了单调
+        rows.append({"case_id": case_id, "style_id": base["style_id"], "label": "original",
+                     "intervention": "original", "level": 1.0, "level_name": "original", "target_metric": None,
+                     "image": base["image"], "parameters": base["parameters"],
+                     "closeness": {metric: 1.0 for metric in face_metrics.METRICS},
+                     "status": {metric: "ok" for metric in face_metrics.METRICS},
+                     "components": {metric: base_descriptor[metric].get("components")
+                                    for metric in face_metrics.METRICS},
+                     "base_components": {metric: base_descriptor[metric].get("components")
+                                         for metric in face_metrics.METRICS},
+                     "whole_image": {metric: 1.0 for metric in METRIC_DIRECTION}})
         for record in records:
             if record["label"] == "original":
                 continue
@@ -952,8 +1047,8 @@ def e3(ledger: AttemptLedger, plan, frozen, progress=None, device=DEVICE) -> dic
                    "intervention": record["intervention"], "level": record["level"],
                    "level_name": record["level_name"], "target_metric": target,
                    "image": record["image"], "parameters": record["parameters"],
-                   "closeness": {metric: metric_value(pair, metric) for metric in face_metrics.METRICS} if pair else {},
-                   "status": {metric: (pair or {}).get(metric, {}).get("status") for metric in face_metrics.METRICS}
+                   "closeness": {metric: face_value(pair, metric) for metric in face_metrics.METRICS} if pair else {},
+                   "status": {metric: face_status(pair, metric) for metric in face_metrics.METRICS}
                    if pair else {},
                    "components": {metric: variant_descriptor[metric].get("components")
                                   for metric in face_metrics.METRICS},
@@ -962,23 +1057,29 @@ def e3(ledger: AttemptLedger, plan, frozen, progress=None, device=DEVICE) -> dic
                    "whole_image": {metric: metric_value(pair, metric) for metric in METRIC_DIRECTION} if pair else {}}
             rows.append(row)
     analysis = e3_stats(rows, frozen)
+    controlled_statuses = [row["status"].get(metric) for row in rows for metric in CONTROLLED_FACE_METRICS]
     return {"stage": "E3", "generated_at": now(), "device": device, "rows": rows, "analysis": analysis,
-            "status": "complete" if all(
-                row["status"].get(metric) not in (None, "unavailable") or True for row in rows) else "partial",
+            "status": "complete" if controlled_statuses and all(
+                value in ("ok", "provisional") for value in controlled_statuses) else "partial",
+            "controlled_status_counts": {value: controlled_statuses.count(value)
+                                         for value in sorted(set(controlled_statuses), key=str)},
             "coverage": {"variants": len(rows), "cases": len(by_case),
                          "controlled_metrics": list(CONTROLLED_FACE_METRICS),
                          "diagnostic_only": list(DIAGNOSTIC_FACE_METRICS)},
             "limitation": "机制测试基于可控绘制图样；不能据此宣称真实插画上的局部效度。"}
 
 
-def _direction_series(rows, case_id, intervention, metric):
-    """返回该案例下某干预的 (level, level_name, components, closeness, status) 序列。"""
-    series = []
-    for row in rows:
-        if row["case_id"] != case_id or row["intervention"] != intervention:
-            continue
-        series.append(row)
-    series.sort(key=lambda item: item["level"])
+def _direction_series(rows, case_id, intervention, metric=None):
+    """返回该案例下某干预的完整剂量序列：原图（起点）+ 弱/中/强三档。
+
+    排序键把原图固定在最前——`level` 数值在不同干预里含义不同（0/1 语义混用），
+    直接按 level 数值排会把原图排到末尾（真实踩过，导致所有响应都判成非单调）。
+    """
+    series = [row for row in rows
+              if row["case_id"] == case_id
+              and (row["intervention"] == intervention
+                   or (row["intervention"] == "original" and row["label"] == "original"))]
+    series.sort(key=lambda item: (item["intervention"] != "original", item["level"]))
     return series
 
 
@@ -1015,13 +1116,17 @@ def e3_stats(rows, frozen) -> dict:
                 continue
             values = [row["closeness"].get(target) for row in series]
             statuses = [row["status"].get(target) for row in series]
-            monotonic = _monotonic(values, direction)
+            baseline_ok = values and values[0] is not None and abs(values[0] - 1.0) <= 1e-9
+            monotonic = _monotonic(values, direction) if baseline_ok else None
             # 剂量响应：贴近度随档位单调（target 指标贴近度应随干预强度升高而下降）
-            dosage = {"levels": [row["level"] for row in series], "closeness": values, "statuses": statuses}
+            dosage = {"levels": [row["level"] for row in series], "closeness": values, "statuses": statuses,
+                      "baseline_row_is_identity": baseline_ok,
+                      "labels": [row["label"] for row in series]}
             responses.append({"case_id": case_id, "intervention": intervention, "target": target,
                               "expected_direction": "指标贴近度随干预增强而下降",
                               "monotonic": monotonic,
-                              "status": "pass" if monotonic else "fail", "dosage": dosage,
+                              "status": "pass" if monotonic else ("incomplete" if monotonic is None else "fail"),
+                              "dosage": dosage,
                               "components": [row["components"].get(target) for row in series]})
     passed = [row for row in responses if row.get("status") == "pass"]
     usable = [row for row in responses if row.get("status") in ("pass", "fail")]
@@ -1066,7 +1171,8 @@ def e3_stats(rows, frozen) -> dict:
                                "note": "本轮没有对应的受控干预；只能作诊断，不能宣称已验证。"}
     return {"responses": responses,
             "target_direction_hit": direction_hit,
-            "target_direction_counts": exact_counts([row.get("status") == "pass" for row in usable]),
+            "target_direction_counts": exact_counts([row.get("status") == "pass" for row in responses]),
+            "usable_response_count": len(usable),
             "non_target_response_matrix": non_target,
             "negative_controls": controls,
             "negative_controls_passed": bool(controls) and all(row["status"] == "pass" for row in controls),
@@ -1120,24 +1226,43 @@ def run_all(ledger, plan, progress=None, stages=("E0", "E1", "E2", "E3", "E4", "
     stage("E4", lambda: e4_auto(ledger, plan, e4_plan(plan, plan["e3_frozen"]), progress,
                                 locate=locate_regions))
 
-    def e5_stage():
-        e5_inputs = {"runs": plan["e5_states"], "blind_pool": plan["e5"]["blind_pool"],
-                     "reference_showcase": plan["e5"]["reference_showcase"]}
-        review = e5_visual_review(ledger, e5_inputs, progress)
+    def e5_stage(e5_inputs, plan_ref):
+        review = e5_review_from_disk(e5_inputs)
+        if review is None:
+            review = e5_visual_review(ledger, e5_inputs, progress)
         blind = build_blind_package(e5_inputs)
+        budget_plan = {"e5": plan_ref["e5"], "e5_frozen_parameters": plan_ref.get("e5_frozen_parameters")}
         return {"stage": "E5", "generated_at": now(), "review": review,
-                "budget": e5_budget(plan), "blind": blind,
+                "budget": e5_budget(budget_plan), "blind": blind,
                 "blind_analysis": e5_blind_summary(blind),
                 "analysis": e5_analysis(review, blind),
                 "status": "partial",
                 "note": "正式视觉复核只覆盖历史 2 张产物；新增 18 槽位待额度，人类盲评待作答。"}
     if "E5" in stages:
-        for style_id, variants in plan["e5_states"].items():
+        # 计划里的 `e5.runs` 就是最终形状（每个画风 forward / reverse 各一份 state + 路径）；
+        # 老版本计划只存 `e5_states` 时再退化为单次正序运行。
+        saved_runs = ((plan.get("e5") or {}).get("runs")) or {}
+        runs = {}
+        for style_id, variants in saved_runs.items():
+            runs[style_id] = {}
             for variant, payload in variants.items():
-                payload["state_path"] = str(run / "E5" / style_id / f"state-{variant}.json")
-        results["E5"] = ensure_stage_result(ledger, run, "E5", e5_stage)
+                runs[style_id][variant] = {"variant": variant, "label": variant,
+                                           "state": payload["state"],
+                                           "state_path": payload["state_path"]}
+        if not runs:
+            for style_id, payload in (plan.get("e5_states") or {}).items():
+                state = payload.get("state") if isinstance(payload.get("state"), dict) else payload
+                runs[style_id] = {"forward": {
+                    "variant": "forward", "label": "forward", "state": state,
+                    "state_path": str(run / "E5" / style_id / "state-forward.json")}}
+        if not runs:
+            raise ValueError("计划里没有 E5 运行状态（既没有 e5.runs 也没有 e5_states）")
+        results["E5"] = ensure_stage_result(
+            ledger, run, "E5",
+            lambda: e5_stage({"runs": runs, "blind_pool": plan["e5"]["blind_pool"],
+                              "reference_showcase": plan["e5"]["reference_showcase"]}, plan))
     else:
-        results["E5"] = read_json(run / "E5" / "E5-result.json", {}) or {"status": "planned"}
+        results["E5"] = read_json(stage_result_path("E5", run), {}) or {"status": "planned"}
     return results
 
 
@@ -1238,6 +1363,9 @@ def e4_auto(ledger: AttemptLedger, plan, e4_plan_data, progress=None, locate=Tru
     # 与可控图样的解析真值比较（只对 6 个合成案例有意义）
     geometry = e4_geometry_against_truth(e4_plan_data["images"])
     return {"stage": "E4-auto", "generated_at": now(), "rows": rows,
+            "status": "awaiting_human",
+            "planned_images": e4_plan_data.get("planned_images", len(rows)),
+            "images_actually_run": len(rows),
             "coverage": {"images": len(rows), "returned": returned, "usable": usable, "confirmed": confirmed,
                          "return_rate": returned / len(rows) if rows else None,
                          "usable_rate": usable / len(rows) if rows else None,
@@ -1366,8 +1494,72 @@ def e5_state(e5_plan, variant: str, output_state: Path) -> dict:
     return e5_plan["states"][variant]
 
 
+def e5_batch_review(ledger: AttemptLedger, plan, progress=None) -> dict:
+    """补齐 E5 两种呈现顺序的复核：正序缺就补正序，倒序缺就补倒序。
+
+    只补缺失的顺序；已完成（状态文件里已有 `automatic_comparison`）的不重复请求。
+    """
+    runs = (plan.get("e5") or {}).get("runs") or {}
+    e5_inputs = {"runs": {style: {"forward": variants["forward"]} for style, variants in runs.items()},
+                 "blind_pool": plan["e5"]["blind_pool"],
+                 "reference_showcase": plan["e5"]["reference_showcase"]}
+    review = e5_visual_review(ledger, e5_inputs, progress)
+    summary = {"styles": {}, "requests": 0}
+    for style_id, variants in review["runs"].items():
+        for variant, value in variants.items():
+            summary["styles"].setdefault(style_id, {})[variant] = {
+                "best_id": value.get("best_id"), "rows": len(value.get("rows") or []),
+                "status": value.get("status"), "state_path": value.get("state_path")}
+            if value.get("status") == "ok":
+                summary["requests"] += 1
+    summary["order_sensitivity"] = review["order_sensitivity"]
+    if progress:
+        progress(f"E5 顺序补齐完成：{json.dumps(summary['styles'], ensure_ascii=False)}")
+    return summary
+
+
+def e5_review_from_disk(e5_plan) -> dict | None:
+    """已完成写盘的视觉复核直接复用（成功批次不重复收费请求）。
+
+    只有每个画风的两种顺序都拿到完整评分（`automatic_comparison` 写回状态文件）才复用；
+    否则返回 None，走正常执行路径。
+    """
+    collected = {}
+    for style_id, variants in e5_plan["runs"].items():
+        collected[style_id] = {}
+        for variant, payload in variants.items():
+            expected = Path(payload["state_path"])
+            if variant != "forward":
+                expected = expected.with_name(f"state-{variant}.json")
+            candidates = [expected, Path(payload["state_path"]),
+                          Path(payload["state_path"]).with_name(f"state-{style_id}.json")]
+            state_path = next((path for path in candidates
+                               if path.is_file() and (read_json(path, {}) or {}).get("automatic_comparison")), None)
+            if state_path is None:
+                return None
+            state = read_json(state_path, {}) or {}
+            result = state.get("automatic_comparison")
+            if not result or not result.get("rows"):
+                return None
+            collected[style_id][variant] = {"status": "reused", "best_id": result.get("best_id"),
+                                            "rows": result.get("rows"), "formula": result.get("formula"),
+                                            "selection_status": result.get("selection_status"),
+                                            "model": result.get("model"), "endpoint": result.get("endpoint"),
+                                            "batch_count": result.get("batch_count"),
+                                            "state_path": str(state_path),
+                                            "report_path": (state.get("automatic_comparison_status") or {}).get("report_path")}
+    return {"stage": "E5-review", "generated_at": now(), "reused_from_disk": True, "runs": collected,
+            "order_sensitivity": e5_order_sensitivity(collected),
+            "non_independence": {"note": "视觉复核模型与自动定位模型同属文本/多模态模型族、同端点，"
+                                         "不是独立第三方评审；模型评分只是另一个待验证测量。"}}
+
+
 def e5_visual_review(ledger: AttemptLedger, e5_plan, progress=None) -> dict:
-    """复用共享 `compare_state_in_process()`；正序/倒序各一次并记录顺序敏感性。"""
+    """复用共享 `compare_state_in_process()`；参考图正序/倒序各运行一次并记录顺序敏感性。
+
+    候选只有 1 张历史产物时，候选级顺序无法检验；这里检验的是**参考图呈现顺序**，
+    并在结果里如实说明该限制（不冒充候选级顺序敏感性）。
+    """
     import importlib
     from utils.analysis_gpt_prompt import load_text_api_config
     comparison = importlib.import_module("modules.image_analysis.style_comparison")
@@ -1375,11 +1567,21 @@ def e5_visual_review(ledger: AttemptLedger, e5_plan, progress=None) -> dict:
     run = run_root()
     results = {}
     for style_id, variants in e5_plan["runs"].items():
+        base_state = variants["forward"]["state"]
+        orderings = {"forward": dict(base_state)}
+        reversed_state = {key: value for key, value in base_state.items()}
+        reversed_state["dataset"] = dict(base_state.get("dataset") or {})
+        reversed_state["dataset"]["images"] = list(reversed(base_state["dataset"]["images"]))
+        reversed_state["parameter_presentation_order"] = "reference-order-reversed"
+        orderings["reverse"] = reversed_state
         results[style_id] = {}
-        for variant, payload in variants.items():
-            state_path = Path(payload["state_path"])
+        for variant, state in orderings.items():
+            # 倒序结果写到 state-reverse*.json；正序沿用计划里的路径
+            state_path = Path(variants["forward"]["state_path"])
+            if variant != "forward":
+                state_path = state_path.with_name(f"state-{variant}.json")
             state_path.parent.mkdir(parents=True, exist_ok=True)
-            atomic_json(state_path, payload["state"])
+            atomic_json(state_path, state)
             outcome = with_retries(
                 ledger, f"e5:review:{style_id}:{variant}", "E5",
                 lambda state_path=state_path, config=config: comparison.compare_state_in_process(
@@ -1392,10 +1594,11 @@ def e5_visual_review(ledger: AttemptLedger, e5_plan, progress=None) -> dict:
                                           "selection_status": outcome.get("selection_status"),
                                           "model": outcome.get("model"), "endpoint": outcome.get("endpoint"),
                                           "batch_count": outcome.get("batch_count"),
+                                          "state_path": str(state_path),
                                           "report_path": outcome.get("report_path")}
     sensitivity = e5_order_sensitivity(results)
     return {"stage": "E5-review", "generated_at": now(), "runs": results, "order_sensitivity": sensitivity,
-            "non_independence": {"note": "视觉复核模型与自动定位模型同属文本/多模态模型族同端点，"
+            "non_independence": {"note": "视觉复核模型与自动定位模型同属文本/多模态模型族、同端点，"
                                          "不是独立第三方评审；模型评分只是另一个待验证测量。"}}
 
 
@@ -1421,14 +1624,16 @@ def e5_order_sensitivity(results) -> dict:
 
 def e5_budget(plan) -> dict:
     """新增生成的额度登记：计划槽位 ≠ 已授权额度。"""
-    return {"planned_slots": plan["e5_new_generation"]["planned_slots"],
-            "subjects": plan["e5_new_generation"]["subjects"],
-            "repeats": plan["e5_new_generation"]["repeats"],
+    section = plan.get("e5") if isinstance(plan.get("e5"), dict) and "e5_new_generation" in plan["e5"] else plan
+    generation = section["e5_new_generation"]
+    return {"planned_slots": generation["planned_slots"],
+            "subjects": generation["subjects"],
+            "repeats": generation["repeats"],
             "authorised_slots": 0,
             "authorisation_evidence": "用户未在本轮授权新增收费生图额度；协议 §9 明确「本文件创建不等于已发送/"
                                       "已获追加费用额度」。",
             "status": "awaiting_budget",
-            "frozen_parameters": plan["e5_frozen_parameters"],
+            "frozen_parameters": plan.get("e5_frozen_parameters") or section.get("e5_frozen_parameters"),
             "note": "额度不足时先复用已有图完成可执行部分，新增生成项标待额度；不擅自增加收费额度。"}
 
 
@@ -1495,9 +1700,14 @@ def build_blind_package(e5_plan, iterations=1) -> dict:
                     {"question_id": row["question_id"], "choice": "", "basis": ""} for row in questions]})
     atomic_json(directory / "blind-summary.json",
                 {"valid_independent_questions": sum(1 for row in questions if row["kind"] == "pair"),
+                 "total_questions": len(questions),
+                 "candidate_pair_questions": sum(1 for row in questions if row["kind"] == "pair"),
+                 "reference_identification_questions": sum(1 for row in questions if row["kind"] == "reference"),
                  "required": ACCEPTANCE["candidate_ranking_assist"]["min_items"],
                  "status": "awaiting_human",
-                 "note": "问卷已生成但没有任何人类作答；不得用模型答案代填，也不得据此宣称排序效度。"})
+                 "note": "问卷已生成但没有任何人类作答；不得用模型答案代填，也不得据此宣称排序效度。"
+                         "历史只有 2 张产物且分属两个目标画风，因此组内候选 A/B 题只有 1 个，"
+                         "远少于 24 个有效独立题门槛。"})
     return {"directory": str(directory), "questionnaire": str(directory / "blind-questionnaire.html"),
             "map": str(directory / "blind-map.json"), "answers_template": str(directory / "blind-answers-template.json"),
             "valid_independent_questions": sum(1 for row in questions if row["kind"] == "pair")}

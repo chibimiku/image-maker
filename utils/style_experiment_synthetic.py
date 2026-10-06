@@ -45,22 +45,22 @@ DEFAULT_COLORS = {
 CASES = [
     {"case_id": "E3-PU-01", "style_id": "puracotte", "cx": 512.0, "cy": 470.0, "face_w": 300.0, "face_h": 380.0,
      "eye_w": 108.0, "eye_gap": 46.0, "upper_arc": 0.36, "lower_arc": 0.20, "iris_fraction": 0.80,
-     "lash_len": 26.0, "strand_x": (352.0, 338.0, 366.0), "strand_tilt": 34.0},
+     "lash_len": 26.0, "strand_x": (300.0, 310.0, 320.0)},
     {"case_id": "E3-PU-02", "style_id": "puracotte", "cx": 500.0, "cy": 452.0, "face_w": 286.0, "face_h": 366.0,
      "eye_w": 116.0, "eye_gap": 40.0, "upper_arc": 0.40, "lower_arc": 0.22, "iris_fraction": 0.84,
-     "lash_len": 30.0, "strand_x": (334.0, 322.0, 350.0), "strand_tilt": 40.0},
+     "lash_len": 30.0, "strand_x": (286.0, 296.0, 306.0)},
     {"case_id": "E3-PU-03", "style_id": "puracotte", "cx": 522.0, "cy": 486.0, "face_w": 312.0, "face_h": 392.0,
      "eye_w": 100.0, "eye_gap": 52.0, "upper_arc": 0.33, "lower_arc": 0.18, "iris_fraction": 0.78,
-     "lash_len": 24.0, "strand_x": (368.0, 356.0, 382.0), "strand_tilt": 30.0},
+     "lash_len": 24.0, "strand_x": (312.0, 322.0, 332.0)},
     {"case_id": "E3-SA-01", "style_id": "sakurapion", "cx": 508.0, "cy": 462.0, "face_w": 296.0, "face_h": 374.0,
      "eye_w": 104.0, "eye_gap": 48.0, "upper_arc": 0.44, "lower_arc": 0.26, "iris_fraction": 0.74,
-     "lash_len": 32.0, "strand_x": (344.0, 330.0, 358.0), "strand_tilt": 44.0},
+     "lash_len": 32.0, "strand_x": (295.0, 305.0, 315.0)},
     {"case_id": "E3-SA-02", "style_id": "sakurapion", "cx": 516.0, "cy": 476.0, "face_w": 306.0, "face_h": 384.0,
      "eye_w": 112.0, "eye_gap": 44.0, "upper_arc": 0.38, "lower_arc": 0.24, "iris_fraction": 0.82,
-     "lash_len": 28.0, "strand_x": (354.0, 340.0, 370.0), "strand_tilt": 36.0},
+     "lash_len": 28.0, "strand_x": (300.0, 310.0, 320.0)},
     {"case_id": "E3-SA-03", "style_id": "sakurapion", "cx": 504.0, "cy": 458.0, "face_w": 292.0, "face_h": 372.0,
      "eye_w": 100.0, "eye_gap": 50.0, "upper_arc": 0.42, "lower_arc": 0.22, "iris_fraction": 0.76,
-     "lash_len": 34.0, "strand_x": (338.0, 326.0, 352.0), "strand_tilt": 42.0},
+     "lash_len": 34.0, "strand_x": (288.0, 298.0, 308.0)},
 ]
 
 #: 协议 §7 的 8 种干预与四个等级（1.0 = 原图参数）
@@ -139,14 +139,13 @@ def _lash_root_above_lid(eye_cx, cy, width, upper_arc, fraction_along, stroke_ha
 
 
 def _strand_paths(case):
-    """三条细发丝路径（画在头发区域多边形内部）。"""
+    """三条细发丝路径（竖直，落在左侧发束区域内部，并留出足够采样带余量）。"""
     paths = []
     base_y = case["cy"] - case["face_h"] * 0.30
     for index, x in enumerate(case["strand_x"]):
         top = (x, base_y + index * 18.0)
-        bottom = (x + case["strand_tilt"] * 0.25, base_y + 250.0 + index * 26.0)
-        mid = ((top[0] + bottom[0]) / 2.0 + 12.0, (top[1] + bottom[1]) / 2.0)
-        paths.append([top, mid, bottom])
+        bottom = (x, base_y + 250.0 + index * 26.0)
+        paths.append([top, bottom])
     return paths
 
 
@@ -154,16 +153,28 @@ def _strand_widths(case):
     return [4.0, 4.6, 5.2]
 
 
+#: 发丝采样带的横向半宽（相对脸宽）与安全余量：`utils/style_face_metrics` 固定为 2.5%
+STRAND_BAND_HALF = 0.025
+#: 发丝描边最粗时的半宽（像素），粗化干预上限 ×1.5
+STRAND_MAX_HALF_PX = 5.2 * 1.5 / 2.0
+#: 区域横向余量（像素）
+STRAND_MARGIN_PX = 5.0
+
+
 def _hair_region(case):
-    """左侧发束区域（包含三条发丝路径，且不覆盖面部）。"""
-    left = case["cx"] - case["face_w"] / 2.0
-    top = case["cy"] - case["face_h"] * 0.36
-    bottom = case["cy"] + case["face_h"] * 0.62
-    thickness = case["face_w"] * 0.30
-    return [[(left - thickness * 0.55, top),
-             (left + thickness * 0.55, top),
-             (left + thickness * 0.62, bottom),
-             (left - thickness * 0.20, bottom)]]
+    """左侧发束区域：由三条发丝路径的坐标**解析**推出，保证采样带完全落在内部。"""
+    band_half_px = case["face_w"] * STRAND_BAND_HALF
+    offset = band_half_px + STRAND_MAX_HALF_PX + STRAND_MARGIN_PX
+    xs = [point[0] for path in _strand_paths(case) for point in path]
+    ys = [point[1] for path in _strand_paths(case) for point in path]
+    left_edge = min(xs) - offset
+    right_edge = max(xs) + offset
+    inner = case["cx"] - case["face_w"] / 2.0
+    if right_edge > inner:
+        raise ValueError("发束区域会压到面部，请调整 strand_x")
+    top = min(ys) - offset
+    bottom = max(ys) + offset
+    return [[(left_edge, top), (right_edge, top), (right_edge, bottom), (left_edge, bottom)]]
 
 
 def variant_parameters(case, intervention=None, level=1.0):

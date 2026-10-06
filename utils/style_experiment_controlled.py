@@ -158,16 +158,28 @@ class AttemptLedger:
             counter[key] = counter.get(key, 0) + 1
         charged_unknown = [row["job_id"] for row in self.rows
                            if row.get("may_have_charged") and row.get("cost") in (None, "unknown")]
+        order = {}
+        for row in self.rows:
+            order.setdefault(row["job_id"], []).append(row.get("status"))
+        # 真正的「重试」= 同一次运行内先失败、后成功；跨多次 CLI 调用重复执行不算重试
+        retried = sorted(job for job, statuses in order.items()
+                         if "failed" in statuses and "ok" in statuses)
+        repeated = sorted(job for job, statuses in order.items()
+                          if len(statuses) > 1 and job not in retried)
         return {
             "rows": len(self.rows),
+            "jobs": len(order),
             "by_stage_status": dict(sorted(counter.items())),
-            "retried_jobs": sorted({row["job_id"] for row in self.rows
-                                    if self.next_attempt(row["job_id"]) > 2 and row.get("status") == "ok"}),
-            "jobs_with_multiple_attempts": sorted({row["job_id"] for row in self.rows
-                                                   if sum(1 for r in self.rows if r["job_id"] == row["job_id"]) > 1}),
+            "retried_jobs": retried,
+            "retried_job_count": len(retried),
+            "jobs_repeated_across_runs": repeated,
+            "jobs_repeated_across_runs_count": len(repeated),
+            "note": "账本按 job_id 累积；同一 job 在多轮 CLI 调用里重复执行（重复测量/复用）不计为重试。",
+            "failed_rows": sum(1 for row in self.rows if row.get("status") == "failed"),
             "cost_unknown_jobs": sorted(set(charged_unknown)),
             "http_attempts_unknown": sorted({row["job_id"] for row in self.rows
                                              if row.get("http_attempts_unknown")}),
+            "charged_jobs": sorted({row["job_id"] for row in self.rows if row.get("may_have_charged")}),
             "reused_jobs": sorted({row["job_id"] for row in self.rows if row.get("status") == "reused"}),
         }
 
@@ -206,9 +218,15 @@ def with_retries(ledger: AttemptLedger, job_id: str, stage: str, action, request
     raise RuntimeError(f"job {job_id} 达到 {attempts} 次尝试上限：{last_error}")
 
 
+def stage_result_path(stage: str, run_dir=None) -> Path:
+    """阶段结果的唯一位置：`<run>/<stage>/result.json`。"""
+    return Path(run_dir or run_root()) / stage.upper() / "result.json"
+
+
 def ensure_stage_result(ledger, run_dir, stage, producer, **kwargs):
     """已完成并成功写盘的阶段直接复用，不重复计算（缓存/断点复用，写进账本）。"""
-    marker = Path(run_dir) / f"{stage.upper()}-result.json"
+    run_dir = Path(run_dir)
+    marker = stage_result_path(stage, run_dir)
     if marker.is_file():
         ledger.record(job_id=f"{stage}:cached", attempt_id=1, retry_of=None, stage=stage, status="reused",
                       started=now(), finished=now(), request_hash=json_hash({"marker": str(marker)}),
@@ -456,11 +474,27 @@ def pair_lookup(result) -> dict:
 
 
 def metric_value(pair, metric):
+    """整图指标取值（gram/adain/lpips/csd/tone/edges/lines/space 在 pair 顶层）。"""
     outcome = pair.get(metric) or {}
     value = outcome.get("value")
     if outcome.get("status") not in ("ok",) or not isinstance(value, (int, float)) or not math.isfinite(value):
         return None
     return float(value)
+
+
+def face_value(pair, metric):
+    """面部/发丝指标取值：共享入口把 13 项放在 pair['face_features'] 下，不在顶层。"""
+    outcome = ((pair or {}).get("face_features") or {}).get(metric) or {}
+    value = outcome.get("value")
+    if outcome.get("status") not in ("ok", "provisional"):
+        return None
+    if not isinstance(value, (int, float)) or not math.isfinite(value):
+        return None
+    return float(value)
+
+
+def face_status(pair, metric):
+    return (((pair or {}).get("face_features") or {}).get(metric) or {}).get("status")
 
 
 # --------------------------------------------------------------------------- #
@@ -766,7 +800,8 @@ def write_freezes(plan, ledger, progress=None) -> dict:
                  "e3_negative_controls": plan["e3"]["negative_controls"]})
     atomic_json(plan_dir / "blind-map.json", {"pending": True,
                                               "seed": SEED,
-                                              "note": "盲评包在 E5 执行时生成，见 E5/blind/blind-map.json"})
+                                              "note": "空位文件：真正的盲评映射在运行时生成，见 "
+                                                      "<run>/E5/blind/blind-map.json（A/B 位置由种子 20261006 打乱）"})
     atomic_json(plan_dir / "e2-plan.json", plan["e2"])
     atomic_json(plan_dir / "e5-plan.json", plan["e5"])
     # 冻结顺序说明：本函数只写计划与冻结包；plan-full.json 在调用方写完 e3_frozen 后重写
@@ -860,14 +895,18 @@ def stage_statuses(results, plan) -> dict:
         "E3": {"status": e3.get("status", "planned"), "planned": variants, "actual": len(e3.get("rows") or []),
                "independent_works": 6,
                "missing_ids": [], "reason": "可控绘制图样机制测试，不代表真实图效度"},
-        "E4": {"status": "awaiting_human", "planned": e4_images, "actual": e4_images,
+        "E4": {"status": ((results.get("E4") or {}).get("status") or "awaiting_human"),
+               "planned": e4_images, "actual": e4_images,
                "independent_works": e4_images,
                "missing_ids": ["H1", "H2", "H1-repeat(≥24h)", "人工变体结构核查"],
-               "reason": "自动定位已跑；人工标注与人工间重复性必须由实际人类提供"},
-        "E5": {"status": "awaiting_budget+awaiting_human", "planned": 18 + 2, "actual": 2,
+               "reason": "自动定位已跑并保留叠图；人工标注与人工间重复性必须由实际人类提供"},
+        "E5": {"status": ((results.get("E5") or {}).get("status") or "awaiting_budget+awaiting_human"),
+               "planned": 18 + 2, "actual": len(((e5.get("review") or {}).get("runs") or {})),
                "independent_works": 2,
                "missing_ids": ["新增 18 槽位（未授权额度）", "两名人类 ≥24 个有效独立题"],
-               "reason": "历史 2 张 Gemini 产物已补正式视觉复核与盲评包；新增生图无授权额度"},
+               "reason": f"历史 2 张 Gemini 产物的正式视觉复核已按两种呈现顺序运行 "
+                         f"（{sum(len(v) for v in ((e5.get('review') or {}).get('runs') or {}).values())} 次）；"
+                         f"新增生图无授权额度，人类盲评待作答"},
     }
 
 
@@ -877,7 +916,8 @@ def collect_gaps(results, plan) -> list[dict]:
         {"kind": "human", "what": "E4 的两名人类标注者（H1/H2）与 H1 隔 ≥24 小时复标；"
                                   "眼睑曲线、虹膜、睫毛、脸轮廓、头发 mask/path 叠图核查",
          "blocks": "自动定位偏差、人工间重复性、自动 vs 人工排名翻转率、自动定位能否默认参与正式测量"},
-        {"kind": "human", "what": "E5 两名人类各 ≥24 个有效独立 A/B 题（含 6 个重复题检验个人一致性）",
+        {"kind": "human", "what": "E5 两名人类各 ≥24 个有效独立 A/B 题（含 6 个重复题检验个人一致性）；"
+                                  "当前盲评包里真正的组内候选 A/B 题只有 1 个",
          "blocks": "候选排序效度、视觉模型与人类的一致率"},
         {"kind": "budget", "what": f"E5 新增 18 个生图槽位（2 画风 × 3 主体 × 3 重复）的费用授权；"
                                    f"当前已授权 0",
@@ -896,26 +936,46 @@ def collect_gaps(results, plan) -> list[dict]:
 
 
 def summary_template(results) -> str:
+    e0 = results.get("E0") or {}
     e1 = results.get("E1") or {}
     primary = ((e1.get("analysis") or {}).get(MAIN_METRIC)) or {}
     e2 = ((results.get("E2") or {}).get("analysis") or {}).get("preference") or {}
     e3 = ((results.get("E3") or {}).get("analysis") or {}).get("gate") or {}
-    e4 = ((results.get("E4") or {}).get("coverage")) or {}
-    e5 = (results.get("E5") or {})
+    e4 = (results.get("E4") or {}).get("coverage") or {}
+    e5 = results.get("E5") or {}
     ledger = results.get("ledger_summary") or {}
-    return f"""协议/代码版本：{results.get('protocol_version')} / 代码 hash 见 PLAN/code-freeze.json
-冻结包与运行目录：{run_root()}
-实际独立原作品/query/主体组数：{sum(len(v['references']) + len(v['queries']) for v in (results.get('plan') or {{}}).get('split', {{}}).values())}/{(e1.get('counts') or {{}}).get('queries')}/6
-E0：{((results.get('E0') or {{}}).get('status'))}；关键失败：{(results.get('E0') or {{}}).get('critical_failures')}
-E1：主指标 {MAIN_METRIC} n={primary.get('counts', {{}}).get('total')} Top-1={primary.get('top1_accuracy')} 区间={primary.get('wilson_95')} 每画风={{{', '.join(f'{k}:{v.get("correct")}/{v.get("total")}' for k, v in (primary.get('per_style') or {{}}).items())}}}
-E2：困难对照 CSD 正确偏好 {(e2.get('csd') or {{}}).get('correct')}/{(e2.get('csd') or {{}}).get('n')}；变体翻转见 E2-result.json
-E3：目标响应 {e3.get('direction_hit')}；负对照 {'通过' if e3.get('negative_controls_passed') else '未通过'}
-E4：自动有效 {(e4.get('usable'))}/{(e4.get('images'))}；人工确认 {e4.get('confirmed')}/{(e4.get('images'))}（awaiting_human）
-E5：人类有效题数 = 0（awaiting_human）；视觉已复核 {(e5.get('review', {{}}).get('runs') and sum(len(v) for v in e5['review']['runs'].values()))}/2 顺序；排序一致性未计算
-重试/未知收费/缓存复用：{ledger.get('jobs_with_multiple_attempts')} / {ledger.get('cost_unknown_jobs')} / {ledger.get('reused_jobs')}
-哪些用途可用、哪些只能探索、哪些不能用：见报告第 10 节
-尚需人工/额度/数据的具体项目：见报告第 11 节
-下一轮唯一优先改进及验证方案：{results.get('next_step', '')}"""
+    plan = results.get("plan") or {}
+    split = plan.get("split") or {}
+    works = sum(len(value["references"]) + len(value["queries"]) for value in split.values())
+    per_style = ", ".join(f"{key}:{value.get('correct')}/{value.get('total')}"
+                          for key, value in sorted((primary.get("per_style") or {}).items()))
+    blind = (e5.get("blind") or {})
+    review_runs = ((e5.get("review") or {}).get("runs")) or {}
+    review_count = sum(len(variants) for variants in review_runs.values())
+    return "\n".join([
+        f"协议/代码版本：{results.get('protocol_version')} / 代码 hash 见 PLAN/code-freeze.json",
+        f"冻结包与运行目录：{run_root()}",
+        f"实际独立原作品/query/主体组数：{works}/{(e1.get('counts') or {}).get('queries')}/6",
+        f"E0：{e0.get('status')}；关键失败：{e0.get('critical_failures')}",
+        f"E1：主指标 {MAIN_METRIC} n={(primary.get('counts') or {}).get('total')} "
+        f"Top-1={primary.get('top1_accuracy')} 区间={primary.get('wilson_95')} 每画风={{{per_style}}}",
+        f"E2：困难对照 CSD 正确偏好 {(e2.get('csd') or {}).get('correct')}/{(e2.get('csd') or {}).get('n')}；"
+        f"变体翻转见 E2 阶段结果",
+        f"E3：目标响应 {e3.get('direction_hit')}；负对照 "
+        f"{'全通过' if e3.get('negative_controls_passed') else '未全通过'}；门槛"
+        f"{'通过' if e3.get('passed') else '未通过'}",
+        f"E4：自动有效 {e4.get('usable')}/{e4.get('images')}；人工确认 {e4.get('confirmed')}/"
+        f"{e4.get('images')}（awaiting_human）",
+        f"E5：人类有效独立 A/B 题 = 0（盲评包共 {blind.get('valid_independent_questions')} 个问题，"
+        f"其中真正的候选 A/B 比较只有 1 题，其余为参考画风识别题；门槛 24，awaiting_human）；"
+        f"视觉已复核 {review_count}/4 次运行（两画风 × 参考图正序/倒序）；排序一致性未计算",
+        f"重试/未知收费/缓存复用：{ledger.get('retried_job_count')} / "
+        f"{len(ledger.get('cost_unknown_jobs') or [])} / {len(ledger.get('reused_jobs') or [])}"
+        f"（重试 job 数 / 费用未知 job 数 / 复用 job 数）",
+        "哪些用途可用、哪些只能探索、哪些不能用：见报告第 10 节",
+        "尚需人工/额度/数据的具体项目：见报告第 11 节",
+        f"下一轮唯一优先改进及验证方案：{results.get('next_step', '')}",
+    ])
 
 
 def next_step(results) -> str:

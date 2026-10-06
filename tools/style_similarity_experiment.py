@@ -81,7 +81,7 @@ def command_run(args):
         raise SystemExit(f"未知阶段：{unknown}")
     if args.force:
         for stage in stages:
-            marker = core.run_root() / stage / f"{stage}-result.json"
+            marker = core.stage_result_path(stage)
             if marker.is_file():
                 shutil.copy2(marker, marker.with_suffix(".json.prev"))
                 marker.unlink()
@@ -95,13 +95,14 @@ def command_run(args):
 
 
 def command_report(args):
+    from utils.style_experiment_annotation import write_annotation_assets
     from utils.style_experiment_reports import write_reports
     plan = load_plan()
     ledger = load_ledger()
     results = {"protocol_version": core.PROTOCOL_VERSION, "protocol_date": core.PROTOCOL_DATE,
                "run_id": plan["run_id"], "plan": _plan_view(plan)}
     for stage in STAGES:
-        results[stage] = core.read_json(core.run_root() / stage / f"{stage}-result.json", {}) or {}
+        results[stage] = core.read_json(core.stage_result_path(stage), {}) or {}
     results["stages"] = core.stage_statuses(results, plan)
     results["confounds"] = _confounds(plan)
     results["deviations"] = deviations(results)
@@ -112,7 +113,15 @@ def command_report(args):
     results["summary_template"] = core.summary_template(results)
     results["e5_images"] = [{"label": row["image_id"] + "（历史 Gemini 产物）", "path": row["path"]}
                             for row in plan["e0_images"] if row["kind"] == "generated"]
+    # E4 人工标注入口（含自动叠图与逐图 hash）作为可交付件
+    e4_images = [{"image_id": row["image_id"], "kind": row["kind"], "path": row["path"],
+                  "sha256": row.get("sha256"), "style_id": row.get("style_id"),
+                  "history_failure": row.get("history_failure"), "overlay": row.get("overlay")}
+                 for row in (results.get("E4") or {}).get("rows") or []]
+    if e4_images:
+        results["e4_annotation_assets"] = write_annotation_assets(e4_images, core.run_root())
     files = write_reports(results, plan, core.run_root())
+    files.update(results.get("e4_annotation_assets") or {})
     print(json.dumps(files, ensure_ascii=False, indent=2), flush=True)
     return 0
 
@@ -153,9 +162,15 @@ def deviations(results) -> list[dict]:
         {"what": "E3 使用参数化可控绘制图样而非真实插画",
          "impact": "只证明测量机制会响应指定变化，不代表真实插画效度",
          "handling": "协议 §7 明确允许，并在 E3 结果与报告中声明"},
+        {"what": "E4 实际运行 8 张（6 个可控案例 + 2 张历史 Gemini 图），协议写的是 10 张（6 个案例 + 4 张历史图）",
+         "impact": "历史图分母比协议少 2 张（那次历史测试只产出 2 张图），覆盖率分母相应变小",
+         "handling": "在 E4 结果与报告中写明实际分母 8 与差额 2 的来源，不把 8 说成 10"},
         {"what": "E4 人工标注与 E5 人类盲评尚未提供",
          "impact": "自动定位可用率、人工间重复性、候选排序效度均无法验收",
-         "handling": "登记 awaiting_human，并交付盲评包与标注工具，未用模型代填"},
+         "handling": "登记 awaiting_human，并交付盲评包与标注入口，未用模型代填"},
+        {"what": "E5 的视觉复核只完成「参考图正序 / 倒序」两种呈现顺序，候选级顺序敏感性无法检验",
+         "impact": "每个画风只有 1 个候选，候选顺序对评分的影响未测",
+         "handling": "在 E5 结果中写明检验的是参考图顺序，不冒充候选级顺序敏感性"},
         {"what": "E5 新增 18 个生图槽位没有费用授权",
          "impact": "E5 只有历史 2 张产物，最多 1 组组内比较，远少于 24 个有效独立题",
          "handling": "登记 awaiting_budget，未发出任何新增生图请求"},
@@ -167,13 +182,27 @@ def deviations(results) -> list[dict]:
     return items
 
 
+def command_complete_e5_orders(args):
+    """补齐 E5 的参考图倒序复核（正序已在主运行完成）。
+
+    用途：初次运行因状态文件路径错误只完成正序时，用同一条共享入口补跑倒序，
+    作为协议 §9 要求的「正序/倒序各运行一次」的顺序敏感性证据。
+    """
+    from utils.style_experiment_controlled_phases import e5_batch_review
+    plan = load_plan()
+    ledger = load_ledger()
+    result = e5_batch_review(ledger, plan, progress=lambda message: print("[e5] " + message, flush=True))
+    print(json.dumps(result, ensure_ascii=False, indent=2)[:2000], flush=True)
+    return 0
+
+
 def command_status(args):
     plan = core.read_json(core.run_root() / "PLAN" / "plan-full.json", {}) or {}
     ledger = load_ledger()
     summary = {"run_root": str(core.run_root()), "plan_frozen": bool(plan),
                "stages": {}}
     for stage in STAGES:
-        value = core.read_json(core.run_root() / stage / f"{stage}-result.json", {})
+        value = core.read_json(core.stage_result_path(stage), {})
         summary["stages"][stage] = (value or {}).get("status", "planned")
     summary["ledger"] = ledger.summarize()
     print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
@@ -194,6 +223,8 @@ def main(argv=None):
     report.set_defaults(func=command_report)
     status = sub.add_parser("status", help="只看阶段与账本摘要")
     status.set_defaults(func=command_status)
+    orders = sub.add_parser("complete-e5-orders", help="补齐 E5 参考图倒序复核（共享入口，会调用文本端点）")
+    orders.set_defaults(func=command_complete_e5_orders)
     args = parser.parse_args(argv)
     try:
         return args.func(args)
