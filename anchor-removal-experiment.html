@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>撤锚实验：6 个画风的锚字段对照</title>
+<style>
+  :root { --line:#e4e4e8; --muted:#6b6b73; }
+  body { margin:0; padding:26px 30px 80px; background:#fafafb; color:#1b1b20;
+         font:15px/1.75 "Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  h1 { font-size:23px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:34px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line); }
+  .sub { color:var(--muted); font-size:13.5px; margin:0 0 12px; }
+  table { border-collapse:collapse; background:#fff; font-size:13px; margin:10px 0; }
+  th, td { border:1px solid var(--line); padding:4px 8px; text-align:left; vertical-align:top; }
+  th { background:#f2f3f6; white-space:nowrap; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:#14672c; font-weight:600; }
+  .bad { color:#a11f1f; font-weight:600; }
+  .warn { color:#8a5a06; font-weight:600; }
+  code { background:#f1f2f5; padding:1px 5px; border-radius:4px; font-size:12.5px; }
+  img { max-width:100%; border:1px solid var(--line); border-radius:8px; margin:6px 0; }
+  .note { background:#eef5ff; border:1px solid #c3d8f0; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  .caveat { background:#fff8e6; border:1px solid #f0dfae; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13.5px; }
+  .legend { font-size:12.5px; color:var(--muted); }
+</style>
+</head>
+<body>
+<h1>撤锚实验：6 个画风的 <code>gemini_content_field</code> 对照</h1>
+<p class="sub">
+先说一个必须交代的坑：**第一次跑（round20）我以为已经撤锚，其实没有** —— 当时 <code>config-styles.json</code> 仍是旧的，
+实验脚本是「显式指定 <code>anchor_short</code>」，所以那 6 张图带的还是短锚，等于重复测了一遍。
+真正撤锚后的重跑是 <b>round21</b>（先删字段、再生成），下面的结论全部基于 round21。
+</p>
+
+<h2>一、实验设计与改动</h2>
+<table>
+  <tr><th>画风</th><th>改动</th><th>删除前 <code>gemini_content_field</code></th></tr>
+  <tr><td>ajicoma / iris-mix-style / renian / tid / komori-hikki-style / millon-knots</td>
+      <td>用 <code>drop_anchor.py --apply</code> 删除字段（只删这一个键，画风文字一字未动）</td>
+      <td><code>gpt_image_prompt_short</code>（6 个都相同）</td></tr>
+</table>
+<p class="sub">删除前状态记录在 <code>data/test-result/style-lab/anchor-removal-round20.json</code>；
+三组图条件是「同一内容源（white-pool）+ 同一画风文字 + 只差锚字段」。</p>
+
+<h2>二、8 项指标：无锚 vs 短锚</h2>
+<p class="sub">短锚列取 round20（同条件、同批次时段）的实测值；<b>gram / adain / lpips 越小越好，csd / tone / edges / lines / space 越大越好</b>。</p>
+<table>
+  <tr><th>画风</th><th>组</th><th class="num">gram</th><th class="num">adain</th><th class="num">lpips</th><th class="num">csd</th><th class="num">tone</th><th class="num">edges</th><th class="num">lines</th><th class="num">space</th></tr>
+  <tr><td rowspan="2">ajicoma</td><td class="bad">无锚</td><td class="num">4.60</td><td class="num">96.3</td><td class="num">0.636</td><td class="num">0.702</td><td class="num">0.593</td><td class="num">0.889</td><td class="num">0.900</td><td class="num">0.708</td></tr>
+  <tr><td class="good">短锚</td><td class="num"><b>3.04</b></td><td class="num"><b>80.4</b></td><td class="num"><b>0.587</b></td><td class="num"><b>0.773</b></td><td class="num"><b>0.715</b></td><td class="num">0.830</td><td class="num"><b>0.957</b></td><td class="num"><b>0.756</b></td></tr>
+  <tr><td rowspan="2">iris-mix-style</td><td class="bad">无锚</td><td class="num">6.96</td><td class="num">90.1</td><td class="num">0.612</td><td class="num">0.717</td><td class="num">0.765</td><td class="num">0.960</td><td class="num">0.945</td><td class="num">0.483</td></tr>
+  <tr><td class="good">短锚</td><td class="num"><b>4.30</b></td><td class="num"><b>66.8</b></td><td class="num"><b>0.551</b></td><td class="num"><b>0.765</b></td><td class="num"><b>0.807</b></td><td class="num"><b>0.971</b></td><td class="num">0.935</td><td class="num"><b>0.601</b></td></tr>
+  <tr><td rowspan="2">renian</td><td class="warn">无锚</td><td class="num"><b>3.16</b></td><td class="num">74.3</td><td class="num">0.615</td><td class="num">0.656</td><td class="num">0.726</td><td class="num"><b>0.852</b></td><td class="num">0.829</td><td class="num"><b>0.873</b></td></tr>
+  <tr><td class="good">短锚</td><td class="num">3.24</td><td class="num"><b>74.0</b></td><td class="num"><b>0.562</b></td><td class="num"><b>0.683</b></td><td class="num"><b>0.738</b></td><td class="num">0.843</td><td class="num"><b>0.849</b></td><td class="num">0.778</td></tr>
+  <tr><td rowspan="2">tid</td><td class="bad">无锚</td><td class="num"><b>5.23</b></td><td class="num"><b>105.7</b></td><td class="num">0.670</td><td class="num">0.543</td><td class="num"><b>0.818</b></td><td class="num"><b>0.921</b></td><td class="num">0.780</td><td class="num"><b>0.832</b></td></tr>
+  <tr><td class="good">短锚</td><td class="num">11.71</td><td class="num">135.5</td><td class="num"><b>0.660</b></td><td class="num"><b>0.664</b></td><td class="num">0.690</td><td class="num">0.790</td><td class="num"><b>0.890</b></td><td class="num">0.785</td></tr>
+  <tr><td rowspan="2">komori-hikki-style</td><td class="good">无锚</td><td class="num"><b>3.88</b></td><td class="num"><b>74.6</b></td><td class="num">0.583</td><td class="num">0.684</td><td class="num"><b>0.840</b></td><td class="num">0.944</td><td class="num"><b>0.990</b></td><td class="num"><b>0.843</b></td></tr>
+  <tr><td class="warn">短锚(round20)</td><td class="num">2.40</td><td class="num">65.2</td><td class="num"><b>0.555</b></td><td class="num"><b>0.751</b></td><td class="num">0.830</td><td class="num">0.947</td><td class="num">0.785</td><td class="num">0.674</td></tr>
+  <tr><td rowspan="2">millon-knots</td><td class="warn">无锚</td><td class="num">4.58</td><td class="num">86.3</td><td class="num"><b>0.576</b></td><td class="num">0.650</td><td class="num"><b>0.832</b></td><td class="num">0.804</td><td class="num">0.873</td><td class="num">0.798</td></tr>
+  <tr><td class="good">短锚(round20)</td><td class="num"><b>3.38</b></td><td class="num"><b>75.3</b></td><td class="num">0.582</td><td class="num"><b>0.669</b></td><td class="num">0.773</td><td class="num"><b>0.822</b></td><td class="num"><b>0.968</b></td><td class="num"><b>0.827</b></td></tr>
+</table>
+
+<h3>逐画风判定（8 项里谁赢的项数）</h3>
+<table>
+  <tr><th>画风</th><th class="num">无锚胜</th><th class="num">短锚胜</th><th>代码结论</th><th>我的读图结论</th><th>最终处置</th></tr>
+  <tr><td>ajicoma</td><td class="num">1</td><td class="num good">7</td><td class="good">短锚</td><td>短锚（明度更亮、更像参考的浅粉底）</td><td class="good">恢复短锚</td></tr>
+  <tr><td>iris-mix-style</td><td class="num">1</td><td class="num good">7</td><td class="good">短锚</td><td>两版都是 Q 版，短锚的浅蓝海面更贴参考</td><td class="good">恢复短锚</td></tr>
+  <tr><td>renian</td><td class="num">3</td><td class="num good">5</td><td class="good">短锚（弱）</td><td>两版都远；短锚的水面/气泡氛围略贴</td><td class="good">恢复短锚</td></tr>
+  <tr><td>millon-knots</td><td class="num">2</td><td class="num good">6</td><td class="good">短锚</td><td>短锚（奶油+浅蓝、环形背景框更贴参考）</td><td class="good">恢复短锚</td></tr>
+  <tr><td>tid</td><td class="num warn">5</td><td class="num">3</td><td class="warn">无锚</td><td>两版都没抓住青绿描边；无锚那版色彩更饱和</td><td class="warn">保持无锚，标注不稳定</td></tr>
+  <tr><td>komori-hikki-style</td><td class="num warn">6</td><td class="num">2</td><td class="warn">无锚</td><td>无锚版更柔和；但同画风另一次短锚运行 gram 2.40（更低）</td><td class="warn">保持无锚，标注不稳定</td></tr>
+</table>
+
+<div class="note">
+<b>结论与上一轮相反，必须说清楚</b>：上一页我根据 round18/19 的「长描述 vs 短锚」推断「这 6 个倾向撤锚」。
+真正撤锚重测后，<b>4 个画风（ajicoma / iris-mix-style / renian / millon-knots）的短锚在 8 项里 5~7 项更好</b>，
+已恢复锚字段；只有 <code>tid</code> 与 <code>komori-hikki-style</code> 的去留不确定，暂时保持无锚。
+</div>
+
+<div class="caveat">
+<b>稳定性警告（本次实验最重要的发现）</b>：同一画风、同一条件、同一内容源，<b>两次生成的指标差可以大于"锚 vs 无锚"的差</b>。
+例：<code>komori-hikki-style</code> 短锚两次运行 gram = <b>7.07</b> 与 <b>2.40</b>；<code>tid</code> 短锚两次 = <b>11.71</b> 与 <b>4.18</b>。
+这意味着：<b>单张出图的对照只能当方向性线索</b>，要定稿必须每条件 ≥3 张并取中位；本页的 4 个「恢复短锚」结论是「代码 + 读图同向」才采纳的，
+<code>tid</code>/<code>komori</code> 正因为在两次运行间自相矛盾才没有采纳。
+</div>
+
+<h2>三、视觉对照（参考 | 无锚 round21 | 短锚 round20）</h2>
+<img src="data/test-result/style-lab/anchor-removal-grid-1.jpg" alt="撤锚对照 1">
+<p class="sub">ajicoma（短锚明显更亮、更贴浅粉底）· iris-mix-style（短锚的浅蓝/白泳装更贴）· renian（两版都远，短锚水面氛围略贴）</p>
+<img src="data/test-result/style-lab/anchor-removal-grid-2.jpg" alt="撤锚对照 2">
+<p class="sub">tid（两版都没青绿描边；无锚更饱和）· komori-hikki-style（无锚更柔和、短锚出现暖金光与玻璃房）· millon-knots（短锚的环形背景与大株植物更贴参考）</p>
+
+<h2>四、今日 <code>conf/config-styles.json</code> 的净改动（含本次处置）</h2>
+<table>
+  <tr><th>画风</th><th>字段</th><th>今天开始前</th><th>现在的值</th><th>净效果</th></tr>
+  <tr><td>cccccanh</td><td><code>prompt_gemini</code>/<code>compressed</code> + 锚</td><td>5250 全文、无锚</td><td><b>2459（v7）</b> + <code>gpt_image_prompt_short</code></td><td class="good">画风像了 + 背景不再被洗白</td></tr>
+  <tr><td>millon-knots</td><td><code>prompt_gemini</code> + 锚</td><td>5632 全文、无锚</td><td><b>1975</b> + 短锚</td><td class="good">保留</td></tr>
+  <tr><td>puracotte-style</td><td><code>prompt_compressed</code> + 锚</td><td>820、无锚</td><td><b>1755（v3）</b> + 短锚</td><td class="good">保留</td></tr>
+  <tr><td>goto-p</td><td><code>prompt_gemini</code>/<code>compressed</code> + 锚</td><td>未设置 / 1031、无锚</td><td><b>1529</b> + 短锚</td><td class="good">保留</td></tr>
+  <tr><td>noir-aiart</td><td>同上 + 锚</td><td>未设置 / 1181、无锚</td><td><b>1725</b> + 短锚</td><td class="good">保留</td></tr>
+  <tr><td>komori-hikki-style</td><td><code>prompt_gemini</code>/<code>compressed</code>，<b>无锚</b></td><td>未设置 / 1091、无锚</td><td><b>1725</b>、无锚</td><td class="warn">文字保留，锚本次删掉（结论不稳）</td></tr>
+  <tr><td>ajicoma / inf-nikki-v1 / iris-mix-style / myc0t0xin / noir-art-style / puracotte-style-v2 / renian / satou_kuuki-style-v2 / say-hana-v4 / tid / tinkle-style / waterink-style / cute-lingerie-wardrobe / dall-e-v2 / fuzichoco-v2</td><td>只动锚字段</td><td>无锚（默认退回长描述）</td><td>其中 <b>13 个 = 短锚</b>；<b>tid / komori-hikki-style = 无锚</b></td><td class="warn">见上表逐项判定</td></tr>
+</table>
+<p class="legend">补充：<code>taya_oco</code>、<code>shiratamaco-v2-style</code> 今天最终保持无锚（前者 4 种改法全更差、后者回滚后实测确认）；
+<code>fuzichoco-v2 / sheya-style / waterink-style / ajicoma / tid</code> 属于「所有条件下都复现不了参考画风」的一类，文字没继续改。</p>
+
+<h2>五、文件与命令</h2>
+<table>
+  <tr><th>用途</th><th>命令 / 文件</th></tr>
+  <tr><td>删锚（可复用）</td><td><code>python data/test-result/style-lab/drop_anchor.py --apply --styles A B ...</code></td></tr>
+  <tr><td>恢复锚（可复用）</td><td><code>python data/test-result/style-lab/restore_anchor.py --styles A B --apply</code></td></tr>
+  <tr><td>删除前状态记录</td><td><code>data/test-result/style-lab/anchor-removal-round20.json</code></td></tr>
+  <tr><td>指标原始输出</td><td><code>shared-round19/20/21.json</code>（含逐层 detail 与 hash）</td></tr>
+  <tr><td>对照表机器可读</td><td><code>anchor_removal_compare.py</code> 输出 + <code>anchor-removal-compare.json</code></td></tr>
+</table>
+</body></html>
