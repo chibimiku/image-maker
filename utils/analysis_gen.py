@@ -381,6 +381,9 @@ def build_gemini_content_postamble(content: str, post_instructions: str = "") ->
     from utils.prompt_loader import render_prompt_file
     if not str(content or "").strip():
         return str(post_instructions or "")
+    # An opt-in style template already supplies the complete content contract.
+    if "{content}" in str(post_instructions or ""):
+        return str(post_instructions).replace("{content}", str(content).strip())
     lock = render_prompt_file("gemini-analysis-content-lock.md", {"content": str(content).strip()})
     return "\n\n".join(v for v in (str(post_instructions or "").strip(), lock.strip()) if v)
 

@@ -91,6 +91,7 @@ def normalize_style_entry(entry):
             "prompt_compressed": str(compressed or ""),
             "prompt_gpt": str(gpt_prompt or ""),
             "prompt_gemini": str(gemini_prompt or ""),
+            "gemini_priority_profile": dict(entry.get("gemini_priority_profile") or {}),
             "gemini_content_field": str(entry.get("gemini_content_field") or ""),
             "enabled": entry.get("enabled", True) is not False,
             "motif_clauses": [str(v).strip() for v in (entry.get("motif_clauses") or [])
@@ -410,6 +411,10 @@ def build_ref_gen_params(styles, style_name, mode, api_type=""):
     head, post = assemble_style_instructions(
         mode, style_text, has_ref, compressed, prompt_gpt
     )
+    profile = gemini_priority_profile_for(styles, style_name, mode, api_type)
+    if profile:
+        head = render_prompt_file(profile["head_file"]).strip()
+        post = render_prompt_file(profile["post_file"]).strip()
     ref_paths = [entry["ref_image"]] if (has_ref and mode != MODE_OFF) else []
     # 画风自带的**材质/表面条款**（`gemini_surface_clauses`，目前只有 satou_kuuki-style-v2 配了皮革光泽）
     # 在这里就拼进 `post`：它必须落在**参考图之后**（图前会去和图争权威），而这个函数的
@@ -419,6 +424,17 @@ def build_ref_gen_params(styles, style_name, mode, api_type=""):
     if surface:
         post = "\n\n".join(v for v in (str(post or "").strip(), surface) if v)
     return head, post, ref_paths
+
+
+def gemini_priority_profile_for(styles, style_name, mode, api_type=""):
+    """Opt-in painting template; other modes, missing refs and GPT retain their defaults."""
+    entry = normalize_style_entry((styles or {}).get(style_name))
+    profile = entry.get("gemini_priority_profile") or {}
+    if (mode != MODE_PRIORITY or _is_gpt_image_api(api_type)
+            or not ref_image_valid(entry["ref_image"])
+            or not profile.get("head_file") or not profile.get("post_file")):
+        return {}
+    return profile
 
 
 def _is_gpt_image_api(api_type) -> bool:

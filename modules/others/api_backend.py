@@ -2604,6 +2604,11 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         "Content-Type": "application/json"
     }
 
+    # Some style profiles supply a complete content template; direct callers may
+    # bypass the GUI's postamble assembler, so resolve it before sending.
+    if "{content}" in str(post_instructions or ""):
+        from utils.analysis_gen import build_gemini_content_postamble
+        post_instructions = build_gemini_content_postamble(prompt, post_instructions)
     # 组合提示词
     _face_quality_boost = ", detailed face, clear facial features, sharp focus on face"
     boost = _face_quality_boost if face_quality_boost else ""

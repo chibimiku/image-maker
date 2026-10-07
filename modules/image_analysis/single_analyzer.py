@@ -1718,13 +1718,14 @@ class ImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(list)
 
-    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False, file_prefix=None, post_instructions=None, audit_retry=False, audit_callback=None, audit_max_attempts=2, audit_timeout=None, publish_dir="", publish_name=""):
+    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False, file_prefix=None, post_instructions=None, audit_retry=False, audit_callback=None, audit_max_attempts=2, audit_timeout=None, publish_dir="", publish_name="", face_quality_boost=True):
         super().__init__()
         self.prompt = prompt
         self.model_name = model_name
         self.aspect_ratio = aspect_ratio
         self.instructions = instructions
         self.post_instructions = post_instructions or ""
+        self.face_quality_boost = bool(face_quality_boost)
         self.api_type = api_type
         self.resolution = resolution
         self.image_paths = list(image_paths or [])
@@ -1778,7 +1779,8 @@ class ImageGenWorkerThread(QThread):
                 file_prefix=self.file_prefix,
                 return_metadata=self.verbose_debug,
                 cancel_check=lambda: self.isInterruptionRequested(),
-                post_instructions=self.post_instructions
+                post_instructions=self.post_instructions,
+                face_quality_boost=self.face_quality_boost,
             )
         else:
             result = generate_image_whatai(
@@ -1824,6 +1826,8 @@ class ImageGenWorkerThread(QThread):
                 "post_instructions": self.post_instructions,
                 "save_sub_dir": os.path.abspath(self.publish_dir),
             }
+            if self.api_type == "aigc2d":
+                kwargs["face_quality_boost"] = self.face_quality_boost
             generated = generate_image_aigc2d(**kwargs) if self.api_type == "aigc2d" \
                 else generate_image_whatai(**kwargs)
             files = list(generated.get("saved_files", []) or []) if isinstance(generated, dict) \
@@ -1917,7 +1921,8 @@ class ImageGenWorkerThread(QThread):
                     file_prefix=self.file_prefix,
                     return_metadata=self.verbose_debug,
                     cancel_check=lambda: self.isInterruptionRequested(),
-                    post_instructions=self.post_instructions
+                    post_instructions=self.post_instructions,
+                    face_quality_boost=self.face_quality_boost,
                 )
             else:
                 result = generate_image_whatai(
@@ -5321,7 +5326,6 @@ class SingleAnalyzerWidget(QWidget):
                 return False
         # 添加面部质量保护后缀，防止因原图打码等原因导致生成模糊面部
         _face_quality_suffix = "detailed face, clear facial features, sharp focus on face"
-        prompt_to_use = f"{prompt_to_use}, {_face_quality_suffix}"
         
         selected_style_name = str(prompt_context.get("style_name") or "").strip()
         if not selected_style_name:
@@ -5343,15 +5347,22 @@ class SingleAnalyzerWidget(QWidget):
         has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
         active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
         active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
-            styles_data, selected_style_name, active_mode
+            styles_data, selected_style_name, active_mode, api_type=api_type
         )
+        from utils.styles import gemini_priority_profile_for
+        priority_profile = (gemini_priority_profile_for(
+            styles_data, selected_style_name, active_mode, api_type) if not gpt_channel else {})
+        face_quality_boost = priority_profile.get("face_quality_boost", True)
+        if face_quality_boost:
+            prompt_to_use = f"{prompt_to_use}, {_face_quality_suffix}"
         from utils.analysis_gen import resolve_gemini_reference_content
         style_entry = (styles_data or {}).get(selected_style_name)
         if not gpt_channel:
             anchored_prompt, anchor_field = resolve_gemini_reference_content(
                 style_entry, prompt_context, prompt_to_use, active_mode)
             if anchor_field:
-                prompt_to_use = f"{anchored_prompt}, {_face_quality_suffix}"
+                prompt_to_use = (f"{anchored_prompt}, {_face_quality_suffix}"
+                                 if face_quality_boost else anchored_prompt)
                 self.log_msg(f"[Gemini 画风] 内容改用 {anchor_field} 纯内容锚，避免长描述里的渲染词压过画风参考图")
             if style_ref_paths:
                 from utils.analysis_gen import build_gemini_content_postamble
@@ -5427,6 +5438,7 @@ class SingleAnalyzerWidget(QWidget):
             prompt=prompt_to_use,
             model_name=model_name,
             aspect_ratio=final_gen_ar,
+            face_quality_boost=face_quality_boost,
             instructions=active_instructions,
             api_type=api_type,
             image_paths=style_ref_paths,

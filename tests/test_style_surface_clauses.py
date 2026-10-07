@@ -11,9 +11,14 @@ from __future__ import annotations
 import json
 import os
 import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from utils.analysis_gen import build_gemini_content_postamble, build_surface_authority
-from utils.styles import build_ref_gen_params, normalize_style_entry, surface_clauses_for
+from utils.styles import (build_ref_gen_params, gemini_priority_profile_for,
+                          normalize_style_entry, surface_clauses_for)
 
 STYLES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "conf", "config-styles.json")
@@ -109,6 +114,77 @@ class SurfaceAuthorityBlockTests(unittest.TestCase):
         _head, post, _refs = build_ref_gen_params(styles, "satou_kuuki-style-v2", "priority",
                                                   api_type="aigc-2d-gpt")
         self.assertIn("MATERIAL / SURFACE AUTHORITY", post)
+
+
+# The opt-in profile must transfer paint without leaking into GPT/other modes.
+
+
+def _priority_styles(tmp_path):
+    ref = tmp_path / "reference.jpg"
+    ref.write_bytes(b"test reference")
+    return {"puracotte": {"prompt": "legacy", "prompt_gpt": "gpt legacy",
+            "ref_image": str(ref), "gemini_priority_profile": {
+                "head_file": "gemini-style-profiles/puracotte-v2-head.md",
+                "post_file": "gemini-style-profiles/puracotte-v2-post.md",
+                "face_quality_boost": False}}}
+
+
+def test_priority_profile_assembles_whole_scene_contract(tmp_path):
+    styles = _priority_styles(tmp_path)
+    head, post, refs = build_ref_gen_params(styles, "puracotte", "priority", "aigc2d")
+    content = 'Red coat, black hair, amber eyes, a gold necklace and a sign reading "OPEN".'
+    combined = build_gemini_content_postamble(content, post)
+    assert refs == [styles["puracotte"]["ref_image"]]
+    assert head and "Scene surfaces:" in combined
+    assert "{content}" not in combined and content in combined
+    assert "CONTENT AUTHORITY" not in combined  # no legacy content-wins override
+    assert "User-requested jewellery, text and objects take precedence" in combined
+    assert "opaque materials retain their opacity" in combined
+    assert "deep navy" not in combined and "chestnut" not in combined
+    assert gemini_priority_profile_for(styles, "puracotte", "priority", "aigc2d")["face_quality_boost"] is False
+
+
+@pytest.mark.parametrize("mode,api", [("off", "aigc2d"), ("head", "aigc2d"),
+    ("interleave", "aigc2d"), ("priority", "aigc-2d-gpt")])
+def test_priority_profile_preserves_other_modes(tmp_path, mode, api):
+    styles = _priority_styles(tmp_path)
+    expected = {"puracotte": dict(styles["puracotte"])}
+    expected["puracotte"].pop("gemini_priority_profile")
+    assert gemini_priority_profile_for(styles, "puracotte", mode, api) == {}
+    assert build_ref_gen_params(styles, "puracotte", mode, api) == build_ref_gen_params(expected, "puracotte", mode, api)
+
+
+def test_priority_profile_missing_reference_uses_legacy(tmp_path):
+    styles = _priority_styles(tmp_path)
+    Path(styles["puracotte"]["ref_image"]).unlink()
+    assert gemini_priority_profile_for(styles, "puracotte", "priority", "aigc2d") == {}
+    assert build_ref_gen_params(styles, "puracotte", "priority", "aigc2d") == ("gpt legacy", "", [])
+
+
+def test_only_puracotte_ships_priority_profile():
+    carrying = [name for name, entry in _styles().items()
+                if isinstance(entry, dict) and entry.get("gemini_priority_profile")]
+    assert carrying == ["puracotte-style-v2"]
+
+
+@pytest.mark.parametrize("boost", [False, True])
+def test_worker_preserves_face_boost_in_plain_and_audit_paths(tmp_path, boost):
+    from modules.image_analysis import single_analyzer as sa
+    worker = sa.ImageGenWorkerThread(prompt="content", model_name="model", aspect_ratio="2:3",
+        instructions="head", api_type="aigc2d", post_instructions="post",
+        face_quality_boost=boost, publish_dir=str(tmp_path), publish_name="test.jpg")
+    with patch.object(sa, "generate_image_aigc2d", return_value=[]) as gen:
+        worker._call_generator("content")
+        assert gen.call_args.kwargs["face_quality_boost"] is boost
+        worker.run()
+        assert gen.call_args.kwargs["face_quality_boost"] is boost
+        def fake_audit(generate, **kwargs):
+            generate("retry content", 2)
+            return {"published": ""}
+        with patch("utils.first_image_audit.generate_with_audit", side_effect=fake_audit):
+            worker._run_with_audit()
+        assert gen.call_args.kwargs["face_quality_boost"] is boost
+        assert gen.call_args.kwargs["prompt"] == "retry content"
 
 
 if __name__ == "__main__":

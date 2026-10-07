@@ -719,6 +719,8 @@ class SingleGenDebugWidget(QWidget):
         instructions, post_instructions, ref_paths = build_ref_gen_params(
             styles_data, style_name, mode, api_type=api_type)
         style_entry = normalize_style_entry(styles_data.get(style_name, {}))
+        from utils.styles import gemini_priority_profile_for
+        priority_profile = gemini_priority_profile_for(styles_data, style_name, mode, api_type)
         # 内容锚（gemini_content_field）由 `resolve_gemini_reference_content` 从**分析产物 JSON 路径**读取，
         # 所以这里必须把已加载的 JSON 路径一起传进去（只传字段字典是解析不出锚的）。
         prompt_context = {"analysis_json_path": self.json_file_path or "",
@@ -750,6 +752,7 @@ class SingleGenDebugWidget(QWidget):
 
         self.img_thread = ImageGenWorkerThread(
             prompt=prompt,
+            face_quality_boost=priority_profile.get("face_quality_boost", True),
             model_name=model_name,
             aspect_ratio=aspect_ratio,
             instructions=instructions,
