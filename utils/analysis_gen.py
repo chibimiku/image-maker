@@ -229,8 +229,8 @@ def build_gpt_image_request(analysis_result: dict, style_text: str = "", style_r
     parts = []
     if has_content_ref and (style_ref_path and os.path.isfile(str(style_ref_path))):
         # 两类图同时存在 → 必须先讲清角色分工（内容图在前、画风图最后）
-        from utils.styles import STYLE_REF_ROLE_INSTRUCTION
-        parts.append(STYLE_REF_ROLE_INSTRUCTION.replace("{content_count}", "1"))
+        from utils.styles import build_content_style_image_roles
+        parts.append(build_content_style_image_roles(1))
     if style_text:                       # 画风说明放最前面
         parts.append(str(style_text).strip())
     if content:
@@ -404,7 +404,7 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
                               detail_boost: bool = False, repaint_ref_mode: str = "style",
                               local_regions=None, tone: bool = False, tone_target: str = "style",
                               ink: bool = False, ink_target: float = 8.0,
-                              repaint_scope: str = "full", wardrobe: bool = False) -> dict:
+                              repaint_scope: str = "full", wardrobe: bool = False, content_guard: bool = True) -> dict:
     """把界面上的勾选翻译成 utils.post_process 的流水线步骤（repaint 由调用方单独处理）。
 
     - `repaint_scope`：**「重绘编辑范围」** —— 不裁切、不贴回，只在重绘提示词里要求模型保留不该动的部分：
@@ -420,8 +420,8 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
       调度顺序里摘掉。手动实验用 `tools/local_repaint_composite.py`（显式 CLI，不进流水线）。
       修细节请用整图的 `wardrobe` 或 `repaint_scope`。
     - `detail_boost=False`（默认）：局部重绘统一用 2K（该工序已停用，参数仅为兼容）。
-    - `repaint_ref_mode="style"`（默认）：重绘接收 GPT 首图和完整画风图，以提高主轮廓和线稿连续性；
-      角色偏离由首图 prompt 驱动的身份审计与最多两轮定点修订处理。`none` 可用于保真对照。
+    - `content_guard=True`（默认）：仅源图保真重绘，360秒、无重试；双图内容审计失败回退输入原图，
+      明确局部新增最多清除一次并复核。`content_guard=False` 保留原参考模式供显式实验。
     - `local` / `local_regions`：**裁切→重绘→贴回**式的局部重绘。**默认关闭、慎用**：模型会在裁切里
       重新构图，贴回原坐标就是一块错位内容（§三十：5 画风里报废 2 张）。要修细节请优先用 `repaint_scope`。
     - `tone` / `ink`：**本地工序**（不调 API）—— 色调校准（目标默认取画风参考图）+ 线条加墨。
@@ -438,8 +438,8 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
                                      "prompts", "gpt-image-optimize", WARDROBE_REPAIR_FIRMWARE)
     return {
         "repaint": {"enabled": bool(repaint), "resolution": resolution,
-                    "reference_mode": str(repaint_ref_mode or "style"),
-                    "scope": str(repaint_scope or "full")},
+                    "reference_mode": "none" if content_guard else str(repaint_ref_mode or "style"),
+                    "scope": str(repaint_scope or "full"), "content_guard": bool(content_guard)},
         "structure": {"enabled": bool(structure), "strength": float(structure_strength)},
         "local": {"enabled": False,      # 已停用（用户 2026-10-07）：裁切贴回废品率高，见函数 docstring
                   "region": regions[0], "regions": regions,

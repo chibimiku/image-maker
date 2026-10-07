@@ -47,7 +47,9 @@ python -m unittest discover -s tests -p test_style_face_metrics.py
 
 真实 Gemini 带参考图测试见 [Puracotte / Sakurapion 实测](docs/style-extraction/GEMINI-SIMILARITY-TEST-20261006.md)：两张产物×两张参考的全图八组指标均成功；Sakurapion 产物的深度指标更偏向 Puracotte。自动面部/发丝定位叠图精度未通过，细项仍需人工校正确认，不能把候选分数当正式相似度。
 
-下一步可靠性验收按 [DeepSeek 受控实验协议](docs/style-extraction/DEEPSEEK-SIMILARITY-CONTROLLED-EXPERIMENT-20261006.md) 执行，允许有账本的技术失败重试，禁止按分数挑选成功尝试；目前协议待执行。
+可靠性验收依据 [DeepSeek 受控实验协议](docs/style-extraction/DEEPSEEK-SIMILARITY-CONTROLLED-EXPERIMENT-20261006.md)，允许有账本的技术失败重试，禁止按分数挑选成功尝试；人工标注、盲评与确认集尚未完成。
+
+受控实验已执行并完成统计修订，最新结果以 [统计版本2报告](docs/style-extraction/SIMILARITY-STATISTICS-V2-20261006.md) 为准：E1 CSD16/24，E2正确直接配对8/12，E3完整剂量响应41/48，局部负对照12/12通过；仍未达到全部验收门槛。旧报告保留追溯。现有实验CLI支持 `restat --source-dir <原run目录> --output-dir <新修订目录>`，只做本地补算与统计，不发远程请求。
 
 ## 画风参考图模式
 

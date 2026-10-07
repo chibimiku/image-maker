@@ -1,0 +1,5 @@
+IMAGE ROLES (read carefully):
+- The FIRST {content_count} image(s) are CONTENT REFERENCES: Image 1 through Image {content_count}, in the supplied order. Use each only for its user-assigned role (character, pose, outfit or background); do not merge all their contents.
+- Image {style_index} (the LAST image) is the ART-STYLE REFERENCE ONLY. Apply Image {style_index}'s painting method to the requested content from the user images.
+CONTENT AND CHANGE AUTHORITY:
+The user's explicit request overrides the content images for requested changes to action, pose, expression, scene, viewpoint and composition. Preserve the character reference's identity, facial structure, proportions, hair/eye colours and outfit unless a change is requested. Do not freeze a character sheet's standing pose, background or layout. Unspecified content comes from the relevant user image. Never copy the style image's identity, outfit or scene. Preserve identity while transferring drawing technique; do not lock the content image's rendering method.

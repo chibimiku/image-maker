@@ -77,6 +77,7 @@ def normalize_style_entry(entry):
         return {"prompt": entry, "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
                 "prompt_gemini": "", "gemini_content_field": "",
                 "enabled": True, "motif_clauses": [], "motif_enabled": False,
+                "reference_content_exclusions": [], "gemini_surface_clauses": [],
                 "proportion_clauses": []}
     if isinstance(entry, dict):
         prompt = entry.get("prompt") or entry.get("text") or entry.get("instructions") or ""
@@ -97,11 +98,54 @@ def normalize_style_entry(entry):
             "motif_enabled": entry.get("motif_enabled", False) is True,
             "proportion_clauses": [str(v).strip() for v in (entry.get("proportion_clauses") or [])
                                    if str(v).strip()][:4],
+            "reference_content_exclusions": [str(v).strip()
+                                             for v in (entry.get("reference_content_exclusions") or [])
+                                             if str(v).strip()][:12],
+            "gemini_surface_clauses": [str(v).strip()
+                                       for v in (entry.get("gemini_surface_clauses") or [])
+                                       if str(v).strip()][:6],
         }
     return {"prompt": "", "ref_image": "", "prompt_compressed": "", "prompt_gpt": "",
             "prompt_gemini": "", "gemini_content_field": "",
             "enabled": True, "motif_clauses": [], "motif_enabled": False,
+            "reference_content_exclusions": [], "gemini_surface_clauses": [],
             "proportion_clauses": []}
+
+
+def reference_content_items(styles, name, limit: int = 12) -> list:
+    """画风参考图里**属于内容、绝不能被搬到新图**的具名元素（可空）。
+
+    供「审计 + 重试」的重画指令使用：抽象禁令（"不要复制参考图"）实测太弱，
+    具名清单（鹿角、玫瑰框…）才是可执行约束。清单由画风条目的
+    `reference_content_exclusions` 提供（可手写或离线生成后写回）。
+    """
+    entry = normalize_style_entry((styles or {}).get(name))
+    return [str(v).strip() for v in entry.get("reference_content_exclusions") or [] if str(v).strip()][:max(1, int(limit or 12))]
+
+
+def surface_clauses_for(styles, name, limit: int = 6) -> list:
+    """画风自带的**材质/表面条款**（`gemini_surface_clauses`），空列表表示该画风没配。
+
+    这是「只有某些画风默认就带某材质」的落点：例如 `satou_kuuki-style-v2` 默认要有亮面
+    皮革光泽，别的画风一个字都不加。条款由 `build_ref_gen_params` 拼进图后的 `post`。
+    """
+    entry = normalize_style_entry((styles or {}).get(name))
+    return [str(v).strip() for v in entry.get("gemini_surface_clauses") or [] if str(v).strip()][:max(1, int(limit or 6))]
+
+
+def surface_block_from_clauses(clauses) -> str:
+    """把材质条款包装成「材质权威」块（读 `prompts/gemini-style-surface-authority.md`）。
+
+    延迟 import `utils.analysis_gen`：两个模块互相引用会成环，而这里只需要一个纯文本模板。
+    """
+    clean = [str(v).strip() for v in (clauses or []) if str(v).strip()]
+    if not clean:
+        return ""
+    from utils.prompt_loader import render_prompt_file
+    return render_prompt_file("gemini-style-surface-authority.md", {
+        "clauses": "\n".join(f"- {c}" for c in clean),
+    }).strip()
+
 
 
 def proportion_prompt_from_clauses(clauses) -> str:
@@ -220,23 +264,22 @@ def build_style_ref_instruction(image_count=1):
 
 # 「画风参考图 + 用户内容图」同时存在时的角色分工说明（gpt-image 通道会把所有图当"要编辑的原图"，
 # 不写清楚它会把画风参考图的角色/服装/构图一起搬进来——见 docs/gpt-image-tid-style/README.md §4.18/§4.19）
-STYLE_REF_ROLE_INSTRUCTION = (
-    "IMAGE ROLES (read carefully):\n"
-    "- The FIRST {content_count} image(s) are CONTENT REFERENCES: they define the subject, character, pose, "
-    "outfit design, props, scene and composition.\n"
-    "- The LAST image is the ART-STYLE REFERENCE ONLY: use its palette, colour temperature, lighting, "
-    "brushwork, edge treatment, line character, texture and overall rendering grammar.\n"
-    "Do NOT copy the style reference's character, face, hairstyle, hair colour, eye colour, outfit, pose, "
-    "props, background or composition. Do NOT copy the content reference's photographic rendering. "
-    "If the two disagree about content, the content references win; the style reference never overrides "
-    "content, identity, facial drawing or composition."
-)
+STYLE_REF_ROLE_INSTRUCTION = render_prompt_file("gpt-content-style-image-roles.md", {}).strip()
+
+
+STYLE_REF_AUTHORITY = render_prompt_file("gpt-style-authority.md", {}).strip()
+
+
+def build_content_style_image_roles(content_count):
+    """图片按提交顺序从 1 编号；用户图先提交，画风图占 N+1。"""
+    count = int(content_count)
+    return STYLE_REF_ROLE_INSTRUCTION.replace("{content_count}", str(count)).replace("{style_index}", str(count + 1))
 
 
 def compose_style_prompt(style_text, user_prompt, style_ref_attached=False, content_image_count=0):
-    """把「画风指令」与「用户提示词」拼成最终提示词，并在同时挂了两类图时补上角色分工说明。
+    """把画风、内容与参考图角色组装，附件存在时先声明画风权威。
 
-    - 只挂画风参考图（没有内容图）：画风指令 + 用户提示词 + 一句"场景/构图只能来自文字"声明
+    - 只挂画风参考图（没有内容图）：参考图画法权威 + 画风指令 + 用户提示词 + "场景/构图只能来自文字"
       （否则强画风参考图会把它的场景/道具一起带进来——实测 waterink-style 的参考图是室内、
        文本写的是海边，产物被拉进室内）。
     - 同时挂内容图 + 画风参考图：补 STYLE_REF_ROLE_INSTRUCTION，明确"前 N 张是内容、最后一张是画风"。
@@ -244,8 +287,10 @@ def compose_style_prompt(style_text, user_prompt, style_ref_attached=False, cont
     style = str(style_text or "").strip()
     user = str(user_prompt or "").strip()
     parts = []
+    if style_ref_attached:
+        parts.append(STYLE_REF_AUTHORITY)
     if style_ref_attached and int(content_image_count) > 0:
-        parts.append(STYLE_REF_ROLE_INSTRUCTION.replace("{content_count}", str(int(content_image_count))))
+        parts.append(build_content_style_image_roles(content_image_count))
     if style:
         parts.append(style)
     if user:
@@ -366,6 +411,13 @@ def build_ref_gen_params(styles, style_name, mode, api_type=""):
         mode, style_text, has_ref, compressed, prompt_gpt
     )
     ref_paths = [entry["ref_image"]] if (has_ref and mode != MODE_OFF) else []
+    # 画风自带的**材质/表面条款**（`gemini_surface_clauses`，目前只有 satou_kuuki-style-v2 配了皮革光泽）
+    # 在这里就拼进 `post`：它必须落在**参考图之后**（图前会去和图争权威），而这个函数的
+    # `post` 正是"所有参考图之后的执行要求"那一段。放在这里而不是新加返回值，是因为
+    # `build_ref_gen_params` 有 20 多处调用方按 3 个值解包，加返回值会全线炸。
+    surface = surface_block_from_clauses(entry.get("gemini_surface_clauses"))
+    if surface:
+        post = "\n\n".join(v for v in (str(post or "").strip(), surface) if v)
     return head, post, ref_paths
 
 

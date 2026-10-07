@@ -10,7 +10,7 @@
 - 模型下拉列出该站点的 gpt-image 家族（aigc2d 含 2.5 的 flare / sunburst 及其 `-c` 计费版，
   autodl 只有 gpt-image-2）；下拉仍可手输，另有「刷新模型列表」按 `GET /v1/models` 现拉
 - 参考图用缩略图网格（`ref_image_grid.RefImageGrid`）展示：可点 × 删除、拖动缩略图调整顺序，
-  单击预览、双击打开所在目录；顺序即提交给 `/images/edits` 的 `image[]` 顺序
+  单击预览（正文有焦点时插入 Image N）、双击打开所在目录；重排自动同步正文图号
 - 配置只从 conf/config.json 读取（`apis.*` + 顶层 `gpt_image2` 记忆），不受「设置」里全局 API 类型影响
 """
 import json
@@ -19,8 +19,8 @@ import os
 import time
 import traceback
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal
+from PyQt6.QtGui import QPixmap, QTextCursor
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -218,12 +218,47 @@ def format_request_dump(params: dict, api_cfg: dict, site: str, api_type: str, m
     lines.append(f"[请求] prompt（{len(prompt)} 字）: {prompt[:200]}{'…' if len(prompt) > 200 else ''}")
     if images:
         lines.append(f"[请求] 参考图 {len(images)} 张:")
-        for path in images:
+        for index, path in enumerate(images, 1):
             size_text = f"{os.path.getsize(path)} bytes" if os.path.isfile(path) else "文件不存在!"
-            lines.append(f"        - {path}  ({size_text})")
+            lines.append(f"        - 图{index}: {path}  ({size_text})")
     else:
         lines.append("[请求] 参考图: 无")
     return lines
+
+
+class ResizableImagePreview(QLabel):
+    """原图留在控件内部，缩放不参与父布局尺寸计算。"""
+    def __init__(self, parent=None):
+        super().__init__("预览", parent)
+        self._original_pixmap = QPixmap()
+        self.setMinimumSize(160, 80)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setStyleSheet("border: 1px solid #888;")
+
+    def sizeHint(self):
+        return QSize(160, 80)
+
+    def minimumSizeHint(self):
+        return QSize(160, 80)
+
+    def setText(self, text):
+        self._original_pixmap = QPixmap()
+        super().setText(text)
+
+    def setPixmap(self, pixmap):
+        self._original_pixmap = pixmap
+        self._fit_image()
+
+    def _fit_image(self):
+        if not self._original_pixmap.isNull():
+            super().setPixmap(self._original_pixmap.scaled(
+                self.contentsRect().size(), Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._fit_image()
 
 
 class PricingWorker(QThread):
@@ -544,8 +579,10 @@ class GptImage2Widget(QWidget):
         self._repaint_config = load_repaint_config()
         self.repaint_check = QCheckBox(REPAINT_CHECK_TEXT[MODE_GENERATE])
         self.repaint_check.setToolTip(
-            "勾选后：gpt-image 出图/编辑 → 每张自动送去 Gemini 重绘提线 → 结果列表里只有重绘产物。\n"
+            "勾选后：gpt-image 出图/编辑 → 仅源图保真重绘（360秒、一次、无重试） → 双图内容检查 → 内容审计通过才交付重绘图，失败回退原图。\n"
             "生图和编辑两种模式都支持（gpt-image 出的分辨率都偏低，重绘顺带提分辨率与细节）。\n"
+            "自动重绘只发送每张源图作为 Image 1，保留源图自己的画法、构图与内容。\n"
+            "明确局部新增可清除一次，复核通过才采用；修线收益仍需实际检查。\n"
             "原始产物路径会写进日志，方便回头对比。\n"
             "参数与提示词固件：prompts/gpt-image-optimize/（理论见 docs/gpt-image-optimize/）。"
         )
@@ -598,7 +635,7 @@ class GptImage2Widget(QWidget):
         self.post_retry_btn = QPushButton("重试失败步骤")
         self.post_retry_btn.setEnabled(False)
         self.post_retry_btn.setToolTip(
-            "后处理按「重绘提线 → 结构线叠加 → 局部重绘」执行，每步产物与状态记录在\n"
+            "后处理按「源图保真重绘及内容检查 → 结构线叠加 → 衣装重绘 → 色调校准 → 加墨」执行，每步产物与状态记录在\n"
             "<产物目录>/pipeline-steps/pipeline-manifest.json；\n"
             "某步失败时点这里会跳过已成功的步骤，只重跑失败的那一步。"
         )
@@ -736,8 +773,8 @@ class GptImage2Widget(QWidget):
         saved_aspect = resolve_aspect_ratio(self._repaint_config, ASPECT_RATIO_AUTO)
         _set_combo_by_data(self.repaint_aspect_combo, saved_aspect, ASPECT_RATIO_AUTO)
         self.repaint_aspect_combo.setToolTip(
-            "auto（默认）= 不下发 aspectRatio 字段，由模型按输入图比例输出；\n"
-            "换任意比例的源图都不会被拉伸或裁切（官方默认行为）。\n"
+            "auto（默认）= 读取每张源图比例并显式提交最接近的模型比例；\n"
+            "防止多参考重绘自行变为方图；服务器返回错比例时会保留文件并停止后续工序。\n"
             "只有确实要强制输出比例时才选具体值。"
         )
         repaint_form.addRow("输出宽高比:", self.repaint_aspect_combo)
@@ -769,13 +806,25 @@ class GptImage2Widget(QWidget):
         self.api_hint.setWordWrap(True)
         layout.addWidget(self.api_hint)
 
-        layout.addWidget(QLabel("提示词 (prompt):"))
+        prompt_header = QHBoxLayout()
+        prompt_header.addWidget(QLabel("提示词 (prompt):"))
+        prompt_header.addStretch()
+        self.reference_example_btn = QPushButton("插入引用示例")
+        self.reference_example_btn.clicked.connect(self._insert_reference_example)
+        prompt_header.addWidget(self.reference_example_btn)
+        layout.addLayout(prompt_header)
         self.prompt_edit = QPlainTextEdit()
         self.prompt_edit.setPlaceholderText("生图: 描述画面; 编辑: 说明要改什么、保留什么")
         # 给足最小高度：这一块是布局里唯一可拉伸的编辑区，最小高度太小就会被挤成一条
         self.prompt_edit.setMinimumHeight(140)
         self.prompt_edit.setToolTip("提示词编辑区（可拖动下方边框调整高度）")
         layout.addWidget(self.prompt_edit)
+
+        self.reference_guide_label = QLabel("")
+        self.reference_guide_label.setWordWrap(True)
+        self.reference_guide_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.reference_guide_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(self.reference_guide_label)
 
         # 注意：这段文字**不要堆太长**，QLabel 的最小宽度会传染给整个 Tab（用户 2026-09-30 反馈过
         # 「绿色字成了两行、完全打乱布局」）。逐工序成本明细与口径说明都放悬浮提示。
@@ -786,6 +835,7 @@ class GptImage2Widget(QWidget):
         self.budget_label.setToolTip(
             "长度：软上限 2000 字符（超过它画风参考图基本失效）、硬上限 15000 字符"
             "（本中转站实测 15662 字符直接断连），官网上限 32000。\n"
+            "自动重绘成本含最多2次内容审计和1次条件清除，属于上限估算；无需清除时只做初审。\n"
             "成本：按中转站公开价目 + 本项目实测 token 用量估算（new-api 口径），"
             "分组倍率取实测路由分组（gpt-image → Openai-Gpt-1，Gemini 图片 → Discounted-Banana-1）。"
         )
@@ -807,7 +857,7 @@ class GptImage2Widget(QWidget):
         self.style_combo.setMinimumWidth(220)
         self.style_combo.setToolTip(
             "选择画风后：提示词自动带上该画风的「gpt-image 专用短版说明」(prompt_gpt)，\n"
-            "并把该画风自带的参考图追加到附件栏**最后一张**（你插入的图在前、画风图在后），\n"
+            "你插入的图按缩略图顺序编号为图1～图N；系统画风图自动作为图N+1提交，\n"
             "同时在提示词里写明两者的职责分工——避免把画风参考图的角色/服装/构图搬进来。\n"
             "要改画风说明就编辑 conf/config-styles.json 的 prompt_gpt 字段（或跑 tools/convert_styles_gpt.py）。"
         )
@@ -828,7 +878,7 @@ class GptImage2Widget(QWidget):
         self.reload_styles()
 
         # 附件栏：用户自己插入的图就是「参考图」，画风自带的参考图由上面的「画风」下拉管，两者不要混叫
-        self.ref_header_label = QLabel("参考图（自己插入的素材图，作为垫图 / 编辑对象）:")
+        self.ref_header_label = QLabel("参考图（自己插入的素材图；在提示词里写明图号、用途和要改变的内容）:")
         layout.addWidget(self.ref_header_label)
         self.image_grid = RefImageGrid(
             max_images=GPT_IMAGE2_MAX_REFERENCE_IMAGES,
@@ -837,6 +887,7 @@ class GptImage2Widget(QWidget):
             compact_thumb_size=72,      # 有图时用小缩略图 + 紧凑高度：附件栏不再把界面撑爆
         )
         self.image_grid.images_changed.connect(self._on_images_changed)
+        self.image_grid.reference_clicked.connect(self._on_reference_clicked)
         self.image_grid.image_clicked.connect(self.show_preview)
         self.image_grid.image_double_clicked.connect(self.open_containing_dir)
         layout.addWidget(self.image_grid)
@@ -875,10 +926,7 @@ class GptImage2Widget(QWidget):
         self.log_view.setReadOnly(True)
         self.log_view.setPlaceholderText("运行日志")
         body_row.addWidget(self.log_view, stretch=1)
-        self.preview_label = QLabel("预览")
-        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setMinimumSize(220, 220)
-        self.preview_label.setStyleSheet("border: 1px solid #888;")
+        self.preview_label = ResizableImagePreview()
         body_row.addWidget(self.preview_label, stretch=1)
         layout.addLayout(body_row, stretch=1)
 
@@ -971,7 +1019,7 @@ class GptImage2Widget(QWidget):
                     "编辑: 说明要改什么、保留什么（例: 把背景换成日落海滩，保留人物姿势与服装）"
                 )
             else:
-                self.prompt_edit.setPlaceholderText("生图: 描述画面（挂了参考图就作为垫图参考）")
+                self.prompt_edit.setPlaceholderText("生图：描述画面；有素材时写“图1提供人设，让TA跑步”，并说明要保留什么、改变什么。")
         self._refresh_repaint_hint()
         self._on_images_changed(self.image_paths)
 
@@ -1051,7 +1099,8 @@ class GptImage2Widget(QWidget):
         return False
 
     def current_repaint_config(self) -> dict:
-        conf = dict(self._repaint_config)
+        # 固件可能已在磁盘修订；新请求不能继续使用窗口启动时缓存的旧画法。
+        conf = load_repaint_config()
         conf["model"] = self.repaint_model_combo.currentText().strip() or REPAINT_DEFAULTS["model"]
         conf["resolution"] = self.repaint_resolution_combo.currentText().strip() or REPAINT_DEFAULTS["resolution"]
         conf["aspect_ratio"] = str(
@@ -1108,7 +1157,7 @@ class GptImage2Widget(QWidget):
 
     def save_repaint_defaults(self):
         """把重绘选项写回 prompts/gpt-image-optimize/config.json（用户改了就不用每次重设）。"""
-        conf = dict(self._repaint_config)
+        conf = load_repaint_config()
         conf["enabled"] = bool(self.repaint_enabled())
         conf["model"] = self.repaint_model_combo.currentText().strip() or REPAINT_DEFAULTS["model"]
         conf["resolution"] = self.repaint_resolution_combo.currentText().strip() or REPAINT_DEFAULTS["resolution"]
@@ -1125,15 +1174,21 @@ class GptImage2Widget(QWidget):
     def build_repaint_request(self, sources, wardrobe=None) -> dict:
         """组装 `generate_image_repaint` 的参数（供 Worker 调用，也便于测试）。"""
         conf = self.current_repaint_config()
-        override = self.prompt_edit.toPlainText().strip()
+        # 只有独立重绘模式的正文才是用户编辑的修复指令。
+        # 生图/编辑正文描述内容，不能带着旧的渲染后缀覆盖重绘固件。
+        manual = self.mode_combo.currentText() == MODE_REPAINT
+        override = self.prompt_edit.toPlainText().strip() if manual else build_repaint_prompt(conf)
+        if not manual:
+            from utils.repaint_content_guard import source_repaint_prompt
+            override = source_repaint_prompt()
         if wardrobe:
             from utils.wardrobe import wardrobe_continuity
-            override = build_repaint_prompt(conf) + "\n\n" + wardrobe_continuity(wardrobe)
+            override = (override or build_repaint_prompt(conf)) + "\n\n" + wardrobe_continuity(wardrobe)
         params = {
             "api_type": str(conf.get("api_type") or REPAINT_DEFAULTS["api_type"]),
             "model": str(conf.get("model") or REPAINT_DEFAULTS["model"]),
             "resolution": str(conf.get("resolution") or REPAINT_DEFAULTS["resolution"]),
-            # auto 时后端不下发 aspectRatio，由模型按输入图比例输出
+            # auto 时后端逐张读取源图比例，显式下发模型支持的比例。
             "aspect_ratio": resolve_aspect_ratio(conf, ASPECT_RATIO_AUTO),
             "repeat": int(conf.get("repeat") or 1),
             "save_sub_dir": str(conf.get("save_sub_dir") or REPAINT_DEFAULTS["save_sub_dir"]),
@@ -1141,6 +1196,10 @@ class GptImage2Widget(QWidget):
         }
         if override:
             params["prompt"] = override
+        if not manual:
+            params["use_detail_suffix"] = False
+        if not manual:
+            params.update(content_guard=True, request_timeout=360, retry_limit=0, repeat=1)
         return params
 
     def add_results_to_reference(self):
@@ -1478,16 +1537,110 @@ class GptImage2Widget(QWidget):
 
     # ---------------- 图片 ----------------
     def _on_images_changed(self, paths):
-        count = len(paths or [])
-        mode_hint = "编辑=至少 1 张" if self.mode_combo.currentText() == MODE_EDIT else "生图=可留空(作为垫图)"
-        self.ref_label.setText(
-            f"已选 {count}/{GPT_IMAGE2_MAX_REFERENCE_IMAGES} 张（{mode_hint}；"
-            "拖入图片、拖动缩略图排序、点 × 删除，顺序即提交顺序）"
-        )
         # 缩略图出现/消失会改变网格高度，让布局把富余空间重新分给提示词编辑框
         if hasattr(self, "image_grid"):
             self.image_grid.updateGeometry()
+        self._refresh_reference_guide()
         self._refresh_repaint_hint()
+
+    def _reference_example(self):
+        from utils.prompt_loader import render_prompt_file
+        count = len(self.image_paths)
+        if not count:
+            return ""
+        extra = [render_prompt_file("gpt-reference-example-extra-zh.md", {"image_index": i}).strip()
+                 for i in range(2, count + 1)]
+        _style_text, style_ref = self.current_style_block()
+        style = render_prompt_file("gpt-reference-example-style-zh.md", {"style_index": count + 1}).strip() if style_ref else ""
+        return render_prompt_file("gpt-reference-example-zh.md", {
+            "extra_roles": "\n" + "\n".join(extra) if extra else "",
+            "style_reference": "\n" + style if style else ""}).strip()
+
+    def _insert_reference_example(self):
+        example = self._reference_example()
+        if example:
+            self.prompt_edit.appendPlainText(example)
+
+    def _on_reference_clicked(self, path, number):
+        # 卡片不抢焦点：只有正在编辑正文时才插入，查看图片仍可单击预览。
+        if self.mode_combo.currentText() != MODE_REPAINT and self.prompt_edit.hasFocus():
+            cursor = self.prompt_edit.textCursor()
+            prefix = "" if cursor.atBlockStart() else " "
+            cursor.insertText(f"{prefix}Image {number} ")
+            self.prompt_edit.setTextCursor(cursor)
+
+    def _update_reference_numbers(self, order):
+        from utils.image_references import reference_changes
+        previous = getattr(self, "_reference_order", [])
+        self._reference_order = order
+        if not previous or previous == order:
+            return
+        if self.mode_combo.currentText() == MODE_REPAINT:
+            backup = str(self._mode_prompt_backup or "")
+            for start, end, replacement in reversed(reference_changes(backup, previous, order)):
+                backup = backup[:start] + replacement + backup[end:]
+            self._mode_prompt_backup = backup
+            return
+        text = self.prompt_edit.toPlainText()
+        changes = reference_changes(text, previous, order)
+        if not changes:
+            return
+        saved_cursor = self.prompt_edit.textCursor()
+        edit = QTextCursor(self.prompt_edit.document())
+        edit.beginEditBlock()
+        for start, end, replacement in reversed(changes):
+            # Qt 文本位置按 UTF-16 计数，emoji 等字符不能按 Python 索引直接定位。
+            edit.setPosition(len(text[:start].encode("utf-16-le")) // 2)
+            edit.setPosition(len(text[:end].encode("utf-16-le")) // 2, QTextCursor.MoveMode.KeepAnchor)
+            edit.insertText(replacement)
+        edit.endEditBlock()
+        self.prompt_edit.setTextCursor(saved_cursor)
+
+    def _refresh_reference_guide(self):
+        if not hasattr(self, "reference_guide_label"):
+            return
+        repaint = self.mode_combo.currentText() == MODE_REPAINT
+        self.reference_guide_label.setVisible(not repaint)
+        self.reference_example_btn.setVisible(not repaint)
+        paths = self.image_paths if hasattr(self, "image_grid") else []
+        count = len(paths)
+        _style_text, style_ref = self.current_style_block()
+        order = [("content", os.path.normcase(os.path.abspath(path))) for path in paths]
+        if style_ref:
+            order.append(("system-style",))
+        self._update_reference_numbers(order)
+        limit = GPT_IMAGE2_MAX_REFERENCE_IMAGES - bool(style_ref)
+        if hasattr(self, "image_grid"):
+            self.image_grid.max_images = limit if not repaint else GPT_IMAGE2_MAX_REFERENCE_IMAGES
+            self.image_grid.set_auxiliary_image("" if repaint else style_ref)
+        if hasattr(self, "ref_label"):
+            mode_hint = "重绘=源图" if repaint else ("编辑=至少1张素材" if self.mode_combo.currentText() == MODE_EDIT else "生图=素材可留空")
+            user_limit = GPT_IMAGE2_MAX_REFERENCE_IMAGES if repaint else limit
+            self.ref_label.setText(f"已选 {count}/{user_limit} 张素材（{mode_hint}；拖动缩略图排序，图号随顺序变化）")
+        self.reference_example_btn.setEnabled(bool(count))
+        if count:
+            user_range = "图1" if count == 1 else f"图1～图{count}"
+            summary = f"{user_range} = 你插入的素材（按缩略图顺序）"
+            if style_ref:
+                summary += f"；图{count + 1} = 系统画风图。"
+            else:
+                summary += "；未附加系统画风图。"
+            summary += "\n正文中点击图片可插入 Image N；排序后 Image N / 图N 引用自动更新。请写清每张图用途和修改要求。"
+        elif style_ref:
+            summary = "图1 = 系统画风图；角色、动作和场景请用文字描述。上传人设图后，它将成为图1，画风图顺延。"
+        else:
+            summary = "上传后按图1、图2…引用，并写明每张图用途（人设 / 姿势 / 服装 / 背景）；选择画风后系统画风图排最后。"
+        if count > limit and not repaint:
+            summary += f"\n共{count + 1}张超出上限：请移除一张素材图，或取消系统画风图。"
+        self.reference_guide_label.setText(summary)
+        mapping = [f"图{i}：{os.path.basename(path)}（用户素材）" for i, path in enumerate(paths, 1)]
+        if style_ref:
+            mapping.append(f"图{count + 1}：{os.path.basename(style_ref)}（系统画风）")
+        detail = "\n".join(mapping) + "\n\n" + (self._reference_example() if count else summary)
+        detail += "\n\n光标在正文时点击缩略图，在光标处插入 Image N；系统画风图也可点击引用。排序时正文编号自动更新，删除被引用图片会标记待修正。"
+        detail += "\n官方指南：https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide"
+        self.reference_guide_label.setToolTip(detail)
+        self.reference_example_btn.setToolTip(detail + "\n点击将示例追加到正文，原有文字保留；请按实际任务修改示例。")
 
     def add_images(self):
         paths, _ = QFileDialog.getOpenFileNames(self, "选择参考图", "", IMAGE_FILTER)
@@ -1545,6 +1698,9 @@ class GptImage2Widget(QWidget):
         """按当前站点组装 (后端函数, 调用参数)，供 Worker 调用（也便于测试）。"""
         site = self.current_site()
         raw_prompt = self.prompt_edit.toPlainText().strip()
+        from utils.image_references import REMOVED_REFERENCE
+        if REMOVED_REFERENCE in raw_prompt:
+            raise ValueError("正文有已移除图片引用，请删除该标记或点击正确图片重新引用。")
         model = self.current_model()
         size = self.resolve_request_size() if hasattr(self, "resolve_request_size") else (
             self.size_combo.currentData() or DEFAULT_SIZE_BY_SITE.get(site, GPT_IMAGE2_SIZE_SQUARE))
@@ -1556,6 +1712,11 @@ class GptImage2Widget(QWidget):
         from utils.styles import compose_style_prompt, ordered_reference_images
         style_text, style_ref = self.current_style_block()
         content_images = list(self.image_paths)
+        if len(content_images) + bool(style_ref) > GPT_IMAGE2_MAX_REFERENCE_IMAGES:
+            raise ValueError("素材图与系统画风图合计最多16张；请移除一张素材图或取消画风，避免画风图被截掉。")
+        missing = [path for path in content_images if not os.path.isfile(path)]
+        if missing:
+            raise ValueError("素材图已不存在，请移除或重新添加以保持图号一致：" + os.path.basename(missing[0]))
         from utils.theme_color import apply_theme_color, theme_style
         color = self.color_selector.snapshot() if hasattr(self, "color_selector") else {}
         active_post = any(cfg.get("enabled") for cfg in self.post_pipeline_steps().values()) if color else False
@@ -1723,6 +1884,12 @@ class GptImage2Widget(QWidget):
                 f"[链路] 生图 → 重绘（{repaint_params.get('model')} @{repaint_params.get('resolution')}，"
                 f"每张 {repaint_params.get('repeat')} 次），最终产物为重绘结果。"
             )
+            style_refs = repaint_params.get("extra_reference_paths", [])
+            self._append_log(
+                "[重绘分工] Image 1 = 本轮 GPT 首图（内容/构图）；Image 2 = "
+                + str(style_refs[0]) + "（画法）；仅修主要结构碎线，保留笔触与软边。"
+                if style_refs else "[重绘分工] 无画风附件，按当前固件修复源图；不复用生图正文。"
+            )
         if site == SITE_AUTODL:
             self._append_log("[提示] autodl 通道一次只出一张，且无法中途取消（请求返回后才结束）。")
         post_steps = self.post_pipeline_steps()
@@ -1759,7 +1926,7 @@ class GptImage2Widget(QWidget):
         for path in paths or []:
             self._append_log(f"[原始产物] {path}")
         self._append_log(
-            f"[原始产物] 共 {len(paths or [])} 张，重绘完成后结果列表里只会出现重绘产物；"
+            f"[原始产物] 共 {len(paths or [])} 张，内容检查通过才采用重绘图，否则保留原图；"
             "想对比可点「打开所在目录」。"
         )
 
@@ -1856,6 +2023,7 @@ class GptImage2Widget(QWidget):
         self.style_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.style_combo.blockSignals(False)
         self._refresh_style_info()
+        self._refresh_reference_guide()
 
     def current_style_name(self) -> str:
         if not hasattr(self, "style_combo"):
@@ -1876,6 +2044,7 @@ class GptImage2Widget(QWidget):
 
     def _on_style_changed(self, _index=None):
         self._refresh_style_info()
+        self._refresh_reference_guide()
         self._refresh_budget()
 
     def _refresh_style_info(self):
@@ -1928,6 +2097,7 @@ class GptImage2Widget(QWidget):
                 quality=str(self.quality_combo.currentData() or "medium"),
                 ref_images=len(self.image_paths or []),
                 include_repaint=chain_repaint,
+                include_content_guard=chain_repaint,
                 include_structure=bool(steps.get("structure", {}).get("enabled")),
                 include_local=bool(steps.get("local", {}).get("enabled")),
                 # 「衣装重绘」是真实的一次 Gemini 2K 重绘调用，估算不能漏
@@ -1959,6 +2129,7 @@ class GptImage2Widget(QWidget):
             "\n".join(detail_lines) + "\n\n"
             "长度：软上限 2000 字符（超过它画风参考图基本失效）、硬上限 15000 字符"
             "（本中转站实测 15662 字符直接断连），官网上限 32000。\n"
+            "自动重绘成本含最多2次内容审计和1次条件清除，属于上限估算；无需清除时只做初审。\n"
             "成本：按中转站公开价目 + 本项目实测 token 用量估算（new-api 口径），"
             "分组倍率取实测路由分组（gpt-image → Openai-Gpt-1，Gemini 图片 → Discounted-Banana-1）。"
         )
@@ -2083,14 +2254,7 @@ class GptImage2Widget(QWidget):
         if pixmap.isNull():
             self.preview_label.setText("无法预览")
             return
-        self.preview_label.setPixmap(
-            pixmap.scaled(
-                self.preview_label.width(),
-                self.preview_label.height(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-        )
+        self.preview_label.setPixmap(pixmap)
 
     def open_containing_dir(self, path):
         if path and os.path.exists(path):

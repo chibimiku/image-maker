@@ -146,10 +146,10 @@ def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
     """
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘 + 衣装重绘（结构线/色调/加墨是本地）
-    assert analyzer._pipeline_timeout_budget(120, steps) == 2280
+    assert analyzer._pipeline_timeout_budget(120, steps) == 3360
     analyzer.gpt_pp_wardrobe.setChecked(False)         # 关掉衣装重绘 → 少一份
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 2160
+    assert analyzer._pipeline_timeout_budget(120, steps) == 3240
     analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 衣装重绘
     analyzer.gpt_pp_wardrobe.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
@@ -248,10 +248,10 @@ def test_gpt_channel_wardrobe_step_counts_one_slot_and_local_stays_off(analyzer)
     assert steps["local"]["enabled"] is False          # 停用
     assert steps["wardrobe"]["enabled"] is True        # 衣装重绘默认开
     # 首图 1 + 重绘链 17 + 衣装重绘 1 = 19 份；重绘链还含初审、最多两轮修订及每轮复审。
-    assert analyzer._pipeline_timeout_budget(120, steps) == 2280
+    assert analyzer._pipeline_timeout_budget(120, steps) == 3360
     analyzer.gpt_pp_wardrobe.setChecked(False)
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 2160
+    assert analyzer._pipeline_timeout_budget(120, steps) == 3240
 
 
 def _first_pass_payload(analyzer, tmp_path, styles, style_name):
@@ -380,7 +380,7 @@ def test_restore_recommended_recipe_and_advanced_do_not_reset_user_edits(analyze
     steps = analyzer._build_gpt_image_steps()
     # 「恢复推荐」回到该配方的默认：重绘 + 衣装重绘（用户 2026-10-07 要求默认带）
     assert [k for k, v in steps.items() if v["enabled"]] == ["repaint", "wardrobe"]
-    assert steps["repaint"]["reference_mode"] == "style"
+    assert steps["repaint"]["reference_mode"] == "none"
     assert steps["repaint"]["scope"] == "full"
     assert analyzer.gen_channel_gpt.isChecked()
 
@@ -617,7 +617,7 @@ def test_repaint_reference_is_always_style_image(analyzer, tmp_path):
     assert "dual_reference" not in sa.ANALYSIS_GPT_UI_DEFAULTS
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
-    assert steps["repaint"]["reference_mode"] == "style"
+    assert steps["repaint"]["reference_mode"] == "none"
     # UI 记忆里也不再写这个键（否则旧死键会一直留在 conf/config.json）
     assert "dual_reference" not in analyzer._gpt_pipeline_ui_state()
 

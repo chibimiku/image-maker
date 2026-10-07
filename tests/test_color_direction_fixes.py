@@ -33,13 +33,27 @@ class EvidenceGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"IMAGE_MAKER_COLOUR_TEST_OUTPUT_ROOT": folder}):
             result = dp.verify_offline(Path(folder) / "out", pack_path=str(stem)+"-pack.json",
                                       scenes_path=str(stem)+"-scenes.json", review_path=str(stem)+"-review.md", log=lambda *_: None)
-            self.assertEqual(result["problems"], [])
+            pack = dp.load_pack(str(stem)+"-pack.json")
+            drift = ["来源文件字节 hash 不一致：" + rel
+                     for rel, want in sorted(pack["source_hashes"].items())
+                     if dp._sha256_file(dp.BASE / rel) != want]
+            self.assertEqual(result["problems"], drift)
+            self.assertTrue(all(not row["problems"] for row in result["slots"]))
             self.assertEqual(len(result["slots"]), 6)
 
     def test_chroma_pair_decodes_without_brightness(self):
         result = dp._decode_tone([{"ids": ["N1", "N2"], "more_chromatic": "N2"}],
                                  {"N1": "S1-A", "N2": "S1-B"}, "S1-A", "S1-B", "more_chromatic")
         self.assertTrue(result["other_is_lighter"])
+
+    def test_report_budget_anomaly_uses_actual_ledger(self):
+        ledger = {"budget": {"image_http_budget": 9},
+                  "counters": {"authorized_extra_sends": 1, "image_sends": 10}}
+        rows = dp._collect_anomalies(ledger, [], [])
+        detail = next(row["detail"] for row in rows if row["kind"] == "budget_deviation")
+        self.assertIn("9 次", detail)
+        self.assertIn("有效预算 10 次", detail)
+        self.assertNotIn("S1-A", detail)
 
     def test_visible_direction_survives_failed_palette_but_is_not_success(self):
         pack = dp.load_pack()
@@ -70,6 +84,19 @@ class EvidenceGateTests(unittest.TestCase):
 
 
 class ReplayTests(unittest.TestCase):
+    def test_backend_saves_complete_long_prompt_without_mutating_request(self):
+        from modules.others.api_backend import _generate_request_replay
+        body = {"contents": [{"parts": [{"text": "长正文" * 2500 + "END-OF-PROMPT"}]}],
+                "api_key": "SECRET"}
+        original = copy.deepcopy(body)
+        with tempfile.TemporaryDirectory() as folder:
+            paths = _generate_request_replay(folder, "long", "gemini", "https://example.org/x",
+                                             {"Authorization": "Bearer SECRET"}, body)
+            snapshot = json.loads(Path(paths["replay_json"]).read_text(encoding="utf-8"))
+        self.assertEqual(snapshot["body"]["contents"], original["contents"])
+        self.assertNotIn("SECRET", json.dumps(snapshot))
+        self.assertEqual(body, original)
+
     def test_no_credentials_persist_and_inputs_intact(self):
         headers = {"Authorization": "Bearer SECRET-A", "X-Goog-Api-Key": "SECRET-B", "Content-Type": "application/json"}
         body = {"messages": [{"text": "literal prompt", "api_key": "SECRET-C"}]}

@@ -772,7 +772,7 @@ def test_reference_grid_shows_thumbnails_with_ordinal_captions(tab, tmp_path):
         # 缩略图（而不是裸路径文本）
         assert card.thumb_label.pixmap() is not None
         assert card.thumb_label.pixmap().isNull() is False
-        assert card.caption_label.text().startswith(f"{index + 1}.")
+        assert card.caption_label.text() == f"Image {index + 1}"
         assert card.path == paths[index]
         # 说明文字是文件名（超宽会省略，但绝不显示目录）；完整路径只在 tooltip 里
         assert os.path.basename(paths[index]) in card.caption_label.toolTip()
@@ -790,7 +790,7 @@ def test_reference_card_delete_button_removes_only_that_image(tab, tmp_path, qap
     assert tab.image_paths == [paths[0], paths[2]]
     assert tab.image_grid.count() == 2
     # 序号重排后仍然连续
-    assert [card.caption_label.text()[:2] for card in tab.image_grid.cards()] == ["1.", "2."]
+    assert [card.caption_label.text() for card in tab.image_grid.cards()] == ["Image 1", "Image 2"]
 
 
 def test_reference_card_drop_reorders_and_request_follows_order(tab, tmp_path):
@@ -1059,7 +1059,7 @@ def repaint_config(tmp_path, monkeypatch):
 
     prompt_dir = tmp_path / "gpt-image-optimize"
     prompt_dir.mkdir(parents=True, exist_ok=True)
-    (prompt_dir / "repaint-system.md").write_text("MAIN-PROMPT-BODY\n", encoding="utf-8")
+    (prompt_dir / "repaint-system-conservative-v5.md").write_text("MAIN-PROMPT-BODY\n", encoding="utf-8")
     (prompt_dir / "repaint-detail-suffix.md").write_text("DETAIL-SUFFIX-BODY\n", encoding="utf-8")
     config_path = prompt_dir / "config.json"
     config_path.write_text(json.dumps({"model": "gemini-3-pro-image-preview", "resolution": "2K"},
@@ -1075,13 +1075,21 @@ def test_repaint_prompt_is_loaded_from_prompts_dir():
 
     prompt = gpt_image_optimize.build_repaint_prompt()
     # 固件里必须有的关键约束（改了 prompt 也该保留这些语义）
-    assert "PRESERVE EVERYTHING THE CHARACTER IS WEARING OR CARRYING" in prompt
-    assert "gloves and any hand coverings" in prompt
-    assert "tights, pantyhose, stockings" in prompt
-    assert "tears, tear streaks" in prompt
-    assert "five fingers" in prompt.lower()
-    assert "scallop" in prompt
+    assert "CONSERVATIVE restoration" in prompt
+    assert "Preserve the source's art style and rendering language" in prompt
+    assert "do NOT convert it to cel shading" in prompt
+    assert "Do not infer, invent" in prompt
+    assert "keep whatever the hands are wearing exactly as drawn" in prompt
     assert len(prompt) > 1500
+
+
+def test_missing_repaint_config_keeps_style_preserving_firmware(monkeypatch, tmp_path):
+    from utils import gpt_image_optimize
+    monkeypatch.setattr(gpt_image_optimize, "PROMPTS_DIR", str(tmp_path))
+    conf = gpt_image_optimize.load_config()
+    assert conf["system_prompt"].endswith("repaint-system-conservative-v5.md")
+    assert conf["use_detail_suffix"] is False
+    assert "do NOT convert it to cel shading" in gpt_image_optimize.build_repaint_prompt(conf)
 
 
 def test_repaint_prompt_suffix_can_be_disabled(repaint_config):
@@ -1129,7 +1137,8 @@ def test_generate_with_repaint_checkbox_chains_repaint(tab, monkeypatch, repaint
     assert rp is not None
     assert rp["model"] == "gemini-3-pro-image-preview"
     assert rp["resolution"] == "2K"
-    assert rp["repeat"] == 2
+    assert rp["repeat"] == 1
+    assert rp["content_guard"] is True
     assert "source_paths" not in rp        # 源图由 Worker 用生图结果填充
     tab.repaint_check.setChecked(False)
 
@@ -1634,16 +1643,17 @@ def test_repaint_default_aspect_ratio_is_auto(repaint_config):
     assert gpt_image_optimize.resolve_aspect_ratio({"aspect_ratio": "16:9"}) == "16:9"
 
 
-def test_repaint_backend_passes_auto_aspect_by_default(monkeypatch, tmp_path):
+def test_repaint_backend_locks_the_source_aspect_by_default(monkeypatch, tmp_path):
+    from PIL import Image
     calls = []
     monkeypatch.setattr(api_backend, "generate_image_aigc2d",
                         lambda **kwargs: calls.append(kwargs) or [str(tmp_path / "o.png")])
     source = tmp_path / "in.png"
-    source.write_bytes(TINY_PNG)
+    Image.new("RGB", (100, 100)).save(source)
 
     api_backend.generate_image_repaint(source_paths=[str(source)], save_sub_dir="tmp_repaint")
 
-    assert calls[0]["aspect_ratio"] == api_backend_auto_aspect()
+    assert calls[0]["aspect_ratio"] == "1:1"
 
 
 def api_backend_auto_aspect():
@@ -1692,6 +1702,228 @@ def test_style_with_content_image_adds_role_block_and_orders_style_ref_last(tab,
     assert params["image_paths"][-1] == style_ref_image(tab._styles_data, "tid")
 
 
+def test_running_character_reference_and_style_have_matching_ui_and_request(tab, tmp_path, monkeypatch):
+    person = tmp_path / "character.png"
+    person.write_bytes(TINY_PNG)
+    tab.image_grid.add_paths([str(person)])
+    tab.style_combo.setCurrentText("tid")
+    tab.prompt_edit.setPlainText("图1是人设，保留TA的发型和服装，让TA在公园跑步，全身入镜。")
+    _backend, request = tab.build_request()
+    assert request["image_paths"][0] == str(person)
+    assert "Image 2 (the LAST image)" in request["prompt"]
+    assert "explicit request overrides the content images" in request["prompt"]
+    assert "Do not freeze a character sheet's standing pose" in request["prompt"]
+    assert "facial drawing or composition" not in request["prompt"]
+    assert "图2 = 系统画风图" in tab.reference_guide_label.text()
+    assert "图1：character.png" in tab.reference_guide_label.toolTip()
+    captured = []
+    monkeypatch.setattr(api_backend, "_maybe_compress_image_path", lambda path, **kwargs: path)
+    def post(_url, **kwargs):
+        captured.extend(name for _field, (name, _stream, _mime) in kwargs["files"])
+        return _FakeResponse({})
+    monkeypatch.setattr(api_backend.requests, "post", post)
+    api_backend._post_images_edits_request("https://example.invalid/edits", "test-key",
+                                          {}, request["image_paths"], 30)
+    assert captured == [Path(path).name for path in request["image_paths"]]
+
+
+def test_reference_guidance_tracks_add_reorder_remove_and_style_change(tab, tmp_path):
+    from modules.image_generation.gpt_image2_tab import STYLE_NONE
+    paths = []
+    for name in ("character.png", "pose.png"):
+        path = tmp_path / name
+        path.write_bytes(TINY_PNG)
+        paths.append(str(path))
+    tab.style_combo.setCurrentText("tid")
+    assert "图1 = 系统画风图" in tab.reference_guide_label.text()
+    assert not tab.reference_example_btn.isEnabled()
+    tab.image_grid.add_paths(paths)
+    assert "图3 = 系统画风图" in tab.reference_guide_label.text()
+    tab.image_grid.move_image(1, 0)
+    assert "图1：pose.png" in tab.reference_guide_label.toolTip()
+    assert "图2：character.png" in tab.reference_guide_label.toolTip()
+    assert tab.build_request()[1]["image_paths"][:2] == paths[::-1]
+    assert "Image 3 (the LAST image)" in tab.build_request()[1]["prompt"]
+    tab.image_grid.remove_index(0)
+    assert "图2 = 系统画风图" in tab.reference_guide_label.text()
+    tab.style_combo.setCurrentText(STYLE_NONE)
+    assert "未附加系统画风图" in tab.reference_guide_label.text()
+    assert "系统画风参考" not in tab._reference_example()
+    tab.clear_images()
+    assert not tab.reference_example_btn.isEnabled()
+
+
+def test_insert_reference_example_preserves_user_text_and_repaint_hides_guide(tab, tmp_path):
+    path = tmp_path / "person.png"
+    path.write_bytes(TINY_PNG)
+    tab.image_grid.add_paths([str(path)])
+    tab.style_combo.setCurrentText("tid")
+    tab.prompt_edit.setPlainText("我已有的内容")
+    tab.reference_example_btn.click()
+    assert tab.prompt_edit.toPlainText().startswith("我已有的内容\n")
+    assert "图1是角色人设参考" in tab.prompt_edit.toPlainText()
+    assert "图2是系统画风参考" in tab.prompt_edit.toPlainText()
+    assert "跑步" in tab.prompt_edit.toPlainText()
+    tab.mode_combo.setCurrentText(MODE_REPAINT)
+    assert tab.reference_guide_label.isHidden()
+    assert tab.reference_example_btn.isHidden()
+    tab.mode_combo.setCurrentText(MODE_GENERATE)
+    assert not tab.reference_guide_label.isHidden()
+
+
+def test_style_attachment_reserves_a_slot_and_never_gets_silently_truncated(tab, tmp_path):
+    from modules.image_generation.gpt_image2_tab import STYLE_NONE
+    paths = []
+    for i in range(GPT_IMAGE2_MAX_REFERENCE_IMAGES):
+        path = tmp_path / f"person-{i}.png"
+        path.write_bytes(TINY_PNG)
+        paths.append(str(path))
+    tab.style_combo.setCurrentText("tid")
+    assert tab.image_grid.max_images == GPT_IMAGE2_MAX_REFERENCE_IMAGES - 1
+    assert tab.image_grid.add_paths(paths) == (15, 1)
+    request = tab.build_request()[1]
+    assert len(request["image_paths"]) == 16
+    assert "Image 16 (the LAST image)" in request["prompt"]
+    tab.style_combo.setCurrentText(STYLE_NONE)
+    assert tab.image_grid.max_images == 16
+    tab.image_grid.add_paths(paths[-1:])
+    tab.style_combo.setCurrentText("tid")
+    assert "超出上限" in tab.reference_guide_label.text()
+    with pytest.raises(ValueError, match="合计最多16张"):
+        tab.build_request()
+    assert tab.image_grid.count() == 16
+
+
+def test_missing_content_image_does_not_shift_submitted_image_numbers(tab, tmp_path):
+    path = tmp_path / "missing.png"
+    path.write_bytes(TINY_PNG)
+    tab.image_grid.add_paths([str(path)])
+    tab.style_combo.setCurrentText("tid")
+    path.unlink()
+    with pytest.raises(ValueError, match="保持图号一致"):
+        tab.build_request()
+
+
+def test_thumbnail_click_inserts_image_at_prompt_cursor_including_system_style(tab, tmp_path, qapp):
+    from PyQt6.QtTest import QTest
+    from PyQt6.QtGui import QTextCursor
+    path = tmp_path / "a-very-long-character-filename-that-does-not-fit.png"
+    path.write_bytes(TINY_PNG)
+    tab.style_combo.setCurrentText("tid")
+    tab.image_grid.add_paths([str(path)])
+    tab.show()
+    tab.activateWindow()
+    tab.prompt_edit.setPlainText("让角色跑步")
+    cursor = tab.prompt_edit.textCursor()
+    cursor.setPosition(1)
+    tab.prompt_edit.setTextCursor(cursor)
+    tab.prompt_edit.setFocus()
+    qapp.processEvents()
+    card = tab.image_grid.card_at(0)
+    assert card.caption_label.text() == "Image 1"
+    assert path.name in card.thumb_label.toolTip()
+    QTest.mouseClick(card.thumb_label, Qt.MouseButton.LeftButton)
+    assert "让 Image 1 角色跑步" == tab.prompt_edit.toPlainText()
+    style_card = tab.image_grid._auxiliary_card
+    assert style_card.caption_label.text() == "Image 2\n画风"
+    assert style_card.delete_btn.isHidden()
+    tab.prompt_edit.moveCursor(QTextCursor.MoveOperation.End)
+    QTest.mouseClick(style_card, Qt.MouseButton.LeftButton)
+    assert tab.prompt_edit.toPlainText().endswith(" Image 2 ")
+    assert tab.image_grid.count() == 1
+    tab.hide()
+
+
+def test_thumbnail_viewing_or_dragging_does_not_insert_unwanted_prompt_text(tab, tmp_path, qapp, monkeypatch):
+    from PyQt6.QtTest import QTest
+    from PyQt6.QtCore import QEvent, QPointF
+    from PyQt6.QtGui import QMouseEvent
+    path = tmp_path / "person.png"
+    from PIL import Image
+    Image.new("RGB", (100, 100)).save(path)
+    tab.image_grid.add_paths([str(path)])
+    tab.show()
+    tab.activateWindow()
+    tab.prompt_edit.setPlainText("原有正文")
+    tab.log_view.setFocus()
+    qapp.processEvents()
+    card = tab.image_grid.card_at(0)
+    QTest.mouseClick(card, Qt.MouseButton.LeftButton)
+    assert tab.prompt_edit.toPlainText() == "原有正文"
+    assert not tab.preview_label.pixmap().isNull()
+    tab.prompt_edit.setFocus()
+    qapp.processEvents()
+    drags = []
+    monkeypatch.setattr(card, "_start_drag", lambda: drags.append(True))
+    QTest.mousePress(card, Qt.MouseButton.LeftButton)
+    card.mouseMoveEvent(QMouseEvent(QEvent.Type.MouseMove, QPointF(0, 0),
+        Qt.MouseButton.NoButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+    QTest.mouseRelease(card, Qt.MouseButton.LeftButton)
+    assert drags == [True]
+    assert tab.prompt_edit.toPlainText() == "原有正文"
+    tab.hide()
+
+
+def test_reordering_updates_english_chinese_and_style_references_without_touching_other_text(tab, tmp_path):
+    paths = []
+    for name in ("person.png", "pose.png", "extra.png"):
+        path = tmp_path / name
+        path.write_bytes(TINY_PNG)
+        paths.append(str(path))
+    tab.style_combo.setCurrentText("tid")
+    tab.image_grid.add_paths(paths[:2])
+    tab.prompt_edit.setPlainText("🏃让Image 1跑步，图2提供姿势；Image 3画风，尺寸1536x1024。")
+    tab.image_grid.move_image(0, 1)
+    assert tab.prompt_edit.toPlainText() == "🏃让Image 2跑步，图1提供姿势；Image 3画风，尺寸1536x1024。"
+    tab.image_grid.add_paths(paths[2:])
+    assert "Image 4画风" in tab.prompt_edit.toPlainText()
+    assert tab.image_grid._auxiliary_card.caption_label.text() == "Image 4\n画风"
+    tab.image_grid.remove_index(0)
+    assert "[已移除图片引用]提供姿势" in tab.prompt_edit.toPlainText()
+    assert "Image 1跑步" in tab.prompt_edit.toPlainText()
+    assert "Image 3画风" in tab.prompt_edit.toPlainText()
+    with pytest.raises(ValueError, match="已移除图片引用"):
+        tab.build_request()
+
+
+def test_preview_shrinks_without_expanding_or_covering_result_controls(tab, tmp_path, qapp):
+    from PIL import Image
+    path = tmp_path / "wide-preview.png"
+    Image.new("RGB", (3000, 1000)).save(path)
+    tab.resize(1060, 1100)
+    tab.show()
+    tab.show_preview(str(path))
+    qapp.processEvents()
+    tab.resize(850, 850)
+    qapp.processEvents()
+    preview = tab.preview_label
+    assert preview.pixmap().width() <= preview.contentsRect().width()
+    assert preview.pixmap().height() <= preview.contentsRect().height()
+    assert preview.geometry().bottom() < tab.result_list.geometry().top()
+    assert tab.log_view.geometry().bottom() < tab.result_list.geometry().top()
+    assert tab.minimumSizeHint().height() < 1000
+    tab.hide()
+
+
+def test_auto_repaint_uses_each_source_ratio_and_blocks_wrong_output(tmp_path, monkeypatch):
+    from PIL import Image
+    calls = []
+    sources = []
+    for name, size in (("wide", (1536, 1024)), ("tall", (1024, 1536))):
+        path = tmp_path / f"{name}.png"
+        Image.new("RGB", size).save(path)
+        sources.append(str(path))
+    monkeypatch.setattr(api_backend, "generate_image_aigc2d", lambda **kwargs: calls.append(kwargs) or [kwargs["image_paths"][0]])
+    api_backend.generate_image_repaint(source_paths=sources, aspect_ratio="auto", prompt="repair", use_detail_suffix=False)
+    assert [call["aspect_ratio"] for call in calls] == ["3:2", "2:3"]
+    square = tmp_path / "wrong.png"
+    Image.new("RGB", (2048, 2048)).save(square)
+    monkeypatch.setattr(api_backend, "generate_image_aigc2d", lambda **kwargs: [str(square)])
+    with pytest.raises(RuntimeError, match="请求 3:2，实际 2048×2048"):
+        api_backend.generate_image_repaint(source_paths=sources[:1], aspect_ratio="auto", prompt="repair", use_detail_suffix=False)
+    assert square.is_file()
+
+
 def test_style_only_no_content_image_skips_role_block(tab):
     tab.style_combo.setCurrentText("tid")
     tab.prompt_edit.setPlainText("a girl standing in shallow water")
@@ -1731,12 +1963,81 @@ def test_styles_all_have_gpt_prompt_except_placeholder():
 
 def test_style_only_adds_scene_from_text_clause(tab):
     """只挂画风参考图时，必须声明场景/道具/构图来自文字（防参考图场景泄漏）。"""
-    from utils.styles import STYLE_REF_SCENE_FROM_TEXT
+    from utils.styles import STYLE_REF_AUTHORITY, STYLE_REF_SCENE_FROM_TEXT
     tab.style_combo.setCurrentText("tid")
     tab.prompt_edit.setPlainText("a girl standing in shallow water at dusk")
     _backend, params = tab.build_request()
+    assert params["prompt"].startswith(STYLE_REF_AUTHORITY)
     assert STYLE_REF_SCENE_FROM_TEXT in params["prompt"]
     assert "a girl standing in shallow water at dusk" in params["prompt"]
+
+
+def test_repaint_request_reads_updated_firmware_after_window_started(tab, monkeypatch):
+    tab._repaint_config["system_prompt"] = "gpt-image-optimize/repaint-system.md"
+    updated = dict(tab._repaint_config, system_prompt="gpt-image-optimize/repaint-system-conservative-v5.md")
+    monkeypatch.setattr(gpt_image2_tab, "load_repaint_config", lambda: dict(updated))
+    assert tab.current_repaint_config()["system_prompt"] == updated["system_prompt"]
+    saved = []
+    monkeypatch.setattr(gpt_image2_tab, "save_repaint_config", lambda conf: saved.append(dict(conf)))
+    tab.save_repaint_defaults()
+    assert saved[0]["system_prompt"] == updated["system_prompt"]
+
+
+@pytest.mark.parametrize("mode", [MODE_GENERATE, MODE_EDIT])
+def test_auto_repaint_uses_firmware_and_style_instead_of_content(tab, monkeypatch, tmp_path, mode):
+    source = tmp_path / "source.png"
+    ref = tmp_path / "style.png"
+    from PIL import Image
+    Image.new("RGB", (300, 200)).save(source)
+    Image.new("RGB", (100, 100)).save(ref)
+    tab.mode_combo.setCurrentText(mode)
+    tab.prompt_edit.setPlainText("A knight running. flat cel shading, no painterly blending")
+    monkeypatch.setattr(tab, "current_style_block", lambda: ("style notes", str(ref)))
+    params = tab.build_repaint_request([str(source)])
+    assert "A knight running" not in params["prompt"]
+    assert "flat cel shading" not in params["prompt"]
+    assert "There is only one image, Image 1" in params["prompt"]
+    assert "SOURCE GEOMETRY AND CONTENT" in params["prompt"]
+    assert "extra_reference_paths" not in params
+    assert params["content_guard"] is True
+    assert params["request_timeout"] == 360
+    assert params["retry_limit"] == 0
+    assert params["use_detail_suffix"] is False
+    calls = []
+    monkeypatch.setattr(api_backend, "generate_image_aigc2d", lambda **kw: calls.append(kw) or [])
+    api_backend.generate_image_repaint(source_paths=[str(source)], **params)
+    assert len(calls) == 1
+    assert calls[0]["image_paths"] == [str(source)]
+    assert calls[0]["prompt"] == params["prompt"]
+    assert calls[0]["aspect_ratio"] == "3:2"
+
+
+def test_auto_repaint_no_style_uses_current_firmware(tab, monkeypatch):
+    monkeypatch.setattr(tab, "current_style_block", lambda: ("", ""))
+    tab.mode_combo.setCurrentText(MODE_GENERATE)
+    tab.prompt_edit.setPlainText("old scene prompt; flat cel shading")
+    params = tab.build_repaint_request([])
+    from utils.repaint_content_guard import source_repaint_prompt
+    assert params["prompt"] == source_repaint_prompt()
+    assert "old scene prompt" not in params["prompt"]
+    assert "extra_reference_paths" not in params
+
+
+def test_manual_repaint_preserves_explicit_editor_prompt(tab, monkeypatch):
+    tab.mode_combo.setCurrentText(MODE_REPAINT)
+    tab.prompt_edit.setPlainText("Repair only the visible broken sleeve seam")
+    monkeypatch.setattr(tab, "current_style_block", lambda: ("", "style.png"))
+    params = tab.build_repaint_request([])
+    assert params["prompt"] == "Repair only the visible broken sleeve seam"
+    assert "extra_reference_paths" not in params
+
+
+def test_auto_repaint_wardrobe_preserves_style_instruction(tab, monkeypatch):
+    monkeypatch.setattr(tab, "current_style_block", lambda: ("", "style.png"))
+    monkeypatch.setattr("utils.wardrobe.wardrobe_continuity", lambda spec: "KEEP THE SPECIFIED GARMENTS")
+    params = tab.build_repaint_request([], wardrobe={"active": True})
+    assert "There is only one image, Image 1" in params["prompt"]
+    assert params["prompt"].endswith("KEEP THE SPECIFIED GARMENTS")
 
 
 

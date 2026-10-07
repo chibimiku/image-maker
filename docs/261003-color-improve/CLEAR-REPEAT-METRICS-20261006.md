@@ -116,7 +116,7 @@
 
 `docs/style-extraction/STYLE-METRICS-GRAM-V2-20261006.md` 记录「当前 Python 的 lpips/clip 缺失，两个指标记 unavailable」。本轮按要求先实测：系统 Python 3.10.11 里 `lpips 0.1.4`、`clip 1.0`、`open_clip_torch 3.3.0` 都能导入（安装时间 2026-10-04 19:28，早于那份报告），LPIPS 校准权重与 AlexNet 骨架、CSD 权重、CLIP ViT-L/14 缓存也都在位。四指标端到端试算（`data/test-result/style-metrics-avail-probe-20261006.json`）全部 `status=ok`，本轮 36 行也全部可算。**未安装任何包、未下载任何权重、未改驱动**；旧的 unavailable 结论不应再被引用。
 
-原因是环境可见性而不是依赖真的缺失：这几个包装在**用户级 site-packages**（`C:\Users\ashsu\AppData\Roaming\Python\Python310\site-packages`），受限沙箱下那次探测读不到该路径，于是把「读不到」误报成「没装」。同一台机器、同一个系统 Python，在沙箱外导入正常——同日另一处工作也已记录同一条环境纠正。因此：以后判断依赖可用性，要在**实际执行指标的那个进程**里做一次真实导入＋试算，不要沿用受限沙箱里的结论。
+原因是环境可见性而不是依赖真的缺失：这几个包装在**用户级 site-packages**（`C:\Users\<user>\AppData\Roaming\Python\Python310\site-packages`），受限沙箱下那次探测读不到该路径，于是把「读不到」误报成「没装」。同一台机器、同一个系统 Python，在沙箱外导入正常——同日另一处工作也已记录同一条环境纠正。因此：以后判断依赖可用性，要在**实际执行指标的那个进程**里做一次真实导入＋试算，不要沿用受限沙箱里的结论。
 
 ## 6. 缺项、未验证与边界
 

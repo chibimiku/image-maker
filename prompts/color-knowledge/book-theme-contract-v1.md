@@ -1,0 +1,6 @@
+THEME COLOUR DESIGN (book palette, text-only first generation):
+The selected book palette contains these named colour families: {colours}.
+Use only the following explicitly authorized bindings:
+{bindings}
+These bindings authorize intrinsic colour changes only on the named existing surfaces. Preserve every other explicitly described colour, including skin, hair, eyes, clothes and footwear outside those bindings. Do not override a region explicitly protected or forbidden to recolour by the content. Preserve local shadows, highlights, material character, person/object counts, identities, poses, garment designs, object boundaries, composition, drawing technique, lighting direction, weather and time of day.
+Palette order is only a swatch identifier, not a dominant/supporting/accent hierarchy. Any stated roles are proposals for this task, not inferred facts about the book. Without a selected hierarchy preference, do not impose a universal area ratio. Unassigned colours need not be forced into protected regions or new objects. Do not add or enlarge objects to fit the palette, apply a uniform wash, reproduce the book's story or character, produce a palette chart, labels, panels or collage. No exact HEX matching or measured area percentages are required. This palette overrides generic drawing-style colour suggestions only on the named surfaces.

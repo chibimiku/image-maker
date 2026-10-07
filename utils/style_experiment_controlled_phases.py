@@ -795,41 +795,24 @@ def e2(ledger: AttemptLedger, plan, e2_plan, variants, progress=None, device=DEV
         candidate_rows = [{"path": positive["row"]["path"], "sha256": positive["row"]["sha256"], "id": "P"},
                           {"path": negative["row"]["path"], "sha256": negative["row"]["sha256"], "id": "N"}]
         result = with_retries(
-            ledger, f"e2:compare:{anchor['image_id']}", "E2",
+            ledger, f"e2:direct:{anchor['image_id']}", "E2",
             lambda anchor=anchor, candidate_rows=candidate_rows: compare(
-                candidate_rows, [{"path": row["path"], "sha256": row["sha256"]} for row in reference_rows],
-                cache / anchor["image_id"], device),
-            request={"anchor": anchor["path"], "candidates": [row["path"] for row in candidate_rows]},
-            charged=False)
+                candidate_rows, [anchor], cache / (anchor["image_id"] + "-direct-v2"), device),
+            request={"anchor": anchor["path"], "candidates": [row["path"] for row in candidate_rows],
+                     "comparison_definition": "direct-anchor-pairs/2"}, charged=False)
         lookup = pair_lookup(result)
         for candidate in candidate_rows:
-            by_style, missing, metrics_by_style = {}, [], {}
-            for style_id in style_ids:
-                values = []
-                for reference in plan["split"][style_id]["references"]:
-                    pair = lookup.get((candidate["path"], reference["path"]))
-                    value = metric_value(pair, "csd") if pair else None
-                    values.append(value)
-                if any(value is None for value in values):
-                    missing.append(style_id)
-                    by_style[style_id] = None
-                else:
-                    by_style[style_id] = statistics.mean(values)
-                for metric in METRIC_DIRECTION:
-                    if metric == "csd":
-                        continue
-                    metric_values = [metric_value(lookup.get((candidate["path"], reference["path"])), metric)
-                                     for reference in plan["split"][style_id]["references"]]
-                    metrics_by_style.setdefault(metric, {})[style_id] = (
-                        statistics.mean(metric_values)
-                        if metric_values and all(value is not None for value in metric_values) else None)
+            pair = lookup[(candidate["path"], anchor["path"])]
+            values = {m: metric_value(pair, m) for m in METRIC_DIRECTION}
             comparison_rows.append({
                 "anchor_id": anchor["image_id"], "anchor_style": anchor["style_id"], "kind": candidate["id"],
                 "path": candidate["path"], "candidate_style": (anchor["style_id"] if candidate["id"] == "P"
                                                                else negative["match_detail"]["style_id"]),
                 "match_detail": positive["match_detail"] if candidate["id"] == "P" else negative["match_detail"],
-                "csd_by_style": by_style, "by_style": {"csd": by_style, **metrics_by_style},
-                "missing_styles": missing, "primary_target_style": anchor["style_id"]})
+                "csd_by_style": {anchor["style_id"]: values["csd"]},
+                "by_style": {m: {anchor["style_id"]: v} for m, v in values.items()},
+                "primary_target_style": anchor["style_id"], "pair": pair,
+                "comparison_definition": "direct-anchor-pairs/2"})
 
         # 变体：只测「仅改颜色/背景/构图是否改变画风判断」，同一参考集
         variant_candidates = [{"path": anchor["path"], "sha256": anchor["sha256"], "id": "original"}]
@@ -882,14 +865,8 @@ def e2_stats(comparison_rows, variant_rows, style_ids) -> dict:
             if first is None or second is None:
                 preference[metric]["detail"].append({"anchor": anchor_id, "status": "missing"})
                 continue
-            if metric == "csd":
-                # 相似度：越大越像自身画风
-                improvement = second - first
-                rule = "CSD(anchor→N) − CSD(anchor→P) > 容差 才算正确偏好同画风的 P"
-            else:
-                # 距离：越小越像自身画风；P 自身画风分必须明显更小
-                improvement = first - second
-                rule = "距离(anchor→N) − 距离(anchor→P) > 容差 才算正确偏好同画风的 P"
+            improvement = first - second if METRIC_DIRECTION[metric] == "max" else second - first
+            rule = "相似度 P>N / 距离 P<N；按冻结 METRIC_DIRECTION 判定"
             limit = TIE_RTOL * max(1.0, abs(first), abs(second))
             status = "tie" if abs(improvement) <= limit else ("correct" if improvement > 0 else "wrong")
             preference[metric][status] += 1
@@ -905,9 +882,11 @@ def e2_stats(comparison_rows, variant_rows, style_ids) -> dict:
     result = {}
     for metric in metrics:
         row = preference[metric]
-        total = row["correct"] + row["tie"] + row["wrong"]
+        total = len(by_anchor)
+        missing_count = total - row["correct"] - row["tie"] - row["wrong"]
         colour_tight = [item for item in row["detail"]
-                        if item.get("status") != "missing" and (item.get("negative_hue_distance_degrees") or 999) <= 30]
+                        if item.get("status") != "missing" and item.get("negative_hue_distance_degrees") is not None
+                        and item["negative_hue_distance_degrees"] <= 30]
         composition_tight = [item for item in row["detail"]
                              if item.get("status") != "missing"
                              and all((item.get("composition_match") or {}).get(key) == 1.0
@@ -920,6 +899,7 @@ def e2_stats(comparison_rows, variant_rows, style_ids) -> dict:
                     "tie": sum(1 for item in items if item["status"] == "tie"),
                     "wrong": sum(1 for item in items if item["status"] == "wrong")}
         result[metric] = {"n": total, "correct": row["correct"], "tie": row["tie"], "wrong": row["wrong"],
+                          "missing": missing_count,
                           "rate": (row["correct"] / total) if total else None,
                           "wilson_95": wilson(row["correct"], total),
                           "split_by_colour_match": rate(colour_tight),
@@ -1023,17 +1003,19 @@ def e3(ledger: AttemptLedger, plan, frozen, progress=None, device=DEVICE) -> dic
             request={"case": case_id, "variants": [row["path"] for row in candidates]}, charged=False)
         lookup = pair_lookup(result)
         base_descriptor = face_metrics.descriptors(base["image"], face_metrics.read_annotation(base["image"]))
+        base_self = face_metrics.compare_face_features(base["image"], base["image"],
+            {base["image"]: face_metrics.read_annotation(base["image"])})
         # 原图行必须进 rows：剂量序列要有 level 1.0 的起点，否则所有响应都判不了单调
         rows.append({"case_id": case_id, "style_id": base["style_id"], "label": "original",
                      "intervention": "original", "level": 1.0, "level_name": "original", "target_metric": None,
                      "image": base["image"], "parameters": base["parameters"],
-                     "closeness": {metric: 1.0 for metric in face_metrics.METRICS},
-                     "status": {metric: "ok" for metric in face_metrics.METRICS},
+                     "closeness": {metric: base_self[metric].get("value") for metric in face_metrics.METRICS},
+                     "status": {metric: base_self[metric]["status"] for metric in face_metrics.METRICS},
                      "components": {metric: base_descriptor[metric].get("components")
                                     for metric in face_metrics.METRICS},
                      "base_components": {metric: base_descriptor[metric].get("components")
                                          for metric in face_metrics.METRICS},
-                     "whole_image": {metric: 1.0 for metric in METRIC_DIRECTION}})
+                     "whole_image": {}, "whole_image_note": "基线未做整图配对，不填伪造同图值"})
         for record in records:
             if record["label"] == "original":
                 continue
@@ -1079,32 +1061,23 @@ def _direction_series(rows, case_id, intervention, metric=None):
               if row["case_id"] == case_id
               and (row["intervention"] == intervention
                    or (row["intervention"] == "original" and row["label"] == "original"))]
-    series.sort(key=lambda item: (item["intervention"] != "original", item["level"]))
+    order = {"original": 0, "weak": 1, "medium": 2, "strong": 3}
+    series.sort(key=lambda item: order.get(item["level_name"], 99))
     return series
 
 
 def _monotonic(values, direction):
-    usable = [value for value in values if value is not None]
-    if len(usable) < 2:
+    if len(values) < 2 or any(value is None or not math.isfinite(value) for value in values):
         return None
     if direction == "increase":
-        return all(b >= a - 1e-12 for a, b in zip(usable, usable[1:]))
-    return all(b <= a + 1e-12 for a, b in zip(usable, usable[1:]))
+        return all(b >= a - 1e-12 for a, b in zip(values, values[1:])) and values[-1] > values[0] + 1e-12
+    return all(b <= a + 1e-12 for a, b in zip(values, values[1:])) and values[-1] < values[0] - 1e-12
 
 
 def e3_stats(rows, frozen) -> dict:
     from utils import style_face_metrics as face_metrics
-    # 目标响应方向：由可控图样的几何参数预注册
-    expected_direction = {
-        "hair_fineness": ("hair_fineness", "increase"),
-        "hair_continuity": ("hair_continuity", "decrease"),
-        "eye_brightness": ("eye_brightness", "decrease"),
-        "eye_height": ("eye_height", "increase"),
-        "eye_width": ("eye_width", "increase"),
-        "eye_gap": ("eye_gap", "increase"),
-        "eyelashes": ("eyelashes", "increase"),
-        "eye_curvature": ("eye_curvature", "increase"),
-    }
+    # 偏離原圖越強，貼近度應下降；原始幾何/亮度的升降另看 components。
+    expected_direction = {metric: (metric, "decrease") for metric in CONTROLLED_FACE_METRICS}
     cases = sorted({row["case_id"] for row in rows})
     responses = []
     for case_id in cases:
@@ -1117,7 +1090,10 @@ def e3_stats(rows, frozen) -> dict:
             values = [row["closeness"].get(target) for row in series]
             statuses = [row["status"].get(target) for row in series]
             baseline_ok = values and values[0] is not None and abs(values[0] - 1.0) <= 1e-9
-            monotonic = _monotonic(values, direction) if baseline_ok else None
+            complete = (len(series) == 4 and {row["level_name"] for row in series} ==
+                        {"original", "weak", "medium", "strong"} and
+                        all(status in ("ok", "provisional") for status in statuses))
+            monotonic = _monotonic(values, "decrease") if baseline_ok and complete else None
             # 剂量响应：贴近度随档位单调（target 指标贴近度应随干预强度升高而下降）
             dosage = {"levels": [row["level"] for row in series], "closeness": values, "statuses": statuses,
                       "baseline_row_is_identity": baseline_ok,
@@ -1130,7 +1106,8 @@ def e3_stats(rows, frozen) -> dict:
                               "components": [row["components"].get(target) for row in series]})
     passed = [row for row in responses if row.get("status") == "pass"]
     usable = [row for row in responses if row.get("status") in ("pass", "fail")]
-    direction_hit = len(passed) / len(usable) if usable else None
+    usable_response_count = len(usable)
+    direction_hit = len(passed) / len(responses) if responses else None
 
     # 非目标响应矩阵：每个干预对全部 13 项的贴近度均值（越大越像 = 越不敏感）
     matrix = {}
@@ -1157,7 +1134,9 @@ def e3_stats(rows, frozen) -> dict:
                      if value["description"] == row["parameters"]["negative_control"]["description"]), {})
         expected = spec.get("expect", [])
         exact = {metric: row["closeness"].get(metric) for metric in expected}
-        unchanged = all(value is not None and abs(value - 1.0) <= 1e-9 for value in exact.values())
+        unchanged = bool(expected) and all(value is not None and abs(value - 1.0) <= 1e-9
+                                           and row["status"].get(metric) in ("ok", "provisional")
+                                           for metric, value in exact.items())
         controls.append({"case_id": row["case_id"], "control": row["label"], "expect_no_change": expected,
                          "closeness": {metric: row["closeness"].get(metric) for metric in expected},
                          "statuses": {metric: row["status"].get(metric) for metric in expected},
@@ -1172,13 +1151,15 @@ def e3_stats(rows, frozen) -> dict:
     return {"responses": responses,
             "target_direction_hit": direction_hit,
             "target_direction_counts": exact_counts([row.get("status") == "pass" for row in responses]),
-            "usable_response_count": len(usable),
+            "usable_response_count": usable_response_count,
+            "incomplete_response_count": len(responses) - usable_response_count,
             "non_target_response_matrix": non_target,
             "negative_controls": controls,
             "negative_controls_passed": bool(controls) and all(row["status"] == "pass" for row in controls),
             "diagnostics": diagnostics,
             "gate": {"required": ACCEPTANCE["local_measurement_assist"]["value"],
                      "direction_hit": direction_hit,
+                     "negative_controls_passed": bool(controls) and all(row["status"] == "pass" for row in controls),
                      "passed": direction_hit is not None
                                and direction_hit >= ACCEPTANCE["local_measurement_assist"]["value"]
                                and bool(controls) and all(row["status"] == "pass" for row in controls)}}
@@ -1187,6 +1168,95 @@ def e3_stats(rows, frozen) -> dict:
 def metric_value_from(row, metric):
     """负对照用的精确贴近度：直接取共享入口给出的数值。"""
     return row["closeness"].get(metric)
+
+
+def restat(source_dir, output_dir, progress=None):
+    """Versioned local repair; never generates images or requests region/visual proposals."""
+    import copy
+    from utils import style_face_metrics as face
+    from utils.style_experiment_controlled import code_freeze, stage_statuses, summary_template
+    from utils.style_experiment_reports import write_reports
+    source_dir, output_dir = Path(source_dir).resolve(), Path(output_dir).resolve()
+    if source_dir == output_dir or output_dir.exists():
+        raise ValueError("修订目录必须是新的目录；不覆盖已有实验结果")
+    original_path = source_dir / "results/results.json"
+    original = read_json(original_path)
+    plan = read_json(source_dir / "PLAN/plan-full.json")
+    if not original or not plan:
+        raise ValueError("缺少原结果或冻结计划")
+    output_dir.mkdir(parents=True)
+    results = copy.deepcopy(original)
+    revision = {"statistics_version": "controlled-statistics/2", "source": str(original_path),
+                "source_run_directory": str(source_dir),
+                "source_sha256": sha256_file(original_path), "code_sha256": code_freeze(),
+                "new_remote_requests": 0, "original_protocol_unchanged": True,
+                "legacy_ledger_unverified": True, "local_ledger": str(output_dir / "ledger/attempts.jsonl")}
+    atomic_json(output_dir / "statistics-revision.json", revision)
+    ledger = AttemptLedger(output_dir / "ledger/attempts.jsonl").load()
+    rows = []
+    for anchor in plan["e2"]["anchors"]:
+        candidates = [dict(plan["e2"][key][anchor["image_id"]]["row"], id=label)
+                      for key, label in (("positive", "P"), ("negative", "N"))]
+        for image in [anchor] + candidates:
+            if sha256_file(image["path"]) != image["sha256"]:
+                raise ValueError("冻结图片已变化：" + image["path"])
+        _log(progress, "E2 直接配对：" + anchor["image_id"])
+        result = with_retries(ledger, "restat:direct:" + anchor["image_id"], "E2",
+            lambda: compare(candidates, [anchor], output_dir / "cache" / anchor["image_id"], DEVICE),
+            request={"anchor": anchor["sha256"], "candidates": [c["sha256"] for c in candidates]}, charged=False)
+        lookup = pair_lookup(result)
+        for candidate, key in zip(candidates, ("positive", "negative")):
+            pair = lookup[(candidate["path"], anchor["path"])]
+            selected = plan["e2"][key][anchor["image_id"]]
+            rows.append({"anchor_id": anchor["image_id"], "anchor_style": anchor["style_id"],
+                         "kind": candidate["id"], "path": candidate["path"],
+                         "candidate_style": candidate["style_id"], "match_detail": selected["match_detail"],
+                         "by_style": {m: {anchor["style_id"]: metric_value(pair, m)} for m in METRIC_DIRECTION},
+                         "pair": pair, "comparison_definition": "direct-anchor-pairs/2"})
+    old_e2 = original["E2"]
+    results["E2"]["reference_set_diagnostic"] = e2_stats(old_e2["comparisons"], [], old_e2["style_ids"])
+    results["E2"]["comparisons"] = rows
+    results["E2"]["analysis"] = e2_stats(rows, old_e2["variants"], old_e2["style_ids"])
+    results["E2"]["comparison_definition"] = "direct-anchor-pairs/2"
+    results["E2"]["status"] = "partial"  # Matching and variant structure still await human review.
+    for base in results["E3"]["rows"]:
+        if base["intervention"] != "original":
+            continue
+        record = next(x for x in plan["e3_frozen"]["records"]
+                      if x["case_id"] == base["case_id"] and x["label"] == "original")
+        if sha256_file(base["image"]) != record["sha256"]:
+            raise ValueError("E3 基线图片已变化")
+        annotation = read_json(record["annotation"])
+        baseline = face.compare_face_features(base["image"], base["image"], {base["image"]: annotation})
+        base["closeness"] = {m: baseline[m].get("value") for m in face.METRICS}
+        base["status"] = {m: baseline[m]["status"] for m in face.METRICS}
+        base["whole_image"] = {}
+    results["E3"]["analysis"] = e3_stats(results["E3"]["rows"], plan["e3_frozen"])
+    proposals, images = {}, []
+    for row in original["E4"]["rows"]:
+        annotation = face.read_annotation(row["path"])
+        if annotation:
+            proposals[row["image_id"]] = annotation
+            atomic_json(output_dir / "region-snapshots" / (row["image_id"] + ".json"), annotation)
+        image = dict(row)
+        if row["kind"] == "synthetic_case":
+            record = next(x for x in plan["e3_frozen"]["records"]
+                          if x["case_id"] == row["image_id"] and x["label"] == "original")
+            image["ground_truth_annotation"] = record["annotation"]
+        images.append(image)
+    results["E4"]["geometry_vs_synthetic_truth"] = e4_geometry_against_truth(images, proposals)
+    revision["e4_geometry_input"] = "saved local region annotations, snapshotted in revision; no new proposals"
+    results["statistics_revision"] = revision
+    results["stages"] = stage_statuses(results, plan)
+    results["summary_template"] = summary_template(results)
+    results["next_step"] = "先排查发丝/睫毛宽度响应，再补人工匹配/定位与盲评；旧失败率不作依据。"
+    results["ledger_summary"] = original["ledger_summary"]
+    results["deviations"].append({"what": "统计版本2：直接E2、完整剂量响应、对称折线误差",
+                                 "impact": "旧统计失效，参考集诊断与直接配对分开报告；原始数据保留",
+                                 "handling": "修订hash与源结果hash单列；新增24个本地配对，无新增远程调用"})
+    atomic_json(output_dir / "statistics-revision.json", revision)
+    doc = Path(__file__).resolve().parents[1] / "docs/style-extraction/SIMILARITY-STATISTICS-V2-20261006.md"
+    return write_reports(results, plan, output_dir, docs_path=doc)
 
 
 # --------------------------------------------------------------------------- #
@@ -1426,7 +1496,38 @@ def _write_overlay(item, annotation, target) -> str:
     return str(target)
 
 
-def e4_geometry_against_truth(images) -> dict:
+def curve_error(expected, proposed, width):
+    """Uniform arc-length sampling and symmetric point-to-polyline distance."""
+    import numpy as np
+    a, b = np.asarray(expected, dtype=float), np.asarray(proposed, dtype=float)
+    if width <= 0 or any(x.ndim != 2 or x.shape[1] != 2 or len(x) < 2 or
+                         not np.isfinite(x).all() for x in (a, b)):
+        raise ValueError("无效曲线或眼宽")
+    def sample(vertices):
+        distances = np.r_[0., np.cumsum(np.linalg.norm(np.diff(vertices, axis=0), axis=1))]
+        keep = np.r_[True, np.diff(distances) > 0]
+        vertices, distances = vertices[keep], distances[keep]
+        if len(vertices) < 2:
+            raise ValueError("曲线长度为零")
+        grid = np.linspace(0, distances[-1], 101)
+        return np.column_stack([np.interp(grid, distances, vertices[:, i]) for i in (0, 1)])
+    def distances(points, vertices):
+        u, delta = vertices[:-1], np.diff(vertices, axis=0)
+        length2 = (delta ** 2).sum(axis=1)
+        offset = points[:, None, :] - u
+        fraction = np.clip((offset * delta).sum(axis=2) / np.maximum(length2, 1e-30), 0, 1)
+        return np.linalg.norm(offset - fraction[:, :, None] * delta, axis=2).min(axis=1)
+    forward, reverse = distances(sample(a), b), distances(sample(b), a)
+    symmetric = np.r_[forward, reverse]
+    return {"status": "ok", "mean_over_eye_width": float(symmetric.mean() / width),
+            "p95_over_eye_width": float(np.percentile(symmetric, 95) / width),
+            "truth_to_proposal_mean": float(forward.mean() / width),
+            "proposal_to_truth_mean": float(reverse.mean() / width),
+            "endpoint_max_over_eye_width": float(max(np.linalg.norm(a[0]-b[0]), np.linalg.norm(a[-1]-b[-1])) / width),
+            "eye_width_normalized": width, "formula_version": "symmetric-polyline-distance/2"}
+
+
+def e4_geometry_against_truth(images, proposals=None) -> dict:
     """自动眼睑曲线/发丝路径与可控图样解析真值的距离（只对合成案例）。"""
     import math as _math
     from utils import style_face_metrics as face_metrics
@@ -1437,7 +1538,8 @@ def e4_geometry_against_truth(images) -> dict:
         try:
             import json as _json
             truth = _json.loads(Path(item["ground_truth_annotation"]).read_text(encoding="utf-8"))
-            proposal = face_metrics.read_annotation(item["path"])
+            proposal = (proposals.get(item["image_id"]) if proposals is not None
+                        else face_metrics.read_annotation(item["path"]))
             if not proposal:
                 rows.append({"image_id": item["image_id"], "status": "no_proposal"})
                 continue
@@ -1451,14 +1553,8 @@ def e4_geometry_against_truth(images) -> dict:
                         continue
                     a = [[float(x), float(y)] for x, y in expected[key]]
                     b = [[float(x), float(y)] for x, y in got[key]]
-                    distances = [min(_math.dist(point, other) for other in b) for point in a]
                     width = _eye_width(expected)
-                    entry["eyes"][f"{name}_{key}"] = {
-                        "status": "ok",
-                        "mean_over_eye_width": statistics.mean(distances) / width if width else None,
-                        "p95_over_eye_width": sorted(distances)[int(0.95 * (len(distances) - 1))] / width
-                        if width else None,
-                        "eye_width_normalized": width}
+                    entry["eyes"][f"{name}_{key}"] = curve_error(a, b, width)
             rows.append(entry)
         except Exception as exc:
             rows.append({"image_id": item["image_id"], "status": "error",

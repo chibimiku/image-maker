@@ -35,15 +35,19 @@ class DirectionPackTests(unittest.TestCase):
 
     # --- 离线校验 ---------------------------------------------------------
 
-    def test_verify_offline_passes_and_writes_record(self):
+    def test_verify_offline_records_source_drift_without_changing_frozen_prompts(self):
         result = dp.verify_offline(self.out, log=lambda *_a: None)
-        self.assertEqual(result["problems"], [], result["problems"])
-        self.assertEqual(result["status"], "passed")
+        drift = ["来源文件字节 hash 不一致：" + rel
+                 for rel, want in sorted(self.pack["source_hashes"].items())
+                 if dp._sha256_file(dp.BASE / rel) != want]
+        self.assertEqual(result["problems"], drift)
+        self.assertTrue(all(not row["problems"] for row in result["slots"]))
+        self.assertEqual(result["status"], "problems" if drift else "passed")
         self.assertTrue(result["pack_hash_ok"])
         self.assertEqual(len(result["slots"]), 10)
         self.assertTrue((self.out / "offline-verification.json").is_file())
-        self.assertEqual(result["source_files"] and
-                         {row["status"] for row in result["source_files"]}, {"match"})
+        for row in result["source_files"]:
+            self.assertEqual(row["status"], "match" if row["expected"] == row["actual"] else "mismatch")
 
     def test_recompile_matches_frozen_prompt_for_every_slot(self):
         from utils.theme_color import apply_theme_color, freeze_theme_color, validate_snapshot

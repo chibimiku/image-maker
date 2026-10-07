@@ -88,18 +88,22 @@ class RefImageCard(QFrame):
     opened = pyqtSignal(object)             # 双击或右键「打开所在目录」
     dropped = pyqtSignal(int, object)       # (源卡片下标, 本卡片)
 
-    def __init__(self, path, index, thumb_size=DEFAULT_THUMB_SIZE, parent=None):
+    def __init__(self, path, index, thumb_size=DEFAULT_THUMB_SIZE, parent=None, editable=True):
         super().__init__(parent)
         self.path = str(path)
         self.index = int(index)
         self.thumb_size = int(thumb_size)
         self._press_pos = None
         self._highlight = False
+        self.editable = bool(editable)
+        self._drag_started = False
+        self._suppress_activation = False
 
         self.setObjectName("RefImageCard")
         self.setStyleSheet(_STYLE_NORMAL)
-        self.setAcceptDrops(True)
-        self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setAcceptDrops(self.editable)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setCursor(Qt.CursorShape.OpenHandCursor if self.editable else Qt.CursorShape.PointingHandCursor)
 
         grid = QGridLayout(self)
         grid.setContentsMargins(4, 4, 4, 4)
@@ -121,6 +125,7 @@ class RefImageCard(QFrame):
         self.delete_btn.setToolTip("移除这张参考图")
         self.delete_btn.setStyleSheet(_DELETE_BTN_STYLE)
         self.delete_btn.clicked.connect(lambda: self.delete_requested.emit(self))
+        self.delete_btn.setVisible(self.editable)
         grid.addWidget(
             self.delete_btn,
             0,
@@ -138,14 +143,15 @@ class RefImageCard(QFrame):
     def set_index(self, index):
         self.index = int(index)
         name = os.path.basename(self.path)
-        metrics = self.caption_label.fontMetrics()
-        self.caption_label.setText(
-            metrics.elidedText(
-                f"{self.index + 1}. {name}", Qt.TextElideMode.ElideMiddle, self.thumb_size
-            )
-        )
+        self.caption_label.setText(f"Image {self.index + 1}")
+        if not self.editable:
+            self.caption_label.setText(f"Image {self.index + 1}\n画风")
         self.caption_label.setToolTip(f"{name}\n{self._size_text()}（拖动可与其它参考图交换顺序）")
-        self.setToolTip(f"{self.path}\n{self._size_text()}（拖动可与其它参考图交换顺序）")
+        role = "用户素材；拖动可调整顺序" if self.editable else "系统画风图；自动排最后"
+        tooltip = f"Image {self.index + 1} · {role}\n{name}\n{self.path}\n{self._size_text()}"
+        self.setToolTip(tooltip)
+        self.thumb_label.setToolTip(tooltip)
+        self.caption_label.setToolTip(tooltip)
 
     def _size_text(self) -> str:
         try:
@@ -163,24 +169,29 @@ class RefImageCard(QFrame):
     def mousePressEvent(self, event):  # noqa: N802 - Qt 接口
         if event.button() == Qt.MouseButton.LeftButton:
             self._press_pos = event.position().toPoint()
-            self.activated.emit(self)
+            self._drag_started = False
+            self._suppress_activation = False
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):  # noqa: N802 - Qt 接口
-        if self._press_pos is None or not (event.buttons() & Qt.MouseButton.LeftButton):
+        if not self.editable or self._press_pos is None or not (event.buttons() & Qt.MouseButton.LeftButton):
             return
         moved = (event.position().toPoint() - self._press_pos).manhattanLength()
         if moved < QApplication.startDragDistance():
             return
         self._press_pos = None
+        self._drag_started = True
         self._start_drag()
 
     def mouseReleaseEvent(self, event):  # noqa: N802 - Qt 接口
+        if event.button() == Qt.MouseButton.LeftButton and not self._drag_started and not self._suppress_activation:
+            self.activated.emit(self)
         self._press_pos = None
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):  # noqa: N802 - Qt 接口
         if event.button() == Qt.MouseButton.LeftButton:
+            self._suppress_activation = True
             self.opened.emit(self)
 
     def _start_drag(self):
@@ -214,6 +225,9 @@ class RefImageCard(QFrame):
         super().dragLeaveEvent(event)
 
     def dropEvent(self, event):  # noqa: N802 - Qt 接口
+        if not self.editable:
+            event.ignore()
+            return
         self.set_drop_highlight(False)
         payload = bytes(event.mimeData().data(CARD_MIME))
         try:
@@ -230,13 +244,13 @@ class RefImageCard(QFrame):
         preview_action = menu.addAction("预览这张图")
         open_action = menu.addAction("打开所在目录")
         menu.addSeparator()
-        remove_action = menu.addAction("移除这张图")
+        remove_action = menu.addAction("移除这张图") if self.editable else None
         chosen = menu.exec(event.globalPos())
         if chosen is preview_action:
             self.activated.emit(self)
         elif chosen is open_action:
             self.opened.emit(self)
-        elif chosen is remove_action:
+        elif remove_action is not None and chosen is remove_action:
             self.delete_requested.emit(self)
 
 
@@ -246,6 +260,7 @@ class RefImageGrid(QWidget):
     images_changed = pyqtSignal(list)
     image_clicked = pyqtSignal(str)
     image_double_clicked = pyqtSignal(str)
+    reference_clicked = pyqtSignal(str, int)
 
     def __init__(self, max_images=16, thumb_size=DEFAULT_THUMB_SIZE, parent=None, compact_when_empty=False,
                  compact_thumb_size=0):
@@ -265,6 +280,8 @@ class RefImageGrid(QWidget):
         self.thumb_size = int(self.compact_thumb_size or thumb_size)
         self._paths = []
         self._cards = []
+        self._auxiliary_path = ""
+        self._auxiliary_card = None
 
         self.setAcceptDrops(True)
 
@@ -283,6 +300,8 @@ class RefImageGrid(QWidget):
         layout.addWidget(self.placeholder)
 
         self.scroll_area = QScrollArea()
+        self.scroll_area.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.scroll_area.viewport().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -305,11 +324,11 @@ class RefImageGrid(QWidget):
         传了 `compact_thumb_size` 的 Tab 收紧成**卡片实际高度**（`thumb_size + 40`），
         避免缩略图一出现就凭空多出几十像素、把下面的日志/队列挤掉。
         """
-        if self.compact_when_empty and not self._paths:
+        if self.compact_when_empty and not self._paths and not self._auxiliary_path:
             self.setMinimumHeight(0)
             self.setMaximumHeight(self.placeholder.sizeHint().height() + 16)
         elif self.compact_thumb_size:
-            height = self.thumb_size + 40
+            height = self.thumb_size + (54 if self._auxiliary_path else 40)
             self.setMinimumHeight(height)
             self.setMaximumHeight(height)
         else:
@@ -318,6 +337,14 @@ class RefImageGrid(QWidget):
 
     def paths(self) -> list:
         return list(self._paths)
+
+    def set_auxiliary_image(self, path):
+        """显示系统自动追加的最后一张图；不计入用户素材、不允许拖动或删除。"""
+        path = str(path or "")
+        if path == self._auxiliary_path:
+            return
+        self._auxiliary_path = path
+        self._rebuild()
 
     def count(self) -> int:
         return len(self._paths)
@@ -403,6 +430,11 @@ class RefImageGrid(QWidget):
 
     # ---------------- 视图重建 ----------------
     def _rebuild(self):
+        if self._auxiliary_card is not None:
+            self.row_layout.removeWidget(self._auxiliary_card)
+            self._auxiliary_card.setParent(None)
+            self._auxiliary_card.deleteLater()
+            self._auxiliary_card = None
         for card in self._cards:
             self.row_layout.removeWidget(card)
             card.setParent(None)
@@ -412,15 +444,24 @@ class RefImageGrid(QWidget):
             card = RefImageCard(path, index, self.thumb_size, self)
             card.delete_requested.connect(self._on_card_delete_requested)
             card.activated.connect(lambda _card, item=path: self.image_clicked.emit(item))
+            card.activated.connect(lambda _card, item=path, number=index + 1: self.reference_clicked.emit(item, number))
             card.opened.connect(lambda _card, item=path: self.image_double_clicked.emit(item))
             card.dropped.connect(self._on_card_dropped)
             self.row_layout.insertWidget(self.row_layout.count() - 1, card)
             self._cards.append(card)
+        if self._auxiliary_path:
+            path = self._auxiliary_path
+            card = RefImageCard(path, len(self._paths), self.thumb_size, self, editable=False)
+            card.activated.connect(lambda _card, item=path: self.image_clicked.emit(item))
+            card.activated.connect(lambda _card, item=path: self.reference_clicked.emit(item, len(self._paths) + 1))
+            card.opened.connect(lambda _card, item=path: self.image_double_clicked.emit(item))
+            self.row_layout.insertWidget(self.row_layout.count() - 1, card)
+            self._auxiliary_card = card
         self._sync_placeholder()
         self._apply_height_for_content()
 
     def _sync_placeholder(self):
-        has_images = bool(self._paths)
+        has_images = bool(self._paths or self._auxiliary_path)
         self.scroll_area.setVisible(has_images)
         self.placeholder.setVisible(not has_images)
 

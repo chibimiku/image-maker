@@ -65,6 +65,7 @@ nox/
 *.tmp
 *.bak
 *.backup
+*.bak-*
 
 # 数据库文件（常见本地开发用）
 *.sqlite3

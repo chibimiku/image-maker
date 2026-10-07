@@ -11,8 +11,8 @@ class FirstReviewTests(unittest.TestCase):
     def test_timeout_reserves_conditional_restore_and_prompt_revision(self):
         from modules.image_analysis.single_analyzer import SingleAnalyzerWidget
         budget = SingleAnalyzerWidget._pipeline_timeout_budget
-        self.assertEqual(budget(None, 120, {'repaint': {'enabled': True}}), 2160)
-        self.assertEqual(budget(None, 120, {'repaint': {'enabled': False}}, {'style_ref_path': 'ref'}), 2400)
+        self.assertEqual(budget(None, 120, {'repaint': {'enabled': True}}), 2160 + 1080)
+        self.assertEqual(budget(None, 120, {'repaint': {'enabled': False}}, {'style_ref_path': 'ref'}), 2400 + 1080)
         self.assertEqual(budget(None, 120, {'repaint': {'enabled': False}}, {}), 1440)
 
     def test_gpt_retry_omits_reference_but_gemini_restores_technique_reference(self):

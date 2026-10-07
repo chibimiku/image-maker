@@ -188,7 +188,7 @@
 | 项 | 实际值 |
 |---|---|
 | 解释器 | `C:\Program Files\Python310\python.exe`（`sys.executable`）· Python 3.10.11 |
-| pytest | `9.0.3`，来自 `C:\Users\ashsu\AppData\Roaming\Python\Python310\site-packages\pytest\__init__.py`（用户环境已安装，无需安装或建虚拟环境） |
+| pytest | `9.0.3`，来自 `C:\Users\<user>\AppData\Roaming\Python\Python310\site-packages\pytest\__init__.py`（用户环境已安装，无需安装或建虚拟环境） |
 | 编译检查 | `python -m py_compile utils\color_experiment.py tools\color_knowledge.py` → 退出码 0 |
 | 相关测试 | `python -m pytest -q -p no:cacheprovider tests\test_color_reassessment.py tests\test_color_experiment_stage2.py tests\test_analysis_gen.py tests\test_analysis_channel.py tests\test_quality_failure_reporting.py` → **138 passed, 2 subtests passed** |
 | 重评用例 | `tests/test_color_reassessment.py` 19 条，含本轮新增：按实际六图请求回收、缺 request.json 不得推断、重复对象冲突处理、无方案不适用、缺图不得判稳定、内容与配色分列 |

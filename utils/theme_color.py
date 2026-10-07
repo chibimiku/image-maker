@@ -17,7 +17,9 @@ def digest(value):
 
 
 def profiles():
-    return json.loads(read_prompt_file("color-knowledge/theme-color-profiles-v1.json"))["profiles"]
+    trials = json.loads(read_prompt_file("color-knowledge/theme-color-profiles-v1.json"))["profiles"]
+    books = json.loads(read_prompt_file("color-knowledge/book-palette-catalog-v1.json"))["palettes"]
+    return books + trials
 
 
 def direction_catalog():
@@ -35,6 +37,9 @@ def freeze_theme_color(selection=None):
     profile = next((p for p in profiles() if p["id"] == name), None) if active_palette else {}
     if active_palette and profile is None:
         raise ValueError("配色方案不存在，请重新选择")
+    if profile.get("origin") == "book_case":
+        from utils.theme_color_rules import freeze_book_palette
+        return freeze_book_palette(selection, profile)
     environment = str(selection.get("environment") or "").strip()
     accents = str(selection.get("accent_regions") or "").strip()
     if active_palette and (not environment or not accents or selection.get("confirmed") is not True):
@@ -122,6 +127,9 @@ def apply_theme_color(prompt, snapshot, *, image_paths=(), mode="generate", post
         keys.append("auxiliary_regions")
     regions = [r.strip() for key in keys
                for r in re.split(r"[,;，；\n]", str(selection.get(key) or "")) if r.strip()]
+    if snapshot.get("profile", {}).get("origin") == "book_case":
+        regions = [r.strip() for binding in selection.get("bindings", [])
+                   for r in re.split(r"[,;，；\n]", binding["regions"]) if r.strip()]
     missing = [r for r in regions if not re.search(r"(?<![a-z0-9_])" + re.escape(r.casefold()) + r"(?![a-z0-9_])", content)]
     if missing:
         raise ValueError("配色落点未在正文中找到，请复制正文里的物体短语：" + ", ".join(missing))

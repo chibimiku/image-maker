@@ -1693,8 +1693,10 @@ def _collect_anomalies(ledger, slots_view, review_view):
     extra = int((ledger.get("counters") or {}).get("authorized_extra_sends") or 0)
     if extra:
         rows.append({"kind": "budget_deviation", "detail":
-                     "冻结包图像预算 10 次之外另有 %d 次用户明确授权的补发（S1-A 首次发送因既有后端崩溃丢图）"
-                     % extra})
+                     "冻结包图像预算 %d 次 + 登记授权补发 %d 次 = 有效预算 %d 次；实际发送 %d 次"
+                     % (ledger["budget"]["image_http_budget"], extra,
+                        ledger["budget"]["image_http_budget"] + extra,
+                        ledger["counters"]["image_sends"])})
     for row in review_view:
         if row["status"] != "reviewed":
             rows.append({"kind": "review_not_completed", "review_id": row["review_id"],
@@ -1760,8 +1762,7 @@ def _render_markdown(results, pack, runtime):
     lines.append("")
     if counts.get("authorized_extra_sends"):
         lines += ["- **预算偏差（已授权）**：冻结包预算 %s 次 + 用户明确授权的补发 %s 次 = 有效预算 %s 次；"
-                  "S1-A 的首次发送因既有后端在保存前崩溃而丢图，按约定记为 `unknown_after_send` 并暂停，"
-                  "用户授权后才补发，历史留在 `ledger.json` 的 `previous_attempts`。"
+                  "具体槽位、原状态和错误类型见下方异常记录；补发历史保留在 `ledger.json` 的 `previous_attempts`。"
                   % (results["budget"]["image_http_budget"], counts["authorized_extra_sends"],
                      int(results["budget"]["image_http_budget"]) + counts["authorized_extra_sends"]), ""]
     if results.get("paused"):
@@ -1777,7 +1778,7 @@ def _render_markdown(results, pack, runtime):
         lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |"
                      % (row["slot_id"], row["scene_id"], row["variant_id"], row["status"],
                         row.get("attempts"), names, hashes, note))
-    lines += ["", "## 2. 四组视觉评审", "",
+    lines += ["", "## 2. %d组视觉评审" % len(results["review_groups"]), "",
               "| 评审组 | 类型 | 状态 | 发送次数 | 中性映射 | 缺项 |", "|---|---|---|---|---|---|"]
     for row in results["review_groups"]:
         mapping = ", ".join("%s=%s" % (k, v) for k, v in sorted((row.get("neutral_to_slot") or {}).items()))

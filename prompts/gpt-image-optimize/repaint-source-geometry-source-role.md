@@ -1,0 +1,1 @@
+There is only one image, Image 1. Preserve its own painting method: fine locally coloured contours, layered painterly shading, soft and lost edges, visible pigment variation, local highlights and translucent material treatment. The repair must blend into this existing medium. Do not convert it into a uniformly outlined cel-shaded cartoon or change its face/eye drawing.

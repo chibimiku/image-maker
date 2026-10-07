@@ -212,6 +212,12 @@ def command_status(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="画风相似度严格受控实验（协议 1.0）")
     sub = parser.add_subparsers(dest="command", required=True)
+    restat = sub.add_parser("restat", help="本地修订已有统计，补E2直接配对；不调用远程接口")
+    restat.add_argument("--source-dir", required=True)
+    restat.add_argument("--output-dir", required=True)
+    restat.set_defaults(func=lambda args: (print(json.dumps(phases.restat(
+        args.source_dir, args.output_dir, progress=lambda s: print(s, flush=True)),
+        ensure_ascii=False, indent=2), flush=True) or 0))
     freeze = sub.add_parser("freeze", help="冻结数据/参数/主指标/门槛（不读任何分数）")
     freeze.set_defaults(func=command_freeze)
     run = sub.add_parser("run", help="执行阶段")

@@ -270,7 +270,7 @@ class PromptGeneratorWidget(QWidget):
         self.style_ref_mode_combo.setMaximumWidth(130)
         style_layout.addWidget(self.style_ref_mode_combo)
         from utils.theme_color_widget import ThemeColorSelector
-        self.color_selector = ThemeColorSelector(self, scope="prompt_generator", context_getter=lambda: self.keyword_input.text())
+        self.color_selector = ThemeColorSelector(self, scope="prompt_generator", context_getter=self.color_rule_context)
         style_layout.addWidget(self.color_selector)
         self.main_style_combo.currentTextChanged.connect(self._on_style_changed)
         
@@ -453,6 +453,16 @@ class PromptGeneratorWidget(QWidget):
         model_name = str(opts.get("model_name", "")).strip()
         if model_name:
             self.upscale_model_combo.setCurrentText(model_name)
+
+    def color_rule_context(self):
+        """Use a real editable generation prompt, not just the theme keyword."""
+        for index in range(self.grid_layout.count()):
+            cell = self.grid_layout.itemAt(index).widget()
+            if isinstance(cell, PromptCellWidget):
+                text = cell.text_edit.toPlainText().strip()
+                if text:
+                    return text
+        return self.keyword_input.text().strip()
 
     def populate_grid(self, prompts):
         # 横向最多4个，纵向滚动

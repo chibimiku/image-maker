@@ -37,6 +37,26 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 USER_SENTENCE = "重绘图中角色的全部衣装，解决细节散乱的问题。保持设定逻辑不变。"
 
 
+def test_wardrobe_request_passes_computed_landscape_ratio_to_actual_dispatch(tmp_path, monkeypatch):
+    from PIL import Image
+    from modules.others import api_backend
+    source = tmp_path / "wide.png"
+    reference = tmp_path / "style.png"
+    Image.new("RGB", (2528, 1686)).save(source)
+    Image.new("RGB", (1024, 1536)).save(reference)
+    steps = analysis_gen.pipeline_steps_from_flags(wardrobe=True)
+    cfg = steps["wardrobe"]
+    request = post_process.assemble_repaint_request(str(source), cfg, firmware=cfg["firmware"],
+        style_ref_path=str(reference), sub_dir=str(tmp_path), prefix="wardrobe", config={"aspect_ratio": "auto"})
+    assert request["aspect_ratio"] == "3:2"
+    assert request["call_kwargs"]["aspect_ratio"] == "3:2"
+    calls = []
+    monkeypatch.setattr(api_backend, "generate_image_aigc2d", lambda **kwargs: calls.append(kwargs) or [str(source)])
+    post_process.dispatch_repaint_request(request)
+    assert calls[0]["aspect_ratio"] == "3:2"
+    assert calls[0]["image_paths"] == [str(source), str(reference)]
+
+
 @pytest.fixture(scope="session")
 def qapp():
     app = QApplication.instance()

@@ -246,7 +246,8 @@ def code_freeze() -> dict:
     files = ["utils/style_similarity.py", "utils/style_face_metrics.py", "utils/style_regions.py",
              "utils/style_render_metrics.py", "utils/style_experiment_attributes.py",
              "utils/style_experiment_synthetic.py", "utils/style_experiment_controlled.py",
-             "utils/style_experiment_reports.py",
+             "utils/style_experiment_reports.py", "utils/style_experiment_controlled_phases.py",
+             "tools/style_similarity_experiment.py",
              "tools/style_metrics_verify.py", "modules/image_analysis/style_comparison.py",
              "modules/image_analysis/style_deep_comparison.py", "modules/image_analysis/style_similarity_tab.py",
              "prompts/style-extraction/face-regions-v1.md", "prompts/style-comparison-v2.md"]

@@ -1,34 +1,13 @@
 {
-    "_comment": "gpt-image 产物优化（Gemini 重绘提线）统一配置。改这里即可换 prompt / 站点 / 模型 / 尺寸，不要在 .py 里写死。",
-    "_theory": "理论、实验数据与指标口径见 docs/gpt-image-optimize/README.md。",
     "enabled": true,
-    "final_candidate_repair": {
-        "model": "gemini-3.1-flash-image-preview",
-        "max_repairs": 1
-    },
     "site": "new.aigc2d",
     "api_type": "aigc2d",
     "model": "gemini-3-pro-image-preview",
     "resolution": "2K",
-    "_aspect_comment": "auto = 不传 aspectRatio，由模型按输入图比例输出（官方默认行为）；换任意源图都不会被拉伸或裁切。要强制比例再选具体值。",
     "aspect_ratio": "auto",
-    "aspect_ratio_options": [
-        "auto",
-        "1:1",
-        "3:2",
-        "2:3",
-        "3:4",
-        "4:3",
-        "4:5",
-        "5:4",
-        "9:16",
-        "16:9",
-        "21:9"
-    ],
     "repeat": 1,
     "save_sub_dir": "gpt_image_repaint",
     "file_prefix": "repaint",
-    "_system_prompt_comment": "默认用 v5（= v4 + Sol 第 7 轮的三处保守化：禁止凭先验补全不可见肢体/衣物、眼部只做保留式局部修复、主结构边界与次级笔触分级）。实测 v5 修掉了 v4 会「凭空补一只手」的缺陷（say-hana 腹部），头部 MAE 三例全部改善（3.5→3.4 / 3.7→3.2 / 3.0→2.3），代价是线条指标小幅回落（段长 −1~8%）。要最大清线力度可换回 v4；明确要 cel 成稿才换 repaint-system.md。",
     "system_prompt": "gpt-image-optimize/repaint-system-conservative-v5.md",
     "detail_suffix": "gpt-image-optimize/repaint-detail-suffix.md",
     "use_detail_suffix": false,
@@ -42,5 +21,22 @@
         "1K",
         "2K",
         "4K"
-    ]
+    ],
+    "aspect_ratio_options": [
+        "auto",
+        "1:1",
+        "3:2",
+        "2:3",
+        "3:4",
+        "4:3",
+        "4:5",
+        "5:4",
+        "9:16",
+        "16:9",
+        "21:9"
+    ],
+    "final_candidate_repair": {
+        "model": "gemini-3.1-flash-image-preview",
+        "max_repairs": 1
+    }
 }

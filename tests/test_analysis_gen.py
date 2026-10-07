@@ -184,7 +184,7 @@ def test_neutral_style_reference_uses_colour_agnostic_role(tmp_path, monkeypatch
     seen = {}
     monkeypatch.setattr(api_backend, "generate_image_repaint",
                         lambda **kwargs: seen.update(kwargs) or [str(output)])
-    steps = ag.pipeline_steps_from_flags(repaint=True, repaint_ref_mode="style_neutral")
+    steps = ag.pipeline_steps_from_flags(repaint=True, repaint_ref_mode="style_neutral", content_guard=False)
     ag.run_gpt_image_pipeline([str(source)], steps, firmware="FIRMWARE",
         style_ref_path=str(reference), style_clauses=["NEUTRAL SENTINEL"],
         final_dir=str(tmp_path / "final"), work_dir=str(tmp_path / "work"))
@@ -401,7 +401,7 @@ def test_source_only_repaint_does_not_describe_absent_style_image(tmp_path, monk
     assert seen["extra_reference_paths"] == []
     assert "STYLE SENTINEL" not in seen["prompt"]
     assert pp.STYLE_REF_ROLE_IN_REPAINT not in seen["prompt"]
-    assert "IDENTITY AND CONTENT LOCK" in seen["prompt"]
+    assert "SOURCE GEOMETRY AND CONTENT" in seen["prompt"]
     assert seen["save_sub_dir"] == str(tmp_path / "final")
 
 
@@ -447,8 +447,8 @@ def test_run_gpt_image_pipeline_repaint_then_structure(tmp_path, monkeypatch):
                                     final_dir=str(tmp_path / "final"), work_dir=str(tmp_path / "work"))
     assert seen["use_detail_suffix"] is False
     # 默认 full 不追加局部范围句；身份/内容锁仍必须存在。
-    assert seen["prompt"].startswith("FIRMWARE")
-    assert "IDENTITY AND CONTENT LOCK" in seen["prompt"]
+    assert seen["prompt"].startswith("Perform a small structural-line repair")
+    assert "SOURCE GEOMETRY AND CONTENT" in seen["prompt"]
     assert seen["source_paths"] == [str(img)]
     assert seen["extra_reference_paths"] == []
     # 最终产物名带 -final- 标记（工序串说明经过了哪些处理），中间产物在 work 目录里
@@ -534,7 +534,8 @@ def test_pipeline_steps_use_2k_local_without_detail_boost():
 def test_pipeline_steps_repaint_uses_complete_style_reference_by_default():
     """线条优先默认把完整画风图作为 Gemini 第二张参考。"""
     steps = ag.pipeline_steps_from_flags(repaint=True)
-    assert steps["repaint"]["reference_mode"] == "style"
+    assert steps["repaint"]["reference_mode"] == "none"
+    assert steps["repaint"]["content_guard"] is True
     assert steps["repaint"]["scope"] == "full"
-    steps2 = ag.pipeline_steps_from_flags(repaint=True, repaint_ref_mode="line_anchor")
+    steps2 = ag.pipeline_steps_from_flags(repaint=True, repaint_ref_mode="line_anchor", content_guard=False)
     assert steps2["repaint"]["reference_mode"] == "line_anchor"

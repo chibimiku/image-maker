@@ -523,10 +523,24 @@ class CandidateReviewRegressionTests(unittest.TestCase):
                 self.assertEqual(result["gpt_repainted"], [])
 
     def test_save_directory_keeps_absolute_and_relative_paths(self):
+        """绝对路径原样保留；相对子目录仍拼在 `data/<日期>/` 下。
+
+        2026-10-07 起多了一层**测试产出隔离**：pytest 会话里相对子目录会改道到
+        `data/test-result/<日期>/<子目录>`，免得用例的 `tmp_repaint` 之类塞进真实产出目录。
+        这里把两条口径都锁住（显式关掉开关 = 生产链路口径，与改动前完全一致）。
+        """
         from modules.others.api_backend import resolve_save_dir
         with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(resolve_save_dir(directory, "20261005"), directory)
-        self.assertEqual(resolve_save_dir("relative", "20261005"), os.path.join("data", "20261005", "relative"))
+        self.assertEqual(
+            resolve_save_dir("relative", "20261005"),
+            os.path.join("data", "test-result", "20261005", "relative"),
+        )
+        with patch.dict(os.environ, {"IMAGE_MAKER_TEST_OUTPUT": "0"}):
+            self.assertEqual(
+                resolve_save_dir("relative", "20261005"),
+                os.path.join("data", "20261005", "relative"),
+            )
 
 
 if __name__ == "__main__":

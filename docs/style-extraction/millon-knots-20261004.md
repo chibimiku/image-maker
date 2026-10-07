@@ -6,7 +6,7 @@
 
 `app.py` 创建 `StyleAnalyzerWidget`，本次无头直接调用同一 `StyleIterativeWorkerThread.run()`，未修改 App 业务代码。文本配置及密钥用 `api_backend.load_config()` / `resolve_text_api_key()`；用户明确授权后调用 `https://new.aigc2d.com`。文本模型来自配置（`gpt-5.6-luna`），图片节点来自配置（Gemini / GPT-image）。
 
-- 数据源：`C:\Users\ashsu\Downloads\千千結 - pixiv`。从 142 个文件中浏览挑选 12 个完整作品，避开重复裁剪、线稿和对照页。
+- 数据源：`C:\Users\<user>\Downloads\千千結 - pixiv`。从 142 个文件中浏览挑选 12 个完整作品，避开重复裁剪、线稿和对照页。
 - 独立目录：`data/style-datasets/millon-knots/`；保留原文件名，原下载文件不改动。
 - 5 轮，每轮全部参考图对账 + 随机抽查 3 图；随机种子 20261004。
 - 测试主体沿用配置：`a girl sitting beside lake, she has pink hair and brown eyes, spring,`。

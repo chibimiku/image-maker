@@ -2835,6 +2835,7 @@ class SingleAnalyzerWidget(QWidget):
         # gpt-image-2 通道的工序勾选（不选该通道时沿用老逻辑，不受影响）
         pp_row = QHBoxLayout()
         self.gpt_pp_repaint = QCheckBox("重绘提线(Gemini)")
+        self.gpt_pp_repaint.setToolTip("仅源图保真重绘：360秒，无自动重试；双图内容检查失败回退工序输入原图。\n明确局部新增最多清除一次并复核；候选和审计记录全部保留。")
         self.gpt_basic_controls = QWidget()
         basic_row = QHBoxLayout(self.gpt_basic_controls)
         basic_row.setContentsMargins(0, 0, 0, 0)
@@ -5149,7 +5150,9 @@ class SingleAnalyzerWidget(QWidget):
             # 停用工序的兜底：万一老断点把 local 打开，仍按区域数给它留预算
             regions = (steps["local"].get("regions") or [steps["local"].get("region") or "hair"])
             slots += max(1, len([r for r in regions if str(r).strip()]))
-        return max(1, int(timeout_seconds or 120)) * slots
+        # 安全替代可能稍后启用重绘，也需要保留同样的内容检查预算。
+        guarded_repaint = bool((steps.get("repaint") or {}).get("enabled") or fallback_repaint)
+        return max(1, int(timeout_seconds or 120)) * slots + (1080 if guarded_repaint else 0)
 
     def _start_gpt_image_thread(self, prompt_type, prompt_context, task_hash, selected_style_name,
                                styles_data, is_auto=False, analysis_thread_no=None, auto_group_id=None,

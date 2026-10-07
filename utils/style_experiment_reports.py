@@ -78,15 +78,14 @@ def purpose_conclusions(results) -> list[dict]:
     e0_failures = e0.get("critical_failures") or []
     retrieval_ok = (primary.get("top1_accuracy") or 0) >= ACCEPTANCE["style_retrieval_assist"]["value"] \
         and all((value.get("accuracy") or 0) >= 2 / 3 for value in (primary.get("per_style") or {}).values())
-    contrast_ok = bool(preference) and all((preference.get(metric, {}).get("rate") or 0) >= 0.75
-                                           for metric in ("gram", "adain", "lpips", "csd"))
+    contrast_ok = (preference.get(MAIN_METRIC, {}).get("rate") or 0) >= 0.75
     return [
         {"purpose": "实现可用（同图 / 对称 / 缓存 / 入口一致 / 失败状态）",
          "verdict": "通过" if not e0_failures and e0.get("status") == "complete" else "未通过",
          "evidence": ("E0 全部关键项通过（" + str(len(e0.get("checks") or [])) + " 项检查）"
                       if not e0_failures else "未通过：" + "; ".join(e0_failures))},
         {"purpose": "全图八组作为画风检索辅助",
-         "verdict": "仅可辅助" if retrieval_ok else ("不能用" if (primary.get("top1_accuracy") or 0) < 0.5 else "仅可辅助（未过预注册门槛）"),
+         "verdict": "仅可辅助" if retrieval_ok and contrast_ok else "未过预注册门槛",
          "evidence": (f"E1 主指标 {MAIN_METRIC} Top-1={_fmt(primary.get('top1_accuracy'), 4)}"
                       f"（门槛 {ACCEPTANCE['style_retrieval_assist']['value']}）；"
                       f"E2 困难对照 CSD 正确偏好率={_fmt((preference.get('csd') or {}).get('rate'), 4)}"
@@ -133,6 +132,10 @@ def markdown_report(results, paths) -> str:
     add("")
 
     add("## 1. 阶段状态")
+    if results.get("statistics_revision"):
+        add("统计修订元数据（旧结果保留；E2直接配对新增本地计算，其余复用已有测量）：")
+        add("```json\n" + json.dumps(results["statistics_revision"], ensure_ascii=False, indent=2) + "\n```")
+        add("本报告修正统计；旧账本关于跨CLI重试额度、实际HTTP次数的解释未经验证，不能作为费用/重试合规证明。")
     add("")
     add(stage_table(stages))
     add("")
@@ -531,25 +534,26 @@ def write_failure_evidence(results, directory) -> list[str]:
     return [str(target)]
 
 
-def write_reports(results, plan, run_dir) -> dict:
+def write_reports(results, plan, run_dir, docs_path=None) -> dict:
     run_dir = Path(run_dir)
     results_dir = run_dir / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
     results["purpose_conclusions"] = purpose_conclusions(results)
     results["generated_at"] = now()
     files = write_failure_evidence(results, run_dir / "evidence")
+    evidence_root = Path((results.get("statistics_revision") or {}).get("source_run_directory") or run_dir)
     results["evidence_paths"] = files + [
-        str(run_dir / "ledger" / "attempts.jsonl"), str(run_dir / "PLAN"),
-        str(run_dir / "E2" / "contact-sheets"), str(run_dir / "E3" / "contact-sheets"),
-        str(run_dir / "E4" / "overlays"), str(run_dir / "E5" / "blind"),
-        str(run_dir / "E0" / "entries"), str(run_dir / "E1")]
+        str(evidence_root / "ledger" / "attempts.jsonl"), str(evidence_root / "PLAN"),
+        str(evidence_root / "E2" / "contact-sheets"), str(evidence_root / "E3" / "contact-sheets"),
+        str(evidence_root / "E4" / "overlays"), str(evidence_root / "E5" / "blind"),
+        str(evidence_root / "E0" / "entries"), str(evidence_root / "E1")]
     markdown = markdown_report(results, {"plan_files": [str(path) for path in
                                                         sorted((run_dir / "PLAN").glob("*.json"))]})
     (results_dir / "RESULTS.md").write_text(markdown, encoding="utf-8")
     (results_dir / "report.html").write_text(html_report(results, {}), encoding="utf-8")
     atomic_json(results_dir / "results.json", results)
     repo_root = Path(__file__).resolve().parents[1]
-    docs_copy = repo_root / "docs/style-extraction/DEEPSEEK-SIMILARITY-CONTROLLED-RESULTS-20261006.md"
+    docs_copy = Path(docs_path) if docs_path else repo_root / "docs/style-extraction/DEEPSEEK-SIMILARITY-CONTROLLED-RESULTS-20261006.md"
     docs_copy.parent.mkdir(parents=True, exist_ok=True)
     docs_copy.write_text(markdown, encoding="utf-8")
     return {"markdown": str(results_dir / "RESULTS.md"), "html": str(results_dir / "report.html"),

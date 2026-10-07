@@ -17,6 +17,7 @@ from datetime import datetime
 import time
 import mimetypes
 from utils.booru_tags import normalize_booru_tags
+from utils import output_isolation
 
 # ================= 1. 日志系统配置 =================
 LOG_DIR = "log"
@@ -623,12 +624,10 @@ def _generate_request_replay(save_dir: str, file_prefix: str, api_tag: str,
         prefix = f"{file_prefix}_" if file_prefix else ""
         base_name = f"{prefix}{api_tag}_replay_{datetime.now().strftime('%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
-        safe_body = body
-        if isinstance(safe_body, dict):
-            safe_body = _sanitize_log_data(safe_body)
-
         from utils.request_replay import safe_request_snapshot
-        request_data = safe_request_snapshot(url, headers, safe_body)
+        # Replay is a complete credential-free snapshot, not an abbreviated log.
+        # The original transport body is never mutated by safe_request_snapshot.
+        request_data = safe_request_snapshot(url, headers, body)
         request_data.update(api_tag=api_tag, generated_at=datetime.now().isoformat())
 
         json_path = os.path.join(save_dir, f"{base_name}.json")
@@ -858,14 +857,21 @@ def resolve_save_dir(save_sub_dir, today_str: str, fail_today: str = "") -> str:
     受控实验（每个候选包每次独立绝对输出目录）只能传绝对路径，所以这里统一收口：
     绝对路径原样使用，相对路径仍拼在 `data/<日期>/` 下，行为与改动前一致。
     `fail_today` 给了就用它当日期段（失败目录沿用调用方的日期）。
+
+    最后过一道**测试产出隔离**：pytest 会话里相对子目录（用例里的 `tmp_repaint` /
+    `gpt-image-2-test` / `probe`…）会落到 `data/test-result/<日期>/<子目录>/`，
+    不再往真实日期目录里塞 `aigc2d_server_raw_*.txt` 这类调试转储。
     """
     text = str(save_sub_dir or "").strip()
     base = os.path.join("data", fail_today or today_str)
     if not text:
-        return base
-    if os.path.isabs(text) or os.path.splitdrive(text)[0]:
+        path = base
+    elif os.path.isabs(text) or os.path.splitdrive(text)[0]:
         return text
-    return os.path.join(base, text)
+    else:
+        path = os.path.join(base, text)
+    path, _ = output_isolation.resolve_output_target(path, "x")   # 只改目录，文件名不动
+    return path
 
 
 def normalize_gpt_image2_size(size: str = None, aspect_ratio: str = None) -> str:
@@ -2560,7 +2566,7 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
             logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None, post_instructions: str = "", prompt_suffix: str = "", face_quality_boost: bool = True) -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None, post_instructions: str = "", prompt_suffix: str = "", face_quality_boost: bool = True, request_timeout=None, retry_limit=None) -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
     入参跟 generate_image_whatai 保持完全一致；
@@ -2576,8 +2582,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
 
     api_base = str(config.get("base_url", "https://new.aigc2d.com/v1beta/models/") or "https://new.aigc2d.com/v1beta/models/").strip()
     api_key = config.get("api_key")
-    timeout_val = config.get("timeout", 180)
-    max_retries = resolve_image_max_retries(config, 1)
+    timeout_val = request_timeout if request_timeout is not None else config.get("timeout", 180)
+    max_retries = int(retry_limit) if retry_limit is not None else resolve_image_max_retries(config, 1)
     debug_dump_full_http = _as_bool(config.get("debug_dump_full_http", False), False)
     # 从配置中读取resolution，如果传入了参数则使用传入的参数
     if resolution is None:
@@ -2858,7 +2864,11 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                 random_str = uuid.uuid4().hex[:6]
                 prefix = f"{file_prefix}_" if file_prefix else ""
                 file_name = f"{prefix}{time_str}-{random_str}{ext}"
-                file_path = os.path.join(save_dir, file_name)
+                # 重名容错：绝不静默覆盖同目录里已有的**另一份**产物（内容不同就另存 -1、-2…）。
+                # 内容相同的重复由上层 SHA-256 去重处理，这里只保证不丢东西。
+                from utils.image_identity import unique_path
+                file_path = unique_path(os.path.join(save_dir, file_name))
+                file_name = os.path.basename(file_path)
 
                 try:
                     # 空片段 / 思考图（Gemini 3 会回 thought 图片）不能当产物保存，
@@ -2903,7 +2913,9 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
                     random_str = uuid.uuid4().hex[:6]
                     prefix = f"{file_prefix}_" if file_prefix else ""
                     file_name = f"{prefix}{time_str}-{random_str}{ext}"
-                    file_path = os.path.join(save_dir, file_name)
+                    # 重名容错：同 inlineData 分支，碰名就另存 -1、-2…，不覆盖已有文件
+                    from utils.image_identity import unique_path
+                    file_path = unique_path(os.path.join(save_dir, file_name))
                     with open(file_path, "wb") as f:
                         f.write(image_bytes)
                     logger.info(f"✅ 成功下载并保存 fileData 图片 ({ext} 格式): {file_path}")
@@ -2937,7 +2949,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     return saved_files
 
 
-def generate_image_repaint(source_paths, api_type: str = None, config_path: str = None, model: str = None, resolution: str = None, aspect_ratio: str = None, prompt: str = None, prompt_suffix: str = None, use_detail_suffix: bool = None, repeat: int = None, save_sub_dir: str = None, file_prefix: str = None, cancel_check: callable = None, log_callback=None, return_metadata: bool = False, extra_reference_paths=None) -> list:
+def generate_image_repaint(source_paths, api_type: str = None, config_path: str = None, model: str = None, resolution: str = None, aspect_ratio: str = None, prompt: str = None, prompt_suffix: str = None, use_detail_suffix: bool = None, repeat: int = None, save_sub_dir: str = None, file_prefix: str = None, cancel_check: callable = None, log_callback=None, return_metadata: bool = False, extra_reference_paths=None, content_guard=False, request_timeout=None, retry_limit=None, budget_run_id=None) -> list:
     """gpt-image 产物优化：对 `source_paths` 逐张走 Gemini 重绘提线。
 
     模型 / 分辨率 / 宽高比 / prompt / 输出目录**全部来自 `prompts/gpt-image-optimize/config.json`**
@@ -2946,13 +2958,14 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
     设计要点（理论见 `docs/gpt-image-optimize/README.md`）：
     - prompt 不写死在本文件：默认从 `prompts/gpt-image-optimize/` 装载，也可由调用方直接传 `prompt`
     - 每张源图独立一次请求，输出前缀按源文件名派生，便于回溯「哪张产物被重绘成哪张」
-    - 宽高比默认 `auto`（不下发字段，由模型匹配输入图尺寸），换任意比例源图都不会变形
+    - 宽高比默认 `auto`：按每张源图选最接近的模型比例并显式下发；返回错比例则保留产物并报错
     - 单张失败不影响其余（返回已成功的产物），失败原因照旧落 `log/<日期>.log`
     - 走 `/v1beta/models/{model}:generateContent`（与 `generate_image_aigc2d` 同一通道）
 
     返回落盘后的重绘产物路径列表。
     """
-    from utils.gpt_image_optimize import load_config, resolve_repaint_call
+    from utils.gpt_image_optimize import (load_config, resolve_repaint_call, resolve_aspect_ratio,
+                                         is_auto_aspect_ratio, validate_repaint_aspect)
 
     conf = load_config()
     # 所有兜底都取自 prompts/gpt-image-optimize/config.json 的同义默认值（单一事实来源）。
@@ -2966,6 +2979,7 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
     resolved_model = call["model"]
     resolved_resolution = call["resolution"]
     resolved_aspect = call["aspect_ratio"]
+    requested_aspect = resolve_aspect_ratio({"aspect_ratio": aspect_ratio} if aspect_ratio else conf)
     resolved_api_type = call["api_type"]
     resolved_repeat = call["repeat"]
     resolved_prompt = call["prompt"]
@@ -2979,12 +2993,19 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
         return []
 
     all_saved = []
+    transport_options = {}
+    if request_timeout is not None:
+        transport_options["request_timeout"] = request_timeout
+    if retry_limit is not None:
+        transport_options["retry_limit"] = retry_limit
     extra_refs = [p for p in (extra_reference_paths or []) if p and os.path.isfile(p)]
     multi = len(valid_sources) > 1
     extra_digests = [transmitted_image_digest(p) for p in extra_refs]
     for index, source in enumerate(valid_sources, start=1):
         plan = resolve_repaint_call(conf, source_path=source, save_sub_dir=save_sub_dir,
                                     file_prefix=file_prefix)
+        if is_auto_aspect_ratio(requested_aspect):
+            resolved_aspect = plan["aspect_ratio"]
         sub_dir = save_sub_dir or plan["save_sub_dir"]
         if file_prefix:
             base_prefix = f"{file_prefix}_{index:02d}" if multi else str(file_prefix)
@@ -2996,13 +3017,13 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
         # 「发送前原子预留的名额」都记在请求里；未启用预算时这里是空操作。
         import utils.send_budget as send_budget
         reservation = send_budget.reserve_image_attempt(
-            run_id=send_budget.current_run_id(), operation=base_prefix,
+            run_id=budget_run_id or send_budget.current_run_id(), operation=base_prefix,
             model=resolved_model, resolution=resolved_resolution, aspect_ratio=resolved_aspect,
             prompt_sha256=hashlib.sha256(resolved_prompt.encode("utf-8")).hexdigest(),
             prompt_chars=len(resolved_prompt), source_sha256=_file_digest(source),
             reference_images=[transmitted_image_digest(source)] + extra_digests,
             note="重绘（生成接口）")
-        if send_budget.budget_active() and resolve_image_max_retries(conf, 1) != 0:
+        if send_budget.budget_active() and (retry_limit if retry_limit is not None else resolve_image_max_retries(conf, 1)) != 0:
             send_budget.settle_image_attempt(reservation, status="refused",
                                              error="底层图片自动重试未关闭，拒绝发送")
             raise RuntimeError(
@@ -3023,10 +3044,16 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
                 cancel_check=cancel_check,
                 prompt_suffix=resolved_suffix,
                 face_quality_boost=False,
+                **transport_options,
             ) or []
         except BaseException as exc:
             send_budget.settle_image_attempt(reservation, status="unknown",
                                              error=f"{type(exc).__name__}: {exc}")
+            if content_guard and isinstance(exc, Exception):
+                if log_callback:
+                    log_callback(f"[重绘] 请求失败，保留输入原图：{type(exc).__name__}: {exc}")
+                all_saved.append(source)
+                continue
             raise
         send_budget.settle_image_attempt(
             reservation, status="success" if saved else "failed",
@@ -3035,8 +3062,24 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
             error="" if saved else "重绘未返回图片")
         if not saved:
             logger.warning(f"重绘第 {index} 张未返回图片（源图 {source}），继续下一张。")
+            if content_guard:
+                all_saved.append(source)
             continue
-        for extra in range(2, resolved_repeat + 1):
+        try:
+            for output in saved:
+                validate_repaint_aspect(output, resolved_aspect)
+        except Exception:
+            if not content_guard:
+                raise
+            all_saved.append(source)
+            continue
+        if content_guard:
+            from utils.repaint_content_guard import guard_repaint
+            saved = [guard_repaint(source, saved[0],
+                     repaint_options={"api_type": resolved_api_type, "model": resolved_model,
+                                      "resolution": resolved_resolution, "save_sub_dir": sub_dir},
+                     log_callback=log_callback, cancel_check=cancel_check)]
+        for extra in range(2, (1 if content_guard else resolved_repeat) + 1):
             import utils.send_budget as send_budget
             extra_reservation = send_budget.reserve_image_attempt(
                 run_id=send_budget.current_run_id(), operation=f"{base_prefix}_r{extra}",
@@ -3059,6 +3102,7 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
                 cancel_check=cancel_check,
                 prompt_suffix=resolved_suffix,
                 face_quality_boost=False,
+                **transport_options,
             ) or []
             send_budget.settle_image_attempt(
                 extra_reservation, status="success" if more else "failed",
@@ -3066,6 +3110,8 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
                 output_sha256=(_file_digest(more[0]) if more else ""),
                 error="" if more else "重绘未返回图片")
             saved.extend(more)
+            for output in more:
+                validate_repaint_aspect(output, resolved_aspect)
         all_saved.extend(saved)
     logger.info(f"=== 重绘完成: 源图 {len(valid_sources)} 张 -> 产物 {len(all_saved)} 张 ===")
     if return_metadata:

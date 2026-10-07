@@ -1393,8 +1393,15 @@ def assemble_repaint_request(current, cfg, *, firmware=None, style_ref_path=None
     （原文件 + 传输字节）、模型 / 分辨率 / 比例 / 落盘参数全部在这里定下来。
     """
     from utils.gpt_image_optimize import load_config, resolve_repaint_call
-    cfg = cfg or {}
+    cfg = dict(cfg or {})
     logs = []
+    if cfg.get("content_guard"):
+        from utils.repaint_content_guard import source_repaint_prompt
+        firmware = source_repaint_prompt()
+        cfg.update(reference_mode="none", dual_reference=False, text_without_image=False,
+                   clauses_without_image=False, scope="")
+        style_clauses = []
+        logs.append("[工序] 源图保真重绘：仅源图，360秒，无自动重试；内容不合格回退输入原图。")
     ref_mode = str(cfg.get("reference_mode") or "").strip().lower()
     if not ref_mode:
         ref_mode = "line_anchor" if cfg.get("dual_reference", True) else "none"
@@ -1417,8 +1424,10 @@ def assemble_repaint_request(current, cfg, *, firmware=None, style_ref_path=None
     conf = config if config is not None else load_config()
     call = resolve_repaint_call(conf, source_path=str(current), prompt=prompt,
                                 resolution=str(cfg.get("resolution") or "2K"),
+                                aspect_ratio=aspect_ratio,
                                 use_detail_suffix=False, repeat=1,
                                 save_sub_dir=sub_dir, file_prefix=prefix)
+    guard_options = {"content_guard": True, "request_timeout": 360, "retry_limit": 0} if cfg.get("content_guard") else {}
     sources = [str(current)] + extra_refs
     return {
         "kind": "gemini-image-repaint",
@@ -1452,7 +1461,7 @@ def assemble_repaint_request(current, cfg, *, firmware=None, style_ref_path=None
         "call_kwargs": {"source_paths": [str(current)], "resolution": call["resolution"],
                         "prompt": prompt, "use_detail_suffix": False,
                         "aspect_ratio": call["aspect_ratio"], "extra_reference_paths": extra_refs,
-                        "save_sub_dir": call["save_sub_dir"], "file_prefix": call["file_prefix"]},
+                        "save_sub_dir": call["save_sub_dir"], "file_prefix": call["file_prefix"], **guard_options},
     }
 
 
@@ -1479,6 +1488,8 @@ def dispatch_repaint_request(request: dict, *, log_callback=None, cancel_check=N
     kwargs = dict(request.get("call_kwargs") or {})
     if cancel_check is not None:
         kwargs["cancel_check"] = cancel_check
+    if log_callback is not None:
+        kwargs["log_callback"] = log_callback
     emit_effective_request(request)
     return generate_image_repaint(**kwargs) or []
 
@@ -1506,11 +1517,13 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
     final_dir = final_dir or date_output_dir()
     raw_final_dir = final_dir          # 隔离改写前的原始落盘目录（决定文件名前缀）
     run_id = new_run_id()
-    # 测试产出隔离：pytest 会话里（`IMAGE_MAKER_TEST_OUTPUT=1`）默认落盘目录改道到
-    # `data/test-result/<日期>/` 且产物名加 `test-` 前缀。**不这么做的话**，用例里
-    # `run_pipeline(...)` 不传 `final_dir` 就会往真实日期目录扔一堆
-    # `img-233500-a35670-final-sline50.png` 这种废文件（用户 2026-09-23 反馈的正是这个）。
-    if output_isolation.test_output_enabled():
+    # 测试产出隔离：pytest 会话里（`IMAGE_MAKER_TEST_OUTPUT=1` **或** 进程里挂着
+    # pytest 的 `PYTEST_CURRENT_TEST`）默认落盘目录改道到 `data/test-result/<日期>/`
+    # 且产物名加 `test-` 前缀。**不这么做的话**，用例里 `run_pipeline(...)` 不传
+    # `final_dir` 就会往真实日期目录扔一堆 `img-233500-a35670-final-sline50.png` 这种废文件
+    # （用户 2026-09-23 反馈的正是这个；2026-10-07 又因为开关被 conftest 清掉复发过一次，
+    # 所以这里跟 `resolve_output_target` 统一改用 `is_test_context()`）。
+    if output_isolation.is_test_context():
         isolated_dir, _ = output_isolation.resolve_output_target(final_dir, "x")
         if isolated_dir != final_dir:
             log(f"[流水线] 测试产出隔离：{final_dir} → {isolated_dir}")

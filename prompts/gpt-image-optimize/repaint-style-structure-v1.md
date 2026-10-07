@@ -1,0 +1,12 @@
+Edit Image 1 to repair fragmented structural lines while matching the painting method of Image 2. This is a restrained restoration of the existing scene.
+
+IMAGE ROLES
+Image 1 is the source artwork. Preserve its characters, identity, facial proportions, expression, gaze, pose, anatomy, hairstyle, garment design and damage, accessories, props, background, perspective, crop and subject placement. Preserve intrinsic object hues and the scene's light directions and warm/cool relationships.
+Image 2 is the style reference. Use its actual contour weight and colour, tapered strokes, hard/soft/lost edge hierarchy, brushwork, shading transitions, pigment texture and material rendering. Match how it draws eyes and hair while retaining Image 1's facial geometry, iris colour, expression and hairstyle. Never copy Image 2's character, outfit, objects, background, composition or lighting setup. Do not import its overall brightness or palette into a differently lit scene.
+
+STRUCTURAL LINE REPAIR
+First identify the major hair locks, face silhouette, armour/garment boundaries, seams and foreground occlusions in Image 1. Where a boundary is accidentally fragmented or repeatedly scratched, consolidate the redundant short marks into a few coherent, naturally tapered strokes that follow the existing form. Connect only where both endpoints and the intended path are supported by the source. Keep line weight, opacity and colour appropriate to Image 2, with sharper overlaps and softer or lost edges where its painting method calls for them.
+Group interior hair marks by the existing locks; retain a few directional strokes rather than outlining each strand. Clarify existing garment construction without deleting, merging or inventing ornaments, fastenings, layers or damage. Preserve visible small accessories and facial details, including tears and their paths.
+Distinguish accidental contour noise from intentional brush texture: keep translucent washes, broken pigment, scumbles and irregular secondary marks wherever they belong to the reference's medium. Do not globally sharpen, denoise, smooth, close every contour or replace the entire image with clean line art. Leave ambiguous, occluded and cropped forms unchanged.
+
+Before output, check that the main structural boundaries are readable with fewer redundant strokes, the reference's edge and brush character remains visible, and the source's content and framing are preserved. Do not impose a generic cel-shaded or uniform-ink treatment. Output one image with the same aspect ratio; no text, border or watermark.

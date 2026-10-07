@@ -114,7 +114,10 @@ class PreflightDispatchTests(unittest.TestCase):
         entry = dict(next(r for r in plan["runs"] if r["run_id"] == "E1-sheya-a-control-r1"))
         with tempfile.TemporaryDirectory() as folder:
             entry["output_dir"] = str(Path(folder) / "run")
-            frozen = json.loads(Path(entry["effective_request_path"]).read_text(encoding="utf-8"))
+            # 按当前组装逻辑冻结：旧实验快照可能仍写 auto，不能当新版显式源图比例的期望值。
+            freeze_code = module._round4_call_cli(module._round4_argv(entry) + ["--effective-request-only"])
+            self.assertIn(freeze_code, (0, 1))
+            frozen = json.loads((Path(entry["output_dir"]) / "effective-request.json").read_text(encoding="utf-8"))
             entry["effective_request"] = {
                 "prompt": frozen["prompt"], "source_paths": frozen["source_paths"],
                 "extra_reference_paths": frozen["extra_reference_paths"],

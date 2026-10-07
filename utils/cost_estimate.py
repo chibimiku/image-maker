@@ -236,7 +236,7 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
                       include_local: bool = True, local_model: str = "gemini-3-pro-image-preview",
                       include_wardrobe: bool = False,
                       include_analysis: bool = False, cny_rate: float = 7.2,
-                      pricing: dict = None) -> dict:
+                      pricing: dict = None, include_content_guard: bool = False) -> dict:
     """整条流水线的单张成本拆分（USD + 人民币折算）。
 
     `include_wardrobe`：「衣装重绘」也是**一次真实的 Gemini 重绘调用**（2K），
@@ -250,6 +250,10 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
     if include_repaint:
         rp = estimate_gemini_repaint_cost(repaint_model, pricing=pricing)
         steps.append({"key": "repaint", "label": f"全图重绘 {repaint_model} 2K", **rp})
+    if include_repaint and include_content_guard:
+        audit = estimate_text_cost(prompt_chars=4000, completion_tokens=2600, pricing=pricing)
+        steps.append({"key": "content_audit", "label": "内容初审及清除复审（最多2次）", **audit, "usd": audit["usd"] * 2})
+        steps.append({"key": "content_cleanup", "label": "局部新增清除（最多1次）", **estimate_gemini_repaint_cost(repaint_model, pricing=pricing)})
     if include_structure:
         steps.append({"key": "structure", "label": "结构线叠加（纯本地）", "usd": 0.0, "billed": "local",
                       "group": "-", "group_ratio": 0.0})

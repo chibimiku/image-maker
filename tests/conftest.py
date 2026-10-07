@@ -172,13 +172,25 @@ def _isolate_image_env(request, monkeypatch):
     就会被开发机的真实密钥干扰（也会受 IMAGE_MAKER_NODES / IMAGE_MAKER_CURRENT_API 影响）。
     用例需要哪个变量，自己在用例里 setenv 即可。
 
+    **但产出隔离开关必须留着**（2026-10-07 事故）：`IMAGE_MAKER_TEST_OUTPUT` 由会话级
+    fixture `isolate_test_output_artifacts` 设置，而这里按前缀 `IMAGE_MAKER_` 全清一遍，
+    会把它在**每个用例体内**清掉 → `resolve_output_target()` 读到"关" → 测试产物直落
+    `data/<日期>/`（用户看到的 `20261007-112423-abc123-白发少女.json` 就是这么来的）。
+
     例外：`tests/test_env_loader.py` 专门验证「导入 api_backend 时把 .env 装进环境」，
     清掉环境后它必然失败 —— 这个模块本身就是对真实 .env 的断言，故跳过清洗。
     """
     if getattr(getattr(request, "module", None), "__name__", "") == "test_env_loader":
         yield
         return
+    # 延迟导入：conftest 顶部要先让 torch 抢到 DLL 加载窗口（见守卫三），
+    # 这里再 import 任何项目模块都不影响那个顺序。
+    from utils.output_isolation import TEST_OUTPUT_ENV, TEST_PREFIX_ENV
+
+    keep = {TEST_OUTPUT_ENV, TEST_PREFIX_ENV}
     for name in list(os.environ):
+        if name in keep:
+            continue
         if name.startswith("IMAGE_MAKER_") or name.endswith("_API_KEY") or name in {
             "AIGC2D_KEY", "AIGC_2D_GPT_KEY", "AUTODL_KEY", "TEXT_KEY", "NSFW_KEY",
         }:

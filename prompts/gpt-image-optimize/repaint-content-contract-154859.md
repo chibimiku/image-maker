@@ -1,0 +1,6 @@
+- One adult chestnut-haired woman seated on a pale armchair, shown with her whole seated body and feet, on the left side of the wide canvas; the right side remains mostly pale interior space.
+- Preserve the source's tilted camera and the chair's position, size, back, seat, arms and legs.
+- One knee is raised toward her body; both hands reach toward and touch the toes of that raised foot. The other leg extends down to the floor. Keep these exact limb relationships and the hand-to-foot contact.
+- Preserve her brown hair, the source face, gaze and neutral expression, black sheer dress, existing dark thigh-high stockings and suspender straps. Do not add hair beads, flowers, necklaces, new costume panels or tears.
+- Two black pointed-toe high-heeled shoes lie on the floor near the chair at lower left, one upright and one on its side with a red sole. Both must remain in the same positions.
+- The left window, pale wall and floor, cool daylight and existing cast shadows remain. No tree, foliage, plant decoration or outdoor setting may replace this interior.

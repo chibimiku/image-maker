@@ -91,7 +91,7 @@ DeepSeek 的 taya_oco 续跑任务模板见 [taya_oco 再识别 3 轮](style-ext
 
 布局约定：图片与参数在 `controls_scroll` 中滚动，开始/取消按钮、状态和进度留在滚动区外。默认窗口下不需要滚动寻找开始按钮；回归见 `tests/test_style_analyzer_layout.py`。
 
-筛图 skill 为 `style-dataset-curator`，项目源文件在 `docs/skills/style-dataset-curator/`，已安装到 DeepSeek/DSH 的 `C:\Users\ashsu\.dsh\skills\style-dataset-curator/`。它可独立使用 Python 3.10+ 和 Pillow 生成完整文件清单、SHA-256、尺寸和分批联系表，然后由实际识图 agent 填写逐图判断。`SKILL.md`、模板、JSON Schema、字段说明与可独立运行的 inventory/validate 脚本均随 skill 提供；不依赖 App 的 Qt/OpenAI 包，也不自行训练或调用付费 API。
+筛图 skill 为 `style-dataset-curator`，项目源文件在 `docs/skills/style-dataset-curator/`，已安装到 DeepSeek/DSH 的 `C:\Users\<user>\.dsh\skills\style-dataset-curator/`。它可独立使用 Python 3.10+ 和 Pillow 生成完整文件清单、SHA-256、尺寸和分批联系表，然后由实际识图 agent 填写逐图判断。`SKILL.md`、模板、JSON Schema、字段说明与可独立运行的 inventory/validate 脚本均随 skill 提供；不依赖 App 的 Qt/OpenAI 包，也不自行训练或调用付费 API。
 
 固定产物为 `selection-manifest.json`，`schema_version=image-maker.style-dataset.v1`。包含源目录、英文画风名、目标数量、全部图片的真实元数据、查看状态、入选/排除理由、四项视觉评分、描述标签、重复关联、有序入选名单、推荐参考图及其风险说明。程序计算辅助加权分：完整度 30%、画法一致性 30%、细节可读性 25%、干扰洁净度 15%；选集还需考虑内容覆盖与去重，不能只机械取最高分。不能以哈希校验通过证明视觉判断客观正确，`inspected` 仍是 agent 的审查声明。
 

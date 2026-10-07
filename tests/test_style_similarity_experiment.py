@@ -215,5 +215,65 @@ class MetadataTests(unittest.TestCase):
         self.assertNotEqual(attrs.normalize_work_name("a-1.png"), attrs.normalize_work_name("a-2.png"))
 
 
+class CorrectedStatisticsTests(unittest.TestCase):
+    def test_e2_prefers_larger_similarity_and_smaller_distance(self):
+        from utils.style_experiment_controlled_phases import e2_stats
+        rows = []
+        for kind, value in (("P", 0.9), ("N", 0.2)):
+            rows.append({"anchor_id": "A", "anchor_style": "s", "kind": kind,
+                         "candidate_style": "s" if kind == "P" else "other",
+                         "match_detail": {"hue_distance_degrees": 0},
+                         "by_style": {m: {"s": value if direction == "max" else 1-value}
+                                      for m, direction in core.METRIC_DIRECTION.items()}})
+        result = e2_stats(rows, [], ["s", "other"])
+        for value in result["preference"].values():
+            self.assertEqual(value["correct"], 1)
+            self.assertEqual(value["split_by_colour_match"]["n"], 1)
+
+    def test_missing_or_constant_dose_cannot_pass(self):
+        from utils.style_experiment_controlled_phases import _monotonic
+        self.assertIsNone(_monotonic([1., .9, None, .7], "decrease"))
+        self.assertFalse(_monotonic([1., 1., 1., 1.], "decrease"))
+        self.assertFalse(_monotonic([1., .8, .9, .7], "decrease"))
+
+    def test_missing_e2_pair_stays_in_denominator(self):
+        from utils.style_experiment_controlled_phases import e2_stats
+        rows = [{"anchor_id": "A", "anchor_style": "s", "kind": k, "candidate_style": "s",
+                 "by_style": {m: {"s": None} for m in core.METRIC_DIRECTION}}
+                for k in ("P", "N")]
+        for metric in e2_stats(rows, [], ["s"])["preference"].values():
+            self.assertEqual(metric["n"], 1)
+            self.assertEqual(metric["missing"], 1)
+            self.assertEqual(metric["rate"], 0.)
+
+    def test_brightness_doses_sort_by_strength_and_increase_geometry_lowers_closeness(self):
+        from utils.style_experiment_controlled_phases import e3_stats
+        rows = [{"case_id": "C", "intervention": "original", "label": "original", "level_name": "original",
+                 "level": 1., "closeness": {"eye_brightness": 1., "eye_width": 1.},
+                 "status": {"eye_brightness": "ok", "eye_width": "ok"}, "components": {}}]
+        for m in ("eye_brightness", "eye_width"):
+            for strength, dose, value in zip(("weak", "medium", "strong"),
+                                            (.95,.90,.80) if m == "eye_brightness" else (1.05,1.10,1.20),
+                                            (.95,.9,.8)):
+                rows.append({"case_id": "C", "intervention": m, "label": strength, "level_name": strength,
+                             "level": dose, "closeness": {m: value}, "status": {m: "provisional"}, "components": {}})
+        result = e3_stats(rows, {"negative_controls": {}})
+        self.assertEqual(result["target_direction_counts"], {"n": 8, "k": 2})
+        self.assertEqual(result["target_direction_hit"], 2/8)
+        self.assertEqual(result["usable_response_count"], 2)
+
+    def test_curve_distance_ignores_vertex_density_and_is_symmetric(self):
+        from utils.style_experiment_controlled_phases import curve_error
+        dense = [[i/100, 0.] for i in range(101)]
+        sparse = [[0.,0.],[1.,0.]]
+        self.assertEqual(curve_error(dense,sparse,1.)["mean_over_eye_width"], 0.)
+        shifted = [[0.,.1],[1.,.1]]
+        forward = curve_error(dense,shifted,1.)
+        backward = curve_error(shifted,dense,1.)
+        self.assertAlmostEqual(forward["mean_over_eye_width"], .1)
+        self.assertAlmostEqual(forward["mean_over_eye_width"], backward["mean_over_eye_width"])
+        self.assertAlmostEqual(forward["endpoint_max_over_eye_width"], .1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -132,6 +132,31 @@ def test_compose_prompt_gpt_contains_subject_and_role_split():
     assert len(text) > len(GOOD_TEXT)
 
 
+@pytest.mark.parametrize("content_count", [0, 1, 3])
+def test_attached_style_image_drives_rendering_without_copying_content(content_count):
+    from utils.styles import compose_style_prompt, ordered_reference_images
+    subject = "A silver-haired knight in silver armour, side view, 35mm lens."
+    prompt = compose_style_prompt(GOOD_TEXT, subject, style_ref_attached=True,
+                                  content_image_count=content_count)
+    images = ordered_reference_images([f"content-{i}.png" for i in range(content_count)],
+                                      "style.png", style_ref_attached=True)
+    assert images[-1] == "style.png"
+    assert prompt.index("STYLE AUTHORITY") < prompt.index("Palette:") < prompt.index(subject)
+    assert "LAST attached image" in prompt
+    assert "actual painting method" in prompt
+    assert "do not override the reference's painting method" in prompt
+    assert "never copy those from the style image" in prompt
+    if content_count:
+        assert f"FIRST {content_count} image(s) are CONTENT REFERENCES" in prompt
+    else:
+        assert "composition must come ENTIRELY from the text above" in prompt
+
+
+def test_style_text_without_image_does_not_claim_visual_reference():
+    from utils.styles import compose_style_prompt
+    assert compose_style_prompt(GOOD_TEXT, "Subject", style_ref_attached=False) == GOOD_TEXT + "\n\nSubject"
+
+
 def test_parse_and_format_fields_are_stable():
     assert parse_fields(GOOD_TEXT) == GOOD_FIELDS
     assert format_prompt_gpt(GOOD_FIELDS) == GOOD_TEXT

@@ -57,13 +57,18 @@ class BuildAndVerifyTests(unittest.TestCase):
                              dp.compose_slot_prompt(base["prompt"], candidate["candidate_append"]))
             self.assertNotEqual(base["prompt_sha256"], candidate["prompt_sha256"])
 
-    def test_verify_recompiles_offline_with_zero_problems(self):
+    def test_historical_pack_recompiles_and_reports_current_source_drift(self):
         with tempfile.TemporaryDirectory() as folder, \
                 patch.dict(os.environ, {"IMAGE_MAKER_COLOUR_TEST_OUTPUT_ROOT": folder}):
             result = dp.verify_offline(Path(folder) / "out", pack_path=str(PACK),
                                        scenes_path=str(SCENES), review_path=str(REVIEW),
                                        log=lambda *_: None)
-            self.assertEqual(result["problems"], [])
+            pack = dp.load_pack(PACK)
+            drift = ["来源文件字节 hash 不一致：" + rel
+                     for rel, want in sorted(pack["source_hashes"].items())
+                     if dp._sha256_file(dp.BASE / rel) != want]
+            self.assertEqual(result["problems"], drift)
+            self.assertTrue(all(not row["problems"] for row in result["slots"]))
             self.assertEqual(len(result["slots"]), 9)
             self.assertTrue(result["pack_hash_ok"])
 
@@ -80,13 +85,20 @@ class BuildAndVerifyTests(unittest.TestCase):
             joined = " ".join(result["problems"])
             self.assertTrue("candidate_append" in joined or "prompt" in joined, joined)
 
-    def test_builder_reproduces_the_frozen_hash(self):
+    def test_builder_preserves_prompts_but_records_current_source_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "rebuilt-pack.json"
             built = dp.build_pack(SPEC, out_pack_path=target, log=lambda *_: None)
-            self.assertEqual(built["pack_hash"], dp.load_pack(PACK)["pack_hash"])
-            self.assertEqual(json.loads(target.read_text(encoding="utf-8"))["pack_hash"],
-                             dp.load_pack(PACK)["pack_hash"])
+            historical_bytes = PACK.read_bytes()
+            historical = dp.load_pack(PACK)
+            current = json.loads(target.read_text(encoding="utf-8"))
+            self.assertEqual(built["pack_hash"], dp.pack_digest(current))
+            self.assertEqual(current["slots"], historical["slots"])
+            for rel, actual in current["source_hashes"].items():
+                self.assertEqual(actual, dp._sha256_file(dp.BASE / rel))
+            for key in historical.keys() - {"source_hashes", "pack_hash"}:
+                self.assertEqual(current[key], historical[key], key)
+            self.assertEqual(PACK.read_bytes(), historical_bytes)
 
 
 class DisplayOrderTests(unittest.TestCase):

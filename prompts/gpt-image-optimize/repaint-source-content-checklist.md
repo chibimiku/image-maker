@@ -1,0 +1,6 @@
+- Preserve the actual subjects and their identities, expressions, gaze, hair and intrinsic colours as visible in Image 1.
+- Preserve the source camera angle, crop, subject scale and placement, negative space and background layout. Keep the same single scene.
+- Preserve every visible pose, limb relationship, contact point and occlusion order, including hands interacting with feet, clothing or objects if present.
+- Preserve the visible garment design, layers, material transparency, accessories, damage and existing small details. Keep uncertain regions ambiguous.
+- Preserve all existing furniture, props and separate objects, their count, locations and whether they are held, worn or placed elsewhere.
+- Preserve the source lighting directions, existing shadows, environment and painting medium. Inspect Image 1 itself for these facts; do not invent a scene from a generic description.
