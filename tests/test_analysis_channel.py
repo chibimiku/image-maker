@@ -88,32 +88,29 @@ def test_selecting_gpt_channel_shows_post_process_row(analyzer):
 
 
 def test_build_gpt_image_steps_follows_checkboxes(analyzer):
-    """默认 = §三十一 的配方（重绘 + 结构线 + 色调校准 + 加墨，重绘范围=只连通线条）。
+    """默认 = §三十一 的配方（重绘 + 结构线 + 色调校准 + 加墨，重绘范围=只连通线条）
+    + 用户 2026-10-07 要求默认带上的「衣装重绘」（最后一道 Gemini 重绘）。
 
-    局部重绘（裁切→重绘→贴回）已被证实会把画面拼坏（§三十），**默认关闭**；取消/勾选都能生效。
+    「局部重绘（裁切→重绘→贴回）」**已停用**（2026-10-07 用户：废品率奇高）：
+    勾选框已从这一行摘掉，`_build_gpt_image_steps()` 恒定给 enabled=False。
     """
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
     assert steps["repaint"]["enabled"] is True
     assert steps["repaint"]["scope"] == "full"
     assert steps["structure"]["enabled"] is False
-    assert steps["local"]["enabled"] is False            # 默认不再做裁切贴回
+    assert steps["local"]["enabled"] is False            # 停用：不再做裁切贴回
     assert steps["tone"]["enabled"] is False and steps["tone"]["tone_target"] == "style"
     assert steps["ink"]["enabled"] is False
-    # 打开局部重绘 → 用稳定四区链（单区域 subject_no_face 约 1/3 概率重排主体出鬼影）
+    assert steps["wardrobe"]["enabled"] is True          # 衣装重绘默认开
+    # 即使（用代码）把停用的勾选框打开，也不许进流水线
     analyzer.gpt_pp_local.setChecked(True)
-    steps = analyzer._build_gpt_image_steps()
-    assert steps["local"]["enabled"] is True
-    assert steps["local"]["regions"] == ["subject_no_face", "shoes", "waist", "thigh"]
-    assert steps["local"]["region"] == "subject_no_face"
-    # 单独选一个区域时不再是四区链
-    analyzer.gpt_pp_region.setCurrentIndex(max(0, analyzer.gpt_pp_region.findData("shoes")))
-    steps = analyzer._build_gpt_image_steps()
-    assert steps["local"]["regions"] == ["shoes"]
+    assert analyzer._build_gpt_image_steps()["local"]["enabled"] is False
+    assert analyzer.gpt_pp_local.isVisible() is False    # 也不再出现在工序行里
     # 全部关掉
     for cb, key in ((analyzer.gpt_pp_repaint, "repaint"), (analyzer.gpt_pp_structure, "structure"),
                     (analyzer.gpt_pp_local, "local"), (analyzer.gpt_pp_tone, "tone"),
-                    (analyzer.gpt_pp_ink, "ink")):
+                    (analyzer.gpt_pp_wardrobe, "wardrobe"), (analyzer.gpt_pp_ink, "ink")):
         cb.setChecked(False)
     steps = analyzer._build_gpt_image_steps()
     assert not any(steps[k]["enabled"] for k in steps)
@@ -124,19 +121,45 @@ def test_build_gpt_image_steps_follows_checkboxes(analyzer):
         assert analyzer._build_gpt_image_steps()["repaint"]["scope"] == "person_only"
 
 
-def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
-    """预算覆盖首图、重绘、质量/身份门禁和局部区域；本地工序不占份额。"""
+def test_wardrobe_repaint_switch_is_wired_into_the_analysis_tab(analyzer):
+    """衣装重绘：常驻可见、默认开、关掉就从流水线里消失、勾回来又有。"""
     analyzer.gen_channel_gpt.setChecked(True)
-    steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘（局部关闭，结构线/色调/加墨是本地）
+    assert analyzer.gpt_pp_wardrobe.isHidden() is False
+    assert analyzer.gpt_pp_wardrobe.isChecked() is True
+    assert analyzer._build_gpt_image_steps()["wardrobe"]["enabled"] is True
+    analyzer.gpt_pp_wardrobe.setChecked(False)
+    assert analyzer._build_gpt_image_steps()["wardrobe"]["enabled"] is False
+    analyzer.gpt_pp_wardrobe.setChecked(True)
+    steps = analyzer._build_gpt_image_steps()
+    assert steps["wardrobe"]["enabled"] is True
+    assert os.path.isfile(steps["wardrobe"]["firmware"])      # 专用固件能真读到
+    # 关掉重绘也要能单独留着衣装重绘（两者是独立开关）
+    analyzer.gpt_pp_repaint.setChecked(False)
+    assert analyzer._build_gpt_image_steps()["wardrobe"]["enabled"] is True
+
+
+def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
+    """预算覆盖首图、重绘、衣装重绘、质量/身份门禁；本地工序（结构线/色调/加墨）不占份额。
+
+    2026-10-07：局部重绘已停用、衣装重绘补进来 —— 默认 18 份 = 首图 1 + 重绘 17；
+    再开衣装重绘 +1 份，关掉重绘后只留首图 + 衣装重绘。
+    """
+    analyzer.gen_channel_gpt.setChecked(True)
+    steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘 + 衣装重绘（结构线/色调/加墨是本地）
+    assert analyzer._pipeline_timeout_budget(120, steps) == 2280
+    analyzer.gpt_pp_wardrobe.setChecked(False)         # 关掉衣装重绘 → 少一份
+    steps = analyzer._build_gpt_image_steps()
     assert analyzer._pipeline_timeout_budget(120, steps) == 2160
-    analyzer.gpt_pp_local.setChecked(True)             # 打开四区链 → 再多 4 份
+    analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 衣装重绘
+    analyzer.gpt_pp_wardrobe.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 2640
-    analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 四区
+    assert analyzer._pipeline_timeout_budget(120, steps) == 240
+    analyzer.gpt_pp_wardrobe.setChecked(False)         # 只剩首图（加墨/色调/结构线都是本地工序）
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 600
-    analyzer.gpt_pp_local.setChecked(False)            # 只剩首图（加墨/色调/结构线都是本地工序）
+    assert analyzer._pipeline_timeout_budget(120, steps) == 120
+    analyzer.gpt_pp_local.setChecked(True)             # 停用的局部重绘：即使被打开也不占预算（没有 enabled）
     steps = analyzer._build_gpt_image_steps()
+    assert steps["local"]["enabled"] is False
     assert analyzer._pipeline_timeout_budget(120, steps) == 120
 
 
@@ -215,17 +238,20 @@ def test_gpt_channel_style_can_skip_repaint(analyzer, tmp_path):
     assert kwargs["steps"]["repaint"]["enabled"] is False
 
 
-def test_gpt_channel_local_step_is_2k_without_detail_boost(analyzer):
-    """局部重绘统一 2K（不把细节区升 4K），并把每道工序的超时预算算给运行时。"""
+def test_gpt_channel_wardrobe_step_counts_one_slot_and_local_stays_off(analyzer):
+    """衣装重绘 = 整图一次联网调用（+1 份预算）；已停用的局部重绘不再占任何份额。"""
     analyzer.gen_channel_gpt.setChecked(True)
     analyzer.gpt_pp_repaint.setChecked(True)
     analyzer.gpt_pp_structure.setChecked(True)
-    analyzer.gpt_pp_local.setChecked(True)
+    analyzer.gpt_pp_local.setChecked(True)             # 停用工序：打开也不生效
     steps = analyzer._build_gpt_image_steps()
-    assert steps["local"]["resolution"] == "2K"
-    assert steps["local"]["detail_boost"] is False
-    # 重绘链还含初审、最多两轮修订及每轮复审。
-    assert analyzer._pipeline_timeout_budget(120, steps) == 2640
+    assert steps["local"]["enabled"] is False          # 停用
+    assert steps["wardrobe"]["enabled"] is True        # 衣装重绘默认开
+    # 首图 1 + 重绘链 17 + 衣装重绘 1 = 19 份；重绘链还含初审、最多两轮修订及每轮复审。
+    assert analyzer._pipeline_timeout_budget(120, steps) == 2280
+    analyzer.gpt_pp_wardrobe.setChecked(False)
+    steps = analyzer._build_gpt_image_steps()
+    assert analyzer._pipeline_timeout_budget(120, steps) == 2160
 
 
 def _first_pass_payload(analyzer, tmp_path, styles, style_name):
@@ -317,7 +343,8 @@ def test_gpt_pipeline_choices_are_remembered(analyzer, tmp_path, monkeypatch):
 
     saved = sa.load_analysis_gpt_ui(str(state_file))
     assert saved["channel"] == "gpt-image"
-    assert saved["repaint"] and saved["structure"] and saved["local"]
+    # 「局部重绘」已停用：界面记忆里恒定写 False（老配置里写着 True 也一样）
+    assert saved["repaint"] and saved["structure"] and not saved["local"]
     assert saved["region"] == "subject_no_face" and saved["quality"] == "high"
 
     # 新实例（模拟重启）应恢复同样的选择
@@ -332,7 +359,7 @@ def test_gpt_pipeline_choices_are_remembered(analyzer, tmp_path, monkeypatch):
     )
     assert fresh.gen_channel_gpt.isChecked() is True
     assert fresh.gpt_pp_repaint.isChecked() and fresh.gpt_pp_structure.isChecked()
-    assert fresh.gpt_pp_local.isChecked()
+    assert fresh.gpt_pp_local.isChecked() is False       # 已停用：强制关
     assert fresh.gpt_pp_region.currentData() == "subject_no_face"
     assert fresh.gpt_quality_combo.currentData() == "high"
 
@@ -351,7 +378,8 @@ def test_restore_recommended_recipe_and_advanced_do_not_reset_user_edits(analyze
     assert analyzer._build_gpt_image_steps()["ink"]["enabled"]
     analyzer.gpt_reset_recipe.click()
     steps = analyzer._build_gpt_image_steps()
-    assert [k for k, v in steps.items() if v["enabled"]] == ["repaint"]
+    # 「恢复推荐」回到该配方的默认：重绘 + 衣装重绘（用户 2026-10-07 要求默认带）
+    assert [k for k, v in steps.items() if v["enabled"]] == ["repaint", "wardrobe"]
     assert steps["repaint"]["reference_mode"] == "style"
     assert steps["repaint"]["scope"] == "full"
     assert analyzer.gen_channel_gpt.isChecked()

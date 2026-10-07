@@ -1793,25 +1793,32 @@ def test_resolve_request_size_uses_reference_orientation(tab, tmp_path):
 # ---------------- 后处理流水线（结构线叠加 / 局部重绘）勾选框 ----------------
 
 def test_post_process_switches_are_one_visible_row(tab):
-    """后处理开关横排常驻可见（两行，按处置顺序分组）；实验工序默认关，参数放折叠区里。"""
+    """后处理开关横排常驻可见（两行，按处置顺序分组）；实验工序默认关，参数放折叠区里。
+
+    2026-10-07：**「局部重绘 + 羽化贴回」已停用**（用户：废品率奇高），所以它不再是
+    开关行的一员（控件留着读老配置，但隐藏且置灰）。
+    """
     # 2026-09-30：以前每个开关各占一行，上半屏全被开关占满
-    for widget in (tab.repaint_check, tab.structure_check, tab.local_repaint_check):
+    for widget in (tab.repaint_check, tab.structure_check):
         assert widget.parent() is tab.post_switch_row, f"{widget} 不在开关横排里"
-    for widget in (tab.post_tone_check, tab.post_tone_target, tab.post_ink_check,
-                   tab.post_retry_btn, tab.post_reset_btn):
+    for widget in (tab.post_wardrobe_check, tab.post_tone_check, tab.post_tone_target,
+                   tab.post_ink_check, tab.post_retry_btn, tab.post_reset_btn):
         assert widget.parent() is tab.post_switch_row, f"{widget} 不在开关横排里"
     assert tab.structure_check.isChecked() is False
     assert tab.local_repaint_check.isChecked() is False
+    assert tab.local_repaint_check.isVisible() is False        # 停用：不再出现在开关行
+    assert tab.local_repaint_check.isEnabled() is False
     assert tab.post_panel.isVisible() is False
     assert tab.post_toggle_btn.isChecked() is False
     assert tab.post_toggle_btn.parent() is tab.param_toggle_row   # 两个折叠按钮共用一行
 
 
 def test_default_recipe_matches_analysis_tab(tab):
-    """默认配方与「图片分析」Tab 的 gpt 通道一致：重绘 ✓ / 色调校准 ✓ / 线条加墨 ✓，实验工序关。"""
+    """默认配方与「图片分析」Tab 的 gpt 通道一致：重绘 ✓ / 色调校准 ✓ / 线条加墨 ✓，
+    外加用户 2026-10-07 明确要求的「衣装重绘」✓；实验工序（结构线/局部重绘）关。"""
     assert tab.post_default_state() == {
         "repaint": True, "structure": False, "tone": True, "tone_target": "style",
-        "ink": True, "local": False, "local_region": "hair",
+        "ink": True, "wardrobe": True, "local": False, "local_region": "hair",
         "local_feather": tab.local_feather_spin.value(),
         "structure_strength": tab.structure_strength_spin.value(),
     }
@@ -1819,6 +1826,7 @@ def test_default_recipe_matches_analysis_tab(tab):
     assert tab.repaint_check.isChecked() is True
     assert tab.post_tone_check.isChecked() is True
     assert tab.post_ink_check.isChecked() is True
+    assert tab.post_wardrobe_check.isChecked() is True
     assert tab.post_tone_target.currentData() == "style"
 
 
@@ -1845,22 +1853,26 @@ def test_reset_button_restores_recommended_recipe(tab, repaint_config):
 
 
 def test_post_pipeline_steps_follow_checkboxes(tab):
-    """勾选框与参数要真正反映到流水线配置上（未勾选的工序不会执行）。"""
+    """勾选框与参数要真正反映到流水线配置上（未勾选的工序不会执行）。
+
+    「局部重绘 + 羽化贴回」已停用（2026-10-07）：老配置里设成 True 也必须得到 enabled=False。
+    """
     steps = tab.post_pipeline_steps()
     assert steps["structure"]["enabled"] is False
     assert steps["local"]["enabled"] is False
     assert steps["repaint"]["enabled"] is False     # 重绘在本 Tab 是独立模式，不进这条流水线
     tab.structure_check.setChecked(True)
     tab.structure_strength_spin.setValue(0.35)
+    # 停用工序：即使（用代码）把它打开也不生效
     tab.local_repaint_check.setChecked(True)
     tab.local_region_combo.setCurrentIndex(tab.local_region_combo.findData("face"))
     tab.local_feather_spin.setValue(64)
     steps = tab.post_pipeline_steps()
     assert steps["structure"]["enabled"] is True
     assert abs(steps["structure"]["strength"] - 0.35) < 1e-6
-    assert steps["local"]["enabled"] is True
-    assert steps["local"]["region"] == "face"
-    assert steps["local"]["feather"] == 64
+    assert steps["local"]["enabled"] is False       # 停用：不进流水线
+    assert tab.post_wardrobe_check.isChecked() is True
+    assert steps["wardrobe"]["enabled"] is True
 
 
 def test_tone_and_ink_are_wired_into_the_pipeline(tab, tmp_path):

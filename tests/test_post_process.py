@@ -253,13 +253,18 @@ def test_local_repaint_subject_no_face_keeps_face_pixels(tmp_path):
     assert abs(int(merged[sy, sx][0]) - 200) <= 2
 
 
-def test_run_pipeline_local_step_uses_callable(tmp_path, monkeypatch):
+def test_local_step_is_ignored_by_the_pipeline(tmp_path, monkeypatch):
+    """局部重绘**已停用**（用户 2026-10-07：裁切贴回废品率奇高）。
+
+    老配置/老断点里写 `local.enabled=True` 也不许再跑：调度顺序里没有它，
+    `local_repaint_composite` 一次都不该被调用。
+    """
     img = tmp_path / "img2.png"
     _make_image(img)
+    called = {"n": 0}
 
     def _fake_local(image_path, out_path, **kwargs):
-        os.makedirs(os.path.dirname(str(out_path)) or ".", exist_ok=True)
-        cv2.imwrite(str(out_path), cv2.imread(image_path))
+        called["n"] += 1
         return {"out": str(out_path), "box": (0, 0, 1, 1)}
 
     monkeypatch.setattr(pp, "local_repaint_composite", _fake_local)
@@ -267,7 +272,8 @@ def test_run_pipeline_local_step_uses_callable(tmp_path, monkeypatch):
     steps["local"]["enabled"] = True
     steps["local"]["region"] = "face"
     out = pp.run_pipeline([str(img)], steps, final_dir=str(tmp_path / "final"))
-    assert out and "-final-" in os.path.basename(out[0])
+    assert called["n"] == 0                     # 停用后一次都不执行
+    assert out and os.path.isfile(out[0])       # 没有工序要跑 → 原图原样交回
 
 
 # ------------------------------------------------------- GUI 勾选框
@@ -277,22 +283,27 @@ def test_run_pipeline_local_step_uses_callable(tmp_path, monkeypatch):
 
 
 def test_final_goes_to_final_dir_and_intermediates_to_work_dir(tmp_path, monkeypatch):
-    """多工序时：最后一道工序的产物落 final_dir（默认 data/<日期>），中间产物落 pipeline-steps。"""
+    """多工序时：最后一道工序的产物落 final_dir（默认 data/<日期>），中间产物落 pipeline-steps。
+
+    这里用「结构线叠加（中间）→ 衣装重绘（最后、联网）」两段来验证落盘位置 ——
+    原来最后一棒是已停用的局部重绘。
+    """
     img = tmp_path / "shot.png"
     _make_image(img)
     final_dir = tmp_path / "data" / "20260923"
     work = tmp_path / "data" / "20260923" / "pipeline-steps"
 
-    def _fake_local(image_path, out_path, **kwargs):
-        import cv2 as _cv2
-        _cv2.imwrite(str(out_path), _cv2.imread(image_path))
-        return {"out": str(out_path), "box": (0, 0, 1, 1)}
+    def _fake_dispatch(request, **kwargs):
+        out = os.path.join(final_dir, f"{request.get('prefix') or 'wrd'}.png")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        cv2.imwrite(out, cv2.imread(str((request.get("source_paths") or [str(img)])[0])))
+        return [out]
 
-    monkeypatch.setattr(pp, "local_repaint_composite", _fake_local)
+    monkeypatch.setattr(pp, "dispatch_repaint_request", _fake_dispatch)
+    monkeypatch.setattr(pp, "log_repaint_call", lambda *a, **k: None)
     steps = pp.default_pipeline()
     steps["structure"]["enabled"] = True
-    steps["local"]["enabled"] = True
-    steps["local"]["region"] = "hair"
+    steps["wardrobe"]["enabled"] = True
     out = pp.run_pipeline([str(img)], steps, work_dir=str(work), final_dir=str(final_dir))
     assert out and os.path.dirname(out[0]) == str(final_dir)          # 最终产物 → data/<日期>
     assert os.path.isfile(os.path.join(str(work), "pipeline-manifest.json"))
@@ -317,34 +328,41 @@ def test_date_output_dir_shape():
 
 
 def test_run_pipeline_records_failure_and_resume_skips_success(tmp_path, monkeypatch):
-    """失败步骤要记进清单；重试时跳过已成功步骤，只重跑失败那步。"""
+    """失败步骤要记进清单；重试时跳过已成功步骤，只重跑失败那步。
+
+    这里用「结构线叠加（成功）→ 衣装重绘（先失败后成功）」——
+    原来拿已停用的局部重绘当失败步骤。
+    """
     img = tmp_path / "shot2.png"
     _make_image(img)
     calls = []
 
-    def _failing_local(image_path, out_path, **kwargs):
-        calls.append("local")
+    def _flaky_dispatch(request, **kwargs):
+        calls.append("wardrobe")
         if len(calls) == 1:
             raise RuntimeError("模拟失败")
-        cv2.imwrite(str(out_path), cv2.imread(image_path))     # 假的重绘：直接复制，不调 API
-        return {"out": str(out_path), "box": (0, 0, 1, 1), "exclude_boxes": []}
+        # prefix 由 run_pipeline 给（最后一步带 -final-）—— 假实现要照抄，产物名才有代表性
+        out = os.path.join(str(tmp_path / "final"), f"{request.get('prefix') or 'wrd'}.png")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        cv2.imwrite(out, cv2.imread(str((request.get("source_paths") or [str(img)])[0])))
+        return [out]
 
-    monkeypatch.setattr(pp, "local_repaint_composite", _failing_local)
+    monkeypatch.setattr(pp, "dispatch_repaint_request", _flaky_dispatch)
+    monkeypatch.setattr(pp, "log_repaint_call", lambda *a, **k: None)
     steps = pp.default_pipeline()
     steps["structure"]["enabled"] = True
-    steps["local"]["enabled"] = True
-    steps["local"]["region"] = "hair"
+    steps["wardrobe"]["enabled"] = True
     work_dir = str(tmp_path / "work")
     out1 = pp.run_pipeline([str(img)], steps, log_callback=lambda m: None,
                            final_dir=str(tmp_path / "final"), work_dir=work_dir)
     failures = pp.pipeline_failures(work_dir)
-    assert failures and failures[0]["step"] == "local"
+    assert failures and failures[0]["step"] == "wardrobe"
     manifest = pp.load_manifest(work_dir)
     succeeded = [s["key"] for s in manifest["items"][0]["steps"] if s["status"] == "succeeded"]
     assert "structure" in succeeded            # 结构线那步成功了
     assert out1 and os.path.basename(out1[0]).endswith(".png")   # 失败后停在成功的最后一步
 
-    # 重试：structure 不该再被重算（产物已存在 → 复用），只重跑 local
+    # 重试：structure 不该再被重算（产物已存在 → 复用），只重跑 wardrobe
     overlay_calls = []
     real_overlay = pp.structure_overlay_file
 
@@ -356,7 +374,7 @@ def test_run_pipeline_records_failure_and_resume_skips_success(tmp_path, monkeyp
     out2 = pp.run_pipeline([str(img)], steps, log_callback=lambda m: None,
                            final_dir=str(tmp_path / "final"), work_dir=work_dir)
     assert overlay_calls == []                 # 跳过了已成功步骤
-    assert out2 and "final-sline" in os.path.basename(out2[0]) and "local-hair" in os.path.basename(out2[0])
+    assert out2 and "wrd" in os.path.basename(out2[0])     # 只重跑了衣装重绘那一步
 
 
 def test_pipeline_failures_empty_without_manifest(tmp_path):
@@ -402,35 +420,37 @@ def test_local_repaint_gets_firmware_text_not_path(tmp_path):
     assert seen["fw"].startswith("FIRMWARE BODY")
 
 
-def test_run_pipeline_local_output_is_png(tmp_path, monkeypatch):
+def test_run_pipeline_wardrobe_output_is_png_and_marked_final(tmp_path, monkeypatch):
+    """衣装重绘作为（唯一的）联网工序时，产物是 final 名、落在 final_dir。"""
     img = tmp_path / "in2.png"
     _make_image(img)
 
-    def _fake_local(image_path, out_path, **kwargs):
-        import cv2 as _cv2
-        _cv2.imwrite(str(out_path), _cv2.imread(image_path))
-        return {"out": str(out_path), "box": (0, 0, 1, 1)}
+    def _fake_dispatch(request, **kwargs):
+        out = os.path.join(str(tmp_path / "final"),
+                           pp.final_product_name("in2", "120000-abcdef", steps))
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        cv2.imwrite(out, cv2.imread(str((request.get("source_paths") or [str(img)])[0])))
+        return [out]
 
-    monkeypatch.setattr(pp, "local_repaint_composite", _fake_local)
+    monkeypatch.setattr(pp, "dispatch_repaint_request", _fake_dispatch)
+    monkeypatch.setattr(pp, "log_repaint_call", lambda *a, **k: None)
     steps = pp.default_pipeline()
-    steps["local"]["enabled"] = True
+    steps["wardrobe"]["enabled"] = True
     out = pp.run_pipeline([str(img)], steps, final_dir=str(tmp_path / "final"))
-    assert out and out[0].endswith(".png") and "-final-" in os.path.basename(out[0])
+    assert out and out[0].endswith(".png") and "-final-wrd" in os.path.basename(out[0])
 
 
-def test_multi_region_local_names_all_regions(tmp_path, monkeypatch):
-    """多区域局部重绘：名字必须列出所有区域。
+def test_local_region_naming_helpers_still_work_but_step_stays_disabled(tmp_path, monkeypatch):
+    """（原「多区域局部重绘命名」用例）局部重绘已停用，但命名助手仍要正确：
 
-    修之前 `final_product_name` / 中间产物名只取 `regions[0]`，于是「跑了 4 个区域」的产物
-    叫 `-local-subject_no_face.png`（最后一块贴回的中间文件还会覆盖同名的第一块），
-    光看文件名分不清实际跑了哪几个区域 —— 排查「鞋/靴紧框没生效」时就卡在这上面。
+    `final_product_name` 在旧配置里还带 local 时不能崩；而调度层**不许**再执行它。
     """
     img = tmp_path / "multi.png"
     _make_image(img)
-    calls = []
+    called = {"n": 0}
 
     def _fake_local(image_path, out_path, **kwargs):
-        calls.append(kwargs.get("region"))
+        called["n"] += 1
         cv2.imwrite(str(out_path), cv2.imread(image_path))
         return {"out": str(out_path), "box": (0, 0, 1, 1), "exclude_boxes": []}
 
@@ -438,15 +458,12 @@ def test_multi_region_local_names_all_regions(tmp_path, monkeypatch):
     steps = pp.default_pipeline()
     regions = ["subject_no_face", "shoes_zoom", "waist"]
     steps["local"].update({"enabled": True, "regions": regions, "region": regions[0], "feather": 48})
-    steps["ink"]["enabled"] = True           # 让 local 变成中间步骤，走中间产物命名那条分支
+    steps["ink"]["enabled"] = True
     work = tmp_path / "work"
     out = pp.run_pipeline([str(img)], steps, final_dir=str(tmp_path / "final"),
                           work_dir=str(work), resume=False, log_callback=lambda m: None)
-    assert calls == regions                                    # 每个区域都跑过、顺序不变
-    name = os.path.basename(out[0])
-    assert "final-local-" + ",".join(regions) in name
-    mids = [p for p in os.listdir(str(work)) if p.endswith("-local-" + ",".join(regions) + ".png")]
-    assert mids, "中间产物名也要列出所有区域"
+    assert called["n"] == 0                    # 停用：一次都没跑
+    assert out and os.path.isfile(out[0])
 
 
 def test_ink_lines_iterates_until_target_within_budget(monkeypatch):

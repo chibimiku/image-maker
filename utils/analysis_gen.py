@@ -385,19 +385,41 @@ def build_gemini_content_postamble(content: str, post_instructions: str = "") ->
     return "\n\n".join(v for v in (str(post_instructions or "").strip(), lock.strip()) if v)
 
 
+SURFACE_AUTHORITY_FILE = "gemini-style-surface-authority.md"
+
+
+def build_surface_authority(clauses) -> str:
+    """画风自带的**材质/表面**条款 → 图后的「材质权威」块（`gemini_surface_clauses`）。
+
+    实际拼装点在 `utils.styles.build_ref_gen_params`（那里才知道 `post` 长什么样），
+    这里保留同名入口给测试与将来的 GUI 预览用。
+    """
+    from utils.styles import surface_block_from_clauses
+    return surface_block_from_clauses(clauses)
+
+
 def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, local: bool = False,
                               structure_strength: float = 0.5, local_region: str = "hair",
                               local_feather: int = 48, resolution: str = "2K",
                               detail_boost: bool = False, repaint_ref_mode: str = "style",
                               local_regions=None, tone: bool = False, tone_target: str = "style",
                               ink: bool = False, ink_target: float = 8.0,
-                              repaint_scope: str = "full") -> dict:
+                              repaint_scope: str = "full", wardrobe: bool = False) -> dict:
     """把界面上的勾选翻译成 utils.post_process 的流水线步骤（repaint 由调用方单独处理）。
 
     - `repaint_scope`：**「重绘编辑范围」** —— 不裁切、不贴回，只在重绘提示词里要求模型保留不该动的部分：
       `full` / `person_only` / `person_noface` / `details` / `lines_only`（文本见
       `post_process.REPAINT_SCOPE_CLAUSES`）。默认 `full`，让 v5 固件保守修复整图。
-    - `detail_boost=False`（默认）：局部重绘统一用 2K（局部重绘现已不是默认工序，见下）。
+    - `wardrobe=True`：**「衣装重绘」**（用户 2026-10-07 要求）—— 排在「局部重绘」之后、本地
+      「色调校准/加墨」之前的**最后一道 Gemini 重绘**，用专用固件
+      `prompts/gpt-image-optimize/wardrobe-repair-system.md` 只重画角色全部衣装、解决细节散乱，
+      保持设定逻辑（件数/配色/材质族/装饰位置/遮挡）不变。它不套用 v5 的保守口径。
+    - `local` / `local_regions`：**已停用（2026-10-07 用户要求）**。裁切→重绘→贴回式的局部重绘
+      废品率奇高（模型在裁切里重新构图，贴回原坐标就是错位内容，§三十：5 画风里报废 2 张）。
+      参数保留只为兼容老配置/老断点：这里**恒定返回 `enabled=False`**，`run_pipeline` 也已把它从
+      调度顺序里摘掉。手动实验用 `tools/local_repaint_composite.py`（显式 CLI，不进流水线）。
+      修细节请用整图的 `wardrobe` 或 `repaint_scope`。
+    - `detail_boost=False`（默认）：局部重绘统一用 2K（该工序已停用，参数仅为兼容）。
     - `repaint_ref_mode="style"`（默认）：重绘接收 GPT 首图和完整画风图，以提高主轮廓和线稿连续性；
       角色偏离由首图 prompt 驱动的身份审计与最多两轮定点修订处理。`none` 可用于保真对照。
     - `local` / `local_regions`：**裁切→重绘→贴回**式的局部重绘。**默认关闭、慎用**：模型会在裁切里
@@ -409,14 +431,23 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
     regions = [str(r).strip() for r in (local_regions or []) if str(r).strip()]
     if not regions:
         regions = [str(local_region or "hair")]
+    from utils.post_process import WARDROBE_REPAIR_FIRMWARE
+    # 固件给**绝对路径**：`resolve_firmware_text` 找不到文件时会把文件名当成提示词发出去
+    # （那就是"裸重绘"，衣装口径全丢）。
+    wardrobe_firmware = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                     "prompts", "gpt-image-optimize", WARDROBE_REPAIR_FIRMWARE)
     return {
         "repaint": {"enabled": bool(repaint), "resolution": resolution,
                     "reference_mode": str(repaint_ref_mode or "style"),
                     "scope": str(repaint_scope or "full")},
         "structure": {"enabled": bool(structure), "strength": float(structure_strength)},
-        "local": {"enabled": bool(local), "region": regions[0], "regions": regions,
+        "local": {"enabled": False,      # 已停用（用户 2026-10-07）：裁切贴回废品率高，见函数 docstring
+                  "region": regions[0], "regions": regions,
                   "feather": int(local_feather), "resolution": resolution,
                   "detail_boost": bool(detail_boost)},
+        "wardrobe": {"enabled": bool(wardrobe), "resolution": resolution,
+                     "reference_mode": str(repaint_ref_mode or "style"),
+                     "firmware": wardrobe_firmware},
         "tone": {"enabled": bool(tone), "tone_target": str(tone_target or "style"),
                  "reference_path": "", "contrast": 1.00, "chroma": 1.10,
                  "highlight_strength": 0.85, "skin_warm": 0.0, "sat_target_scale": 1.0},
@@ -427,7 +458,7 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
 def run_gpt_image_pipeline(paths, steps, firmware: str = "", log_callback=None,
                            final_dir: str = None, work_dir: str = None,
                            style_ref_path: str = "", style_clauses=None, strict=False) -> list:
-    """按勾选对 gpt-image 产物跑「重绘 → 结构线叠加 → 局部重绘 → 色调校准 → 加墨」。
+    """按勾选对 gpt-image 产物跑「重绘 → 结构线叠加 → 局部重绘 → 衣装重绘 → 色调校准 → 加墨」。
 
     统一委托给 `utils.post_process.run_pipeline`：最后一道工序的产物落 `data/<日期>/`（发布目录），
     中间产物落 `<产物目录>/pipeline-steps/`，并支持断点重试（resume）。
@@ -439,15 +470,18 @@ def run_gpt_image_pipeline(paths, steps, firmware: str = "", log_callback=None,
     from utils import post_process as pp
     log = log_callback or (lambda m: None)
     steps = steps or {}
+    # `local` 已停用（2026-10-07）：不再参与"有没有活要干"的判据，也不进 run_pipeline 的调度顺序
     if not any((steps.get(k) or {}).get("enabled")
-               for k in ("repaint", "structure", "local", "tone", "ink")):
+               for k in ("repaint", "structure", "wardrobe", "tone", "ink")):
         return [p for p in (paths or []) if p and os.path.isfile(p)]
+    if (steps.get("local") or {}).get("enabled"):
+        log("[工序] 局部重绘+羽化贴回已停用（裁切贴回废品率高），本次跳过该步骤")
     tone_cfg = dict(steps.get("tone") or {"enabled": False})
     if tone_cfg.get("enabled") and str(tone_cfg.get("tone_target") or "style") == "style" \
             and style_ref_path and os.path.isfile(str(style_ref_path)):
         tone_cfg["reference_path"] = str(style_ref_path)      # 目标 = 画风参考图
     outputs = pp.run_pipeline(paths, {"structure": steps.get("structure") or {"enabled": False},
-                                   "local": steps.get("local") or {"enabled": False},
+                                   "wardrobe": steps.get("wardrobe") or {"enabled": False},
                                    "tone": tone_cfg,
                                    "ink": steps.get("ink") or {"enabled": False},
                                    "repaint": steps.get("repaint") or {"enabled": False}},

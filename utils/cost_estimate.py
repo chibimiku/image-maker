@@ -234,9 +234,14 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
                       repaint_model: str = "gemini-3-pro-image-preview",
                       include_repaint: bool = True, include_structure: bool = True,
                       include_local: bool = True, local_model: str = "gemini-3-pro-image-preview",
+                      include_wardrobe: bool = False,
                       include_analysis: bool = False, cny_rate: float = 7.2,
                       pricing: dict = None) -> dict:
-    """整条流水线的单张成本拆分（USD + 人民币折算）。"""
+    """整条流水线的单张成本拆分（USD + 人民币折算）。
+
+    `include_wardrobe`：「衣装重绘」也是**一次真实的 Gemini 重绘调用**（2K），
+    默认 False 只是为了不改变旧调用方的估算口径；本 Tab 会显式传实际勾选状态。
+    """
     pricing = pricing or fetch_pricing()
     steps = []
     first = estimate_gpt_image_cost(prompt_chars, size=size, quality=quality, ref_images=ref_images,
@@ -251,6 +256,9 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
     if include_local:
         lp = estimate_gemini_repaint_cost(local_model, pricing=pricing)
         steps.append({"key": "local", "label": f"局部重绘+羽化贴回 {local_model} 2K", **lp})
+    if include_wardrobe:
+        wp = estimate_gemini_repaint_cost(local_model, pricing=pricing)
+        steps.append({"key": "wardrobe", "label": f"衣装重绘 {local_model} 2K", **wp})
     if include_analysis:
         analysis_calls = 5 + 2  # Step1~5 + 两档字段生成
         per_call = estimate_text_cost(prompt_chars=2500, completion_tokens=2000, pricing=pricing)

@@ -137,6 +137,9 @@ RECOMMENDED_POST = {
     "tone": True,
     "tone_target": "style",
     "ink": True,
+    # 「衣装重绘」：用户 2026-10-07 明确要求默认带上 —— 直出/重绘后的衣装细节常常散乱，
+    # 这一道专用固件重绘是把它画清楚的唯一一步（本地色调/加墨救不了结构）。
+    "wardrobe": True,
     "local": False,
     "local_region": "hair",
     "local_feather": DEFAULT_FEATHER,
@@ -238,7 +241,7 @@ class PricingWorker(QThread):
 
 
 class PostProcessWorker(QThread):
-    """后台跑勾选的后处理工序（结构线叠加 / 局部重绘+羽化贴回 / 色调校准 / 线条加墨）。"""
+    """后台跑勾选的后处理工序（结构线叠加 / 局部重绘+羽化贴回 / 衣装重绘 / 色调校准 / 线条加墨）。"""
     log = pyqtSignal(str)
     done = pyqtSignal(list)
 
@@ -252,6 +255,8 @@ class PostProcessWorker(QThread):
     def run(self):
         try:
             from utils.post_process import run_pipeline
+            # 通用 `firmware` 只喂给「重绘提线 / 局部重绘」；「衣装重绘」有自己的专用固件
+            # （`steps["wardrobe"]["firmware"]`），在 run_pipeline 里优先取它。
             result = run_pipeline(self.paths, self.steps, firmware=self.firmware,
                                   log_callback=self.log.emit, style_ref_path=self.style_ref_path)
         except Exception as exc:  # noqa: BLE001 - 后处理失败不能让结果列表空掉
@@ -557,9 +562,15 @@ class GptImage2Widget(QWidget):
 
         self.local_repaint_check = QCheckBox("局部重绘 + 羽化贴回")
         self.local_repaint_check.setToolTip(
-            "按区域裁切 → 放大 → 走 Gemini 重绘（当前固件 + 区域强调句）→ 羽化贴回。\n"
-            "头发糊就选「头发」，脸部用「脸部」；Gemini 没有 mask，这是最接近遮罩式局部重绘的做法。"
+            "⛔ 已停用（2026-10-07 用户要求）：裁切→重绘→贴回的废品率奇高 ——\n"
+            "模型会在裁切框里重新构图，贴回原坐标就是一块错位内容（历史还出过「多出来的椅子腿 + 水平拼接缝」）。\n"
+            "想修细节请用「衣装重绘」（整图、不裁切）或「重绘范围」。\n"
+            "手动实验仍可用 CLI：python tools/local_repaint_composite.py --image <图> --region hair"
         )
+        self.local_repaint_check.setChecked(False)
+        self.local_repaint_check.setEnabled(False)
+        # 不再进开关行：控件留着（老配置仍能读写），但不显示，免得误勾
+        self.local_repaint_check.setVisible(False)
 
         self.post_tone_check = QCheckBox("色调校准")
         self.post_tone_check.setToolTip(
@@ -573,6 +584,15 @@ class GptImage2Widget(QWidget):
 
         self.post_ink_check = QCheckBox("线条加墨")
         self.post_ink_check.setToolTip("只把已有线条压深，让线明显深于局部底色 —— 解决「线条看着稀碎」的问题。")
+
+        self.post_wardrobe_check = QCheckBox("衣装重绘")
+        self.post_wardrobe_check.setToolTip(
+            "最后一道 Gemini 重绘：只画角色**全部衣装**（蕾丝/系带/蝴蝶结/靴袜/荷叶边…），\n"
+            "解决细节散乱、糊成一团；件数、配色、材质族、装饰位置与遮挡关系保持不变。\n"
+            "用的是专用固件 prompts/gpt-image-optimize/wardrobe-repair-system.md ——\n"
+            "不套用「重绘提线」那套保守口径（保守口径只修线，不会主动把衣装结构画清楚）。\n"
+            "排在「局部重绘」之后、本地「色调校准/加墨」之前。"
+        )
 
         # 后处理失败重试：读取 pipeline-steps/pipeline-manifest.json，从失败节点继续
         self.post_retry_btn = QPushButton("重试失败步骤")
@@ -598,19 +618,21 @@ class GptImage2Widget(QWidget):
         switch_row.setContentsMargins(0, 0, 0, 0)
         switch_row.setSpacing(4)
 
-        # 第一行：一次出图之后会动到画面的工序
+        # 第一行：一次出图之后会动到画面的工序。
+        # 「局部重绘 + 羽化贴回」**已停用**（用户 2026-10-07：废品率奇高），控件不再进这一行。
         post_row = QHBoxLayout()
         post_row.setContentsMargins(0, 0, 0, 0)
         post_row.setSpacing(10)
-        for widget in (self.repaint_check, self.structure_check, self.local_repaint_check):
+        for widget in (self.repaint_check, self.structure_check):
             post_row.addWidget(widget)
         post_row.addStretch(1)
-        # 第二行：本地收尾工序（色调校准 + 目标 / 线条加墨）与两个动作按钮
+        # 第二行：本地收尾工序（色调校准 + 目标 / 线条加墨）与两个动作按钮。
+        # 「衣装重绘」放这一行的最前面 —— 它是**联网重绘**里最后一道，排在本地工序之前。
         finish_row = QHBoxLayout()
         finish_row.setContentsMargins(0, 0, 0, 0)
         finish_row.setSpacing(10)
-        for widget in (self.post_tone_check, self.post_tone_target, self.post_ink_check,
-                       self.post_retry_btn, self.post_reset_btn):
+        for widget in (self.post_wardrobe_check, self.post_tone_check, self.post_tone_target,
+                       self.post_ink_check, self.post_retry_btn, self.post_reset_btn):
             finish_row.addWidget(widget)
         finish_row.addStretch(1)
 
@@ -620,7 +642,7 @@ class GptImage2Widget(QWidget):
         self.post_switch_row.setLayout(switch_row)
         self.post_switch_row.setToolTip(
             "功能开关全部常驻可见（上下两行）：① 出图后的画面工序（重绘 / 结构线叠加 / 局部重绘）；\n"
-            "② 本地收尾（色调校准 + 目标、线条加墨）与动作按钮。"
+            "② 联网的「衣装重绘」（最后一道重绘）与本地收尾（色调校准 + 目标、线条加墨）+ 动作按钮。"
         )
         layout.addWidget(self.post_switch_row)
 
@@ -980,8 +1002,11 @@ class GptImage2Widget(QWidget):
             _set_combo_by_data(self.post_tone_target, state.get("tone_target"), "style")
         if "ink" in state:
             self.post_ink_check.setChecked(bool(state["ink"]))
+        if "wardrobe" in state and hasattr(self, "post_wardrobe_check"):
+            self.post_wardrobe_check.setChecked(bool(state["wardrobe"]))
         if "local" in state:
-            self.local_repaint_check.setChecked(bool(state["local"]))
+            # 已停用：读回来也强制关掉（老配置里可能还写着 local=True）
+            self.local_repaint_check.setChecked(False)
         if "local_region" in state:
             idx = self.local_region_combo.findData(state.get("local_region"))
             if idx >= 0:
@@ -1371,13 +1396,19 @@ class GptImage2Widget(QWidget):
                 self.post_ink_check.setChecked(
                     bool(post_node["ink_enabled"]) if "ink_enabled" in post_node
                     else (RECOMMENDED_POST["ink"] if not post_node else False))
+                if hasattr(self, "post_wardrobe_check"):
+                    # 老配置没有这个键：按推荐配方走（开），用户想关就在界面上取消勾选
+                    self.post_wardrobe_check.setChecked(
+                        bool(post_node["wardrobe_enabled"]) if "wardrobe_enabled" in post_node
+                        else RECOMMENDED_POST["wardrobe"])
                 if post_node:
                     self.structure_check.setChecked(bool(post_node.get("structure_enabled")))
                     try:
                         self.structure_strength_spin.setValue(float(post_node.get("structure_strength") or 0.5))
                     except (TypeError, ValueError):
                         pass
-                    self.local_repaint_check.setChecked(bool(post_node.get("local_enabled")))
+                    # 「局部重绘 + 羽化贴回」已停用：老配置里写的 local_enabled 一并不再生效
+                    self.local_repaint_check.setChecked(False)
                     region = str(post_node.get("local_region") or "hair")
                     idx = self.local_region_combo.findData(region)
                     if idx >= 0:
@@ -1434,6 +1465,8 @@ class GptImage2Widget(QWidget):
                 "tone_enabled": bool(self.post_tone_check.isChecked()),
                 "tone_target": str(self.post_tone_target.currentData() or "style"),
                 "ink_enabled": bool(self.post_ink_check.isChecked()),
+                "wardrobe_enabled": bool(getattr(self, "post_wardrobe_check", None) is None
+                                         or self.post_wardrobe_check.isChecked()),
                 "panel_open": bool(self.post_toggle_btn.isChecked()),
             }
         data[CONFIG_NODE] = node
@@ -1695,8 +1728,8 @@ class GptImage2Widget(QWidget):
         post_steps = self.post_pipeline_steps()
         active_post = [name for name, cfg in post_steps.items() if isinstance(cfg, dict) and cfg.get("enabled")]
         if active_post:
-            labels = {"structure": "结构线叠加", "local": "局部重绘+羽化贴回",
-                      "tone": "色调校准", "ink": "线条加墨"}
+            labels = {"structure": "结构线叠加", "local": "局部重绘+羽化贴回（已停用）",
+                      "wardrobe": "衣装重绘", "tone": "色调校准", "ink": "线条加墨"}
             self._append_log("[链路] 出图" + (" → 重绘" if chain_repaint else "")
                              + " → " + " → ".join(labels.get(n, n) for n in active_post)
                              + "，最终产物为最后一道工序的输出。")
@@ -1897,6 +1930,8 @@ class GptImage2Widget(QWidget):
                 include_repaint=chain_repaint,
                 include_structure=bool(steps.get("structure", {}).get("enabled")),
                 include_local=bool(steps.get("local", {}).get("enabled")),
+                # 「衣装重绘」是真实的一次 Gemini 2K 重绘调用，估算不能漏
+                include_wardrobe=bool(steps.get("wardrobe", {}).get("enabled")),
             )
         except Exception as exc:  # noqa: BLE001
             est = None
@@ -1963,13 +1998,17 @@ class GptImage2Widget(QWidget):
             repaint=False,          # 重绘在本 Tab 是独立的「重绘模式 / 链式重绘」，不走这条流水线
             structure=bool(self.structure_check.isChecked()),
             structure_strength=float(self.structure_strength_spin.value()),
-            local=bool(self.local_repaint_check.isChecked()),
+            # 「局部重绘 + 羽化贴回」已停用（用户 2026-10-07）：这里恒定 False，勾选框也摘掉了
+            local=False,
             local_region=str(self.local_region_combo.currentData() or "hair"),
             local_feather=int(self.local_feather_spin.value()),
             resolution=str(self.repaint_resolution_combo.currentText() or "2K"),
             tone=bool(self.post_tone_check.isChecked()) and bool(self.tone_reference_path()),
             tone_target=str(self.post_tone_target.currentData() or "style"),
             ink=bool(self.post_ink_check.isChecked()),
+            # 「衣装重绘」：最后一道 Gemini 重绘（专用固件），在本地色调/加墨之前
+            wardrobe=bool(getattr(self, "post_wardrobe_check", None) is None
+                          or self.post_wardrobe_check.isChecked()),
         )
 
     def tone_reference_path(self) -> str:
@@ -2014,10 +2053,10 @@ class GptImage2Widget(QWidget):
     def _start_post_process(self, paths):
         """在后台线程跑勾选的后处理工序（局部重绘要走网络，不能卡 UI）。"""
         steps = self.post_pipeline_steps()
-        self.status_label.setText("后处理中...(局部重绘可能要 1 分钟)")
+        self.status_label.setText("后处理中...(联网工序可能要 1 分钟)")
         firmware = None
-        if steps["local"]["enabled"]:
-            firmware = str(self.current_repaint_config().get("system_prompt") or "")
+        # 局部重绘已停用：它以前是唯一需要「当前重绘固件文本」的本地工序。
+        # 现在的联网工序是「衣装重绘」，固件由 steps["wardrobe"]["firmware"] 自带（专用固件）。
         self._post_worker = PostProcessWorker(paths, steps, firmware, self,
                                               style_ref_path=self.current_style_block()[1])
         self._post_worker.log.connect(self._append_log)

@@ -1,12 +1,21 @@
 # -*- coding: utf-8 -*-
 """生图产物后处理流水线（GUI 勾选框与 CLI 工具共用）。
 
-两步都是"在像素层面精修"，不改变画面内容：
+每一步都是"在像素层面精修"，不改变画面内容：
 1. `overlay_structure_lines` —— **结构线叠加**：抽「长结构边」→ 按局部色调整色 → 按 strength 叠回。
    纯本地、零 API 成本。实测三族平均段长 +6~22%、端点密度最多 −16%，配色/饱和度几乎不动
    （见 `docs/gpt-image-tid-style/README.md` §4.20）。
-2. `local_repaint_composite` —— **局部重绘 + 羽化贴回**：按区域裁切 → 放大 → 走 Gemini 重绘（v5 固件 +
-   区域强调句）→ 羽化贴回。近似"遮罩式局部重绘"（Gemini 的 generateContent 没有 mask 参数）。
+2. **衣装重绘**（`wardrobe` 工序，2026-10-07 新增）—— 整图送 Gemini，用专用固件
+   `prompts/gpt-image-optimize/wardrobe-repair-system.md` 只把衣装结构画清楚。
+3. **局部重绘 + 羽化贴回**（`local` 工序）—— 按区域裁切 → 放大 → 走 Gemini 重绘 → 羽化贴回，
+   近似"遮罩式局部重绘"（Gemini 的 generateContent 没有 mask 参数）。
+
+⚠️ **`local`（局部重绘+羽化贴回）已于 2026-10-07 由用户明确要求停用**：废品率奇高
+   （模型会在裁切框里重新构图，贴回原坐标就是一块错位内容；5 画风 × 4 区域实测报废 2 张，
+   历史还出过"多出来的椅子腿 + 水平拼接缝"）。现在它**不参与 `run_pipeline`**（调度循环里
+   已注释掉），GUI 勾选框也已从开关行摘掉、并强制关；`local_repaint_composite()` 与
+   `tools/local_repaint_composite.py` 作为**手动实验工具保留**（要用就显式调 CLI）。
+   修细节请用整图的「衣装重绘」或「重绘范围」，别再把它加回流水线。
 
 区域预设（比例坐标 left,top,right,bottom）：upper / head / hair / face / skirt / full。
 区域强调句用于把重绘注意力集中到该部位（头发最容易糊，所以 hair 有专门条款）。
@@ -1044,6 +1053,8 @@ def default_pipeline():
         # `dual_reference` 是**旧键**：只在 `reference_mode` 缺失时兜底（True → 线锚图）。
         # 新调用方请显式传 `reference_mode`；GUI 默认 none，style 仅供显式实验。
         "repaint": {"enabled": False, "dual_reference": True},
+        # 「衣装重绘」：整图重绘、专用固件（`firmware` 缺省时 run_pipeline 用 WARDROBE_REPAIR_FIRMWARE）
+        "wardrobe": {"enabled": False, "reference_mode": "style"},
         "contrast": {"enabled": False, "amount": 0.55, "protect_white": True, "radius": 12},
         "ink": {"enabled": False, "target_sep": 10.0, "amount": 1.0, "max_darken": 40.0,
                 "sigma": 6.0, "protect_light": 0.0},
@@ -1062,9 +1073,15 @@ def default_pipeline():
 STEP_LABELS = {"repaint": "重绘提线", "structure": "结构线叠加", "contrast": "白色材质局部对比",
                "ink": "线条加墨",
                "local": "局部重绘+羽化贴回",
+               "wardrobe": "衣装重绘",
                "tone": "色调校准"}
 STEP_TAGS = {"repaint": "rp", "structure": "sline", "contrast": "contrast", "local": "local",
-             "tone": "tone", "ink": "ink"}
+             "wardrobe": "wrd", "tone": "tone", "ink": "ink"}
+
+# 「衣装重绘」的专用固件（`prompts/gpt-image-optimize/wardrobe-repair-system.md`）：
+# 只重画角色全部衣装、解决细节散乱，保持设定逻辑不变。它**不复用 v5 保守修复固件** ——
+# v5 的口径是"别动、只修线"，实测正是这一步让蕾丝/系带糊成一团（用户 2026-10-07 对比图）。
+WARDROBE_REPAIR_FIRMWARE = "wardrobe-repair-system.md"
 
 
 def _manifest_path(work_dir):
@@ -1107,7 +1124,8 @@ def final_product_name(stem, run_id, steps_cfg, ext=".png"):
     工序串（rp/sline35/local-hair）说明这条产物经过了哪些处理，细节看 manifest。
     """
     tags = []
-    for key in ("repaint", "structure", "contrast", "local", "tone", "ink"):
+    # 注意：`local` 已停用（见模块 docstring），这里就不再给它打标签了
+    for key in ("repaint", "structure", "contrast", "wardrobe", "tone", "ink"):
         cfg = (steps_cfg or {}).get(key) or {}
         if not cfg.get("enabled"):
             continue
@@ -1508,7 +1526,8 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
     manifest["items"] = items
     by_source = {it.get("source"): it for it in items}
 
-    enabled_order = [k for k in ("repaint", "structure", "contrast", "local", "tone", "ink")
+    # `local`（局部重绘 + 羽化贴回）已按用户要求停用：不进调度顺序（详见模块 docstring）。
+    enabled_order = [k for k in ("repaint", "structure", "contrast", "wardrobe", "tone", "ink")
                      if (steps.get(k) or {}).get("enabled")]
 
     last_key = enabled_order[-1] if enabled_order else ""
@@ -1522,7 +1541,7 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
         done = {s.get("key"): s for s in (item.get("steps") or []) if s.get("status") == "succeeded"}
         base_stem = os.path.splitext(os.path.basename(path))[0]     # 原始来源名：最终产物用它
         current = path
-        for key in ("repaint", "structure", "contrast", "local", "tone", "ink"):
+        for key in ("repaint", "structure", "contrast", "wardrobe", "tone", "ink"):
             cfg = steps.get(key) or {}
             if not cfg.get("enabled"):
                 continue
@@ -1535,21 +1554,27 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
             try:
                 os.makedirs(work_dir, exist_ok=True)
                 stem = os.path.splitext(os.path.basename(current))[0]
-                if key == "repaint":
+                if key == "repaint" or key == "wardrobe":
+                    # 「重绘提线」= 当前固件；「衣装重绘」= 专用固件（`wardrobe-repair-system.md`）。
+                    # 后者不套用 v5 的"保守修复"口径：它要的正是**主动把衣装结构重画清楚**
+                    # （用户 2026-10-07：手动用一句"重绘全部衣装、解决细节散乱"的效果明显更好）。
+                    step_firmware = firmware
+                    if key == "wardrobe":
+                        step_firmware = cfg.get("firmware") or WARDROBE_REPAIR_FIRMWARE
                     # 最后一步 → 直接落 data/<日期>/；否则落 pipeline-steps/（中间产物）
                     if key == last_key:
                         os.makedirs(final_dir, exist_ok=True)
                         sub_dir = os.path.abspath(final_dir)
-                        prefix = f"{base_stem}-{run_id}-final-rp"
+                        prefix = f"{base_stem}-{run_id}-final-{STEP_TAGS.get(key, key)}"
                     else:
                         # 后端把 save_sub_dir 拼在 data/<日期>/ 下；直接给约定路径，
                         # 不用 os.path.relpath（跨盘符会 ValueError）
                         sub_dir = os.path.abspath(work_dir)
-                        prefix = "repaint"
+                        prefix = "repaint" if key == "repaint" else "wardrobe"
                     # 组装与实际发送共用同一份「有效请求」（第四轮 P0.3）：
                     # 预检拿到的 prompt / 参考图 / 参数就是这里真正发出去的那一份。
                     request = assemble_repaint_request(
-                        current, cfg, firmware=firmware, style_ref_path=style_ref_path,
+                        current, cfg, firmware=step_firmware, style_ref_path=style_ref_path,
                         style_clauses=style_clauses, sub_dir=sub_dir, prefix=prefix,
                         work_dir=work_dir)
                     for line in request.get("log_lines") or []:
@@ -1635,6 +1660,12 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                         line_rgb=cfg.get("line_rgb"))
                     log(f"[工序] 结构线叠加 覆盖率 {info['coverage']:.4f}")
                 else:
+                    # ── [已停用 2026-10-07] 局部重绘 + 羽化贴回（key == "local"）────────────────
+                    # 用户明确要求停用：废品率奇高（裁块里被重新构图 → 贴回原坐标即错位/鬼影）。
+                    # 已从 enabled_order 与上面的调度循环里摘掉，所以这个分支**永远不会执行**；
+                    # 代码留着是为了让手动实验工具 `tools/local_repaint_composite.py` 继续可用。
+                    # 要恢复成流水线工序：把 "local" 加回 enabled_order 与循环列表。
+                    # 修细节请改用整图的「衣装重绘」或「重绘范围」。
                     regions = [str(r) for r in (cfg.get("regions") or [cfg.get("region") or "hair"])
                                if str(r).strip()]
                     if not regions:
@@ -1678,6 +1709,7 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
                             scale=float(cfg.get("scale") or 0) or None,
                             feather=int(cfg.get("feather", DEFAULT_FEATHER)),
                             log_callback=log)
+                    # ── [已停用] 分支结束 ─────────────────────────────────────────────────────
                 item["steps"] = [s for s in (item.get("steps") or []) if s.get("key") != key]
                 item["steps"].append({"key": key, "status": "succeeded", "out": out})
                 item["final"] = out
