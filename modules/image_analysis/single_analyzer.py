@@ -19,7 +19,8 @@ from PyQt6.QtCore import QUrl
 from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d 
 from utils.booru_tags import normalize_booru_tags, filter_facial_degrading_tags, filter_facial_degrading_from_text
 from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags, merge_prompt_with_pixiv_tag_hints
-from utils.styles import style_prompt, style_ref_image, ref_image_valid, build_ref_gen_params
+from utils.styles import (style_prompt, style_ref_image, ref_image_valid, build_ref_gen_params,
+                          surface_clauses_for)
 from utils.style_ref_widget import StyleRefModeCombo
 from utils.pixiv_tag_matcher import get_local_pixiv_tag_candidates
 from utils.task_runtime import SystemNotifier, TaskCountdown
@@ -66,16 +67,21 @@ ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure"
                             "style_selection": "",
                             "wardrobe_selection": {"name": "", "policy": "replace"},
                             "atmosphere_selection": {"mood": "", "season": ""},
-                            "local": False, "region": STABLE_LOCAL_REGIONS[0],
+                            "local": False,          # 已停用（用户 2026-10-07）：裁切贴回废品率高，恒定关
+            "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
                             "quality": "high",
                             "size_follow_input": True,
                             "first_pass_size": "1024x1536",   # 取消「跟随输入图」后用的手动档
                             "tone": False, "tone_target": "style", "ink": False,
+                            # 「衣装重绘」：gpt 链最后一道 Gemini 重绘（专用固件），
+                            # 只重画角色全部衣装、解决细节散乱（用户 2026-10-07 要求，默认开）
+                            "wardrobe": True,
                             "repaint_scope": "full", "first_pass_mode": "generate",
                             "recipe_version": GPT_RECIPE_VERSION}
 GPT_RECIPE_KEYS = ("channel", "repaint", "structure", "local", "region", "regions", "quality",
-                   "size_follow_input", "tone", "tone_target", "ink", "repaint_scope", "first_pass_mode")
+                   "size_follow_input", "tone", "tone_target", "ink", "wardrobe",
+                   "repaint_scope", "first_pass_mode")
 
 
 def analysis_gpt_ui_path() -> str:
@@ -187,6 +193,103 @@ def _describe_image_source(image_source):
 def _generate_task_hash(image_source, submit_time, thread_no):
     seed = f"{_describe_image_source(image_source)}|{submit_time.isoformat()}|{thread_no}"
     return hashlib.md5(seed.encode("utf-8")).hexdigest()[:8]
+
+# ── Gemini 重试识别（用户 2026-10-06：重试过的任务要在队列里看得见） ──────────────
+# 只认这两条**已经真实打印**的日志：
+#   ① 网络重试（连接失败 / 5xx）：`modules/others/api_backend.py` 的 `[生成/api] 第 N 次重试...`
+#   ② 首图审计打回重画：`utils/first_image_audit.py` 的 `🎨 第 N/M 次出图…`（第 2 次起就是重画）
+# 别的"重试"字样（重试失败文件、等待重试期间被取消…）不会命中这两条。
+_GEMINI_RETRY_KIND_LABELS = {
+    "network": "Gemini 请求重试",
+    "audit": "首图审计重画",
+}
+
+# 「审计没跑完」与「审计把图打回」是两回事（用户 2026-10-07 反馈「有结果的也变红」）：
+# 前者（超时 / 审计被取消 / 剩余时间不够）图是好的，按「已完成（审计未完成）」交付，只提示不判失败；
+# 只有后者（全部候选被审计**明确**打回）才算需要人工复核。
+AUDIT_UNFINISHED_REASONS = ("audit_failed", "audit_cancelled", "budget_tight")
+AUDIT_REASON_LABELS = {
+    "audit_failed": "审计请求失败（超时/接口错误），未重画",
+    "audit_cancelled": "审计期间被取消/超时，未审完",
+    "budget_tight": "剩余时间不够再跑一轮审计+重画",
+}
+
+
+def detect_gemini_retry(message):
+    """从一行日志里认出「Gemini 又发起了一次尝试」。
+
+    返回 `("network", 第几次) | ("audit", 第几张) | None`；看不懂就返回 None。
+    """
+    text = str(message or "")
+    if "次重试" in text:
+        match = re.search(r"第\s*(\d+)\s*次重试", text)
+        if match:
+            return "network", int(match.group(1))
+    if "次出图" in text:
+        match = re.search(r"第\s*(\d+)\s*/\s*(\d+)\s*次出图", text)
+        if match:
+            return "audit", int(match.group(1))
+    return None
+
+
+def _retry_events(record):
+    events = (record or {}).get("gemini_retry_events")
+    return list(events) if isinstance(events, list) else []
+
+
+def _retry_count(kind, events):
+    """网络重试的"第 N 次"是权威计数；审计重画按事件条数算（事件只记真正的重画）。"""
+    if kind == "network":
+        numbers = [int(row.get("attempt") or 0) for row in events
+                   if isinstance(row, dict) and row.get("kind") == "network"]
+        return max(numbers) if numbers else 0
+    return sum(1 for row in events if isinstance(row, dict) and row.get("kind") == kind)
+
+
+def record_gemini_retry(record, kind, attempt=None, at=None):
+    """把一次重试写进队列记录，返回是否真的写了（重复事件按幂等处理）。
+
+    返回 (是否变化, 最新总次数, 最新时间文本)。
+    """
+    if not isinstance(record, dict) or kind not in _GEMINI_RETRY_KIND_LABELS:
+        return False, 0, ""
+    events = record.setdefault("gemini_retry_events", [])
+    stamp = (at or datetime.datetime.now()).strftime("%H:%M:%S")
+    number = int(attempt) if attempt else None
+    for row in events:
+        if not isinstance(row, dict) or row.get("kind") != kind:
+            continue
+        if number is not None and int(row.get("attempt") or 0) == number:
+            return False, _retry_count(kind, events), str(row.get("at") or "")
+        if number is None and kind == "audit":
+            return False, _retry_count(kind, events), str(row.get("at") or "")
+    events.append({"kind": kind, "attempt": number, "at": stamp})
+    total = max(1, _retry_count(kind, events))
+    record["gemini_retry_note"] = build_gemini_retry_note(record)
+    return True, total, stamp
+
+
+def build_gemini_retry_note(record):
+    """一行「已发起重试」摘要（给队列行与任务详情共用；没有重试就返回空串）。"""
+    events = _retry_events(record)
+    if not events:
+        return ""
+    kinds = []
+    for kind in ("network", "audit"):
+        count = _retry_count(kind, events)
+        if count > 0:
+            kinds.append(f"{_GEMINI_RETRY_KIND_LABELS[kind]} {count} 次")
+    if not kinds:
+        return ""
+    last_at = ""
+    for row in events:
+        if isinstance(row, dict) and str(row.get("at") or ""):
+            last_at = str(row["at"])
+    note = "🔁 已发起重试：" + "、".join(kinds)
+    if last_at:
+        note += f"（最近 {last_at}）"
+    return note
+
 
 def _to_bool(value, default=False):
     if isinstance(value, bool):
@@ -1063,6 +1166,180 @@ def step_5_recompute_pixiv_tags(final_json_data, client, model_name, timeout_sec
         return None
 
 
+def _abs_existing(path):
+    """把配置/产物里的相对路径（相对项目根）解析成存在的绝对路径；不存在返回空串。"""
+    text = str(path or "").strip()
+    if not text:
+        return ""
+    candidates = [text]
+    if not os.path.isabs(text):
+        candidates.insert(0, os.path.join(BASE_DIR, text))
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return os.path.abspath(candidate)
+    return ""
+
+
+def build_first_image_audit_callback(prompt_context, analysis_json_path, style_ref_path,
+                                     style_name="", wardrobe=None, styles=None, log_callback=None,
+                                     timeout=None):
+    """做出图线程用的审计回调：一张候选图 → 审计结论 dict。
+
+    - 审计图：候选图 → 画风参考图（若有）→ 源图（若有，仅文件输入才有路径）；
+    - 内容规格直接用分析产物里的 `gpt_image_prompt`（与 gpt 通道同源、比短锚完整），
+      短锚在参考优先模式下才是实际生图内容，所以两个都带上；
+    - 画风参考图的**具名内容禁区**优先取画风条目的 `reference_content_exclusions`，
+      没配时用 `utils.first_image_audit.DEFAULT_FORBIDDEN_ITEMS`；
+    - 服装（wardrobe）存在时把服装正文一起放进内容规格：它是本次授权的目标设计。
+    """
+    log = log_callback or (lambda message: None)
+    json_path = _abs_existing(analysis_json_path)
+    style_ref = _abs_existing(style_ref_path)
+    source_image = _abs_existing((prompt_context or {}).get("source_image_path"))
+    forbidden = []
+    try:
+        from utils.styles import reference_content_items
+        style_map = styles
+        if style_map is None:
+            with open(os.path.join(BASE_DIR, "conf", "config-styles.json"), encoding="utf-8") as handle:
+                style_map = json.load(handle) or {}
+        forbidden = reference_content_items(style_map, style_name)
+    except Exception:  # noqa: BLE001 - 画风条目读不到时用默认禁区，不阻断审计
+        forbidden = []
+
+    def _audit(candidate_path, prompt_used, round_index):
+        from utils.first_image_audit import audit_first_image, resolve_audit_content
+        result = {}
+        if json_path:
+            try:
+                with open(json_path, encoding="utf-8") as handle:
+                    result = json.load(handle) or {}
+            except (OSError, json.JSONDecodeError) as exc:
+                log(f"⚠️ 审计读不到分析产物（{exc}），改用本次提示词作为内容规格。")
+        content = str(prompt_used or "").strip()
+        full = resolve_audit_content(result, tier="full")
+        if full and full not in content:
+            content = content + "\n\n" + full
+        if not content:
+            content = resolve_audit_content(result, tier="short") or str(prompt_used or "")
+        wardrobe_text = ""
+        if wardrobe:
+            try:
+                from utils.wardrobe import wardrobe_prompt
+                wardrobe_text = wardrobe_prompt(wardrobe)
+            except Exception:  # noqa: BLE001
+                wardrobe_text = ""
+        if wardrobe_text:
+            content = content + "\n\nAUTHORIZED WARDROBE TARGET:\n" + wardrobe_text
+        log(f"🔍 首图审计（第 {round_index} 张）：内容规格 {len(content)} 字符，"
+            f"{'带画风样本' if style_ref else '无画风样本'}，{'带源图' if source_image else '无源图'}，"
+            f"禁区 {len(forbidden)} 条")
+        try:
+            kwargs = {"content": content, "style_ref_path": style_ref,
+                      "source_image_path": source_image, "forbidden": forbidden}
+            if timeout:
+                kwargs["timeout"] = int(timeout)
+            return audit_first_image(candidate_path, result, **kwargs)
+        except Exception as exc:  # noqa: BLE001 - 审计失败由上层折成「结论无效」
+            log(f"⚠️ 首图审计调用失败：{type(exc).__name__}: {exc}")
+            raise
+
+    return _audit if (json_path or style_ref) else None
+
+
+def first_image_audit_settings(config_path: str = "") -> dict:
+    """「审计 + 重画」设置：`conf/config.json` 缺键时默认开启、上限 2 张。"""
+    from utils.first_image_audit import audit_settings
+    path = config_path or os.path.join(BASE_DIR, "conf", "config.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return audit_settings(json.load(handle) or {})
+    except (OSError, json.JSONDecodeError):
+        return audit_settings({})
+
+
+def resolve_first_image_audit_timeout(base_timeout_seconds, audit_settings=None) -> int:
+    """单次首图审计的秒数上限。
+
+    一次性视觉审计（生成图 + 画风样本 + 源图）实测经常 60–180 秒，2026-10-07 的
+    `ReadTimeout: read timeout=180` 就是卡在这个上限上。默认给 180 秒；用户在配置里
+    写了 `gemini_audit_timeout_seconds` 就听用户的；最后夹在 [60, 600] 之间。
+    """
+    configured = (audit_settings or {}).get("timeout_seconds")
+    try:
+        value = int(configured) if configured else 0
+    except (TypeError, ValueError):
+        value = 0
+    if value <= 0:
+        try:
+            value = max(180, int(base_timeout_seconds or 0))
+        except (TypeError, ValueError):
+            value = 180
+    return max(60, min(600, value))
+
+
+def build_publish_name(task_hash, marker, extension):
+    """发布文件名：`<task hash>_<时间>-<标记><后缀>`。
+
+    hash 必须在第一个下划线字段（`publish_server.py` 靠它关联投稿 JSON），
+    标记 `-aN` 保留这张图是第几次尝试，便于和审计记录对账。
+
+    **后缀只是初值、不是承诺**：aigc2d 的 Gemini 网关会自己决定回 PNG 还是 JPEG，
+    真正落盘的后缀由 `utils.first_image_audit.promote_candidate` 按 magic bytes 纠正
+    （详见 `utils.image_identity`）。
+    """
+    ext = str(extension or "").strip() or ".png"
+    if not ext.startswith("."):
+        ext = "." + ext
+    stamp = datetime.datetime.now().strftime("%H%M%S")
+    token = os.urandom(3).hex()
+    return f"{str(task_hash or 'first')}_{stamp}-{str(marker or 'first')}-{token}{ext}"
+
+
+def first_image_publish_target(prompt_context, task_hash):
+    """Gemini 直出（含重画）的落盘目录与发布文件名。
+
+    - 目录 = 分析产物所在目录（`data/<日期>/`），拿不到时退回当天的 `data/<日期>/`；
+    - 开启 `IMAGE_MAKER_TEST_OUTPUT` 时走 `resolve_output_target` 改道测试目录，不污染真实产出；
+    - 多张候选由 `utils.first_image_audit.generate_with_audit` 逐张加 `-aN` 标记，见 `build_publish_name`。
+    """
+    from utils.output_isolation import resolve_output_target
+    analysis_json_path = str((prompt_context or {}).get("analysis_json_path") or "").strip()
+    directory = os.path.dirname(os.path.abspath(analysis_json_path)) if analysis_json_path \
+        else os.path.join("data", datetime.datetime.now().strftime("%Y%m%d"))
+    directory, _base = resolve_output_target(directory, "first-image")
+    return directory, build_publish_name(task_hash, "first", ".png")
+
+
+def analysis_queue_row_text(widget, record):
+    """分析队列一行文本（模块级：`_refresh_history_item` 会被单独绑到替身上跑）。
+
+    - 第二行 = [状态] 线程#N / 任务号 + 提交时间；
+    - 第三行 = 标题 / 画风 / 来源；
+    - 第四行 = Gemini 重试过才有：「🔁 已发起重试…」+ 任务 ID（用户 2026-10-06 要求）。
+    """
+    record = record if isinstance(record, dict) else {}
+    status_fn = getattr(widget, "_refresh_history_status_text", None)
+    status_text = status_fn(record) if callable(status_fn) else str(record.get("status_text") or "-")
+    title = str(record.get("title") or "未命名")
+    submit_time_text = record.get("submit_time_text", "-")
+    source_desc = str(record.get("source_desc") or "-")
+    generated_styles = list(dict.fromkeys(record.get("generation_styles") or []))
+    gen_style_note = f" | 生图画风：{'、'.join(generated_styles)}" if generated_styles else ""
+    task_hash = str(record.get("task_hash") or "--------")
+    text = (
+        f"[{status_text}] 线程#{record.get('thread_no', '?')} / {task_hash}  {submit_time_text}\n"
+        f"{title} | 画风：{record.get('style_name') or '-'}{gen_style_note} | {source_desc}"
+    )
+    note = str(record.get("gemini_retry_note") or build_gemini_retry_note(record)).strip()
+    if note:
+        text += f"\n{note} ｜ 任务 ID {task_hash}"
+    warning = str(record.get("pipeline_warning") or "").strip()
+    if warning:
+        text += f"\n⚠️ {warning}"
+    return text
+
+
 class WorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(dict)
@@ -1441,7 +1718,7 @@ class ImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(list)
 
-    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False, file_prefix=None, post_instructions=None):
+    def __init__(self, prompt, model_name, aspect_ratio, instructions, api_type=None, resolution=None, image_paths=None, verbose_debug=False, file_prefix=None, post_instructions=None, audit_retry=False, audit_callback=None, audit_max_attempts=2, audit_timeout=None, publish_dir="", publish_name=""):
         super().__init__()
         self.prompt = prompt
         self.model_name = model_name
@@ -1454,9 +1731,131 @@ class ImageGenWorkerThread(QThread):
         self.verbose_debug = bool(verbose_debug)
         self.file_prefix = str(file_prefix or "").strip()
         self.last_status = "idle"
+        # 「审计 + 重画」：只对 Gemini 直出生效（gpt 通道有自己的身份/人体/终审门禁）。
+        # 回调由 GUI 注入（`audit_callback(candidate, prompt, round) -> dict`），线程本身不建客户端。
+        self.audit_retry = bool(audit_retry)
+        self.audit_callback = audit_callback if callable(audit_callback) else None
+        # 没接审计回调时上限必须回到 1：否则这条"只出一次图"的路径会被误当成还有重画额度
+        self.audit_max_attempts = max(1, int(audit_max_attempts or 1)) if self.audit_callback else 1
+        self.publish_dir = str(publish_dir or "")
+        self.publish_name = str(publish_name or "")
+        # 单次审计的秒数上限：既传给审计请求，也用来给 `generate_with_audit` 估"还够不够再跑一轮"
+        self.audit_timeout = max(60, int(audit_timeout)) if audit_timeout else 0
+        # 剩余时间预算（GUI 的生图倒计时）：由 GUI 在启动时喂进来，让审计层自己判断
+        # 「还够不够再跑一轮审计+重画」，而不是被倒计时从审计中途掐掉（2026-10-07 用户反馈）
+        self.audit_retry_budget = None
+        self.audit_summary = {}
+        self.last_attempt_files = []
+        # 本次跑过的重试：[(kind, 第几次)] —— GUI 在收尾时据此往队列任务上补「已发起重试」
+        self.retry_events = []
 
     def request_cancel(self):
         self.requestInterruption()
+
+    def _log(self, message):
+        self.log_signal.emit(message)
+
+    def _message(self, message):
+        """唯一出口：队列靠这里认「Gemini 又发起了一次尝试」（网络重试 / 审计重画）。"""
+        text = str(message if message is not None else "")
+        self.retry_events = getattr(self, "retry_events", [])
+        detected = detect_gemini_retry(text)
+        if detected:
+            self.retry_events.append((detected[0], detected[1]))
+        self.log_signal.emit(text)
+
+    def _call_generator(self, prompt):
+        """出一次图，返回落盘文件列表（Gemini 通道两种 api_type 共用）。"""
+        if self.api_type == "aigc2d":
+            result = generate_image_aigc2d(
+                prompt=prompt,
+                image_paths=self.image_paths,
+                model=self.model_name,
+                aspect_ratio=self.aspect_ratio,
+                instructions=self.instructions,
+                api_type=self.api_type,
+                resolution=self.resolution,
+                file_prefix=self.file_prefix,
+                return_metadata=self.verbose_debug,
+                cancel_check=lambda: self.isInterruptionRequested(),
+                post_instructions=self.post_instructions
+            )
+        else:
+            result = generate_image_whatai(
+                prompt=prompt,
+                image_paths=self.image_paths,
+                model=self.model_name,
+                aspect_ratio=self.aspect_ratio,
+                instructions=self.instructions,
+                api_type=self.api_type,
+                resolution=self.resolution,
+                file_prefix=self.file_prefix,
+                return_metadata=self.verbose_debug,
+                cancel_check=lambda: self.isInterruptionRequested(),
+                post_instructions=self.post_instructions
+            )
+        if isinstance(result, dict):
+            return list(result.get("saved_files", []) or []), result
+        return list(result or []), (result if isinstance(result, dict) else None)
+
+    def _run_with_audit(self):
+        """Gemini 直出 + 审计 + 重画；返回最终要交付的文件列表（首图只有一张）。
+
+        每张候选都落在发布目录里，文件名带 `-aN` 标记（第几次尝试）；被审计打回的候选**保留**，
+        最终选中的那张另存一份不带 `-aN` 的发布名，队列与发布器仍按 hash 认它。
+        """
+        from utils.first_image_audit import generate_with_audit
+        self._log(f"🔁 已启用「首图审计 + 重画」：最多出 {self.audit_max_attempts} 张，"
+                  f"审计不通过就带着失败原因重画。")
+
+        def _generate(prompt, round_index):
+            if not (self.publish_dir and self.publish_name):
+                files, _meta = self._call_generator(prompt)
+                self.last_attempt_files.append((round_index, prompt, list(files)))
+                return files
+            stem, ext = os.path.splitext(self.publish_name)
+            name = f"{stem}-a{round_index}{ext or '.png'}"
+            kwargs = {
+                "prompt": prompt, "image_paths": self.image_paths, "model": self.model_name,
+                "aspect_ratio": self.aspect_ratio, "instructions": self.instructions,
+                "api_type": self.api_type, "resolution": self.resolution,
+                "file_prefix": os.path.splitext(name)[0], "return_metadata": self.verbose_debug,
+                "cancel_check": lambda: self.isInterruptionRequested(),
+                "post_instructions": self.post_instructions,
+                "save_sub_dir": os.path.abspath(self.publish_dir),
+            }
+            generated = generate_image_aigc2d(**kwargs) if self.api_type == "aigc2d" \
+                else generate_image_whatai(**kwargs)
+            files = list(generated.get("saved_files", []) or []) if isinstance(generated, dict) \
+                else list(generated or [])
+            self.last_attempt_files.append((round_index, prompt, list(files)))
+            return files
+
+        def _publish_name(round_index):
+            # 发布文件名保持基础名（不带 -aN）：-aN 只用于区分候选，最终交付仍是
+            # `<hash>_<时间>-first-<token>.png`。若这里回一个以 -aN 结尾的名字，
+            # `promote_candidate` 会算出与候选文件同一个路径、直接判定"无需复制"，
+            # 于是交付名里带上了尝试轮次（用户反馈过一次）。
+            return str(self.publish_name or "")
+
+        outcome = generate_with_audit(
+            _generate,
+            prompt=self.prompt,
+            max_attempts=self.audit_max_attempts,
+            audit=self.audit_callback,
+            content=self.post_instructions,
+            candidate_dir=self.publish_dir,
+            publish_dir=self.publish_dir,
+            publish_name=_publish_name if self.publish_name else "",
+            record_prefix=os.path.splitext(os.path.basename(self.publish_name or "first-image"))[0],
+            log_callback=self._message,
+            cancel_check=lambda: self.isInterruptionRequested(),
+            retry_budget=self.audit_retry_budget,
+            audit_timeout=self.audit_timeout or None,
+        )
+        self.audit_summary = outcome
+        published = str(outcome.get("published") or "")
+        return [published] if published else []
 
     def run(self):
         self.last_status = "running"
@@ -1464,8 +1863,8 @@ class ImageGenWorkerThread(QThread):
             self.last_status = "cancelled"
             self.finish_signal.emit([])
             return
-        self.log_signal.emit(f"\n🚀 开始请求生图 API (模型: {self.model_name})...")
-        self.log_signal.emit("请耐心等待，这可能需要几十秒的时间...")
+        self._message(f"\n🚀 开始请求生图 API (模型: {self.model_name})...")
+        self._message("请耐心等待，这可能需要几十秒的时间...")
         try:
             if self.verbose_debug:
                 self.log_signal.emit(
@@ -1480,7 +1879,32 @@ class ImageGenWorkerThread(QThread):
                         "image_paths": self.image_paths
                     })
                 )
-            # 根据api_type调用相应的生成函数
+            if self.audit_retry and self.audit_callback is not None:
+                saved_files = self._run_with_audit()
+                server_raw = None
+                if isinstance(self.audit_summary, dict) and self.audit_summary:
+                    # 兜底：队列行、任务详情与审计产物都要能看出「这次任务重试过几次」
+                    self.retry_events = getattr(self, "retry_events", [])
+                    self.retry_events.extend(
+                        ("audit", row) for row in range(2, len(self.audit_summary.get("candidates") or []) + 1))
+                    self.log_signal.emit(
+                        "=== 首图审计结果 ===\n" + _format_ui_log_json({
+                            "stopped_reason": self.audit_summary.get("stopped_reason"),
+                            "suspended": self.audit_summary.get("suspended"),
+                            "selected": self.audit_summary.get("published"),
+                            "rounds": [{"round": row.get("round"), "file": row.get("file"),
+                                        "verdict": (row.get("audit") or {}).get("verdict"),
+                                        "summary": (row.get("audit") or {}).get("summary")}
+                                       for row in self.audit_summary.get("candidates") or []],
+                        }))
+                if self.isInterruptionRequested():
+                    self.last_status = "cancelled"
+                    self.finish_signal.emit([])
+                    return
+                self.last_status = "success" if saved_files else "error"
+                self.finish_signal.emit(saved_files)
+                return
+            # 根据 api_type 调用相应的生成函数
             if self.api_type == "aigc2d":
                 result = generate_image_aigc2d(
                     prompt=self.prompt, 
@@ -2058,7 +2482,28 @@ class AnalysisHistoryDetailDialog(QDialog):
     def _build_summary_text(self):
         status_text = str(self.task_record.get("status_text") or "未知状态")
         title = str(self.task_record.get("title") or "未命名")
-        return f"线程 #{self.task_record.get('thread_no', '?')} | {status_text} | {title}"
+        text = f"线程 #{self.task_record.get('thread_no', '?')} | {status_text} | {title}"
+        retry_note = str(self.task_record.get("gemini_retry_note")
+                         or build_gemini_retry_note(self.task_record)).strip()
+        if retry_note:
+            text += f"\n{retry_note}"
+        return text
+
+    def _retry_detail_lines(self):
+        """任务详情里的重试明细：每一次重试的类型与时间（用户 2026-10-06 要求看得见重试与任务 ID）。"""
+        events = [row for row in _retry_events(self.task_record) if isinstance(row, dict)]
+        if not events:
+            return []
+        labels = [_GEMINI_RETRY_KIND_LABELS.get(str(row.get("kind")), str(row.get("kind")))
+                  for row in events]
+        counts = {label: labels.count(label) for label in dict.fromkeys(labels)}
+        task_hash = str(self.task_record.get("task_hash") or "--------")
+        total = sum(_retry_count(kind, events) for kind in ("network", "audit"))
+        summary = "、".join(f"{label} {count} 次" for label, count in counts.items())
+        lines = [f"已发起重试: {total} 次（{summary}）",
+                 f"重试任务 ID: {task_hash}",
+                 "重试时间: " + "、".join(str(row.get("at") or "-") for row in events)]
+        return lines
 
     def _build_detail_text(self):
         lines = [
@@ -2067,11 +2512,14 @@ class AnalysisHistoryDetailDialog(QDialog):
             f"提交时间: {self.task_record.get('submit_time_text', '-')}",
             f"完成时间: {self.task_record.get('finish_time_text', '-')}",
             f"任务 Hash: {self.task_record.get('task_hash', '-')}",
+        ]
+        lines.extend(self._retry_detail_lines())
+        lines.extend([
             f"画风预设: {self.task_record.get('style_name') or '-'}",
             f"图片源: {self.task_record.get('source_desc', '-')}",
             f"标题: {self.task_record.get('title', '未命名')}",
             f"JSON 文件: {self.task_record.get('saved_json_path', '-')}",
-        ]
+        ])
         source_path = str(self.task_record.get("source_path") or "").strip()
         if source_path:
             origin_text = "剪贴板快照" if str(self.task_record.get("source_origin") or "") == "clipboard" else "原图"
@@ -2360,6 +2808,25 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_channel_group.addButton(self.gen_channel_gpt, 1)
         channel_row.addWidget(self.gen_channel_gemini)
         channel_row.addWidget(self.gen_channel_gpt)
+        # 「首图审计 + 重画」只作用于 Gemini 直出（gpt 通道已有身份/人体/终审门禁）。
+        # 放在通道这一行：不新增常驻行（布局契约：gpt 通道只多两行工序/参数），且始终可见。
+        self.gemini_audit_retry = QCheckBox("首图审计")
+        self.gemini_audit_retry.setChecked(True)
+        self.gemini_audit_retry.setToolTip(
+            "Gemini 直出后先审计这一张：内容是否与本次要求一致、有没有把画风参考图的角色/服装/\n"
+            "道具/场景搬过来、画法是否跟上了参考图。不通过就带着失败原因重画（上限见右侧）。\n"
+            "重画出来的图与原图都留在当天的候选目录里，审计记录写 <hash>-first-image-audit.json。"
+        )
+        channel_row.addWidget(self.gemini_audit_retry)
+        self.gemini_audit_attempts = QComboBox()
+        self.gemini_audit_attempts.addItem("最多 2 张", 2)
+        self.gemini_audit_attempts.addItem("最多 3 张", 3)
+        self.gemini_audit_attempts.setMaximumWidth(96)
+        self.gemini_audit_attempts.setToolTip(
+            "首图 + 重画的总张数上限（每一张都要计费）。审计调用走文本通道，也会计费。\n"
+            "上限用尽仍不合格时：选内容最接近的一张保存，并在队列里标记需要人工复核。"
+        )
+        channel_row.addWidget(self.gemini_audit_attempts)
         channel_row.addStretch(1)
         self.gen_channel_row = QWidget()
         self.gen_channel_row.setLayout(channel_row)
@@ -2383,7 +2850,15 @@ class SingleAnalyzerWidget(QWidget):
         self.gpt_pp_repaint.setToolTip("把 GPT 首图与完整画风图交给 Gemini 提线；随后按首图 prompt 最多做两轮身份定点修订。")
 
         self.gpt_pp_structure = QCheckBox("结构线叠加")
+        # 「局部重绘贴回」已停用（用户 2026-10-07：裁切贴回废品率奇高）。控件留着读老配置，
+        # 但不再进这一行、也不参与生成：`_build_gpt_image_steps()` 恒定传 local=False。
         self.gpt_pp_local = QCheckBox("局部重绘贴回")
+        self.gpt_pp_local.setChecked(False)
+        self.gpt_pp_local.setEnabled(False)
+        self.gpt_pp_local.setVisible(False)
+        self.gpt_pp_local.setToolTip(
+            "⛔ 已停用（2026-10-07 用户要求）：裁切→重绘→贴回的废品率奇高（模型在裁切里重新构图，贴回原坐标=错位）。\n"
+            "修细节请用「衣装重绘」。手动实验仍可用 python tools/local_repaint_composite.py")
         self.gpt_pp_region = QComboBox()
         self.gpt_pp_region.setMaximumWidth(220)          # 标签很长：限宽 + tooltip 兜住完整解释
         try:
@@ -2402,8 +2877,7 @@ class SingleAnalyzerWidget(QWidget):
         )
         pp_row.addWidget(QLabel("gpt 工序:"))
         pp_row.addWidget(self.gpt_pp_structure)
-        pp_row.addWidget(self.gpt_pp_local)
-        pp_row.addWidget(self.gpt_pp_region)
+        # 局部重绘（gpt_pp_local / gpt_pp_region）已停用：不再进这一行
         pp_row.addWidget(QLabel("重绘范围:"))
         self.gpt_pp_scope = QComboBox()
         self.gpt_pp_scope.setMaximumWidth(220)           # 同上：范围标签很长，限宽避免把整行撑爆
@@ -2483,6 +2957,18 @@ class SingleAnalyzerWidget(QWidget):
         self.gpt_pp_ink = QCheckBox("线条加墨")
         self.gpt_pp_ink.setToolTip("只把已有线条压深，让线明显深于局部底色 —— 解决「线条看着稀碎」的问题。")
         q_row.addWidget(self.gpt_pp_ink)
+
+        # 「衣装重绘」：gpt 链**最后一道 Gemini 重绘**（跨实验室那条线也照跑）。标签刻意短，
+        # 完整解释进 tooltip —— 这一行是横排的，字太长会把选项区撑宽。
+        self.gpt_pp_wardrobe = QCheckBox("衣装重绘")
+        self.gpt_pp_wardrobe.setToolTip(
+            "最后一道 Gemini 重绘：只画角色**全部衣装**（蕾丝/系带/蝴蝶结/靴袜/荷叶边…），\n"
+            "解决细节散乱、糊成一团；件数、配色、材质族、装饰位置与遮挡关系保持不变。\n"
+            "用专用固件 prompts/gpt-image-optimize/wardrobe-repair-system.md ——\n"
+            "它不套用「重绘提线」那套保守口径（保守口径只修线，不会主动把衣装结构画清楚）。\n"
+            "排在「局部重绘」之后、本地「色调校准/加墨」之前；关掉它可省一次 Gemini 调用。"
+        )
+        q_row.addWidget(self.gpt_pp_wardrobe)
         q_row.addStretch(1)
         self.gpt_param_row = QWidget()
         self.gpt_param_row.setLayout(q_row)
@@ -2537,7 +3023,15 @@ class SingleAnalyzerWidget(QWidget):
         bottom.addLayout(gen_img_layout)
 
         history_header_layout = QHBoxLayout()
-        history_header_layout.addWidget(QLabel("历史分析结果:"))
+        # 「队列 N 条 ｜ 进行中 M」是**实时**在跑数：`线程#N` 只是累计提交序号，跑完不回收，
+        # 只看那个数字会以为线程没释放（用户 2026-10-06 反馈），这里给一个不打哑谜的口径。
+        self.history_summary_label = QLabel(self._queue_summary_text())
+        self.history_summary_label.setToolTip(
+            "「队列 N 条」= 这个列表里的任务总数（含历史，不会自动清）。\n"
+            "「进行中 M」= 此刻真的还有线程在跑的任务数（线程退出即减，跑完就回收）。\n"
+            "行里的「线程#N」是**累计提交序号**，给日志与重跑引用用，不是当前线程数。"
+        )
+        history_header_layout.addWidget(self.history_summary_label)
         history_header_layout.addStretch()
         self.apply_history_btn = QPushButton("设为当前结果")
         self.apply_history_btn.setEnabled(False)
@@ -2554,6 +3048,10 @@ class SingleAnalyzerWidget(QWidget):
         self.history_list.setToolTip(
             "分析队列：每行一条分析任务（批量提交会排进同一列表）。\n"
             "状态 = 该任务**全部工序**的状态：绿色[已完成] 表示分析、生图、后处理都跑完了。\n"
+            "行里的「线程#N」是累计提交序号（跑完不回收，给日志与重跑引用用）；\n"
+            "真正「还在跑几条」看标题行的「进行中 M」。\n"
+            "Gemini 中途重试过（429/5xx 自动重试、首图审计打回重画）会在该任务下面多一行\n"
+            "「🔁 已发起重试… ｜ 任务 ID xxxx」。\n"
             "在失败/超时的记录上点右键可「重跑分析」或「重跑分析并生图」。"
         )
         self.history_list.itemSelectionChanged.connect(self._update_history_action_buttons)
@@ -2812,6 +3310,7 @@ class SingleAnalyzerWidget(QWidget):
         self.history_list.insertItem(0, item)
         self._refresh_history_item(task_id)
         self.history_list.setCurrentItem(item)
+        self._refresh_queue_summary()
 
     def _refresh_history_status_text(self, record):
         """状态文案：进行中时把当前阶段也带上（生图 / 后处理），避免"已完成"抢跑。"""
@@ -2824,6 +3323,93 @@ class SingleAnalyzerWidget(QWidget):
             base += "·" + STAGE_LABELS.get(record["failed_stage"], record["failed_stage"])
         return base
 
+    def _history_row_text(self, record):
+        """队列一行文本（转发到模块级实现，见 `analysis_queue_row_text`）。"""
+        return analysis_queue_row_text(self, record)
+
+    def _record_is_in_flight(self, record):
+        """这条记录现在还在跑吗（分析线程 / 生图线程 / 后处理线程任一挂着它）。"""
+        if not isinstance(record, dict):
+            return False
+        if str(record.get("status") or "").strip().lower() != "running":
+            return False
+        task_id = str(record.get("task_id") or "")
+        for thread in list(getattr(self, "_active_analysis_threads", []) or []):
+            if task_id and str(getattr(thread, "meta_task_id", "") or "") == task_id:
+                return True
+        task_hash = str(record.get("task_hash") or "").strip()
+        belongs = getattr(self, "_pipeline_pending_for_hash", None)
+        return bool(task_hash and callable(belongs) and belongs(task_hash))
+
+    def _queue_summary_text(self):
+        """队列摘要：条数 + **此刻真正在跑**的条数。
+
+        `线程#N` 是累计提交序号，跑完不回收，所以它只增不减 —— 光看那个数字会以为还有一堆线程
+        （用户 2026-10-06 反馈「以前跑完的线程不释放吗」）。这里明确给出实时在跑数。
+        """
+        history = getattr(self, "_analysis_history", {}) or {}
+        total = len(history)
+        running = []
+        try:
+            running = [record for record in list(history.values()) if self._record_is_in_flight(record)]
+        except Exception:  # noqa: BLE001 - 摘要只是显示，不能影响队列本身
+            running = []
+        text = f"历史分析结果：队列 {total} 条 ｜ 进行中 {len(running)}"
+        if not running:
+            return text
+        breakdown = []
+        if getattr(self, "_active_analysis_threads", None):
+            breakdown.append(f"分析 {len(self._active_analysis_threads)}")
+        if getattr(self, "_active_img_threads", None):
+            breakdown.append(f"生图 {len(self._active_img_threads)}")
+        if getattr(self, "_active_post_threads", None):
+            breakdown.append(f"后处理 {len(self._active_post_threads)}")
+        if breakdown:
+            text += "（" + "、".join(breakdown) + "）"
+        return text
+
+    def _refresh_queue_summary(self):
+        label = getattr(self, "history_summary_label", None)
+        if label is None:
+            return
+        summariser = getattr(self, "_queue_summary_text", None)
+        if not callable(summariser):
+            summariser = lambda: (f"历史分析结果：队列 {len(getattr(self, '_analysis_history', {}) or {})} 条")
+        try:
+            label.setText(summariser())
+        except Exception as exc:  # noqa: BLE001 - 摘要只是显示，不能影响队列本身
+            self.log_msg(f"⚠️ 队列摘要刷新失败: {exc}")
+
+    def _on_gemini_thread_log(self, thread, text):
+        """生图线程的日志出口：原来的逐行转发 + 认「Gemini 又发起了一次尝试」。"""
+        detected = detect_gemini_retry(text)
+        if detected:
+            self._note_gemini_retry(getattr(thread, "meta_task_hash", ""), detected[0], detected[1])
+        self.log_msg(text, prefix=self._build_thread_prefix(
+            "生图线程",
+            getattr(thread, "meta_thread_no", "?"),
+            getattr(thread, "meta_analysis_thread_no", None)))
+
+    def _note_gemini_retry(self, task_hash, kind, attempt=None):
+        """把一次 Gemini 重试写进该任务的所有队列记录（含重跑产生的记录）。"""
+        changed = False
+        for task_id in self._history_task_ids_for_hash(task_hash):
+            record = self._analysis_history.get(task_id)
+            if not isinstance(record, dict):
+                continue
+            wrote, count, stamp = record_gemini_retry(record, kind, attempt)
+            if not wrote:
+                continue
+            changed = True
+            label = _GEMINI_RETRY_KIND_LABELS.get(kind, kind)
+            self.log_msg(f"🔁 已发起重试：{label} 第 {count} 次（{stamp}）"
+                         f" | 任务 ID {str(task_hash or '--------')}"
+                         f" | 队列第 {record.get('thread_no', '?')} 条")
+            self._refresh_history_item(task_id)
+        if changed:
+            self._refresh_queue_summary()
+        return changed
+
     def _refresh_history_item(self, task_id):
         record = self._analysis_history.get(task_id)
         if not record:
@@ -2835,22 +3421,23 @@ class SingleAnalyzerWidget(QWidget):
             if item.data(Qt.ItemDataRole.UserRole) != task_id:
                 continue
             found = True
-            status_text = self._refresh_history_status_text(record)
-            title = str(record.get("title") or "未命名")
-            submit_time_text = record.get("submit_time_text", "-")
-            source_desc = str(record.get("source_desc") or "-")
-            generated_styles = list(dict.fromkeys(record.get("generation_styles") or []))
-            gen_style_note = f" | 生图画风：{'、'.join(generated_styles)}" if generated_styles else ""
-            item.setText(
-                f"[{status_text}] 线程#{record.get('thread_no', '?')} / {record.get('task_hash', '--------')}  {submit_time_text}\n"
-                f"{title} | 画风：{record.get('style_name') or '-'}{gen_style_note} | {source_desc}"
-            )
+            try:
+                item.setText(analysis_queue_row_text(self, record))
+            except Exception as exc:  # noqa: BLE001 - 行文本渲染失败不能把整条记录刷没
+                self.log_msg(f"⚠️ 队列行文本渲染失败，退回基础文案: {exc}")
+                item.setText(f"[{record.get('status_text', '-')}] 线程#{record.get('thread_no', '?')} / "
+                             f"{record.get('task_hash', '--------')}\n{record.get('title', '未命名')}")
             item.setForeground(self._status_to_color(record.get("status")))
             item.setToolTip(str(record.get("pipeline_error") or "") + "\n" +
-                            "\n".join(record.get("generation_checkpoints") or []))
+                            "\n".join(record.get("generation_checkpoints") or []) +
+                            (f"\n⚠️ {record.get('pipeline_warning')}" if record.get("pipeline_warning") else "") +
+                            (f"\n{record.get('gemini_retry_note')}" if record.get("gemini_retry_note") else ""))
             break
         if not found:
             self.log_msg(f"⚠️ _refresh_history_item: task_id={task_id} 对应的 QListWidgetItem 未找到，列表可能已被清空")
+        refresh = getattr(self, "_refresh_queue_summary", None)
+        if callable(refresh):
+            refresh()
 
     def _update_history_record(self, task_id, **kwargs):
         if not task_id:
@@ -2863,6 +3450,9 @@ class SingleAnalyzerWidget(QWidget):
         record.update(kwargs)
         record["status_text"] = self._status_to_text(record.get("status"))
         self._refresh_history_item(task_id)
+        refresh = getattr(self, "_refresh_queue_summary", None)
+        if callable(refresh):
+            refresh()
 
     def _selected_history_record(self):
         item = self.history_list.currentItem()
@@ -3502,6 +4092,7 @@ class SingleAnalyzerWidget(QWidget):
                 self.history_list.takeItem(row)
                 break
         self._update_history_action_buttons()
+        self._refresh_queue_summary()
         self.log_msg(
             f"🗑️ 已从分析队列移除记录: 线程#{record.get('thread_no', '?')} / {record.get('task_hash', '--------')}"
         )
@@ -3920,6 +4511,7 @@ class SingleAnalyzerWidget(QWidget):
             self._active_analysis_threads.remove(thread)
         self.send_btn.setEnabled(bool(self.image_source))
         self._update_analysis_cancel_btn()
+        self._refresh_queue_summary()     # 实时「进行中」计数：线程退出即收紧
         # 兜底检查：如果线程已退出但历史记录仍处于"处理中"状态，说明 on_process_finished
         # 未能成功更新历史记录（可能是回调异常或信号丢失），此时标记失败，不能凭线程退出标绿。
         # 【例外】本任务还要自动生图/后处理时，记录是**故意**留在 running 的（phase=生图/后处理中），
@@ -4207,11 +4799,16 @@ class SingleAnalyzerWidget(QWidget):
                     self._auto_gen_groups[auto_group_id]["expected"] = started_count
                     self.log_msg(f"🤖 检测到自动生图任务，共 {started_count} 项，通知将于全部生图结束后发送。", prefix=thread_prefix)
                 else:
-                    # 一个生图线程都没起来（缺 key / 目标提示词为空…）：本任务到此结束，
-                    # 不能因为前面按「还会生图」把记录留在 running，就让它永远吊在「进行中」。
+                    # 一个生图线程都没起来（缺 key / 目标提示词为空…）：本任务到此结束。
+                    # 这里只写失败原因，标红交给 `_finalize_task_pipeline` 统一收尾（它会看到
+                    # `failed_stage` 这条明确标记）；否则记录会永远吊在「进行中」（2026-10-07 复查发现）。
                     self._auto_gen_groups.pop(auto_group_id, None)
                     self.log_msg("❌ 自动生图没有启动任何任务，分析结果已保留，队列标记失败。",
                                  prefix=thread_prefix)
+                    for _tid in self._history_task_ids_for_hash(local_task_hash):
+                        rec = self._analysis_history.get(_tid)
+                        if rec is not None:
+                            rec["failed_stage"] = "publish"
                     self._finalize_task_pipeline(local_task_hash)
                     self._send_system_notification("单图生图失败", "分析结果已保存，但自动生图未能启动。")
             else:
@@ -4245,6 +4842,18 @@ class SingleAnalyzerWidget(QWidget):
             self.log_msg("⏰ 生图超时倒计时已到，正在终止当前生图任务...")
             return
         self.gen_countdown_label.setText(f"生图超时倒计时: {remain} 秒")
+
+    def _remaining_image_gen_budget(self):
+        """生图倒计时还剩多少秒（给审计层判断"还够不够再跑一轮"；没在计时返回 None）。"""
+        if not getattr(self, "_img_gen_running", False):
+            return None
+        deadline = getattr(self, "_img_gen_deadline", None)
+        if deadline is None:
+            return None
+        try:
+            return max(0.0, (deadline - datetime.datetime.now()).total_seconds())
+        except TypeError:
+            return None
 
     def _mark_pipeline_busy(self):
         """进入后处理阶段：保持按钮禁用 + 状态提示，避免看着像已完成。"""
@@ -4289,6 +4898,7 @@ class SingleAnalyzerWidget(QWidget):
         self._mark_pipeline_idle_if_done()          # 生图 + 后处理都结束才恢复按钮并提示完成
         if task_hash:
             self._finalize_task_pipeline(task_hash)  # 管线没别的线程了 → 有产物就标绿
+        self._refresh_queue_summary()               # 实时「进行中」计数：线程退出即收紧
 
     def cancel_image_generation(self, reason="manual"):
         if not self._active_img_threads:
@@ -4338,7 +4948,8 @@ class SingleAnalyzerWidget(QWidget):
             self.gen_channel_gpt.setChecked(True)
         self.gpt_pp_repaint.setChecked(bool(state.get("repaint")))
         self.gpt_pp_structure.setChecked(bool(state.get("structure")))
-        self.gpt_pp_local.setChecked(bool(state.get("local")))
+        # 局部重绘已停用：老配置里写着 True 也强制关掉
+        self.gpt_pp_local.setChecked(False)
         self.gpt_size_follow_cb.setChecked(bool(state.get("size_follow_input", True)))
         # 老配置只有「尺寸跟随输入图」勾选框：当时取消勾选就等于固定 1024x1536，这里照旧迁移。
         _size_idx = self.gpt_size_combo.findData(str(state.get("first_pass_size") or "1024x1536"))
@@ -4347,6 +4958,12 @@ class SingleAnalyzerWidget(QWidget):
         self._sync_gpt_size_controls()
         self.gpt_pp_tone.setChecked(bool(state.get("tone")))
         self.gpt_pp_ink.setChecked(bool(state.get("ink")))
+        # 衣装重绘默认开启（用户 2026-10-07 明确要求）：老配置没有这个键时也走默认
+        self.gpt_pp_wardrobe.setChecked(state.get("wardrobe", True) is not False)
+        # 首图审计默认开启（用户 2026-10-06 明确要求）：老配置没有这个键时也走默认开
+        self.gemini_audit_retry.setChecked(state.get("gemini_audit_retry", True) is not False)
+        _ai = self.gemini_audit_attempts.findData(int(state.get("gemini_audit_attempts", 2) or 2))
+        self.gemini_audit_attempts.setCurrentIndex(max(0, _ai))
         _ti = self.gpt_pp_tone_target.findData(str(state.get("tone_target") or "style"))
         if _ti >= 0:
             self.gpt_pp_tone_target.setCurrentIndex(_ti)
@@ -4378,7 +4995,7 @@ class SingleAnalyzerWidget(QWidget):
             "auto_gen_refined": bool(self.auto_gen_ref_cb.isChecked()),
             "repaint": bool(self.gpt_pp_repaint.isChecked()),
             "structure": bool(self.gpt_pp_structure.isChecked()),
-            "local": bool(self.gpt_pp_local.isChecked()),
+            "local": False,          # 局部重绘已停用，界面记忆里也恒定写 False
             "region": regions[0],
             "regions": regions,
             "quality": str(self.gpt_quality_combo.currentData() or "high"),
@@ -4387,6 +5004,12 @@ class SingleAnalyzerWidget(QWidget):
             "tone": bool(self.gpt_pp_tone.isChecked()),
             "tone_target": str(self.gpt_pp_tone_target.currentData() or "style"),
             "ink": bool(self.gpt_pp_ink.isChecked()),
+            "wardrobe": bool(getattr(self, "gpt_pp_wardrobe", None) is None
+                             or self.gpt_pp_wardrobe.isChecked()),
+            "gemini_audit_retry": bool(getattr(self, "gemini_audit_retry", None) is None
+                                       or self.gemini_audit_retry.isChecked()),
+            "gemini_audit_attempts": int(getattr(self, "gemini_audit_attempts", None).currentData()
+                                         if getattr(self, "gemini_audit_attempts", None) is not None else 2),
             "repaint_scope": str(getattr(self, "gpt_pp_scope", None).currentData()
                                  if getattr(self, "gpt_pp_scope", None) is not None else "full"),
             "recipe_version": GPT_RECIPE_VERSION,
@@ -4417,6 +5040,9 @@ class SingleAnalyzerWidget(QWidget):
                                (self.gpt_size_follow_cb, "toggled"),
                                (self.gpt_pp_tone, "toggled"),
                                (self.gpt_pp_ink, "toggled"),
+                               (self.gpt_pp_wardrobe, "toggled"),
+                               (self.gemini_audit_retry, "toggled"),
+                               (self.gemini_audit_attempts, "currentIndexChanged"),
                                (self.gpt_pp_tone_target, "currentIndexChanged"),
                                (self.gpt_pp_scope, "currentIndexChanged"),
                                (self.gpt_pp_region, "currentIndexChanged"),
@@ -4425,6 +5051,7 @@ class SingleAnalyzerWidget(QWidget):
                                (self.gpt_quality_combo, "currentIndexChanged")):
             getattr(widget, signal).connect(self._save_gpt_pipeline_ui)
         self.gpt_size_follow_cb.toggled.connect(self._sync_gpt_size_controls)
+        self.gemini_audit_retry.toggled.connect(self._on_gen_channel_changed)
 
     def _gpt_image_channel_active(self) -> bool:
         widget = getattr(self, "gen_channel_gpt", None)
@@ -4458,6 +5085,13 @@ class SingleAnalyzerWidget(QWidget):
             row = getattr(self, name, None)
             if row is not None:
                 row.setVisible(active and advanced is not None and advanced.isChecked())
+        # 首图审计只作用于 Gemini 直出：走 gpt 通道时置灰但仍可见（不隐藏，避免"只给文字没有功能"）
+        gemini_audit = getattr(self, "gemini_audit_retry", None)
+        if gemini_audit is not None:
+            gemini_audit.setEnabled(not active)
+        attempts = getattr(self, "gemini_audit_attempts", None)
+        if attempts is not None:
+            attempts.setEnabled(not active and gemini_audit is not None and gemini_audit.isChecked())
 
     def _build_gpt_image_steps(self) -> dict:
         from utils.analysis_gen import pipeline_steps_from_flags
@@ -4473,11 +5107,15 @@ class SingleAnalyzerWidget(QWidget):
         return pipeline_steps_from_flags(
             repaint=bool(getattr(self, "gpt_pp_repaint", None) and self.gpt_pp_repaint.isChecked()),
             structure=bool(getattr(self, "gpt_pp_structure", None) and self.gpt_pp_structure.isChecked()),
-            local=bool(getattr(self, "gpt_pp_local", None) and self.gpt_pp_local.isChecked()),
+            # 局部重绘已停用（用户 2026-10-07）：恒定 False，勾选框也已摘掉
+            local=False,
             local_regions=regions,
             tone=bool(getattr(self, "gpt_pp_tone", None) and self.gpt_pp_tone.isChecked()),
             tone_target=tone_target,
             ink=bool(getattr(self, "gpt_pp_ink", None) and self.gpt_pp_ink.isChecked()),
+            # 最后一道重绘：衣装重绘（专用固件，设定逻辑锁在提示词里）
+            wardrobe=bool(getattr(self, "gpt_pp_wardrobe", None) is None
+                          or self.gpt_pp_wardrobe.isChecked()),
             repaint_ref_mode="style",
             repaint_scope=str(scope_combo.currentData() or "full") if scope_combo is not None else "full",
         )
@@ -4486,9 +5124,10 @@ class SingleAnalyzerWidget(QWidget):
         """超时预算 = 每道**联网**工序一份；重绘另预留初审和最多两轮定点修订/复审。
 
         用户要求：不要用一个总体 120 秒掐掉整条链（high 画质首图常要 120 秒以上，
-        后面还有重绘/局部重绘），而是「一道工序 120 秒」。
+        后面还有重绘/衣装重绘），而是「一道工序 120 秒」。
         结构线/色调校准/加墨是本地工序（秒级），不算配额，否则超时窗口会被它们虚高；
-        而局部重绘是多区域的**逐个 API 调用**，每个区域各占一份（默认四区链 → 6 份 = 720 秒）。
+        局部重绘（已停用）曾经是多区域的**逐个 API 调用**，每个区域各占一份；现在改由
+        **衣装重绘**占一份——它是整图重绘、一次调用，但同样是联网工序。
         """
         steps = steps or {}
         slots = 1                                                   # 首图
@@ -4504,7 +5143,10 @@ class SingleAnalyzerWidget(QWidget):
                 slots += 1
         elif request_payload is not None:
             slots += 9  # 安全替代身份审计/两轮修订复审 + 人体 + 最终门禁。
+        if (steps.get("wardrobe") or {}).get("enabled"):
+            slots += 1  # 衣装重绘：整图一次 Gemini 调用
         if (steps.get("local") or {}).get("enabled"):
+            # 停用工序的兜底：万一老断点把 local 打开，仍按区域数给它留预算
             regions = (steps["local"].get("regions") or [steps["local"].get("region") or "hair"])
             slots += max(1, len([r for r in regions if str(r).strip()]))
         return max(1, int(timeout_seconds or 120)) * slots
@@ -4708,6 +5350,12 @@ class SingleAnalyzerWidget(QWidget):
                 self.log_msg(f"[Gemini 画风] 内容改用 {anchor_field} 纯内容锚，避免长描述里的渲染词压过画风参考图")
             if style_ref_paths:
                 from utils.analysis_gen import build_gemini_content_postamble
+                # 画风自带的材质/表面条款已经由 `build_ref_gen_params` 拼在 `post_instructions`
+                # 里（位置在参考图之后、内容锁之前）；这里只补一句日志便于核对。
+                style_surface = surface_clauses_for(styles_data, selected_style_name)
+                if style_surface:
+                    self.log_msg(f"[Gemini 画风] 图后追加 {len(style_surface)} 条材质/表面条款"
+                                 f"（{selected_style_name} 自带，只改表面光泽不改内容）")
                 post_instructions = build_gemini_content_postamble(prompt_to_use, post_instructions)
             from utils.wardrobe import apply_wardrobe
             prompt_to_use = apply_wardrobe(prompt_to_use, prompt_context.get("wardrobe"))
@@ -4739,6 +5387,37 @@ class SingleAnalyzerWidget(QWidget):
                     aspect_ratio=str(prompt_context.get("aspect_ratio") or ""))
             return started
 
+        # 首图审计 + 重画（只对 Gemini 直出生效）：源图与画风图都作为审计输入，
+        # 内容规格取分析产物里的完整锚 —— 一次性组装好回调交给线程（线程不建客户端）。
+        audit_settings = first_image_audit_settings()
+        audit_callback = None
+        audit_attempts = 1
+        # 单次审计请求的秒数上限（与审计回调里的 `timeout=` 同一口径），用于估时与写日志
+        audit_window = resolve_first_image_audit_timeout(timeout_seconds, audit_settings)
+        if getattr(self, "gemini_audit_retry", None) is not None and self.gemini_audit_retry.isChecked():
+            if audit_settings["enabled"]:
+                analysis_json_path = prompt_context.get("analysis_json_path",
+                                                        getattr(self, "_last_saved_json_path", ""))
+                audit_callback = build_first_image_audit_callback(
+                    prompt_context, analysis_json_path,
+                    style_ref_paths[0] if style_ref_paths else "",
+                    style_name=selected_style_name, wardrobe=prompt_context.get("wardrobe"),
+                    styles=styles_data, log_callback=self.log_msg, timeout=audit_window)
+                audit_attempts = int(getattr(self, "gemini_audit_attempts", None).currentData()
+                                     if getattr(self, "gemini_audit_attempts", None) is not None else 2)
+                if audit_callback is None:
+                    self.log_msg("⏭ 首图审计已跳过：这次没有可用的分析产物路径与画风参考图（剪贴板输入）。")
+                else:
+                    self.log_msg(f"🔁 首图审计已启用：最多 {audit_attempts} 张，"
+                                 f"审计不通过就带着失败原因重画；单次审计上限 {audit_window} 秒"
+                                 f"（审计超时不会被当成'图不合格'，只跳过重画并保留产物）。")
+            else:
+                self.log_msg("⏭ 首图审计已在配置里关闭（gemini_audit_retry_enabled=false）。")
+
+        publish_dir, publish_name = first_image_publish_target(prompt_context, task_hash)
+        # 审计时间也要算进预算：审计是一次真实的视觉文本请求（默认上限 180 秒），
+        # 以前只按「单张耗时 × 张数」给预算，审计一旦偏慢就被倒计时从**审计中途**掐掉，
+        # 结果图已经出好却按"没有产物"标红（用户 2026-10-07 反馈「有结果的也变红」）。
         img_thread = ImageGenWorkerThread(
             prompt=prompt_to_use,
             model_name=model_name,
@@ -4747,7 +5426,13 @@ class SingleAnalyzerWidget(QWidget):
             api_type=api_type,
             image_paths=style_ref_paths,
             post_instructions=post_instructions,
-            file_prefix=task_hash
+            file_prefix=task_hash,
+            audit_retry=bool(audit_callback),
+            audit_callback=audit_callback,
+            audit_max_attempts=audit_attempts,
+            audit_timeout=audit_window,
+            publish_dir=publish_dir,
+            publish_name=publish_name,
         )
         img_thread.meta_thread_no = self._next_thread_no("_image_gen_thread_seq")
         img_thread.meta_analysis_thread_no = analysis_thread_no
@@ -4759,18 +5444,14 @@ class SingleAnalyzerWidget(QWidget):
 
         self._active_img_threads.append(img_thread)
         if not self._img_gen_running:
-            self._start_image_gen_runtime(timeout_seconds)
+            # 开了「审计 + 重画」时每张图都要同样的出图时间，倒计时不能按单张算，
+            # 否则第 2 张还在画就被判超时（超时预算 = 单张 × 最多张数 + 每次审计的窗口）。
+            attempts = max(1, audit_attempts if audit_callback else 1)
+            budget = timeout_seconds * attempts + (audit_window * attempts if audit_callback else 0)
+            self._start_image_gen_runtime(budget)
+        img_thread.audit_retry_budget = self._remaining_image_gen_budget()
         
-        img_thread.log_signal.connect(
-            lambda text, t=img_thread: self.log_msg(
-                text,
-                prefix=self._build_thread_prefix(
-                    "生图线程",
-                    getattr(t, "meta_thread_no", "?"),
-                    getattr(t, "meta_analysis_thread_no", None)
-                )
-            )
-        )
+        img_thread.log_signal.connect(lambda text, t=img_thread: self._on_gemini_thread_log(t, text))
         img_thread.finish_signal.connect(lambda files, t=img_thread: self.on_image_generation_finished(t, files))
         
         # 清除完成的线程并同步按钮状态
@@ -4829,6 +5510,10 @@ class SingleAnalyzerWidget(QWidget):
                 if checkpoint_path not in paths:
                     paths.append(checkpoint_path)
                 rec["failed_stage"] = getattr(thread, "failed_stage", "")
+        # 线程跑过的重试（网络重试 / 审计重画）在这里统一补写一次：中途那次标记万一没送到，
+        # 收尾也要让这条任务带上「已发起重试 + 任务 ID」。
+        for kind, attempt in (getattr(thread, "retry_events", None) or []):
+            self._note_gemini_retry(getattr(thread, "meta_task_hash", ""), kind, attempt)
         prompt_type = getattr(thread, "meta_prompt_type", "unknown")
         is_auto = bool(getattr(thread, "meta_is_auto", False))
         thread_prefix = self._build_thread_prefix(
@@ -4843,6 +5528,20 @@ class SingleAnalyzerWidget(QWidget):
                 self.log_msg(f"📂 保存路径: {file_path}", prefix=thread_prefix)
             task_hash_of_thread = str(getattr(thread, "meta_task_hash", "") or "").strip()
             self._last_gen_task_hash = task_hash_of_thread
+            audit = getattr(thread, "audit_summary", None) or {}
+            audit_rejected = bool(isinstance(audit, dict) and audit.get("suspended"))
+            audit_unfinished = bool(isinstance(audit, dict)
+                                    and str(audit.get("stopped_reason") or "") in AUDIT_UNFINISHED_REASONS)
+            if audit_rejected:
+                rounds = len(audit.get("candidates") or [])
+                self.log_msg(f"🚩 首图审计在 {rounds} 张候选里都没有通过（明确打回）；已保留最接近的一张，"
+                             f"队列标记为需要人工复核（不自动当作正常产物）。", prefix=thread_prefix)
+            elif audit_unfinished:
+                # 审计没跑完（超时/被取消/剩余时间不够）：**图是好的**，按「已交付但未审完」处理。
+                # 以前这种情况会一路走到「没有产物」→ 队列标红（用户 2026-10-07 反馈）。
+                self.log_msg(f"⚠️ 首图审计没跑完（{AUDIT_REASON_LABELS.get(str(audit.get('stopped_reason')), '未知原因')}）："
+                             f"产物照常交付，队列按「已完成（审计未完成）」标记，只提示不判失败。",
+                             prefix=thread_prefix)
             self._sync_analysis_mtimes(thread, saved_files)
             self._start_jpg_postprocess(saved_files, prompt_type, task_hash=task_hash_of_thread)
             if task_hash_of_thread:
@@ -4851,6 +5550,22 @@ class SingleAnalyzerWidget(QWidget):
                     rec = self._analysis_history.get(_tid) or {}
                     rec["final_products"] = list(saved_files)
                     rec["pipeline_error"] = ""
+                    if isinstance(audit, dict) and audit:
+                        rec["first_image_audit"] = {
+                            "stopped_reason": audit.get("stopped_reason"),
+                            "suspended": audit_rejected,
+                            "attempts": len(audit.get("candidates") or []),
+                            "selected": str(audit.get("published") or ""),
+                        }
+                    if audit_rejected:
+                        rec["pipeline_error"] = (
+                            f"首图审计未通过（{len(audit.get('candidates') or [])} 张候选），需要人工复核："
+                            f"{os.path.basename(str(audit.get('published') or ''))}")
+                    elif audit_unfinished:
+                        rec["pipeline_warning"] = (
+                            "首图审计未完成（"
+                            + AUDIT_REASON_LABELS.get(str(audit.get("stopped_reason")), "未知原因")
+                            + "）；产物已交付，未按失败处理。")
                 if not self._finalize_task_pipeline(task_hash_of_thread, final_products=saved_files):
                     self.log_msg("⏳ 生图完成，但管线还没收尾（后处理/线程退出中）：队列保持「进行中」，全部跑完才标记完成。")
         else:
@@ -4987,6 +5702,7 @@ class SingleAnalyzerWidget(QWidget):
         self._mark_pipeline_idle_if_done()
         if task_hash:
             self._finalize_task_pipeline(task_hash)
+        self._refresh_queue_summary()               # 实时「进行中」计数：线程退出即收紧
 
     # ==================== 目录批量选择 ====================
 
