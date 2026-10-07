@@ -2949,7 +2949,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     return saved_files
 
 
-def generate_image_repaint(source_paths, api_type: str = None, config_path: str = None, model: str = None, resolution: str = None, aspect_ratio: str = None, prompt: str = None, prompt_suffix: str = None, use_detail_suffix: bool = None, repeat: int = None, save_sub_dir: str = None, file_prefix: str = None, cancel_check: callable = None, log_callback=None, return_metadata: bool = False, extra_reference_paths=None, content_guard=False, request_timeout=None, retry_limit=None, budget_run_id=None) -> list:
+def generate_image_repaint(source_paths, api_type: str = None, config_path: str = None, model: str = None, resolution: str = None, aspect_ratio: str = None, prompt: str = None, prompt_suffix: str = None, use_detail_suffix: bool = None, repeat: int = None, save_sub_dir: str = None, file_prefix: str = None, cancel_check: callable = None, log_callback=None, return_metadata: bool = False, extra_reference_paths=None, content_guard=False, request_timeout=None, retry_limit=None, budget_run_id=None, refine=False) -> list:
     """gpt-image 产物优化：对 `source_paths` 逐张走 Gemini 重绘提线。
 
     模型 / 分辨率 / 宽高比 / prompt / 输出目录**全部来自 `prompts/gpt-image-optimize/config.json`**
@@ -2991,6 +2991,22 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
     if not valid_sources:
         logger.error("重绘需要至少 1 张已存在的源图。")
         return []
+
+    if refine:
+        from utils.gpt_image_refine import refine_image
+        selected = []
+        for source in valid_sources:
+            if callable(cancel_check) and cancel_check():
+                break
+            source_plan = resolve_repaint_call(conf, source_path=source, save_sub_dir=save_sub_dir)
+            selected.append(refine_image(source, image_options={
+                "api_type": resolved_api_type, "model": resolved_model,
+                "resolution": resolved_resolution,
+                "aspect_ratio": source_plan["aspect_ratio"] if is_auto_aspect_ratio(requested_aspect) else resolved_aspect,
+                "save_sub_dir": save_sub_dir or source_plan["save_sub_dir"]},
+                log_callback=log_callback, cancel_check=cancel_check))
+        return {"saved_files": selected, "refine": True, "model": resolved_model,
+                "resolution": resolved_resolution} if return_metadata else selected
 
     all_saved = []
     transport_options = {}

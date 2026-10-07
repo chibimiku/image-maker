@@ -1428,9 +1428,14 @@ def assemble_repaint_request(current, cfg, *, firmware=None, style_ref_path=None
                                 use_detail_suffix=False, repeat=1,
                                 save_sub_dir=sub_dir, file_prefix=prefix)
     guard_options = {"content_guard": True, "request_timeout": 360, "retry_limit": 0} if cfg.get("content_guard") else {}
+    if cfg.get("refine"):
+        guard_options.update(refine=True, request_timeout=360, retry_limit=0)
+        logs.append("[工序] refine：诊断 → 人物修复/审计 → 背景修复/审计；最多2图3文本，无自动重试。")
     sources = [str(current)] + extra_refs
     return {
-        "kind": "gemini-image-repaint",
+        "kind": "gpt-image-refine" if cfg.get("refine") else "gemini-image-repaint",
+        "prompt_role": "legacy_envelope_ignored_by_refine" if cfg.get("refine") else "image_instruction",
+        "refine_templates": ["refine-diagnosis.md", "refine-person.md", "refine-background.md", "refine-audit.md"] if cfg.get("refine") else [],
         "source_paths": [str(current)],
         "extra_reference_paths": extra_refs,
         "reference_images": [_transmitted_image_view(path) for path in sources],
@@ -1511,6 +1516,10 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
     """
     steps = steps or {}
     log = log_callback or (lambda m: None)
+    if (steps.get("repaint") or {}).get("enabled") and (steps.get("repaint") or {}).get("refine"):
+        steps = {k: dict(v) for k, v in steps.items()}
+        steps["wardrobe"] = dict(steps.get("wardrobe") or {}, enabled=False)
+        log("[工序] refine 已包含衣装修复，跳过重复衣装重绘。")
     sources = [p for p in (paths or []) if p and os.path.isfile(p)]
     if not sources:
         return []

@@ -436,10 +436,13 @@ def pipeline_steps_from_flags(repaint: bool = False, structure: bool = False, lo
     # （那就是"裸重绘"，衣装口径全丢）。
     wardrobe_firmware = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                                      "prompts", "gpt-image-optimize", WARDROBE_REPAIR_FIRMWARE)
+    from utils.gpt_image_optimize import load_config
+    refine_enabled = bool(content_guard and load_config().get("refine_enabled", True))
     return {
         "repaint": {"enabled": bool(repaint), "resolution": resolution,
                     "reference_mode": "none" if content_guard else str(repaint_ref_mode or "style"),
-                    "scope": str(repaint_scope or "full"), "content_guard": bool(content_guard)},
+                    "scope": str(repaint_scope or "full"), "content_guard": bool(content_guard),
+                    "refine": refine_enabled},
         "structure": {"enabled": bool(structure), "strength": float(structure_strength)},
         "local": {"enabled": False,      # 已停用（用户 2026-10-07）：裁切贴回废品率高，见函数 docstring
                   "region": regions[0], "regions": regions,

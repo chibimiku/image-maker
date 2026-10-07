@@ -28,9 +28,10 @@ _ASPECT_AUTO_ALIASES = {"", "auto", "自动", "跟随源图", "keep", "same", "o
 # 与 `prompts/gpt-image-optimize/config.json` 同义的兜底值（配置文件缺失时仍可跑）
 DEFAULTS = {
     "enabled": False,
+    "refine_enabled": True,
     "site": "new.aigc2d",
     "api_type": "aigc2d",
-    "model": "gemini-3-pro-image-preview",
+    "model": "gemini-3.1-flash-image",
     "resolution": "2K",
     # auto = 不传 aspectRatio，由模型按输入图比例输出（官方默认行为）
     "aspect_ratio": ASPECT_RATIO_AUTO,

@@ -236,7 +236,8 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
                       include_local: bool = True, local_model: str = "gemini-3-pro-image-preview",
                       include_wardrobe: bool = False,
                       include_analysis: bool = False, cny_rate: float = 7.2,
-                      pricing: dict = None, include_content_guard: bool = False) -> dict:
+                      pricing: dict = None, include_content_guard: bool = False,
+                      include_refine: bool = False) -> dict:
     """整条流水线的单张成本拆分（USD + 人民币折算）。
 
     `include_wardrobe`：「衣装重绘」也是**一次真实的 Gemini 重绘调用**（2K），
@@ -247,10 +248,16 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
     first = estimate_gpt_image_cost(prompt_chars, size=size, quality=quality, ref_images=ref_images,
                                     model=gpt_model, pricing=pricing)
     steps.append({"key": "generate", "label": f"首图 {gpt_model} @{size}/{quality}", **first})
-    if include_repaint:
+    if include_repaint and include_refine:
+        rp = estimate_gemini_repaint_cost(repaint_model, repeat=2, pricing=pricing)
+        steps.append({"key": "refine", "label": f"人物及背景 refine {repaint_model}（最多2图）", **rp, "call_count": 2})
+        audit = estimate_text_cost(prompt_chars=6500, completion_tokens=4500, pricing=pricing)
+        steps.append({"key": "refine_audit", "label": "材质诊断及两步审计（最多3文本）", **audit,
+                      "usd": audit["usd"] * 3, "call_count": 3})
+    elif include_repaint:
         rp = estimate_gemini_repaint_cost(repaint_model, pricing=pricing)
         steps.append({"key": "repaint", "label": f"全图重绘 {repaint_model} 2K", **rp})
-    if include_repaint and include_content_guard:
+    if include_repaint and include_content_guard and not include_refine:
         audit = estimate_text_cost(prompt_chars=4000, completion_tokens=2600, pricing=pricing)
         steps.append({"key": "content_audit", "label": "内容初审及清除复审（最多2次）", **audit, "usd": audit["usd"] * 2})
         steps.append({"key": "content_cleanup", "label": "局部新增清除（最多1次）", **estimate_gemini_repaint_cost(repaint_model, pricing=pricing)})
@@ -260,7 +267,7 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
     if include_local:
         lp = estimate_gemini_repaint_cost(local_model, pricing=pricing)
         steps.append({"key": "local", "label": f"局部重绘+羽化贴回 {local_model} 2K", **lp})
-    if include_wardrobe:
+    if include_wardrobe and not (include_repaint and include_refine):
         wp = estimate_gemini_repaint_cost(local_model, pricing=pricing)
         steps.append({"key": "wardrobe", "label": f"衣装重绘 {local_model} 2K", **wp})
     if include_analysis:

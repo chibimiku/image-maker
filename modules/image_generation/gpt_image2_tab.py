@@ -579,10 +579,12 @@ class GptImage2Widget(QWidget):
         self._repaint_config = load_repaint_config()
         self.repaint_check = QCheckBox(REPAINT_CHECK_TEXT[MODE_GENERATE])
         self.repaint_check.setToolTip(
-            "勾选后：gpt-image 出图/编辑 → 仅源图保真重绘（360秒、一次、无重试） → 双图内容检查 → 内容审计通过才交付重绘图，失败回退原图。\n"
+            "默认流程：gpt-image 出图/编辑 → 材质与人体诊断 → 人物衣装修复/检查 → 背景修复/检查。\n"
             "生图和编辑两种模式都支持（gpt-image 出的分辨率都偏低，重绘顺带提分辨率与细节）。\n"
             "自动重绘只发送每张源图作为 Image 1，保留源图自己的画法、构图与内容。\n"
-            "明确局部新增可清除一次，复核通过才采用；修线收益仍需实际检查。\n"
+            "每张最多2次图片（各360秒）与3次分析（各180秒），无自动重试；失败回退最近通过的输入。\n"
+            "人物步骤已包含衣装修复，不重复执行衣装工序；保真效果仍需人工检查。\n"
+            "配置 refine_enabled=false 可恢复旧单步保真流程；手动重绘仍使用编辑框指令。\n"
             "原始产物路径会写进日志，方便回头对比。\n"
             "参数与提示词固件：prompts/gpt-image-optimize/（理论见 docs/gpt-image-optimize/）。"
         )
@@ -624,6 +626,7 @@ class GptImage2Widget(QWidget):
 
         self.post_wardrobe_check = QCheckBox("衣装重绘")
         self.post_wardrobe_check.setToolTip(
+            "自动 refine 已包含人物衣装修复，启用时不重复执行此工序。\n"
             "最后一道 Gemini 重绘：只画角色**全部衣装**（蕾丝/系带/蝴蝶结/靴袜/荷叶边…），\n"
             "解决细节散乱、糊成一团；件数、配色、材质族、装饰位置与遮挡关系保持不变。\n"
             "用的是专用固件 prompts/gpt-image-optimize/wardrobe-repair-system.md ——\n"
@@ -692,7 +695,7 @@ class GptImage2Widget(QWidget):
         self.repaint_toggle_btn.setCheckable(True)
         self.repaint_toggle_btn.setToolTip(
             "展开/收起重绘参数；不用的平时收起，输入框才有正常高度。\n"
-            "重绘模型默认 gemini-3-pro-image-preview（Nano Banana Pro）。"
+            "重绘模型默认 gemini-3.1-flash-image（Nano Banana 2）。"
         )
         self.repaint_toggle_btn.toggled.connect(self.on_repaint_panel_toggled)
 
@@ -752,7 +755,7 @@ class GptImage2Widget(QWidget):
         self.repaint_model_combo.setCurrentText(saved_repaint_model)
         self.repaint_model_combo.setToolTip(
             "重绘模型（走 apis.aigc2d 的 /v1beta/models/{model}:generateContent）。\n"
-            "gemini-3-pro-image-preview = Nano Banana Pro，重绘质量最好；flash 更快但细节弱一些。"
+            "默认 gemini-3.1-flash-image = Nano Banana 2；可在这里选择其他重绘模型。"
         )
         repaint_form.addRow("重绘模型:", self.repaint_model_combo)
 
@@ -1146,6 +1149,8 @@ class GptImage2Widget(QWidget):
         if hasattr(self, "repaint_check"):
             # 生图 / 编辑模式都由这个勾选框决定是否链式重绘；重绘模式恒定走重绘，勾选框无意义 → 置灰仍可见
             self.repaint_check.setEnabled(mode_text != MODE_REPAINT)
+            if hasattr(self, "post_wardrobe_check"):
+                self.post_wardrobe_check.setEnabled(not self.automatic_refine_enabled())
         # 参数在三种模式下都可调（编辑模式也会走重绘；重绘模式更不用说）
         for widget in (self.repaint_model_combo, self.repaint_resolution_combo,
                        self.repaint_aspect_combo, self.repaint_repeat_spin):
@@ -1200,7 +1205,12 @@ class GptImage2Widget(QWidget):
             params["use_detail_suffix"] = False
         if not manual:
             params.update(content_guard=True, request_timeout=360, retry_limit=0, repeat=1)
+            params["refine"] = bool(conf.get("refine_enabled", True))
         return params
+
+    def automatic_refine_enabled(self):
+        return (self.mode_combo.currentText() != MODE_REPAINT and self.repaint_check.isChecked()
+                and bool(self.current_repaint_config().get("refine_enabled", True)))
 
     def add_results_to_reference(self):
         paths = [self.result_list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.result_list.count())]
@@ -1880,15 +1890,22 @@ class GptImage2Widget(QWidget):
             self._append_log(line)
         self._append_log(f"[后端] 将要调用: {getattr(backend, '__name__', backend)}(...)")
         if chain_repaint:
-            self._append_log(
-                f"[链路] 生图 → 重绘（{repaint_params.get('model')} @{repaint_params.get('resolution')}，"
-                f"每张 {repaint_params.get('repeat')} 次），最终产物为重绘结果。"
-            )
+            if repaint_params.get('refine'):
+                self._append_log(
+                    f"[链路] 生图 → 诊断 → 人物衣装 → 保真检查 → 背景 → 保真检查"
+                    f"（{repaint_params.get('model')} @{repaint_params.get('resolution')}）。"
+                    "每张最多 2 次图片、3 次分析；仅源图，失败回退最近通过的输入，无自动重试。"
+                )
+            else:
+                self._append_log(
+                    f"[链路] 生图 → 重绘（{repaint_params.get('model')} @{repaint_params.get('resolution')}，"
+                    f"每张 {repaint_params.get('repeat')} 次），最终产物为重绘结果。"
+                )
             style_refs = repaint_params.get("extra_reference_paths", [])
             self._append_log(
                 "[重绘分工] Image 1 = 本轮 GPT 首图（内容/构图）；Image 2 = "
                 + str(style_refs[0]) + "（画法）；仅修主要结构碎线，保留笔触与软边。"
-                if style_refs else "[重绘分工] 无画风附件，按当前固件修复源图；不复用生图正文。"
+                if style_refs else "[重绘分工] 仅源图，画法与内容均以源图为准；不复用生图正文。"
             )
         if site == SITE_AUTODL:
             self._append_log("[提示] autodl 通道一次只出一张，且无法中途取消（请求返回后才结束）。")
@@ -2096,8 +2113,11 @@ class GptImage2Widget(QWidget):
                                                                                   GPT_IMAGE2_SIZE_SQUARE)),
                 quality=str(self.quality_combo.currentData() or "medium"),
                 ref_images=len(self.image_paths or []),
+                repaint_model=str(self.current_repaint_config()["model"]),
+                local_model=str(load_repaint_config()["model"]),
                 include_repaint=chain_repaint,
                 include_content_guard=chain_repaint,
+                include_refine=self.automatic_refine_enabled(),
                 include_structure=bool(steps.get("structure", {}).get("enabled")),
                 include_local=bool(steps.get("local", {}).get("enabled")),
                 # 「衣装重绘」是真实的一次 Gemini 2K 重绘调用，估算不能漏
@@ -2179,7 +2199,7 @@ class GptImage2Widget(QWidget):
             ink=bool(self.post_ink_check.isChecked()),
             # 「衣装重绘」：最后一道 Gemini 重绘（专用固件），在本地色调/加墨之前
             wardrobe=bool(getattr(self, "post_wardrobe_check", None) is None
-                          or self.post_wardrobe_check.isChecked()),
+                          or self.post_wardrobe_check.isChecked()) and not self.automatic_refine_enabled(),
         )
 
     def tone_reference_path(self) -> str:

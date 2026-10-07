@@ -1135,7 +1135,7 @@ def test_generate_with_repaint_checkbox_chains_repaint(tab, monkeypatch, repaint
     assert _FakeWorker.last_backend is generate_image_aigc2d_gpt
     rp = _FakeWorker.last_repaint_params
     assert rp is not None
-    assert rp["model"] == "gemini-3-pro-image-preview"
+    assert rp["model"] == tab.repaint_model_combo.currentText()
     assert rp["resolution"] == "2K"
     assert rp["repeat"] == 1
     assert rp["content_guard"] is True
@@ -1166,7 +1166,8 @@ def test_repaint_mode_wires_repaint_backend_with_dragged_images(tab, monkeypatch
     assert _FakeWorker.last_backend is generate_image_repaint
     params = _FakeWorker.last_params
     assert params["source_paths"] == [str(source)]
-    assert params["model"] == "gemini-3-pro-image-preview"
+    assert params["model"] == tab.repaint_model_combo.currentText()
+    assert not params.get("refine")  # manual editor retains the one-shot user instruction
 
 
 def test_repaint_mode_without_images_warns_and_does_not_call_backend(tab, monkeypatch, repaint_config):
@@ -1379,7 +1380,7 @@ def test_edit_mode_with_repaint_chains_repaint(tab, monkeypatch, tmp_path, repai
     assert _FakeWorker.last_params["mode"] == "edit"
     rp = _FakeWorker.last_repaint_params
     assert rp is not None, "编辑模式勾选后也应进入重绘阶段"
-    assert rp["model"] == "gemini-3-pro-image-preview"
+    assert rp["model"] == tab.repaint_model_combo.currentText()
     tab.repaint_check.setChecked(False)
     tab.mode_combo.setCurrentText(MODE_GENERATE)
 
@@ -2004,12 +2005,13 @@ def test_auto_repaint_uses_firmware_and_style_instead_of_content(tab, monkeypatc
     assert params["retry_limit"] == 0
     assert params["use_detail_suffix"] is False
     calls = []
-    monkeypatch.setattr(api_backend, "generate_image_aigc2d", lambda **kw: calls.append(kw) or [])
+    from utils import gpt_image_refine
+    monkeypatch.setattr(gpt_image_refine, "refine_image", lambda source, **kw: calls.append((source, kw)) or source)
     api_backend.generate_image_repaint(source_paths=[str(source)], **params)
     assert len(calls) == 1
-    assert calls[0]["image_paths"] == [str(source)]
-    assert calls[0]["prompt"] == params["prompt"]
-    assert calls[0]["aspect_ratio"] == "3:2"
+    assert params["refine"] is True
+    assert calls[0][0] == str(source)
+    assert calls[0][1]["image_options"]["aspect_ratio"] == "3:2"
 
 
 def test_auto_repaint_no_style_uses_current_firmware(tab, monkeypatch):
@@ -2173,7 +2175,9 @@ def test_post_pipeline_steps_follow_checkboxes(tab):
     assert abs(steps["structure"]["strength"] - 0.35) < 1e-6
     assert steps["local"]["enabled"] is False       # 停用：不进流水线
     assert tab.post_wardrobe_check.isChecked() is True
-    assert steps["wardrobe"]["enabled"] is True
+    assert steps["wardrobe"]["enabled"] is False  # automatic refine already repairs garments
+    tab.repaint_check.setChecked(False)
+    assert tab.post_pipeline_steps()["wardrobe"]["enabled"] is True
 
 
 def test_tone_and_ink_are_wired_into_the_pipeline(tab, tmp_path):

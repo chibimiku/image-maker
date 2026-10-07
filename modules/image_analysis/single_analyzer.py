@@ -5152,7 +5152,9 @@ class SingleAnalyzerWidget(QWidget):
             slots += max(1, len([r for r in regions if str(r).strip()]))
         # 安全替代可能稍后启用重绘，也需要保留同样的内容检查预算。
         guarded_repaint = bool((steps.get("repaint") or {}).get("enabled") or fallback_repaint)
-        return max(1, int(timeout_seconds or 120)) * slots + (1080 if guarded_repaint else 0)
+        # refine reserves two 360s images plus three 180s text calls (1260s).
+        refine_enabled = bool((steps.get("repaint") or {}).get("refine"))
+        return max(1, int(timeout_seconds or 120)) * slots + ((1260 if refine_enabled else 1080) if guarded_repaint else 0)
 
     def _start_gpt_image_thread(self, prompt_type, prompt_context, task_hash, selected_style_name,
                                styles_data, is_auto=False, analysis_thread_no=None, auto_group_id=None,

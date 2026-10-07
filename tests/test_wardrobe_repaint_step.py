@@ -132,6 +132,7 @@ def test_wardrobe_repaint_runs_after_local_and_before_tone_ink(tmp_path, monkeyp
     steps["local"]["enabled"] = False      # 局部重绘要裁切，这里只验证顺序
     steps["structure"]["enabled"] = False
     steps["repaint"]["enabled"] = True
+    steps["repaint"]["refine"] = False  # explicitly exercise the legacy independent garment step
     post_process.run_pipeline([str(src)], steps, firmware="V5-FIRMWARE", final_dir=str(final_dir),
                               log_callback=lambda *_a: None, work_dir=str(tmp_path / "steps"))
 
@@ -245,6 +246,9 @@ def test_wardrobe_switch_is_visible_and_on_by_default(qapp, tmp_path, monkeypatc
 
 def test_wardrobe_switch_is_wired_into_the_tab_pipeline(qapp, tmp_path, monkeypatch):
     tab, _config = _make_tab(tmp_path, monkeypatch)
+    assert tab.automatic_refine_enabled() is True
+    assert tab.post_pipeline_steps()["wardrobe"]["enabled"] is False
+    tab.repaint_check.setChecked(False)  # independent wardrobe remains available without refine
     assert tab.post_pipeline_steps()["wardrobe"]["enabled"] is True
     # 勾选框 → 流水线步骤：关掉就不排这一步，勾回来就排
     tab.post_wardrobe_check.setChecked(False)
