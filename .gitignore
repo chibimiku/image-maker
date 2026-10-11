@@ -95,6 +95,8 @@ docs/build/
 useless/
 data/
 cache/
+# 本地依赖与工具缓存（.cache 与 cache 是两个不同目录）
+/.cache/
 log/
 outputs/
 conf/config.json
