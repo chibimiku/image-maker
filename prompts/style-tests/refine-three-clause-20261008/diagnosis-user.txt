@@ -1,0 +1,1 @@
+Inspect Image 1, the original artwork. Return the existing diagnosis JSON schema. Explain actual background substrate, which marks are noise versus real objects/vegetation, and what must remain. This probe checks diagnosis wording; its output will not alter the frozen background image comparison task.

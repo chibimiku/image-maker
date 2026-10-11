@@ -17,6 +17,8 @@ import os
 import json
 import sys
 import time
+import copy
+import hashlib
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
@@ -34,6 +36,91 @@ TEST_PROMPT = (
 )
 ASPECT_RATIO = "2:3"
 # C 组：参考优先模式（声明与指令组装统一由 utils/styles.py 提供）
+
+
+def run_plan(plan_path, dry_run=False):
+    """Data-driven, bounded priority-mode comparison through the live assembler."""
+    from modules.others.api_backend import get_api_config
+    from utils.analysis_gen import build_gemini_content_postamble
+    from utils import send_budget
+    plan_path = os.path.abspath(plan_path)
+    plan = json.load(open(plan_path, encoding="utf-8"))
+    base = os.path.dirname(plan_path)
+    styles = load_styles()
+    style = plan["style"]
+    cfg = get_api_config(api_type="aigc2d")
+    model = cfg["model"]
+    output = os.path.abspath(plan["output_dir"])
+    os.makedirs(output, exist_ok=True)
+    os.environ[send_budget.ENV_DIR] = os.path.join(output, "budget")
+    os.environ[send_budget.ENV_LIMIT] = str(plan["max_calls"])
+    prompt = open(os.path.join(base, plan["prompt_file"]), encoding="utf-8").read().strip()
+    variants = plan["variants"]
+    repeats = int(plan.get("repeat", 1))
+    if repeats * len(variants) > int(plan["max_calls"]):
+        raise ValueError("Plan exceeds image budget")
+    for repeat in range(1, repeats + 1):
+        for variant in variants:
+            name = f"{variant['name']}-{repeat}"
+            local = copy.deepcopy(styles)
+            for field, filename in variant.get("field_files", {}).items():
+                local[style][field] = open(os.path.join(base, filename), encoding="utf-8").read().strip()
+            head, post, refs = build_ref_gen_params(local, style, MODE_PRIORITY, api_type="aigc2d")
+            if variant.get("head_template"):
+                head = open(os.path.join(base, variant["head_template"]), encoding="utf-8").read().strip()
+            for filename in variant.get("extra_references", []):
+                refs.append(os.path.abspath(os.path.join(base, filename)))
+            if variant.get("reverse_references", False):
+                refs.reverse()
+            if plan.get("content_postamble", True):
+                post = build_gemini_content_postamble(prompt, post)
+            if variant.get("post_template"):
+                template = open(os.path.join(base, variant["post_template"]), encoding="utf-8").read().strip()
+                post = template.replace("{content}", prompt)
+            full = head + "\n" + prompt + "\n" + post
+            record = dict(name=name, model=model, resolution=cfg.get("resolution", "2K"),
+                          aspect_ratio=plan["aspect_ratio"], instructions=head, prompt=prompt,
+                          post_instructions=post, references=refs, retry_limit=0,
+                          timeout=360, face_quality_boost=variant.get("face_quality_boost", True),
+                          reference_sha256=[hashlib.sha256(open(p, "rb").read()).hexdigest() for p in refs])
+            request_path = os.path.join(output, name + ".request.json")
+            if os.path.exists(request_path) and not dry_run:
+                raise ValueError(f"Existing attempt: {name}; inspect evidence before resuming")
+            if dry_run:
+                print(f"PREVIEW {name}: {model}, {len(full)} chars, {refs}", flush=True)
+                continue
+            with open(request_path, "w", encoding="utf-8") as f:
+                json.dump(record, f, ensure_ascii=False, indent=2)
+            reservation = send_budget.reserve_image_attempt(
+                run_id=name, operation=name, model=model, resolution=record["resolution"],
+                aspect_ratio=plan["aspect_ratio"], prompt_sha256=hashlib.sha256(full.encode()).hexdigest(),
+                prompt_chars=len(full), reference_images=refs)
+            print(f"SEND {name}", flush=True)
+            started = time.time()
+            messages = []
+            try:
+                result = generate_image_aigc2d(
+                    prompt=prompt, instructions=head, post_instructions=post, image_paths=refs,
+                    model=model, aspect_ratio=plan["aspect_ratio"], resolution=record["resolution"],
+                    api_type="aigc2d", save_sub_dir=output, file_prefix=name, return_metadata=True,
+                    request_timeout=360, retry_limit=0, log_callback=messages.append,
+                    face_quality_boost=record["face_quality_boost"])
+                files = result.get("saved_files", []) if isinstance(result, dict) else (result or [])
+                record.update(files=files, elapsed=time.time()-started,
+                              messages=messages, error="" if files else
+                              (result.get("raw_text", "No image; billing unknown") if isinstance(result, dict)
+                               else "No image; billing unknown"))
+                send_budget.settle_image_attempt(reservation, status="success" if files else "unknown",
+                                                 output_path=files[0] if files else "", error=record["error"])
+            except Exception as exc:
+                record.update(files=[], elapsed=time.time()-started, error=str(exc))
+                send_budget.settle_image_attempt(reservation, status="unknown", error=str(exc))
+            with open(os.path.join(output, name + ".result.json"), "w", encoding="utf-8") as f:
+                json.dump(record, f, ensure_ascii=False, indent=2)
+            print(f"DONE {name}: {record['files']} {record['error']}", flush=True)
+            if not record["files"]:
+                return 1
+    return 0
 
 
 def load_styles():
@@ -73,6 +160,8 @@ def call_generate(api_type, model_name, prompt, instructions, image_paths, aspec
 
 def main():
     parser = argparse.ArgumentParser(description="艺术风格参考图 A/B/C/D 四组对照测试")
+    parser.add_argument("--plan", help="JSON plan for a bounded priority-mode comparison")
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--style", default=STYLE_NAME, help="config-styles.json 中的样式名")
     parser.add_argument("--ref-image", default="", help="覆盖配置里的风格参考图路径")
     parser.add_argument("--prompt", default=TEST_PROMPT, help="正文提示词")
@@ -81,6 +170,8 @@ def main():
     parser.add_argument("--save-sub-dir", default="",
                         help="传给后端的输出子目录；留空时隔离到 data/test-result/<日期>/style-ref-horizontal/<画风>")
     args = parser.parse_args()
+    if args.plan:
+        return run_plan(args.plan, args.dry_run)
 
     styles = load_styles()
     if args.style not in styles:

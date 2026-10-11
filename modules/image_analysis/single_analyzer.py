@@ -1646,7 +1646,7 @@ class WorkerThread(QThread):
                 # 只出 Gemini 图的任务用不到这两个字段，整段跳过（每档各一次文本模型调用）。
                 if not getattr(self, "gpt_prompts", True):
                     self.log_signal.emit(
-                        "已跳过 gpt-image 专用短提示词（本次任务只出 Gemini 图，用不到这两个字段）。")
+                        "已跳过 gpt-image 专用短提示词（本次任务无需生成这两个字段）。")
                 else:
                     try:
                         from utils.analysis_gpt_prompt import (FIELD_KEY, FIELD_MAX_CHARS, SHORT_FIELD_KEY,
@@ -1804,7 +1804,9 @@ class ImageGenWorkerThread(QThread):
         """Gemini 直出 + 审计 + 重画；返回最终要交付的文件列表（首图只有一张）。
 
         每张候选都落在发布目录里，文件名带 `-aN` 标记（第几次尝试）；被审计打回的候选**保留**，
-        最终选中的那张另存一份不带 `-aN` 的发布名，队列与发布器仍按 hash 认它。
+        最终选中的那张**改名**成不带 `-aN` 的发布名（2026-10-07 起不再复制，免得同目录里留一份
+        字节完全相同的副本；用户原话「选中即 move 到发布名，留着完全一样的没有意义」），
+        队列与发布器仍按 hash 认它。
         """
         from utils.first_image_audit import generate_with_audit
         self._log(f"🔁 已启用「首图审计 + 重画」：最多出 {self.audit_max_attempts} 张，"
@@ -1838,7 +1840,7 @@ class ImageGenWorkerThread(QThread):
         def _publish_name(round_index):
             # 发布文件名保持基础名（不带 -aN）：-aN 只用于区分候选，最终交付仍是
             # `<hash>_<时间>-first-<token>.png`。若这里回一个以 -aN 结尾的名字，
-            # `promote_candidate` 会算出与候选文件同一个路径、直接判定"无需复制"，
+            # `promote_candidate` 会算出与候选文件同一个路径、直接判定"无需改名"，
             # 于是交付名里带上了尝试轮次（用户反馈过一次）。
             return str(self.publish_name or "")
 
@@ -2695,7 +2697,8 @@ class SingleAnalyzerWidget(QWidget):
         self.save_to_source_dir_cb = QCheckBox("仅保存到原图目录")
         self.save_to_source_dir_cb.setToolTip(
             "勾选后，分析结果的 JSON 和 TXT 将保存到原图所在目录，并同步文件修改时间。\n"
-            "此时只分析不生成图片，JSON 可用于直接拖入投稿 Server。\n"
+            "此时只保留原始描述，跳过描述 refine、服装检查、照片风格清理和生图专用提示词，不生成图片。\n"
+            "JSON 可用于直接拖入投稿 Server。\n"
             "仅加载硬盘文件时可用，剪贴板图片无实际文件路径。"
         )
         self.save_to_source_dir_cb.setEnabled(False)
@@ -3652,6 +3655,15 @@ class SingleAnalyzerWidget(QWidget):
         clear_failed_action.setEnabled(bool(failed_records))
 
         menu.addSeparator()
+        open_product_dir_action = None
+        product_path = ""
+        if record and str(record.get("status") or "").strip().lower() == "success":
+            for path in reversed(record.get("final_products") or []):
+                if path and os.path.isfile(path):
+                    product_path = os.path.abspath(path)
+                    break
+            open_product_dir_action = menu.addAction("📂 打开生成图所在目录")
+            open_product_dir_action.setEnabled(bool(product_path))
         open_dir_action = menu.addAction("📂 打开源图所在目录")
         open_dir_action.setEnabled(bool(usable_path))
         copy_path_action = menu.addAction("📋 复制源图路径")
@@ -3666,6 +3678,10 @@ class SingleAnalyzerWidget(QWidget):
             self._pickup_generation_history(record)
         elif chosen is clear_failed_action:
             self._clear_failed_history_records()
+        elif chosen is open_product_dir_action:
+            directory = os.path.dirname(product_path)
+            if not os.path.isdir(directory) or not QDesktopServices.openUrl(QUrl.fromLocalFile(directory)):
+                QMessageBox.warning(self, "打开目录失败", f"无法打开生成图所在目录：\n{directory}")
         elif chosen is open_dir_action:
             QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(usable_path)))
         elif chosen is copy_path_action:
@@ -4207,12 +4223,15 @@ class SingleAnalyzerWidget(QWidget):
         负责预检（prompt 文件、文本 API 配置）→ 建历史记录 → 装配 WorkerThread 并启动。
         返回 thread；预检不通过返回 None。
         """
-        enable_outfit_check = self.enable_outfit_check_cb.isChecked()
-        remove_photo_style = self.remove_photo_style_cb.isChecked()
+        task_options = self._snapshot_analysis_options(image_source_snapshot, gen_targets)
+        original_only = task_options["save_to_source"]
+        enable_refine = not original_only
+        enable_outfit_check = not original_only and self.enable_outfit_check_cb.isChecked()
+        remove_photo_style = not original_only and self.remove_photo_style_cb.isChecked()
         # 当启用任一优化选项时，Step 5 会重新计算 pixiv_tags，需要确保对应 prompt 文件存在
         enable_recompute_pixiv_tags = enable_outfit_check or remove_photo_style
         missing_prompt_files = get_single_analyzer_missing_prompt_files(
-            enable_refine=True,
+            enable_refine=enable_refine,
             enable_outfit_check=enable_outfit_check,
             enable_remove_photo_style=remove_photo_style,
             enable_recompute_pixiv_tags=enable_recompute_pixiv_tags,
@@ -4280,7 +4299,6 @@ class SingleAnalyzerWidget(QWidget):
         )
         history_record["style_name"] = selected_style_name
         history_record["wardrobe"] = self.wardrobe_selector.snapshot() if wardrobe is None else dict(wardrobe)
-        task_options = self._snapshot_analysis_options(image_source_snapshot, gen_targets)
         atmosphere_plan = self.atmosphere_selector.snapshot() if atmosphere is None else dict(atmosphere)
         task_options["generation_atmosphere"] = atmosphere_plan
         history_record["analysis_options"] = task_options
@@ -4289,12 +4307,15 @@ class SingleAnalyzerWidget(QWidget):
             f"生图目标 {', '.join(task_options['gen_targets']) or '无'}；通道 {task_options['channel']}",
             prefix=thread_prefix)
         self._insert_history_record(history_record)
+        if original_only:
+            self.log_msg("仅保存到原图目录：只保留 Step 1 原始描述，跳过后续描述优化和生图专用提示词。", prefix=thread_prefix)
 
         thread = WorkerThread(
             image_source_snapshot,
             api_key,
             base_url,
             model_name,
+            enable_refine=enable_refine,
             secondary_config=dict(zip(("base_url", "api_key", "model"), self.get_text_config(True))),
             booru_tag_limit=booru_tag_limit,
             timeout_seconds=timeout_seconds,
@@ -4303,7 +4324,7 @@ class SingleAnalyzerWidget(QWidget):
             remove_photo_style=remove_photo_style,
             use_fallback=bool(self.use_fallback_cb.isChecked()),
             atmosphere=atmosphere_plan,
-            gpt_prompts=self._compute_gpt_prompts_for_task(
+            gpt_prompts=not original_only and self._compute_gpt_prompts_for_task(
                 forced_targets=[t for t in (gen_targets or []) if t in ("original", "refined")]),
         )
         thread.meta_thread_no = analysis_thread_no

@@ -1,0 +1,11 @@
+Image 1 is the ONLY editing base: the completed refined scene. Image 2 is ONLY the artistic style reference, never a source of characters, clothing, objects or composition. Output one image matching Image 1's framing and aspect ratio, with no panels or text.
+Re-render Image 1 in Image 2's actual visual language across characters, clothes and background. Image 2 takes priority over the supporting style description below wherever they differ. Match its contour colour and taper, edge hierarchy, brushwork, shading transitions, material treatment and controlled highlights; do not merely add sparkles or a white glow. Retain the cleaned readable ornaments and coherent existing light sources. Preserve each person's identity, intrinsic eye/hair/garment colours, expression, count, pose, anatomy, coverage, garment silhouette, trim routes, recognised motifs and all scene objects. Do not copy Image 2's accessories, flowers, clothing, face, setting or layout; do not invent decorations. Correct meaningless fragmented marks by merging them into existing material, without erasing intentional texture or changing design. Style changes are permitted; content changes are not.
+Supporting rendering description (Image 2 remains authoritative):
+Palette: Jewel chroma, navy anchors, blue/pink accents; retain local colours
+Lighting: Selective glow, coloured transmitted light, unclipped highlights
+Brushwork: Smooth anime gradients, transparent colour glazes
+Edges: Tapered tinted contours, fine scalloped openings
+Texture: Sheer layered fabric, denser overlaps, opaque backing, satin sheen
+Composition density: Rich focal detail, readable layered depth
+Detail level: Crisp cutouts, small ribbon knots, luminous edge accents
+Avoid: White haze, muddy shadows, opaque-looking sheer layers, blown highlights

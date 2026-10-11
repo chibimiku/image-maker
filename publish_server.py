@@ -102,6 +102,57 @@ def close_db(error=None):
 
 
 # ── 元数据查找 ────────────────────────────────────────────
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
+_HEX8_KEY = re.compile(r"^[0-9a-f]{8}$")
+_EMBEDDED_HEX8 = re.compile(r"(?<![0-9a-fA-F])([0-9a-fA-F]{8})(?![0-9a-fA-F])")
+# 审计打回、没有被交付的候选：新链路 `…-first-xxxx-a1_011346-yyyy.jpg`，
+# 以及 2026-10-07 手工改过名的 `rejected-…`。发布名（`…-first-xxxx.jpg`）不带这个标记。
+_REJECTED_ROUND = re.compile(r"-a\d+_")
+
+
+def image_name_keys(image_name: str) -> list[str]:
+    """图片文件名里所有可以用来对齐任务 hash 的 key（小写、按优先级去重）。
+
+    ① 第一个下划线分段 —— 现行产物命名 `<hash>_<HHMMSS>-first-xxxx.jpg`
+    ② 文件名里独立出现的 8 位 hex —— 兼容 `ajicoma-960cddea-quality-refine_…-final.jpg`
+       这类把画风名放在最前面的旧产物
+    """
+    stem = os.path.splitext(os.path.basename(image_name))[0]
+    keys = []
+    first = stem.split("_")[0].lower()
+    if first:
+        keys.append(first)
+    for match in _EMBEDDED_HEX8.finditer(stem):
+        key = match.group(1).lower()
+        if key not in keys:
+            keys.append(key)
+    return keys
+
+
+def is_rejected_candidate(image_name: str) -> bool:
+    """这张图是不是「被打回、没被交付」的候选（`…-aN_…` 或已改名的 `rejected-…`）。"""
+    stem = os.path.splitext(os.path.basename(image_name))[0]
+    return bool(_REJECTED_ROUND.search(stem)) or stem.startswith("rejected-")
+
+
+def json_task_key(json_path: str) -> str:
+    """投稿 JSON 名里的任务 key：`YYYYMMDD-HHMMSS-<key>-标题.json` → `<key>`。"""
+    parts = os.path.splitext(os.path.basename(json_path))[0].split("-")
+    return parts[2].lower() if len(parts) >= 3 else ""
+
+
+def json_task_time(json_path: str) -> str:
+    """投稿 JSON 名里的提交时间 `HHMMSS`（不是六位数字就是空串）。"""
+    parts = os.path.splitext(os.path.basename(json_path))[0].split("-")
+    stamp = parts[1] if len(parts) >= 2 else ""
+    return stamp if len(stamp) == 6 and stamp.isdigit() else ""
+
+
+def image_belongs_to_key(image_path: str, key: str) -> bool:
+    """这张图的文件名是否对得上这个 key（两个方向共用的唯一身份判据）。"""
+    return bool(key) and key in image_name_keys(image_path)
+
+
 def _read_json_source_image_path(json_path: str) -> str | None:
     """读取分析结果 JSON 内的 source_image_path，返回绝对路径；无效时返回 None。"""
     try:
@@ -131,14 +182,8 @@ def find_metadata_json(image_path: str) -> str | None:
     stem = os.path.splitext(img_file)[0]
     # 新产物把任务 hash 固定在第一个下划线字段；兼容旧产物把画风名放在前面
     # （如 ajicoma-960cddea-...-final.jpg），从全名再提取独立的 8 位 hex hash。
-    keys = []
+    keys = image_name_keys(img_file)
     first = stem.split("_")[0].lower()
-    if first:
-        keys.append(first)
-    for match in re.finditer(r"(?<![0-9a-fA-F])([0-9a-fA-F]{8})(?![0-9a-fA-F])", stem):
-        key = match.group(1).lower()
-        if key not in keys:
-            keys.append(key)
     if not keys:
         return None
 
@@ -158,8 +203,7 @@ def find_metadata_json(image_path: str) -> str | None:
         if not entry.lower().endswith(".json"):
             continue
         # JSON 文件名拆分，key 应在第3段（索引2）
-        parts = os.path.splitext(entry)[0].split("-")
-        json_key = parts[2].lower() if len(parts) >= 3 else ""
+        json_key = json_task_key(entry)
         candidate = os.path.join(img_dir, entry)
         src = _read_json_source_image_path(candidate)
         if src and os.path.normcase(src) == os.path.normcase(abs_image_path):
@@ -167,7 +211,7 @@ def find_metadata_json(image_path: str) -> str | None:
         if json_key in keys:
             # 原图共用 Gemini 等前缀时，不拿明确指向另一张原图的 JSON。
             # 生成产物的 hash 关联仍可指向分析时的源图。
-            if (src and not re.fullmatch(r"[0-9a-f]{8}", first)
+            if (src and not _HEX8_KEY.match(first)
                     and os.path.basename(src).split("_")[0].lower() == first):
                 continue
             candidates.append(candidate)
@@ -205,32 +249,114 @@ def _repair_missing_metadata_links(conn: sqlite3.Connection) -> int:
     return repaired
 
 
-def find_image_for_json(json_path: str) -> str | None:
+def _queued_image_for_json(json_path: str) -> str | None:
+    """这条 JSON 已经在发布队列里的话，沿用当初配好的那张。
+
+    历史兼容用：库里已有的配对是用户实际发过的，重拖不该换图；而且这样
+    `add_to_queue` 能报「图片路径已在队列中」而不是「无法确定对应原图」。
     """
-    根据结果 JSON 定位其对应原图。
-    优先使用 JSON 内 source_image_path（精确、无歧义）；
-    次之按 key 反向匹配同目录图片（仅当恰好一张时返回，避免误配）。
+    target = os.path.normcase(os.path.abspath(json_path))
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT image_path, json_path FROM publish_queue "
+            "WHERE json_path IS NOT NULL AND json_path != ''"
+        ).fetchall()
+    except sqlite3.Error:
+        return None
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    for row in rows:
+        stored = str(row["json_path"] or "")
+        if not stored or os.path.normcase(os.path.abspath(stored)) != target:
+            continue
+        image = str(row["image_path"] or "")
+        if image and os.path.isfile(image):
+            return os.path.abspath(image)
+    return None
+
+
+def _ledger_selected_file(json_path: str, key: str) -> str | None:
+    """本轮首图审计台账里记的交付图（`<key>_<HHMMSS>-…-audit-first-image-audit.json`）。"""
+    if not key:
+        return None
+    json_dir = os.path.dirname(json_path) or "."
+    stamp = json_task_time(json_path)
+    prefix = f"{key}_{stamp}" if stamp else key
+    try:
+        entries = sorted(os.listdir(json_dir))
+    except OSError:
+        return None
+    for entry in entries:
+        if not entry.endswith("-audit-first-image-audit.json") or not entry.startswith(prefix):
+            continue
+        try:
+            with open(os.path.join(json_dir, entry), "r", encoding="utf-8") as f:
+                record = json.load(f)
+        except (OSError, ValueError):
+            continue
+        selected = str((record or {}).get("selected_file") or "").strip()
+        if not selected or not os.path.isfile(selected):
+            continue
+        if not image_belongs_to_key(selected, key):
+            continue
+        return os.path.abspath(selected)
+    return None
+
+
+def find_image_for_json(json_path: str) -> str | None:
+    """根据结果 JSON 定位它对应的那张图 —— 也就是**该投出去的那张**。
+
+    分层判据，越靠前越权威；除第 ① 层（库里已配好的历史配对）以外，
+    任何一层返回的图都必须与 JSON 的 key 对得上：
+
+      ① 这条 JSON 已在发布队列里 → 沿用当初配对的那张（历史兼容，重拖不换图）
+      ② 同目录里本轮的首图审计台账 `selected_file`（管线自己记的交付图）
+      ③ 同目录里 key 对得上的图，且只有一张不是打回候选（`-aN` / `rejected-` 先排除）
+      ④ key 对得上的图全都带打回标记 → 只可能是它（首图审计耗尽时就是这么交付的）
+      ⑤ 旧流程「保存到原图同目录」：JSON 内 `source_image_path` 指向的图，
+         且它的文件名与 JSON 的 key 一致
+      都确定不了就返回 None —— 宁可让用户看到「无法确定对应原图」，
+      也不要静默配错图。
+
+    历史背景（2026-10-09 修复）：生成流程写进 JSON 的 `source_image_path` 是**本次生成的
+    输入源图**，而 JSON 名里的 key 是**生成任务的 hash**；旧的「无条件优先 source_image_path」
+    会把输入源图当成投稿图（实测历史上有 703 条这样的 JSON 会配到跟实际投出去的不一样的图）。
+    只有「保存到原图同目录（不生成图片）」那种流程里源图才等于投稿图，所以第 ⑤ 层额外要求 key 一致。
     """
     if not os.path.isfile(json_path):
         return None
-    src = _read_json_source_image_path(json_path)
-    if src and os.path.isfile(src):
-        return src
+    key = json_task_key(json_path)
 
-    json_dir = os.path.dirname(json_path)
-    fname = os.path.splitext(os.path.basename(json_path))[0]
-    parts = fname.split("-")
-    key = parts[2] if len(parts) >= 3 else ""
-    if not key:
-        return None
+    queued = _queued_image_for_json(json_path)
+    if queued:
+        return queued
+
+    ledger = _ledger_selected_file(json_path, key)
+    if ledger:
+        return ledger
+
+    json_dir = os.path.dirname(json_path) or "."
     try:
         entries = os.listdir(json_dir)
     except OSError:
         return None
-    image_exts = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
-    candidates = [os.path.join(json_dir, e) for e in entries
-                  if e.lower().endswith(image_exts) and e.split("_")[0] == key]
-    return candidates[0] if len(candidates) == 1 else None
+    candidates = [os.path.join(json_dir, entry) for entry in sorted(entries)
+                  if entry.lower().endswith(IMAGE_EXTS) and image_belongs_to_key(entry, key)]
+    delivered = [c for c in candidates if not is_rejected_candidate(c)]
+    if len(delivered) == 1:
+        return delivered[0]
+    if not delivered and len(candidates) == 1:
+        return candidates[0]
+
+    src = _read_json_source_image_path(json_path)
+    if src and os.path.isfile(src) and image_belongs_to_key(src, key):
+        return src
+    return None
 
 
 def compute_md5(file_path: str) -> str:
@@ -380,16 +506,27 @@ def api_update_status(item_uuid):
 
 # ── 辅助：添加图片到队列（供 GUI 调用） ──────────────────
 def add_json_to_queue(json_path: str) -> dict:
-    """拖入结果 JSON 时：定位对应原图并入队（携带该 JSON 作为元数据），返回 add_to_queue 结果。
+    """拖入结果 JSON 时：定位它对应的那张交付图并入队（携带该 JSON 作为元数据）。
 
-    直接拖 JSON 也能入队，与原图拖拽行为一致；优先用 JSON 内 source_image_path 找到精确原图。
+    直接拖 JSON 也能入队，与原图拖拽行为一致；找图规则见 `find_image_for_json`
+    （不再是「无条件优先 source_image_path」——生成流程里那是输入源图，不是成品）。
     """
     if not os.path.isfile(json_path):
         return {"ok": False, "message": f"文件不存在: {json_path}", "uuid": None}
     image_path = find_image_for_json(json_path)
-    if image_path:
-        return add_to_queue(image_path, json_path_override=json_path)
-    return {"ok": False, "message": "无法从结果 JSON 确定对应原图（缺少 source_image_path 且 key 匹配不唯一）", "uuid": None}
+    if not image_path:
+        return {"ok": False,
+                "message": "无法从结果 JSON 确定对应的交付图（key 对得上的图不止一张，"
+                           "或都不对得上；请直接拖图片）",
+                "uuid": None, "error": "ambiguous_image"}
+    # 最后一道闸：配到的图必须与 JSON 的 key 对得上（已经是队列里那条既有配对的除外）
+    key = json_task_key(json_path)
+    if not image_belongs_to_key(image_path, key) and not _queued_image_for_json(json_path):
+        return {"ok": False,
+                "message": f"配到的图与投稿 JSON 对不上（JSON key={key or '空'}，"
+                           f"图 {os.path.basename(image_path)}），未加入队列",
+                "uuid": None, "error": "mismatched_pairing"}
+    return add_to_queue(image_path, json_path_override=json_path)
 
 
 def add_to_queue(image_path: str, json_path_override: str | None = None) -> dict:
@@ -718,14 +855,14 @@ class PublishServerWindow(QMainWindow):
         urls = event.mimeData().urls()
         added = 0
         skipped = 0
-        metadata_errors = []
+        skipped_reasons = []
         for url in urls:
             path = url.toLocalFile()
             if not os.path.isfile(path):
                 continue
             ext = os.path.splitext(path)[1].lower()
             if ext == ".json":
-                # 直接拖入结果 JSON：定位对应原图并入队（携带该 JSON 作为元数据）
+                # 直接拖入结果 JSON：定位它对应的交付图并入队（携带该 JSON 作为元数据）
                 result = add_json_to_queue(path)
                 if result["ok"]:
                     added += 1
@@ -733,8 +870,9 @@ class PublishServerWindow(QMainWindow):
                 else:
                     skipped += 1
                     self._log(f"[!] {os.path.basename(path)}: {result['message']}")
-                    if result.get("error") in ("missing_metadata", "invalid_metadata"):
-                        metadata_errors.append(result["message"])
+                    if result.get("error") in ("missing_metadata", "invalid_metadata",
+                                               "ambiguous_image", "mismatched_pairing"):
+                        skipped_reasons.append(f"{os.path.basename(path)}: {result['message']}")
                 continue
             if ext not in (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"):
                 continue
@@ -746,13 +884,13 @@ class PublishServerWindow(QMainWindow):
                 skipped += 1
                 self._log(f"[!] {os.path.basename(path)}: {result['message']}")
                 if result.get("error") in ("missing_metadata", "invalid_metadata"):
-                    metadata_errors.append(result["message"])
+                    skipped_reasons.append(f"{os.path.basename(path)}: {result['message']}")
         self._current_page = 1
         self._refresh_table()
         self._log(f"拖拽完成：成功 {added}，跳过 {skipped}")
-        if metadata_errors:
-            QMessageBox.warning(self, "投稿 JSON 缺失或无效",
-                                "以下图片未加入发布队列：\n\n" + "\n".join(metadata_errors))
+        if skipped_reasons:
+            QMessageBox.warning(self, "有文件未加入发布队列",
+                                "以下文件未加入发布队列：\n\n" + "\n".join(skipped_reasons))
 
     # ── 表格刷新 ──
     def _refresh_table(self):

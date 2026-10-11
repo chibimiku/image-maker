@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 
@@ -83,7 +84,22 @@ def normalize_audit(value) -> dict:
     """把审计模型回复规范化成可判定结论；缺字段时 `conclusion_valid=False`。"""
     data = value if isinstance(value, dict) else {}
     content_issues = _issues(data.get("content_issues"))
+    for row in content_issues:
+        # 保持微笑，仅嘴部开合不同是用户允许的细节；模型不能将其重新升为重大问题。
+        expected = row["expected"].lower()
+        observed = row["observed"].lower()
+        if (row["element"] in {"expression", "facial_expression", "mouth_expression", "mouth_opening"}
+                and "smile" in expected and "smile" in observed
+                and ("open" in expected or "closed" in expected)
+                and ("open" in observed or "closed" in observed)):
+            row["severity"] = "minor"
     style_issues = _issues(data.get("style_issues"))
+    style_failure_kind = str(data.get("style_failure_kind") or "none").strip().lower()
+    if style_failure_kind not in {"incompatible_medium", "incompatible_rendering_family"}:
+        style_failure_kind = "none"
+        # 同一兼容画法的强弱差异只记限制；不能用任意 major 标签绕过此门禁。
+        for row in style_issues:
+            row["severity"] = "minor"
     missing = []
     content_ok = data.get("content_ok")
     style_ok = data.get("style_ok")
@@ -106,6 +122,7 @@ def normalize_audit(value) -> dict:
     result = {
         "content_ok": content_ok if isinstance(content_ok, bool) else None,
         "style_ok": style_ok if isinstance(style_ok, bool) else None,
+        "style_failure_kind": style_failure_kind,
         "copied_from_reference": copied if isinstance(copied, bool) else None,
         "verdict": verdict if verdict in VERDICTS else "unknown",
         "content_issues": content_issues,
@@ -117,6 +134,9 @@ def normalize_audit(value) -> dict:
         "major_issues": major,
         "missing_conclusion_fields": missing,
         "conclusion_valid": not missing,
+        "policy_version": "practical/v2",
+        "warnings": [row for row in (content_issues + style_issues)
+                     if row not in major],
     }
     # 结论自相矛盾时（声称 pass 却报了 major）以 major 为准，绝不放过
     if result["conclusion_valid"] and result["verdict"] == "pass" and major:
@@ -125,6 +145,10 @@ def normalize_audit(value) -> dict:
     # 结论不完整时**不能**保留一个 pass：缺字段的回复里写着 pass 只是模型漏答，不是通过
     if not result["conclusion_valid"]:
         result["verdict"] = "unknown"
+    elif result["verdict"] == "fail" and not major and copied is False:
+        # 模型写了 fail，但没有达到门槛的重大证据：保留警告，不凭标签收费重画。
+        result["verdict"] = "uncertain"
+        result["summary"] = (result["summary"] + " [无明确重大证据，按 uncertain 保留产物]").strip()
     return result
 
 
@@ -190,12 +214,12 @@ def should_retry(audit: dict) -> tuple[bool, str]:
     major = list(data.get("major_issues") or [])
     if copied is True:
         return True, "复制了画风样本的内容元素"
-    if data.get("content_ok") is False and major:
+    if any(row in major for row in data.get("content_issues") or []):
         return True, "内容与本次要求明显不符"
-    if data.get("style_ok") is False and major:
+    if any(row in major for row in data.get("style_issues") or []):
         return True, "没有跟上画风样本的画法"
-    if str(data.get("verdict")) == "fail":
-        return True, "审计判为不合格"
+    if major:
+        return True, "审计存在明确重大问题"
     return False, "审计通过（或仅有不确定项，不重画）"
 
 
@@ -265,20 +289,29 @@ def choose_best_candidate(candidates) -> dict:
     return max(rows, key=attempt_score)
 
 
-def promote_candidate(path: str, publish_dir: str, filename: str, log_callback=None) -> str:
-    """把选中的候选复制成发布文件名（原候选保留在候选目录里，绝不删除、绝不覆盖）。
+def promote_candidate(path: str, publish_dir: str, filename: str, log_callback=None,
+                      keep_copy: bool = False) -> str:
+    """把选中的候选**改名**成发布文件名（2026-10-07 起默认不留同内容副本）。
 
-    这里保证两件事：
+    用户 2026-10-07 原话：「A 选中即 move 到发布名，留着完全一样的没有意义」。
+    过去这里用 `shutil.copy2` 复制，于是发布目录永远躺着两张字节、mtime 都一样的文件
+    （候选 `…-aN…` + 发布名）：既占地方，又让 `publish_server.find_image_for_json`
+    的「同 hash 前缀恰好一张」判据返回 None（拖投稿 JSON 入队报"无法确定对应原图"）。
 
-    1. **后缀跟真实字节走**：发布名过去被写死 `.png`（`single_analyzer.first_image_publish_target`），
-       而 aigc2d 的 Gemini 网关会自己决定回 PNG 还是 JPEG，于是 `.png` 里装的是 JPEG
-       —— 同目录两张文件字节完全相同、大小分毫不差（用户 2026-10-07 反馈「看着大小一样」，
-       那两张本来就是同一个字节流）。现在按 magic bytes 纠正后缀。
-    2. **重名不覆盖**：目标已存在且**内容不同**就另存 `<name>-1.ext`、`-2.ext`…，两份都留下，
-       再交给 `utils.image_dedup` 按 SHA-256 对账；内容相同则直接认已存在的那份，不重复写入。
+    这里保证四件事：
 
-    复制失败时**回退候选本身**（绝不返回空串）：空串会被上层当成"本次没有产物"，
-    于是图明明出好了、队列却被标红失败（用户 2026-10-07 反馈「有结果的也变红」）。
+    1. **改名优先**：`os.replace`（同卷原子改名，mtime/属性不动）→ 跨卷退 `shutil.move`
+       → 都不成才退回复制（那种情况下会留下副本，但**绝不丢产物**）；`keep_copy=True`
+       保留旧的复制语义（给需要"候选原件不动"的实验用）。
+    2. **后缀跟真实字节走**：发布名过去被写死 `.png`，而 aigc2d 的 Gemini 网关会自己决定
+       回 PNG 还是 JPEG —— 按 magic bytes 纠正（见 `utils.image_identity`）。
+    3. **重名不覆盖**：目标已存在且**内容不同**就另存 `<name>-1.ext`、`-2.ext`…，两份都留下，
+       再交给 `utils.image_dedup` 按 SHA-256 对账；**内容相同**则认已存在的那份，并把候选
+       这份重复收掉（收不掉只提示，不报错）。
+    4. **失败绝不返回空串**：空串会被上层当成"本次没有产物"，于是图明明出好了、队列却被标红
+       （用户 2026-10-07 反馈「有结果的也变红」）—— 最差也回退候选本身或写成副本。
+
+    返回最终在盘的那份文件的真实路径。
     """
     import os
     import shutil
@@ -286,12 +319,12 @@ def promote_candidate(path: str, publish_dir: str, filename: str, log_callback=N
     from utils.image_identity import file_sha256, name_with_extension_of, unique_path
     if not path or not os.path.isfile(path):
         if log_callback:
-            log_callback(f"⚠️ 选中的候选文件不存在，跳过发布副本：{path}")
+            log_callback(f"⚠️ 选中的候选文件不存在，跳过发布改名：{path}")
         return ""
     os.makedirs(publish_dir, exist_ok=True)
     target = os.path.join(publish_dir, str(filename or os.path.basename(path)))
 
-    # ① 后缀别撒谎：副本与候选是同一个字节流，格式以**候选**为准（目标此刻还不存在）
+    # ① 后缀别撒谎：改名后就是同一份字节，格式以**候选**为准（目标此刻还不存在）
     corrected = name_with_extension_of(target, path)
     if corrected != target:
         if log_callback:
@@ -307,9 +340,20 @@ def promote_candidate(path: str, publish_dir: str, filename: str, log_callback=N
         source_hash = file_sha256(path)
         target_hash = file_sha256(target)
         if source_hash and source_hash == target_hash:
-            if log_callback:
-                log_callback("🧬 发布文件已存在且内容相同（SHA-256 一致），复用不重复写入："
-                             f"{os.path.basename(target)}")
+            if keep_copy:
+                if log_callback:
+                    log_callback("🧬 发布文件已存在且内容相同（SHA-256 一致），复用不重复写入："
+                                 f"{os.path.basename(target)}")
+                return target
+            # 改名交付下候选这份就是多余副本：字节已经在目标里了，收掉它
+            try:
+                os.remove(path)
+                if log_callback:
+                    log_callback("🧬 发布文件已存在且内容完全相同（SHA-256 一致）：候选那份同内容"
+                                 f"副本已收掉，只留 {os.path.basename(target)}")
+            except OSError as exc:
+                if log_callback:
+                    log_callback(f"⚠️ 同内容副本收不掉（{exc}），两份都留着：{os.path.basename(path)}")
             return target
         collision = unique_path(target)
         if log_callback:
@@ -317,12 +361,33 @@ def promote_candidate(path: str, publish_dir: str, filename: str, log_callback=N
                          f"本次另存为：{os.path.basename(collision)}")
         target = collision
 
+    if keep_copy:
+        try:
+            shutil.copy2(path, target)
+        except OSError as exc:
+            if log_callback:
+                log_callback(f"⚠️ 发布副本写入失败（{exc}），改用候选原文件：{path}")
+            return path
+        return target
+
     try:
-        shutil.copy2(path, target)          # 保留候选原件（审计台账/复核都要指着它）
+        os.replace(path, target)            # 同一卷：原子改名，mtime/属性不变
     except OSError as exc:
-        if log_callback:
-            log_callback(f"⚠️ 发布副本写入失败（{exc}），改用候选原文件：{path}")
-        return path
+        try:
+            shutil.move(path, target)       # 跨卷：内部 copy2 + 删源
+        except OSError as move_exc:
+            if log_callback:
+                log_callback(f"⚠️ 改名为发布名失败（{exc} / {move_exc}），退回复制（候选这份会留下）："
+                             f"{path}")
+            try:
+                shutil.copy2(path, target)
+            except OSError as copy_exc:
+                if log_callback:
+                    log_callback(f"⚠️ 发布副本也写不出来（{copy_exc}），直接用候选原文件：{path}")
+                return path
+            return target
+    if log_callback:
+        log_callback(f"📦 已把选中的候选改名为发布名（不留副本）：{os.path.basename(target)}")
     return target
 
 
@@ -474,8 +539,10 @@ def generate_with_audit(generate, *, prompt: str, max_attempts: int = 2, audit=N
       / `audit_unavailable` / `audit_failed` / `audit_cancelled` / `budget_tight`；
     - `suspended=True`：所有候选都被审计**明确**判为不合格 → 调用方必须标记人工复核。
       注意：审计自己失败（超时/400）**不算**"图不合格"，那种情况只写警告、不封锁产物。
-    - `published`：**优先**是发布名副本；发布副本写不出来时回退选中的候选文件本身
-      （绝不返回空串 —— 那会被上层当成"没有产物"而误标失败）。
+    - `published`：交付的那一份。**2026-10-07 起是"把选中的候选改名成发布名"**（不再复制，
+      所以单轮任务目录里只剩一张；被拒候选留在原地）；改名失败时回退复制，再不行回退候选本身
+      （绝不返回空串 —— 那会被上层当成"没有产物"而误标失败）。被选中那一轮的台账记录会跟着
+      指向交付文件，原候选名放在 `moved_from` 里。
     - 返回 dict：`files` / `best` / `published` / `candidates` / `audits` / `stopped_reason` / `suspended`。
     """
     log = log_callback or (lambda message: None)
@@ -545,6 +612,8 @@ def generate_with_audit(generate, *, prompt: str, max_attempts: int = 2, audit=N
             break
         if not retry:
             log(f"✅ 第 {round_index} 次出图通过审计：{verdict.get('summary') or reason}")
+            if verdict.get("warnings"):
+                log(f"⚠️ 保留 {len(verdict['warnings'])} 项非拦截限制，不追加重画。")
             stopped_reason = "passed"
             break
         log(f"⚠️ 第 {round_index} 次出图未通过：{reason}（{verdict.get('summary') or '无摘要'}）")
@@ -571,6 +640,12 @@ def generate_with_audit(generate, *, prompt: str, max_attempts: int = 2, audit=N
             published = best_file
         else:
             published = promote_candidate(best_file, publish_dir, name, log_callback=log)
+        if published and os.path.abspath(published) != os.path.abspath(best_file):
+            # 改名交付（2026-10-07 起默认）：被选中那一轮的记录跟着指向真正在盘的那份，
+            # 免得台账里留一条指向已不存在文件的候选路径；原候选名记在 `moved_from` 里。
+            best["moved_from"] = best_file
+            best["file"] = published
+            best_file = published
         if target_dir:
             from utils.output_isolation import resolve_output_target
             target_dir, record_prefix = resolve_output_target(
@@ -580,8 +655,10 @@ def generate_with_audit(generate, *, prompt: str, max_attempts: int = 2, audit=N
                 "stopped_reason": stopped_reason,
                 "selected_file": published or best_file,
                 "selected_round": best.get("round"),
+                "selected_moved_from": str(best.get("moved_from") or ""),
                 "candidates": [{"round": row.get("round"), "file": row.get("file"),
-                                "prompt": row.get("prompt"), "audit": row.get("audit")}
+                                "prompt": row.get("prompt"), "audit": row.get("audit"),
+                                **({"moved_from": row["moved_from"]} if row.get("moved_from") else {})}
                                for row in candidates],
             })
             log(f"📝 首图审计记录：{audit_record_path(target_dir, record_prefix)}")

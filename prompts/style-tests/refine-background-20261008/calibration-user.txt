@@ -1,0 +1,1 @@
+Images 1-6: original source, C2 person, R-person person, D1 background from C2, D2 background from C2, R-background from R-person. Compare each colour with original and background variants also with their respective person inputs. No candidate is prelabelled a fidelity pass.

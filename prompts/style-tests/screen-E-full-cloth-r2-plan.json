@@ -1,0 +1,20 @@
+{
+  "style": "puracotte-style-v2",
+  "prompt_file": "puracotte-room-content.txt",
+  "aspect_ratio": "2:3",
+  "content_postamble": true,
+  "repeat": 1,
+  "max_calls": 25,
+  "output_dir": "D:\\code\\image-maker\\data\\test-result\\20261007\\puracotte-v2-round2-25",
+  "variants": [
+    {
+      "name": "screen-E-full-cloth-r2",
+      "head_template": "puracotte-v2-cloth-closeup-head.md",
+      "post_template": "puracotte-v2-minimal-post.md",
+      "face_quality_boost": false,
+      "extra_references": [
+        "D:\\code\\image-maker\\data\\test-result\\20261007\\puracotte-v2-room-ab\\reference-cloth-excerpt.png"
+      ]
+    }
+  ]
+}

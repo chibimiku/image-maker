@@ -32,11 +32,15 @@ def populate_palettes(combo):
         for p in profiles():
             if (p.get("origin") == "book_case") != book:
                 continue
-            label = f"书·{p['label']}（PDF {p['source']['pdf_page']}）" if book else "实验·" + p["label"]
+            label = p["label"]
+            tooltip = f"书籍案例 · {label}（PDF {p['source']['pdf_page']}）" if book else "实验预设 · " + label
             combo.addItem(label, p["id"])
-            combo.setItemData(combo.count()-1, label, Qt.ItemDataRole.ToolTipRole)
-    combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-    combo.setMinimumContentsLength(9)
+            combo.setItemData(combo.count()-1, tooltip, Qt.ItemDataRole.ToolTipRole)
+    combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+    # Keep the popup readable even when the surrounding toolbar is crowded.
+    text_width = max(combo.fontMetrics().horizontalAdvance(combo.itemText(i))
+                     for i in range(combo.count()))
+    combo.view().setMinimumWidth(text_width + 48)
     combo.setMaxVisibleItems(16)
 
 
@@ -234,7 +238,6 @@ class ThemeColorSelector(QWidget):
         row.addWidget(QLabel("配色:"))
         self.combo = QComboBox()
         populate_palettes(self.combo)
-        self.combo.setMaximumWidth(160)
         self.combo.setToolTip("31套书籍案例与3个实验预设。仅用于无参考图文字首图，规则中可自动填写落点。")
         row.addWidget(self.combo)
         self.details_button = QPushButton("规则")

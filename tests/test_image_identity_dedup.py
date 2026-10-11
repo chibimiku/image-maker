@@ -3,13 +3,15 @@
 
 覆盖三层：
 1) `utils.image_identity`：magic bytes 嗅探、假后缀判定、后缀纠正、重名让位；
-2) `utils.first_image_audit.promote_candidate`：发布名后缀跟真实字节走、重名不覆盖；
+2) `utils.first_image_audit.promote_candidate`：发布名后缀跟真实字节走、选中即改名到发布名
+   （2026-10-07 起不留同内容副本）、重名不覆盖；
 3) `utils.image_dedup`：分组规则、幸存者选择、预演/实删、删前三重复核。
 
 全部离线，用 PIL 造真 PNG / 真 JPEG，不碰网络、不碰真实 data 目录。
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import tempfile
@@ -112,20 +114,55 @@ class PromoteCandidateTest(unittest.TestCase):
         self.assertEqual(os.path.basename(result), "8d0cb278_020028-first-ed899a.jpg")
         self.assertTrue(any("magic bytes" in line for line in self.logs))
 
+    def test_promotion_renames_the_candidate_instead_of_copying(self):
+        """用户 2026-10-07 选定的方案：选中即 move 到发布名，不留同内容副本。"""
+        src = Path(_jpeg(self.tmp / "cand.jpg"))
+        before = src.stat()
+        result = fa.promote_candidate(str(src), str(self.out), "h_000000-first-abcdef.png",
+                                      log_callback=self._log)
+        self.assertEqual(os.path.basename(result), "h_000000-first-abcdef.jpg")
+        self.assertTrue(os.path.isfile(result))
+        self.assertFalse(src.exists())                       # 候选那份改名走了，不是复制
+        self.assertEqual(os.path.getsize(result), before.st_size)
+        self.assertEqual(os.path.getmtime(result), before.st_mtime)   # 改名不动 mtime
+        self.assertTrue(any("不留副本" in line for line in self.logs))
+
+    def test_keep_copy_flag_restores_the_old_copy_behaviour(self):
+        src = Path(_jpeg(self.tmp / "cand.jpg"))
+        result = fa.promote_candidate(str(src), str(self.out), "h_000000-first-abcdef.png",
+                                      log_callback=self._log, keep_copy=True)
+        self.assertTrue(os.path.isfile(result))
+        self.assertTrue(src.exists())                        # 显式要保留候选原件时仍复制
+
     def test_real_png_publish_name_is_left_alone(self):
         src = _png(self.tmp / "cand.png")
         result = fa.promote_candidate(src, str(self.out), "h_000000-first-abcdef.png")
         self.assertEqual(os.path.basename(result), "h_000000-first-abcdef.png")
 
-    def test_identical_target_is_reused_not_duplicated(self):
-        src = _jpeg(self.tmp / "cand.jpg")
-        first = fa.promote_candidate(src, str(self.out), "h_000000-first-aaaaaa.png",
-                                     log_callback=self._log)
-        second = fa.promote_candidate(src, str(self.out), "h_000000-first-aaaaaa.png",
+    def test_same_content_target_absorbs_the_candidate_copy(self):
+        """目标里已经有同内容的发布图 → 候选这份重复被收掉，只留一张。"""
+        self.out.mkdir(parents=True, exist_ok=True)
+        kept = Path(_jpeg(self.out / "h_000000-first-aaaaaa.jpg"))
+        duplicate = Path(self.tmp / "cand.jpg")
+        shutil.copy2(kept, duplicate)
+        result = fa.promote_candidate(str(duplicate), str(self.out), "h_000000-first-aaaaaa.png",
                                       log_callback=self._log)
-        self.assertEqual(first, second)
+        self.assertEqual(Path(result), kept)
+        self.assertTrue(kept.is_file())
+        self.assertFalse(duplicate.exists())
         self.assertEqual(len(list(self.out.iterdir())), 1)
-        self.assertTrue(any("内容相同" in line for line in self.logs))
+        self.assertTrue(any("副本已收掉" in line for line in self.logs))
+
+    def test_same_content_target_keeps_the_candidate_when_asked(self):
+        self.out.mkdir(parents=True, exist_ok=True)
+        kept = Path(_jpeg(self.out / "h_000000-first-aaaaaa.jpg"))
+        duplicate = Path(self.tmp / "cand.jpg")
+        shutil.copy2(kept, duplicate)
+        result = fa.promote_candidate(str(duplicate), str(self.out), "h_000000-first-aaaaaa.png",
+                                      log_callback=self._log, keep_copy=True)
+        self.assertEqual(Path(result), kept)
+        self.assertTrue(duplicate.exists())
+        self.assertTrue(any("复用不重复写入" in line for line in self.logs))
 
     def test_collision_with_other_content_keeps_both(self):
         a = _jpeg(self.tmp / "a.jpg", color=(255, 0, 0))
@@ -144,7 +181,7 @@ class PromoteCandidateTest(unittest.TestCase):
                                               str(self.out), "x.png"), "")
 
     def test_generate_with_audit_publishes_a_jpeg_under_jpg(self):
-        """端到端：候选是 JPEG、发布名写死 `.png` → 交付路径必须落成 `.jpg`。"""
+        """端到端：候选是 JPEG、发布名写死 `.png` → 交付路径必须落成 `.jpg`（改名交付）。"""
         self.out.mkdir(parents=True, exist_ok=True)
         candidate = self.out / "h_000000-first-abcdef-a1_010101-aaaaaa.jpg"
         _jpeg(candidate)
@@ -160,8 +197,17 @@ class PromoteCandidateTest(unittest.TestCase):
                          "h_000000-first-abcdef.jpg")
         self.assertTrue(os.path.isfile(outcome["published"]))
         self.assertEqual(ident.sniff_format(outcome["published"]), "jpeg")
-        # 候选原件保留，审计台账仍指着它
-        self.assertTrue(candidate.is_file())
+        # 改名交付：候选名不再存在，目录里只有发布名那一张
+        self.assertFalse(candidate.exists())
+        self.assertEqual(len([p for p in self.out.iterdir() if p.suffix == ".jpg"]), 1)
+        # 台账跟着指向在盘的那份，原文候选名记在 moved_from 里
+        records = list(self.out.glob("*first-image-audit*.json"))
+        self.assertEqual(len(records), 1)
+        record = json.loads(records[0].read_text(encoding="utf-8"))
+        self.assertEqual(record["selected_file"], outcome["published"])
+        self.assertEqual(record["selected_moved_from"], str(candidate))
+        self.assertEqual(record["candidates"][0]["file"], outcome["published"])
+        self.assertEqual(record["candidates"][0]["moved_from"], str(candidate))
 
 
 class DedupPlanTest(unittest.TestCase):
@@ -286,6 +332,110 @@ class DedupApplyTest(unittest.TestCase):
         result = dedup.apply_plan(planned)
         self.assertEqual(result["deleted"], [])
         self.assertEqual(result["refused"][0]["reason"], "文件已不在")
+
+
+class IdenticalModeTest(unittest.TestCase):
+    """`mode="identical"`：候选 + 发布副本（字节、mtime 都一样）该留哪一张。
+
+    用户 2026-10-07 定的规则：**发布队列里有记录（已发/在队）就先留它，都没有就留名字短的**。
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _pair(self):
+        """一对字节完全相同、后缀都真实的图：短名（发布名）+ 长名（`-aN` 候选）。"""
+        short = self.tmp / "ac6f62c5_154159-first-dd72e2.jpg"
+        _jpeg(short)
+        long = self.tmp / "ac6f62c5_154159-first-dd72e2-a1_154232-01bea8.jpg"
+        shutil.copy2(short, long)
+        return short, long
+
+    def _db(self, rows):
+        import sqlite3
+        path = self.tmp / "publish_queue.db"
+        conn = sqlite3.connect(str(path))
+        conn.execute(
+            "CREATE TABLE publish_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT,"
+            " image_path TEXT, image_md5 TEXT, json_path TEXT, metadata TEXT,"
+            " pixiv_status TEXT, chichipui_status TEXT, created_at TEXT, updated_at TEXT)")
+        for index, (image_path, pixiv, chichi) in enumerate(rows):
+            conn.execute(
+                "INSERT INTO publish_queue (uuid, image_path, image_md5, pixiv_status,"
+                " chichipui_status, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+                [f"u{index}", str(image_path), "md5", pixiv, chichi, "t", "t"])
+        conn.commit()
+        conn.close()
+        return str(path)
+
+    def test_keeps_the_published_one_even_when_its_name_is_longer(self):
+        short, long = self._pair()
+        db = self._db([(long, "uploaded", "uploaded")])
+        result = dedup.plan([str(self.tmp)], mode=dedup.MODE_IDENTICAL, db_path=db)
+        self.assertEqual([os.path.basename(r["path"]) for r in result["removable"]], [short.name])
+        self.assertEqual(result["removable"][0]["kept"], str(long))
+        self.assertEqual(result["groups"][0]["kept_published"], True)
+
+    def test_keeps_the_shorter_name_when_nobody_published(self):
+        short, long = self._pair()
+        db = self._db([])
+        result = dedup.plan([str(self.tmp)], mode=dedup.MODE_IDENTICAL, db_path=db)
+        self.assertEqual([os.path.basename(r["path"]) for r in result["removable"]], [long.name])
+        self.assertEqual(result["removable"][0]["kept"], str(short))
+
+    def test_queued_but_not_uploaded_is_protected_too(self):
+        short, long = self._pair()
+        db = self._db([(long, "pending", "pending")])
+        result = dedup.plan([str(self.tmp)], mode=dedup.MODE_IDENTICAL, db_path=db)
+        self.assertEqual(result["removable"][0]["kept"], str(long))
+        self.assertEqual(result["removable"][0]["published"], False)   # 在队但还没发出去
+
+    def test_two_published_rows_mean_nothing_is_deleted(self):
+        short, long = self._pair()
+        db = self._db([(short, "uploaded", "pending"), (long, "pending", "uploaded")])
+        result = dedup.plan([str(self.tmp)], mode=dedup.MODE_IDENTICAL, db_path=db)
+        self.assertEqual(result["removable"], [])
+        self.assertEqual({r["reason"] for r in result["skipped"]}, {"multiple_published"})
+
+    def test_missing_db_falls_back_to_name_length(self):
+        short, long = self._pair()
+        result = dedup.plan([str(self.tmp)], mode=dedup.MODE_IDENTICAL,
+                            db_path=str(self.tmp / "nope.db"))
+        self.assertEqual(result["removable"][0]["kept"], str(short))
+        self.assertEqual([os.path.basename(r["path"]) for r in result["removable"]], [long.name])
+
+    def test_no_publish_db_flag_skips_the_lookup(self):
+        short, long = self._pair()
+        db = self._db([(long, "uploaded", "uploaded")])
+        result = dedup.plan([str(self.tmp)], mode=dedup.MODE_IDENTICAL,
+                            db_path=db, use_publish_db=False)
+        self.assertEqual(result["removable"][0]["kept"], str(short))   # 只看名字长短
+
+    def test_apply_never_deletes_a_row_marked_published(self):
+        short, long = self._pair()
+        db = self._db([(short, "uploaded", "uploaded")])
+        planned = dedup.plan([str(self.tmp)], mode=dedup.MODE_IDENTICAL, db_path=db)
+        self.assertEqual(len(planned["removable"]), 1)
+        planned["removable"][0]["published"] = True          # 假装计划之后它被发布了
+        outcome = dedup.apply_plan(planned)
+        self.assertEqual(outcome["deleted"], [])
+        self.assertTrue(long.exists())
+        self.assertTrue(any("发布队列" in row["reason"] for row in outcome["refused"]))
+
+    def test_misnamed_mode_still_ignores_the_publish_db(self):
+        """老模式行为一个字不改：发布库里在册也不影响「删假后缀」的判定。"""
+        truthful = self.tmp / "x-a1_020112-1ffc69.jpg"
+        _jpeg(truthful)
+        fake = self.tmp / "x-first-ed899a.png"
+        shutil.copy2(truthful, fake)
+        db = self._db([(fake, "uploaded", "uploaded")])
+        result = dedup.plan([str(self.tmp)], db_path=db)
+        self.assertEqual([os.path.basename(r["path"]) for r in result["removable"]], [fake.name])
+        self.assertNotIn("publish_checked", result["groups"][0])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1 @@
+Retain the eyes' existing pigment and dark layers exactly as Image 1. Leave the eyes untouched: no enhancement, recolouring, glow, or hue normalization. Only background surface noise is editable.

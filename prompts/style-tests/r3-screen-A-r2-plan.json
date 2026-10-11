@@ -1,0 +1,15 @@
+{
+  "style": "puracotte-style-v2",
+  "prompt_file": "puracotte-room-content.txt",
+  "aspect_ratio": "2:3",
+  "content_postamble": true,
+  "repeat": 1,
+  "max_calls": 20,
+  "output_dir": "D:\\code\\image-maker\\data\\test-result\\20261008\\puracotte-v2-round3-20",
+  "variants": [
+    {
+      "face_quality_boost": true,
+      "name": "r3-screen-A-r2"
+    }
+  ]
+}

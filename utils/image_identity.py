@@ -13,6 +13,7 @@
 `promote_candidate` 又用 `shutil.copy2` 原样复制字节，于是
 `<hash>_<时间>-first-<token>.png` 里装的可能是 JPEG：同目录下两张文件字节完全相同、
 大小分毫不差，看起来像"同一个文件出现了两次"（用户 2026-10-07 反馈）。
+**2026-10-07 起 `promote_candidate` 改为改名交付（不留同内容副本）**，后缀仍按 magic bytes 纠正。
 
 ## 规则
 

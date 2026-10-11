@@ -95,6 +95,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=("generate", "edit"), default="generate",
                         help="generate=生图（挂了 --image 会自动走 edits 垫图）; edit=编辑（必须有 --image）")
     parser.add_argument("--prompt", action="append", default=[], help="提示词，可重复")
+    parser.add_argument("--repaint-plan", help="有额度与冻结hash的数据驱动重绘实验计划")
+    parser.add_argument("--plan-job", help="实验计划中的单个图片任务编号")
+    parser.add_argument("--plan-audit", help="实验计划中的单个文本审计编号")
     parser.add_argument("--prompt-file", help="提示词文件：每行一条，`#` 注释，可用 `WxH|提示词` 覆盖单张尺寸")
     parser.add_argument("--image", action="append", default=[], help=f"参考图/原图，可重复，最多 {GPT_IMAGE2_MAX_REFERENCE_IMAGES} 张")
     parser.add_argument("--style", help="画风名（conf/config-styles.json 的键）：自动用该画风给 gpt-image 通道准备的短版说明（prompt_gpt），"
@@ -462,6 +465,18 @@ def cmd_repaint(args) -> int:
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.repaint_plan:
+        from utils.repaint_experiment import run_plan
+        try:
+            result = run_plan(args.repaint_plan, job=args.plan_job, audit=args.plan_audit,
+                              dry_run=args.dry_run, log=_emit)
+        except (ValueError, OSError, KeyError) as exc:
+            _emit(f"[实验拒绝] {exc}")
+            return EXIT_FAIL
+        if not args.dry_run:
+            _emit(json.dumps(result, ensure_ascii=False, indent=2))
+        return EXIT_OK if args.dry_run or result.get('status') == 'returned' else EXIT_FAIL
 
     from utils.wardrobe import (wardrobe_presets, build_wardrobe_spec, apply_wardrobe,
                                 validate_wardrobe_style, record_wardrobe_outputs)

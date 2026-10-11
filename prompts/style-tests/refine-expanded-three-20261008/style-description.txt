@@ -1,0 +1,8 @@
+Palette: Jewel chroma, navy anchors, blue/pink accents; retain local colours
+Lighting: Selective glow, coloured transmitted light, unclipped highlights
+Brushwork: Smooth anime gradients, transparent colour glazes
+Edges: Tapered tinted contours, fine scalloped openings
+Texture: Sheer layered fabric, denser overlaps, opaque backing, satin sheen
+Composition density: Rich focal detail, readable layered depth
+Detail level: Crisp cutouts, small ribbon knots, luminous edge accents
+Avoid: White haze, muddy shadows, opaque-looking sheer layers, blown highlights

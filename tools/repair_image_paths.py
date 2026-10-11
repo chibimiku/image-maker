@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-"""把「记录里指向已删文件的路径」改指到实际在盘上的那一份。默认预演，加 --apply 才写。
+"""把「记录里指向已删/已改名的文件的路径」改指到实际在盘上的那一份。默认预演，加 --apply 才写。
 
 ## 场景
 
-`tools/image_dedup.py` 删掉了「后缀撒谎」的假 PNG（`.png` 里装着 JPEG）。图像本身以真后缀
-（`-aN_….jpg`）活着、没丢内容，但**台账里还写着被删的那个路径**，于是路径悬空。
+1. `tools/image_dedup.py` 删掉了「后缀撒谎」的假 PNG（`.png` 里装着 JPEG）。图像本身以真后缀
+   （`-aN_….jpg`）活着、没丢内容，但**台账里还写着被删的那个路径**，于是路径悬空。
+2. `tools/rename_rejected_candidates.py` 把历史里「没被交付的候选」改名成 `rejected-<原名>`，
+   台账的 `candidates[].file` 还指着旧名。
 
-本脚本**只改指向已删文件的路径字段**，别的一个字不动：
+本脚本**只改指向已删/已改名文件的路径字段**，别的一个字不动：
 
-1. `*-first-image-audit.json` 的 `selected_file`
+1. `*-first-image-audit.json` 的 `selected_file` 与 `candidates[].file`（后者只在旧路径已不存在、
+   且清单能给出在盘的新路径时才改）；
 2. `publish_queue.db` 的 `image_path`
 
 ## 台账怎么修（不依赖外部清单，自证）
@@ -20,8 +23,9 @@
 
 ## 发布队列 DB
 
-`image_path` 这一列没有自证信息，走 `--report`（`tools/image_dedup.py --json` 产出的
-去重清单）里的「已删路径 → 幸存路径」映射。没有覆盖到的行一律不动。
+`image_path` 这一列没有自证信息，走 `--report`（`tools/image_dedup.py --json` 的
+「已删路径 → 幸存路径」，或 `tools/rename_rejected_candidates.py --json` 的 `renames`）。
+没有覆盖到的行一律不动。
 
 ## 用法
 
@@ -68,7 +72,13 @@ def survivor_from_ledger(payload):
 
 
 def load_report_mapping(report_path):
-    """读去重清单的「已删路径 → 幸存路径」；幸存者必须真的在盘上。"""
+    """读「旧路径 → 实际在盘的新路径」映射；新路径必须真的在盘上。
+
+    两种清单都认：
+
+    - `tools/image_dedup.py --json`：`applied.deleted[].path → .kept`（删掉的那份 → 幸存者）；
+    - `tools/rename_rejected_candidates.py --json`：`renames[].old → .new`（改名前 → 改名后）。
+    """
     if not report_path or not os.path.isfile(report_path):
         return {}
     with open(report_path, "r", encoding="utf-8") as handle:
@@ -76,6 +86,10 @@ def load_report_mapping(report_path):
     mapping = {}
     for row in ((data.get("applied") or {}).get("deleted") or []):
         old, new = row.get("path"), row.get("kept")
+        if old and new and os.path.isfile(new):
+            mapping[_norm(old)] = str(new)
+    for row in (data.get("renames") or []):
+        old, new = row.get("old"), row.get("new")
         if old and new and os.path.isfile(new):
             mapping[_norm(old)] = str(new)
     return mapping
@@ -87,9 +101,34 @@ def _ledger_files(directory):
     return sorted(glob.glob(pattern, recursive=True))
 
 
+def repair_candidate_paths(payload, mapping, record_path, apply=False):
+    """把 `candidates[].file` 里**已不存在**的路径改到清单给的在盘文件。
+
+    只动"旧路径已经不在盘上、且清单能映射到一个确实存在的文件"的条目；其余一个字不改。
+    """
+    changed = []
+    rows = payload.get("candidates")
+    if not isinstance(rows, list):
+        return changed
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        old = str(row.get("file") or "")
+        if not old or os.path.isfile(old):
+            continue
+        new = mapping.get(_norm(old), "")
+        if not new or not os.path.isfile(new):
+            continue
+        changed.append({"record": record_path, "round": row.get("round"),
+                        "old": old, "new": new})
+        if apply:
+            row["file"] = new
+    return changed
+
+
 def repair_ledgers(directories, mapping, apply=False):
-    """修 `selected_file`。本来就指对的一张不动，找不到落地目标的只报告。"""
-    changed, intact, skipped = [], [], []
+    """修 `selected_file`（+ `candidates[].file`）。本来就指对的一张不动，找不到落地目标的只报告。"""
+    changed, intact, skipped, candidates = [], [], [], []
     for directory in directories or []:
         for record_path in _ledger_files(directory):
             try:
@@ -101,12 +140,18 @@ def repair_ledgers(directories, mapping, apply=False):
             if not isinstance(payload, dict):
                 skipped.append({"record": record_path, "reason": "台账根节点不是对象"})
                 continue
+            # 候选轮次的路径也可能指着改过名的文件（例如被拒候选被摘成 rejected-…）
+            candidates.extend(repair_candidate_paths(payload, mapping, record_path, apply=apply))
             selected = str(payload.get("selected_file") or "")
             if not selected:
                 skipped.append({"record": record_path, "reason": "台账没有 selected_file"})
+                if apply and candidates:
+                    _write_ledger(record_path, payload)
                 continue
             if os.path.isfile(selected):
                 intact.append({"record": record_path, "path": selected})
+                if apply and candidates:
+                    _write_ledger(record_path, payload)
                 continue
             # 台账自证优先；它给的目标**必须真的在盘上**才算数，否则退回清单映射
             target = survivor_from_ledger(payload)
@@ -115,17 +160,24 @@ def repair_ledgers(directories, mapping, apply=False):
             if not target or not os.path.isfile(target):
                 skipped.append({"record": record_path, "old": selected,
                                 "reason": "selected_file 不存在，也找不到在盘的目标文件"})
+                if apply and candidates:
+                    _write_ledger(record_path, payload)
                 continue
             row = {"record": record_path, "old": selected, "new": target}
             if apply:
                 payload["selected_file"] = target
-                # 与 utils.first_image_audit.write_audit_record 的落盘口径保持一致
-                temp = record_path + ".repair-tmp"
-                with open(temp, "w", encoding="utf-8") as handle:
-                    json.dump(payload, handle, ensure_ascii=False, indent=2)
-                os.replace(temp, record_path)
             changed.append(row)
-    return {"changed": changed, "intact": intact, "skipped": skipped}
+            if apply:
+                _write_ledger(record_path, payload)
+    return {"changed": changed, "intact": intact, "skipped": skipped, "candidates": candidates}
+
+
+def _write_ledger(record_path, payload):
+    """与 `utils.first_image_audit.write_audit_record` 的落盘口径保持一致（原子替换）。"""
+    temp = record_path + ".repair-tmp"
+    with open(temp, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+    os.replace(temp, record_path)
 
 
 def repair_publish_db(db_path, mapping, apply=False):
@@ -202,6 +254,12 @@ def main(argv=None):
         print(f"  - {os.path.basename(row['record'])}")
         print(f"      旧: {row['old']}")
         print(f"      新: {row['new']}")
+    print(f"【审计台账 candidates[].file（已改名/已删的轮次）】需要改 "
+          f"{len(ledgers['candidates'])} 条")
+    for row in ledgers["candidates"]:
+        print(f"  - {os.path.basename(row['record'])}（第 {row['round']} 轮）")
+        print(f"      旧: {row['old']}")
+        print(f"      新: {row['new']}")
     for row in ledgers["skipped"]:
         print(f"  ⚠️ 跳过 {os.path.basename(row.get('record', ''))}：{row['reason']}")
 
@@ -218,7 +276,8 @@ def main(argv=None):
         else:
             print(f"\n【发布队列】{db_result['skipped'][0]['reason'] if db_result['skipped'] else '跳过'}")
 
-    total = len(ledgers["changed"]) + (len(db_result["changed"]) if db_result else 0)
+    total = len(ledgers["changed"]) + len(ledgers["candidates"]) \
+        + (len(db_result["changed"]) if db_result else 0)
     if not args.apply and total:
         print(f"\n（预演模式，未改动任何文件；要真的写加 --apply）")
     elif args.apply:

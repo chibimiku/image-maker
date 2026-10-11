@@ -1,0 +1,1 @@
+The attached image is a visual STYLE sample for a completely new illustration. Study its painting method across the clothes, hair, face and environment. Transfer that method to the new subject below, not the sample's character or objects.

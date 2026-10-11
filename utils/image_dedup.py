@@ -1,4 +1,4 @@
-"""同目录图片按 SHA-256 去重：删掉「扩展名撒谎」的重复副本，并给出清单。
+"""同目录图片按 SHA-256 去重：删掉重复副本，并给出清单。
 
 ## 为什么需要
 
@@ -10,6 +10,8 @@
     <hash>_<时间>-first-<token>-aN_….jpg     ← 后缀没撒谎的那张
 
 用户 2026-10-07 反馈「看着大小一样」，正是因为它们本来就是同一个字节流。
+（发布那一侧已按用户选择「选中即 move 到发布名」改成**改名交付**，不再产生同内容副本；
+本工具依旧负责**既有**重复的收敛。）
 
 这些假 PNG 不只是难看，还会**真的坏事**：
 
@@ -28,11 +30,26 @@
 5. 每组至少留一张，**从不删空一个哈希组**；
 6. 真删之前重新校验一次：文件还在、哈希没变、幸存者还在且哈希一致，三条缺一不删。
 
+## `mode="identical"`：字节相同的重复（含"候选 + 发布副本"）
+
+`misnamed` 只认「后缀撒谎」，而发布名后缀被纠正之后（以及今天之前的历史产物里），
+同一张图会以**两个都合规**的名字并存（当时 `utils.first_image_audit.promote_candidate`
+把选中的候选 `copy2` 成发布名，`mtime` 都一模一样）—— 那种重复 `misnamed` 收不了，要 `identical`：
+
+    优先留下**发布队列（`data/publish/publish_queue.db`）在册的那一张**（已发/在队都算，
+    删了会让发布器找不到文件），没有在册的就留**名字短的**（短名 = `<hash>_<时间>-first-<token>`
+    发布名，`-aN` 候选名更长），最后按名字排序兜底。
+
+用户 2026-10-07 定的规则：*如果有一张已经发了就留发了的这张，否则两张都没发就留名字短的*。
+一条链里有两份都在发布库里（理论不该出现，`add_to_queue` 按 MD5 拦着）时**整组一张都不删**。
+
 ## 命令行
 
     python tools/image_dedup.py --dir data/20261006 --dir data/20261007          # 预演
     python tools/image_dedup.py --dir data/20261007 --apply                      # 真的删
     python tools/image_dedup.py --dir data/20261007 --apply --json 报告.json
+    python tools/image_dedup.py --dir data/20261007 --mode identical             # 字节相同也收敛
+    python tools/image_dedup.py --dir data/20261007 --mode identical --no-publish-db
 """
 
 from __future__ import annotations
@@ -40,6 +57,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sqlite3
 import sys
 
 from utils.image_identity import (
@@ -52,7 +70,71 @@ from utils.image_identity import (
 
 MODE_MISNAMED = "misnamed"
 MODE_ALL = "all"
-VALID_MODES = (MODE_MISNAMED, MODE_ALL)
+MODE_IDENTICAL = "identical"
+VALID_MODES = (MODE_MISNAMED, MODE_ALL, MODE_IDENTICAL)
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_PUBLISH_DB = os.path.join(BASE_DIR, "data", "publish", "publish_queue.db")
+
+# 发布队列里算「已经发出去/正在发」的状态；`pending` 是在队但还没发，
+# 一样不能删（删了发布器就找不到文件了），只是报告里分开写。
+PUBLISHED_STATUS = ("uploading", "uploaded")
+
+
+def _norm_path(path: str) -> str:
+    text = str(path or "").replace("/", os.sep).replace("\\", os.sep)
+    return os.path.normcase(os.path.abspath(text)) if text else ""
+
+
+def publish_index(db_path: str | None = None) -> dict:
+    """发布队列按「归一化路径」和「小写文件名」建的索引（只读，绝不改库）。
+
+    返回 `{key: {"path", "pixiv_status", "chichipui_status", "uploaded", "status"}}`。
+    库不存在 / 读不出来时返回空索引 —— 那就等价于"谁都没发过"，按名字长短裁决。
+    """
+    index: dict = {}
+    path = str(db_path or DEFAULT_PUBLISH_DB)
+    if not path or not os.path.isfile(path):
+        return index
+    conn = None
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        rows = conn.execute(
+            "SELECT image_path, pixiv_status, chichipui_status FROM publish_queue"
+        ).fetchall()
+    except (sqlite3.Error, OSError):
+        return index
+    finally:
+        if conn is not None:
+            conn.close()
+    for image_path, pixiv, chichi in rows:
+        name = os.path.basename(str(image_path or "").replace("\\", "/"))
+        if not name:
+            continue
+        uploaded = str(pixiv or "").lower() in PUBLISHED_STATUS \
+            or str(chichi or "").lower() in PUBLISHED_STATUS
+        row = {
+            "path": image_path,
+            "pixiv_status": pixiv,
+            "chichipui_status": chichi,
+            "uploaded": uploaded,
+            "status": ("uploaded" if uploaded else "pending"),
+        }
+        index[_norm_path(image_path)] = row
+        index.setdefault(name.lower(), row)      # 文件名兜底（发布名带时间+随机 token，不会撞）
+    return index
+
+
+def publish_state(row: dict, index: dict) -> dict:
+    """这个文件在发布队列里的状态：`published` = 在册（已发或在队）。"""
+    if not index:
+        return {"published": False, "uploaded": False, "queue_status": ""}
+    hit = index.get(_norm_path(row.get("path"))) or index.get(str(row.get("name") or "").lower())
+    if not hit:
+        return {"published": False, "uploaded": False, "queue_status": ""}
+    return {"published": True, "uploaded": bool(hit.get("uploaded")),
+            "queue_status": str(hit.get("status") or ""),
+            "queue_path": hit.get("path")}
 
 
 def _iter_images(directory: str, recursive: bool = False):
@@ -82,9 +164,14 @@ def _is_misnamed_row(row: dict) -> bool:
 
 
 def _survivor_key(row: dict):
-    """幸存者排序键：越小越优先被留下。"""
+    """幸存者排序键：越小越优先被留下。
+
+    次序（用户 2026-10-07 定的规则）：**发布队列在册的** > 后缀没撒谎的
+    > 发布名（名字里带 `-first-`）> 名字短的 > 名字靠前。
+    """
     name = str(row.get("name") or "")
     return (
+        0 if row.get("published") else 1,           # 已发/在队的优先（删了发布器就找不到它）
         0 if not _is_misnamed_row(row) else 1,      # 后缀没撒谎的优先
         0 if "-first-" in name else 1,              # 发布名（记录指着它）优先
         len(name),
@@ -116,23 +203,30 @@ def scan(directories, recursive: bool = False) -> list:
             for key, files in sorted(groups.items())]
 
 
-def plan(directories, recursive: bool = False, mode: str = MODE_MISNAMED) -> dict:
+def plan(directories, recursive: bool = False, mode: str = MODE_MISNAMED,
+         use_publish_db: bool = True, db_path: str | None = None) -> dict:
     """算出要删哪些、留哪些。**不碰磁盘**，只读。
 
     返回 `{"mode", "groups", "removable", "skipped", "info"}`：
 
-    - `removable`：可以删的「假后缀」重复（附幸存者 `kept`）；
-    - `skipped`：本想删但没有合法幸存者的（附 `reason`）；
-    - `info`：全是真后缀的重复，默认只报告。
+    - `removable`：可以删的重复副本（附幸存者 `kept`）；
+    - `skipped`：本想删但没有合法幸存者（或发布库里对不上人）的（附 `reason`）；
+    - `info`：全是真后缀的重复，`misnamed` 模式下只报告。
+
+    `mode="identical"` 时先读发布队列（`use_publish_db=False` 或 `db_path` 可覆盖），
+    让**在册的那一张**优先当幸存者；其余模式不读库，行为与从前完全一致。
     """
     mode = str(mode or MODE_MISNAMED).lower()
     if mode not in VALID_MODES:
         raise ValueError(f"mode 必须是 {VALID_MODES}，收到 {mode!r}")
+    index = publish_index(db_path) if (mode == MODE_IDENTICAL and use_publish_db) else {}
     removable, skipped, info, groups = [], [], [], []
     for group in scan(directories, recursive=recursive):
         files = list(group["files"])
         if len(files) < 2:
             continue
+        if index:
+            files = [{**row, **publish_state(row, index)} for row in files]
         ordered = sorted(files, key=_survivor_key)
         survivor = ordered[0]
         others = ordered[1:]
@@ -144,6 +238,39 @@ def plan(directories, recursive: bool = False, mode: str = MODE_MISNAMED) -> dic
             "kept": survivor["path"],
             "files": [row["name"] for row in ordered],
         }
+        if index:
+            record["kept_published"] = bool(survivor.get("published"))
+            record["kept_queue_status"] = str(survivor.get("queue_status") or "")
+            record["publish_checked"] = True
+
+        if mode == MODE_IDENTICAL:
+            # 字节相同就收敛，不再看"后缀有没有撒谎"
+            cited = [row for row in ordered if row.get("published")]
+            if len(cited) > 1:
+                # 一组里两份都在发布库里（`add_to_queue` 按 MD5 拦着，理论上不该出现）
+                # —— 分不清该留谁，整组一张都不删
+                for row in ordered:
+                    skipped.append({**row, "reason": "multiple_published",
+                                    "note": "同内容有两份都在发布队列里，一张都不删"})
+                record["skipped"] = "multiple_published"
+                groups.append(record)
+                continue
+            if _is_misnamed_row(survivor):
+                record["kept_misnamed"] = True
+            for row in others:
+                removable.append({
+                    **row,
+                    "duplicate_kind": "identical",
+                    "kept": survivor["path"],
+                    "kept_published": bool(survivor.get("published")),
+                    "kept_queue_status": str(survivor.get("queue_status") or ""),
+                    "reason": "与幸存者字节完全相同（SHA-256 一致）"
+                              + ("；幸存者在发布队列里" if survivor.get("published") else ""),
+                })
+                record.setdefault("removed", []).append(row["name"])
+            groups.append(record)
+            continue
+
         for row in others:
             if not _is_misnamed_row(row):
                 # 后缀没撒谎的重复：默认只报告
@@ -177,12 +304,16 @@ def plan(directories, recursive: bool = False, mode: str = MODE_MISNAMED) -> dic
 
 
 def apply_plan(plan_data: dict) -> dict:
-    """执行删除。删之前重新校验：文件还在、哈希没变、幸存者在且哈希一致。"""
+    """执行删除。删之前重新校验：**不在发布队列里**、文件还在、哈希没变、幸存者在且哈希一致。"""
     deleted, refused = [], []
     for row in plan_data.get("removable") or []:
         path = row.get("path") or ""
         kept = row.get("kept") or ""
         expected = row.get("sha256") or ""
+        if row.get("published"):
+            # 双保险：计划阶段就不该把在册的那份列为待删，真到这一步一律不删
+            refused.append({**row, "reason": "该文件在发布队列里有记录，放弃删除"})
+            continue
         if not os.path.isfile(path):
             refused.append({**row, "reason": "文件已不在"})
             continue
@@ -217,13 +348,19 @@ def _human_size(num: int) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="image_dedup",
-        description="按 SHA-256 找出同目录里字节相同的图片，删掉「扩展名撒谎」的假后缀重复，并输出清单。",
+        description="按 SHA-256 找出同目录里字节相同的图片，删掉重复副本（附幸存者），并输出清单。",
     )
     parser.add_argument("--dir", dest="dirs", action="append", default=[],
                         help="要扫描的目录，可重复传；默认取 data/<今天>")
     parser.add_argument("--recursive", action="store_true", help="递归子目录（默认只看顶层）")
     parser.add_argument("--mode", choices=VALID_MODES, default=MODE_MISNAMED,
-                        help="misnamed（默认）只删假后缀重复；all 连真后缀重复也一起收敛")
+                        help="misnamed（默认）只删假后缀重复；"
+                             "identical 连字节相同的真后缀重复也收敛（先留发布队列在册的那张，"
+                             "否则留名字短的）；all = identical 但不看发布队列")
+    parser.add_argument("--db", dest="db_path", default="",
+                        help=f"发布队列 DB，默认 {DEFAULT_PUBLISH_DB}（只有 identical 模式读它）")
+    parser.add_argument("--no-publish-db", action="store_true",
+                        help="identical 模式也不读发布队列，纯按后缀/名字长短裁决")
     parser.add_argument("--apply", action="store_true",
                         help="真的删除；不加只预演（默认预演，不碰磁盘）")
     parser.add_argument("--json", dest="json_out", default="",
@@ -241,12 +378,17 @@ def main(argv=None) -> int:
     for directory in missing:
         print(f"⚠️ 目录不存在，跳过：{directory}")
 
-    result = plan(dirs, recursive=args.recursive, mode=args.mode)
+    result = plan(dirs, recursive=args.recursive, mode=args.mode,
+                  use_publish_db=not args.no_publish_db,
+                  db_path=args.db_path or None)
     removable = result["removable"]
 
     print(f"扫描目录：{'、'.join(dirs)}   （{'递归' if args.recursive else '只看顶层'}）")
     print(f"模式：{args.mode}　｜　内容相同的分组：{len(result['groups'])}　｜　"
           f"可删的重复副本：{len(removable)}")
+    if args.mode == MODE_IDENTICAL:
+        db = args.db_path or DEFAULT_PUBLISH_DB
+        print(f"发布队列：{'不读（--no-publish-db）' if args.no_publish_db else db}")
 
     if removable and not args.quiet:
         print("\n可删清单：")
@@ -255,17 +397,24 @@ def main(argv=None) -> int:
             print(f"       路径   : {row['path']}")
             print(f"       后缀声称: .{row['declared']}　真实字节: {row['actual']}"
                   f"　{_human_size(row['size'])}　sha256 {row['sha256'][:16]}…")
-            print(f"       幸存者 : {os.path.basename(row['kept'])}")
+            print(f"       幸存者 : {os.path.basename(row['kept'])}"
+                  + (f"　（发布队列：{row.get('kept_queue_status')}）" if row.get("kept_published") else ""))
 
     if result["skipped"]:
         print(f"\n⚠️ 想删但没敢删（{len(result['skipped'])} 个）：")
         for row in result["skipped"]:
-            print(f"  - {row['name']}：{row['note']}")
+            print(f"  - {row['name']}：{row.get('note') or row.get('reason')}")
 
     if result["info"]:
         print(f"\nℹ️ 后缀都真实、内容相同的重复（默认保留，{len(result['info'])} 个）：")
         for row in result["info"]:
             print(f"  - {row['name']}　（同 {os.path.basename(row['kept'])}）")
+
+    misnamed_kept = [row for row in result["groups"] if row.get("kept_misnamed")]
+    if misnamed_kept:
+        print(f"\n⚠️ 幸存者自己后缀撒谎（扩展名与字节不符，{len(misnamed_kept)} 组）：")
+        for row in misnamed_kept:
+            print(f"  - {os.path.basename(row['kept'])}")
 
     if not removable:
         print("\n没有需要删除的重复副本。")

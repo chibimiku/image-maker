@@ -82,10 +82,11 @@ class NormalizeAuditTests(unittest.TestCase):
     def test_a_confident_style_failure_also_triggers_a_redraw(self):
         """用户要的就是这条：跟参考画风过于不一致时重画。"""
         report = fa.normalize_audit(_audit_json(verdict="uncertain", content_ok=True,
+                                                style_failure_kind="incompatible_medium",
                                                 style_ok=False, copied_from_reference=False,
-                                                style_issues=[{"element": "line_weight",
-                                                               "expected": "delicate",
-                                                               "observed": "heavy generic ink",
+                                                style_issues=[{"element": "rendering_medium",
+                                                               "expected": "2D anime illustration",
+                                                               "observed": "photorealistic 3D rendering",
                                                                "severity": "major",
                                                                "confidence": 0.9}]))
         self.assertTrue(report["conclusion_valid"])
@@ -475,11 +476,16 @@ class WorkerThreadAuditTests(unittest.TestCase):
         self.assertEqual(thread.last_status, "success")
         self.assertEqual(results[0],
                          [str(self.publish / "b51aa600_000000-first-abcdef.png")])
-        # 两张候选都留在目录里，发布名只有一份
+        # 被拒的 a1 候选留下；交付的那张（a2）**改名**成发布名，不再留同内容副本
         names = sorted(p.name for p in self.publish.iterdir() if p.suffix == ".png")
         self.assertEqual(names, ["b51aa600_000000-first-abcdef-a1.png",
-                                 "b51aa600_000000-first-abcdef-a2.png",
                                  "b51aa600_000000-first-abcdef.png"])
+        records = list(self.publish.glob("*first-image-audit*.json"))
+        self.assertEqual(len(records), 1)
+        record = json.loads(records[0].read_text(encoding="utf-8"))
+        self.assertEqual(record["selected_round"], 2)
+        self.assertEqual(record["candidates"][1]["file"], record["selected_file"])
+        self.assertTrue(str(record["candidates"][1]["moved_from"]).endswith("-a2.png"))
 
     def test_promotion_failure_falls_back_to_the_candidate_file(self):
         outcome = fa.generate_with_audit(

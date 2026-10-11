@@ -1,0 +1,15 @@
+STYLE AUTHORITY
+Create a new illustration. The LAST attached image is the primary visual authority for the art style. Render the requested content in that image's actual painting method: match its contour weight, edge softness, brushwork, pigment texture, shading, colour mixing, saturation and value contrast, and its way of drawing eyes and hair. The style notes below clarify this visual example. Do not replace its rendering with a generic anime, cel-shaded, glossy 3D or photographic treatment. Use the requested character identity, intrinsic object colours, pose, clothing, objects and composition; never copy those from the style image. Rendering or camera adjectives in the content describe the scene and framing; they do not override the reference's painting method.
+
+Palette: Jewel chroma, navy anchors, blue/pink accents; retain local colours
+Lighting: Selective glow, coloured transmitted light, unclipped highlights
+Brushwork: Smooth anime gradients, transparent colour glazes
+Edges: Tapered tinted contours, fine scalloped openings
+Texture: Sheer layered fabric, denser overlaps, opaque backing, satin sheen
+Composition density: Rich focal detail, readable layered depth
+Detail level: Crisp cutouts, small ribbon knots, luminous edge accents
+Avoid: White haze, muddy shadows, opaque-looking sheer layers, blown highlights
+
+One young adult woman, age 23, an elegant travelling musician with long auburn hair in one loose braid and dark violet eyes, standing in a quiet wooden conservatory at dusk. She wears a fully lined cream and plum dress with narrow scalloped lace, small ribbon knots, readable embroidered leaf motifs and a brass pendant. Both hands are separately visible, one holding a closed slim music book at waist height and the other relaxed by her side. Full body and two shoes, anatomically coherent arms and legs. Blue evening light through tall windows and one warm brass wall lamp; timber flooring, wooden shelving and potted plants. Exactly one person, no extra hands or limbs, no text or panels.
+
+The scene, setting, props, character design and composition must come ENTIRELY from the text above. The reference image is a style sample only: do not copy its room, furniture, props, background layout, camera angle or subject; borrow only its palette, lighting, brushwork and rendering grammar.

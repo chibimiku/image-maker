@@ -139,10 +139,14 @@ class BookDialogTests(unittest.TestCase):
         self.selector = ui.ThemeColorSelector(scope="test", context_getter=lambda: TEXT)
         self.addCleanup(self.selector.deleteLater)
 
-    def test_selector_lists_books_and_trials_without_widening(self):
+    def test_selector_lists_complete_names_with_readable_popup(self):
         ids = {self.selector.combo.itemData(i) for i in range(self.selector.combo.count())}
         self.assertTrue({p["id"] for p in profiles()} <= ids)
-        self.assertLessEqual(self.selector.combo.maximumWidth(), 160)
+        combo = self.selector.combo
+        for profile in profiles():
+            self.assertEqual(combo.itemText(combo.findData(profile["id"])), profile["label"])
+        longest = max(combo.fontMetrics().horizontalAdvance(p["label"]) for p in profiles())
+        self.assertGreater(combo.view().minimumWidth(), longest)
 
     def test_auto_result_populates_fields_before_parent_applies(self):
         dialog = self.ui.ColorRulesDialog(self.selector)

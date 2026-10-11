@@ -1,0 +1,17 @@
+{
+  "style": "puracotte-style-v2",
+  "prompt_file": "puracotte-street-content.txt",
+  "aspect_ratio": "2:3",
+  "content_postamble": true,
+  "repeat": 1,
+  "max_calls": 20,
+  "output_dir": "D:\\code\\image-maker\\data\\test-result\\20261008\\puracotte-v2-round3-20",
+  "variants": [
+    {
+      "name": "r3-cross-street-I-r2",
+      "face_quality_boost": false,
+      "head_template": "puracotte-v2-minimal-head.md",
+      "post_template": "puracotte-v2-whole-painting-post.md"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+STYLE AUTHORITY
+Create a new illustration. The LAST attached image is the primary visual authority for the art style. Render the requested content in that image's actual painting method: match its contour weight, edge softness, brushwork, pigment texture, shading, colour mixing, saturation and value contrast, and its way of drawing eyes and hair. The style notes below clarify this visual example. Do not replace its rendering with a generic anime, cel-shaded, glossy 3D or photographic treatment. Use the requested character identity, intrinsic object colours, pose, clothing, objects and composition; never copy those from the style image. Rendering or camera adjectives in the content describe the scene and framing; they do not override the reference's painting method.
+
+Palette: Jewel chroma, navy anchors, blue/pink accents; retain local colours
+Lighting: Selective glow, coloured transmitted light, unclipped highlights
+Brushwork: Smooth anime gradients, transparent colour glazes
+Edges: Tapered tinted contours, fine scalloped openings
+Texture: Sheer layered fabric, denser overlaps, opaque backing, satin sheen
+Composition density: Rich focal detail, readable layered depth
+Detail level: Crisp cutouts, small ribbon knots, luminous edge accents
+Avoid: White haze, muddy shadows, opaque-looking sheer layers, blown highlights
+
+Exactly two distinct young adult women, both age 22, full bodies in one continuous garden-terrace scene at evening, standing beside each other with clear separation and no overlapping hands. On the left, a chestnut-haired elf with dark emerald eyes wears a fully lined navy dress under silver shoulder armour with narrow gold vine trim. On the right, an auburn-haired human with dark violet eyes wears a fully lined cream and plum dress with narrow scalloped lace and one small ribbon brooch. Each woman has exactly two arms and two hands clearly connected; all four hands visible separately, relaxed at their own sides; each has two coherent legs and two shoes. Keep their hair and iris colours distinct. Broad stone paving, wrought-iron railing, a few climbing roses; cool evening sky light and a warm hanging lantern. Readable small decorative patterns. No extra people, extra limbs, text, panels or collage.
+
+The scene, setting, props, character design and composition must come ENTIRELY from the text above. The reference image is a style sample only: do not copy its room, furniture, props, background layout, camera angle or subject; borrow only its palette, lighting, brushwork and rendering grammar.

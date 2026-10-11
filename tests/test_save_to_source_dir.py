@@ -98,6 +98,62 @@ def test_toggle_disables_auto_gen_checkboxes(qapp):
     widget.close()
 
 
+@pytest.mark.parametrize("save_to_source,forced_targets,original_only", [
+    (True, None, True),
+    (False, None, False),
+    (True, ["refined"], False),
+])
+def test_launch_source_only_skips_all_description_postprocessing(
+        qapp, monkeypatch, tmp_path, save_to_source, forced_targets, original_only):
+    source = tmp_path / "source.png"
+    source.write_bytes(b"fake image")
+    widget = _make_widget()
+    monkeypatch.setattr(widget, "get_text_config", lambda *a: text_config())
+    widget.save_to_source_dir_cb.setChecked(save_to_source)
+    widget.enable_outfit_check_cb.setChecked(True)
+    widget.remove_photo_style_cb.setChecked(True)
+    preflight = []
+    monkeypatch.setattr(single_analyzer_module, "get_single_analyzer_missing_prompt_files",
+                        lambda **kw: preflight.append(kw) or [])
+    monkeypatch.setattr(single_analyzer_module.WorkerThread, "start", lambda self: None)
+    monkeypatch.setattr(widget, "_compute_gpt_prompts_for_task", lambda **kw: True)
+    thread = widget._launch_analysis_task(str(source), gen_targets=forced_targets)
+    assert thread is not None
+    assert thread.enable_refine is (not original_only)
+    assert thread.enable_outfit_check is (not original_only)
+    assert thread.remove_photo_style is (not original_only)
+    assert thread.gpt_prompts is (not original_only)
+    assert all(value is (not original_only) for value in preflight[0].values())
+
+    if original_only:
+        # UI changes after submission must not change this task's analysis intent.
+        widget.save_to_source_dir_cb.setChecked(False)
+        initial = {"english_description": "original scene", "pixiv_tags": ["原図"]}
+        monkeypatch.setattr(single_analyzer_module, "OpenAI", lambda **kw: object())
+        monkeypatch.setattr(single_analyzer_module, "predict_local_booru_tags", lambda *a, **kw: [])
+        monkeypatch.setattr(single_analyzer_module, "get_local_pixiv_tag_candidates", lambda *a, **kw: [])
+        monkeypatch.setattr(single_analyzer_module, "step_1_analyze_image", lambda *a, **kw: dict(initial))
+        monkeypatch.setattr(single_analyzer_module, "calculate_closest_aspect_ratio", lambda *a: "1:1")
+        def unexpected(*args, **kwargs):
+            pytest.fail("source-only analysis must not call description postprocessing")
+        for name in ("step_2_refine_description", "step_3_check_outfit_consistency",
+                     "step_4_remove_photo_style", "step_5_recompute_pixiv_tags"):
+            monkeypatch.setattr(single_analyzer_module, name, unexpected)
+        import utils.analysis_gpt_prompt as gpt_prompt
+        monkeypatch.setattr(gpt_prompt, "build_gpt_image_prompt", unexpected)
+        results = []
+        thread.finish_signal.disconnect()
+        thread.finish_signal.connect(results.append)
+        thread.run()
+        assert thread.last_status == "success"
+        assert results[0]["original_english_description"] == "original scene"
+        assert results[0]["english_description"] == ""
+        assert results[0]["pixiv_tags"] == initial["pixiv_tags"]
+        assert "gpt_image_prompt" not in results[0]
+    widget._active_analysis_threads.clear()
+    widget.close()
+
+
 # ---------------------------------------------------------------------------
 # 测试 2：文件名格式 —— publish_server 兼容性
 # ---------------------------------------------------------------------------
@@ -127,9 +183,9 @@ def test_save_to_source_filename_format(qapp, monkeypatch, tmp_path):
     # 禁用系统通知，避免测试环境中出错
     monkeypatch.setattr(widget, "_send_system_notification", lambda *a: None)
 
-    from unittest.mock import Mock
+    from types import SimpleNamespace
 
-    mock_thread = Mock()
+    mock_thread = SimpleNamespace()
     mock_thread.meta_thread_no = 0
     mock_thread.meta_task_hash = "abc123"
     mock_thread.meta_task_id = "task_0"

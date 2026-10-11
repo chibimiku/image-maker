@@ -375,6 +375,7 @@ def test_on_process_finished_honours_forced_gen_targets(qapp, monkeypatch, tmp_p
 @pytest.mark.parametrize("initial_save", [False, True])
 def test_analysis_submission_freezes_save_and_generation_options(qapp, monkeypatch, tmp_path, initial_save):
     widget = _make_widget(monkeypatch)
+    widget.auto_gen_orig_cb.setChecked(False)
     _patch_fake_worker_thread(monkeypatch)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(single_analyzer_module, "get_single_analyzer_missing_prompt_files", lambda **kw: [])
@@ -429,6 +430,8 @@ def test_clipboard_rerun_never_saves_analysis_into_snapshot_directory(qapp, monk
 
 def test_switch_generation_save_generation_applies_only_to_new_submissions(qapp, monkeypatch, tmp_path):
     widget = _make_widget(monkeypatch)
+    widget.save_to_source_dir_cb.setChecked(False)
+    widget.auto_gen_orig_cb.setChecked(False)
     _patch_fake_worker_thread(monkeypatch)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(single_analyzer_module, "get_single_analyzer_missing_prompt_files", lambda **kw: [])
