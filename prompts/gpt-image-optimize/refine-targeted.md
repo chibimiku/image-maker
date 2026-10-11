@@ -1,0 +1,3 @@
+Image 1 is the only editing base. Repair only the clearly diagnosed defects listed below, using their existing objects, materials and supported paths. Preserve anatomy, pose, viewpoint, clothing design, major damage, intrinsic colours, objects and artistic style. Keep each person's hair within its existing length, outline and direction. Do not invent details or perform speculative anatomy reconstruction. Do not relight the whole image; a separate final whole-image refinement follows. Output only the repaired image with no added text, captions, signatures, logos or watermarks.
+Protected source identity: {identity_anchors}
+Specific repair targets with visible evidence, permitted repairs and preservation boundaries: {repair_targets}

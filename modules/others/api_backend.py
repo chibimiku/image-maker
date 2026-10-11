@@ -2954,7 +2954,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     return saved_files
 
 
-def generate_image_repaint(source_paths, api_type: str = None, config_path: str = None, model: str = None, resolution: str = None, aspect_ratio: str = None, prompt: str = None, prompt_suffix: str = None, use_detail_suffix: bool = None, repeat: int = None, save_sub_dir: str = None, file_prefix: str = None, cancel_check: callable = None, log_callback=None, return_metadata: bool = False, extra_reference_paths=None, content_guard=False, request_timeout=None, retry_limit=None, budget_run_id=None, refine=False) -> list:
+def generate_image_repaint(source_paths, api_type: str = None, config_path: str = None, model: str = None, resolution: str = None, aspect_ratio: str = None, prompt: str = None, prompt_suffix: str = None, use_detail_suffix: bool = None, repeat: int = None, save_sub_dir: str = None, file_prefix: str = None, cancel_check: callable = None, log_callback=None, return_metadata: bool = False, extra_reference_paths=None, content_guard=False, request_timeout=None, retry_limit=None, budget_run_id=None, refine=False, refine_background_model=None, refine_clothing_model=None) -> list:
     """gpt-image 产物优化：对 `source_paths` 逐张走 Gemini 重绘提线。
 
     模型 / 分辨率 / 宽高比 / prompt / 输出目录**全部来自 `prompts/gpt-image-optimize/config.json`**
@@ -3007,6 +3007,8 @@ def generate_image_repaint(source_paths, api_type: str = None, config_path: str 
             selected.append(refine_image(source, image_options={
                 "api_type": resolved_api_type, "model": resolved_model,
                 "resolution": resolved_resolution,
+                "refine_background_model": refine_background_model or conf.get("refine_background_model"),
+                "refine_clothing_model": refine_clothing_model or conf.get("refine_clothing_model"),
                 "aspect_ratio": source_plan["aspect_ratio"] if is_auto_aspect_ratio(requested_aspect) else resolved_aspect,
                 "save_sub_dir": save_sub_dir or source_plan["save_sub_dir"]},
                 log_callback=log_callback, cancel_check=cancel_check))

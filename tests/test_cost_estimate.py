@@ -88,3 +88,19 @@ def test_fallback_pricing_covers_our_models():
     for name in ("gpt-image-2", "gemini-3-pro-image-preview", "gpt-image-2-c"):
         entry = ce.model_price_entry(name, pricing={"models": {}})
         assert entry, name
+
+
+def test_hybrid_pricing_charges_models_separately(monkeypatch):
+    calls = []
+    def estimate(model, repeat=1, pricing=None):
+        calls.append((model, repeat))
+        return {'usd': (10 if model == 'pro' else 1) * repeat, 'billed': 'per_call'}
+    monkeypatch.setattr(ce, 'estimate_gemini_repaint_cost', estimate)
+    result = ce.estimate_pipeline(100, include_refine=True, include_local=False,
+                                 refine_background_model='pro', refine_clothing_model='flash',
+                                 pricing={'models': {'irrelevant': {}}})
+    assert calls == [('flash', 2), ('pro', 1), ('flash', 1)]
+    steps = {s['key']: s for s in result['steps']}
+    assert steps['refine_background']['usd'] == 10
+    assert steps['refine_clothing']['usd'] == 1
+    assert steps['refine_audit']['call_count'] == 5

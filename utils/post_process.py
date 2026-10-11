@@ -1430,12 +1430,15 @@ def assemble_repaint_request(current, cfg, *, firmware=None, style_ref_path=None
     guard_options = {"content_guard": True, "request_timeout": 360, "retry_limit": 0} if cfg.get("content_guard") else {}
     if cfg.get("refine"):
         guard_options.update(refine=True, request_timeout=360, retry_limit=0)
-        logs.append("[工序] refine：诊断 → 人物修复/审计 → 背景修复/审计；最多2图3文本，无自动重试。")
+        for key in ("refine_background_model", "refine_clothing_model"):
+            guard_options[key] = cfg.get(key) or conf[key]
+        logs.append("[工序] refine：诊断 → 按需针对性 → 背景 → 衣装 → 整体/头发与光照；逐步审计，最多4图5文本，无自动重试。")
     sources = [str(current)] + extra_refs
     return {
         "kind": "gpt-image-refine" if cfg.get("refine") else "gemini-image-repaint",
         "prompt_role": "legacy_envelope_ignored_by_refine" if cfg.get("refine") else "image_instruction",
-        "refine_templates": ["refine-diagnosis.md", "refine-person.md", "refine-background.md", "refine-audit.md"] if cfg.get("refine") else [],
+        "refine_templates": ["refine-diagnosis.md", "refine-targeted.md", "refine-whole.md", "refine-materials.json", "refine-background-redraw.md", "refine-clothing-redraw.md", "refine-audit.md"] if cfg.get("refine") else [],
+        "refine_stage_models": {k: guard_options[k] for k in ("refine_background_model", "refine_clothing_model")} if cfg.get("refine") else {},
         "source_paths": [str(current)],
         "extra_reference_paths": extra_refs,
         "reference_images": [_transmitted_image_view(path) for path in sources],

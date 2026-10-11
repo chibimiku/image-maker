@@ -12,7 +12,7 @@ from PIL import Image, ImageGrab
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
                              QLabel, QPushButton, QTextEdit, QComboBox, QMessageBox, QDoubleSpinBox, QCompleter,
                              QListWidget, QListWidgetItem, QDialog, QMenu, QApplication, QScrollArea, QFrame, QInputDialog, QFileDialog)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QStringListModel
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QStringListModel
 from PyQt6.QtGui import QPixmap, QColor, QDesktopServices
 from PyQt6.QtCore import QUrl
 
@@ -2552,8 +2552,16 @@ class AnalysisHistoryDetailDialog(QDialog):
 
 # --- 单图分析核心界面 Widget ---
 class SingleAnalyzerWidget(QWidget):
+    queued_log = pyqtSignal(str)
+
+    def closeEvent(self, event):
+        from utils.gui_shutdown import defer_close_until_threads_finish
+        if not defer_close_until_threads_finish(self, event):
+            super().closeEvent(event)
+
     def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, remove_photo_style_default_getter_func=None, remove_photo_style_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None, persist_ui_state=True, fallback_default_getter_func=None, fallback_changed_callback=None):
         super().__init__()
+        self.queued_log.connect(self._append_log_on_gui, Qt.ConnectionType.QueuedConnection)
         self.persist_ui_state = bool(persist_ui_state)
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -4125,6 +4133,15 @@ class SingleAnalyzerWidget(QWidget):
             if not lines:
                 lines = [message]
             message = "\n".join(f"{prefix} {line}" if line else prefix for line in lines)
+        # Audit callbacks run inside the image worker. Never layout QTextEdit
+        # text there: Qt widgets and their font/layout objects belong to the GUI.
+        if QThread.currentThread() != self.thread():
+            self.queued_log.emit(message)
+            return
+        self._append_log_on_gui(message)
+
+    @pyqtSlot(str)
+    def _append_log_on_gui(self, message):
         self.log_text.append(message)
         scrollbar = self.log_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
@@ -5157,9 +5174,10 @@ class SingleAnalyzerWidget(QWidget):
             slots += max(1, len([r for r in regions if str(r).strip()]))
         # 安全替代可能稍后启用重绘，也需要保留同样的内容检查预算。
         guarded_repaint = bool((steps.get("repaint") or {}).get("enabled") or fallback_repaint)
-        # refine reserves two 360s images plus three 180s text calls (1260s).
+        # Hybrid refine reserves at most four 360s images plus five 180s texts.
+        from utils.gpt_image_refine import NETWORK_TIMEOUT_BUDGET
         refine_enabled = bool((steps.get("repaint") or {}).get("refine"))
-        return max(1, int(timeout_seconds or 120)) * slots + ((1260 if refine_enabled else 1080) if guarded_repaint else 0)
+        return max(1, int(timeout_seconds or 120)) * slots + ((NETWORK_TIMEOUT_BUDGET if refine_enabled else 1080) if guarded_repaint else 0)
 
     def _start_gpt_image_thread(self, prompt_type, prompt_context, task_hash, selected_style_name,
                                styles_data, is_auto=False, analysis_thread_no=None, auto_group_id=None,

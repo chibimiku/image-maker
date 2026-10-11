@@ -1,0 +1,19 @@
+{
+  "qualities": {
+    "leather": "leather with fine grain, supple folds and restrained broad highlights",
+    "silk": "silk with smooth flowing folds and soft directional lustre",
+    "satin": "satin with smooth folds and broad directional sheen",
+    "cotton": "cotton with subtle woven texture and mostly diffuse matte shading",
+    "linen": "linen with irregular woven texture, crisp folds and diffuse highlights",
+    "wool": "wool with soft fibrous texture and diffuse matte shading",
+    "knit": "knit with coherent existing stitches and soft diffuse shading",
+    "lace": "lace with coherent existing openwork and delicate light passing through its openings",
+    "translucent fabric": "translucent fabric with gentle light transmission and layered soft shadows",
+    "denim": "denim with subtle twill texture, sturdy folds and matte shading",
+    "velvet": "velvet with soft pile, deep fold shadows and restrained directional sheen",
+    "fur": "fur with coherent existing tufts and soft light scattered through their edges",
+    "metal": "metal garment panels with coherent existing reflections and controlled highlights"
+  },
+  "texture_sentence": "On the corresponding diagnosed garment regions, render {qualities}.",
+  "lighting_sentence": "Keep these responses consistent with the scene lighting and original artistic style, preserving each material's existing colour, placement and clothing design without adding exaggerated gloss or replacing materials."
+}

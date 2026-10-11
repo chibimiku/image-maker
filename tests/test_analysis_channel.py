@@ -5,6 +5,7 @@
 """
 import os
 import sys
+import threading
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -15,6 +16,36 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 
 import modules.image_analysis.single_analyzer as sa  # noqa: E402
+
+
+def test_background_audit_logging_is_queued_to_gui_thread(analyzer, qapp, monkeypatch):
+    from utils import first_image_audit
+    from PyQt6.QtCore import QThread
+    calls = []
+    original_append = analyzer.log_text.append
+    def append(message):
+        calls.append((message, QThread.currentThread()))
+        original_append(message)
+    monkeypatch.setattr(analyzer.log_text, 'append', append)
+    monkeypatch.setattr(first_image_audit, 'audit_first_image', lambda *a, **kw: {'verdict': 'pass'})
+    callback = sa.build_first_image_audit_callback(
+        {}, '', __file__, styles={}, log_callback=analyzer.log_msg)
+    result = []
+    def work():
+        result.append(callback(__file__, 'test content', 1))
+        analyzer.log_msg('first\nsecond', prefix='[worker]')
+    thread = threading.Thread(target=work)
+    thread.start()
+    thread.join(timeout=5)
+    assert not thread.is_alive() and result == [{'verdict': 'pass'}]
+    assert not calls  # Worker finished; GUI has not processed the queued signals.
+    qapp.processEvents()
+    assert len(calls) == 2
+    assert all(owner == analyzer.thread() for _, owner in calls)
+    assert '首图审计' in calls[0][0]
+    assert calls[1][0] == '[worker] first\n[worker] second'
+    analyzer.log_msg('main thread')
+    assert calls[-1][0] == 'main thread'  # Main-thread logging remains immediate.
 
 
 @pytest.fixture(scope="session")
@@ -141,19 +172,19 @@ def test_wardrobe_repaint_switch_is_wired_into_the_analysis_tab(analyzer):
 def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
     """预算覆盖首图、重绘、衣装重绘、质量/身份门禁；本地工序（结构线/色调/加墨）不占份额。
 
-    refine 预留2*360+3*180=1260秒；外围门禁及衣装预算仍保守保留。
+    整体 refine 预留4*360+5*180=2340秒；外围门禁及衣装预算仍保守保留。
     旧单步保真流程预留1080秒，局部重绘不占预算。
     """
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘 + 衣装重绘（结构线/色调/加墨是本地）
     assert steps['repaint']['refine'] is True
-    assert analyzer._pipeline_timeout_budget(120, steps) == 3540
+    assert analyzer._pipeline_timeout_budget(120, steps) == 4620
     legacy_steps = {key: dict(value) for key, value in steps.items()}
     legacy_steps['repaint']['refine'] = False
     assert analyzer._pipeline_timeout_budget(120, legacy_steps) == 3360
     analyzer.gpt_pp_wardrobe.setChecked(False)         # 关掉衣装重绘 → 少一份
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 3420
+    assert analyzer._pipeline_timeout_budget(120, steps) == 4500
     analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 衣装重绘
     analyzer.gpt_pp_wardrobe.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
@@ -251,11 +282,11 @@ def test_gpt_channel_wardrobe_step_counts_one_slot_and_local_stays_off(analyzer)
     steps = analyzer._build_gpt_image_steps()
     assert steps["local"]["enabled"] is False          # 停用
     assert steps["wardrobe"]["enabled"] is True        # 衣装重绘默认开
-    # 外围预算仍保守保留衣装份额；refine 的网络预留为1260秒。
-    assert analyzer._pipeline_timeout_budget(120, steps) == 3540
+    # 外围预算仍保守保留衣装份额；整体 refine 预留为2340秒。
+    assert analyzer._pipeline_timeout_budget(120, steps) == 4620
     analyzer.gpt_pp_wardrobe.setChecked(False)
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 3420
+    assert analyzer._pipeline_timeout_budget(120, steps) == 4500
 
 
 def _first_pass_payload(analyzer, tmp_path, styles, style_name):

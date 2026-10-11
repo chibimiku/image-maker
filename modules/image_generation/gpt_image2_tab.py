@@ -18,8 +18,9 @@ import logging
 import os
 import time
 import traceback
+from copy import deepcopy
 
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap, QTextCursor
 from PyQt6.QtWidgets import (
     QApplication,
@@ -300,6 +301,26 @@ class PostProcessWorker(QThread):
         self.done.emit(result)
 
 
+class RefineRetryWorker(QThread):
+    log = pyqtSignal(str)
+    done = pyqtSignal(list)
+    error = pyqtSignal(str)
+
+    def __init__(self, record_path, stage, force, parent=None):
+        super().__init__(parent)
+        self.record_path, self.stage, self.force = record_path, stage, force
+
+    def run(self):
+        try:
+            from utils.gpt_image_refine import refine_image
+            path = refine_image('', image_options={}, resume_record=self.record_path,
+                                start_stage=self.stage, force_candidate=self.force,
+                                log_callback=self.log.emit, cancel_check=self.isInterruptionRequested)
+            self.done.emit([path])
+        except Exception as exc:
+            self.error.emit(f'{type(exc).__name__}: {exc}')
+
+
 class GptImage2Worker(QThread):
     """按站点调用对应后端；aigc2d 通道才支持取消与实时日志。
 
@@ -418,6 +439,8 @@ class GptImage2Widget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._worker = None
+        self._post_worker = None
+        self._post_retry_available = False
         self._model_worker = None
         self._live_models = {}
         self._loading = False
@@ -461,6 +484,8 @@ class GptImage2Widget(QWidget):
 
     # ---------------- UI ----------------
     def initUI(self):
+        # Configuration loading can report errors before the log row is added.
+        self.log_view = QPlainTextEdit(self)
         layout = QVBoxLayout(self)
 
         # 顶部参数区：**宽屏横排**（2026-09-30 用户反馈「上半部分高度不够」后压缩）。
@@ -579,11 +604,12 @@ class GptImage2Widget(QWidget):
         self._repaint_config = load_repaint_config()
         self.repaint_check = QCheckBox(REPAINT_CHECK_TEXT[MODE_GENERATE])
         self.repaint_check.setToolTip(
-            "默认流程：gpt-image 出图/编辑 → 材质与人体诊断 → 人物衣装修复/检查 → 背景修复/检查。\n"
+            "默认流程：gpt-image 出图/编辑 → 源图诊断 → 按需针对性修复 → 背景清理 → 独立衣装 → 整体/头发与光照（逐步审计）。\n"
+            "诊断识别服装材质，有明确证据时在固定整体修复追加两句英文质感与光照要求。\n"
             "生图和编辑两种模式都支持（gpt-image 出的分辨率都偏低，重绘顺带提分辨率与细节）。\n"
             "自动重绘只发送每张源图作为 Image 1，保留源图自己的画法、构图与内容。\n"
-            "每张最多2次图片（各360秒）与3次分析（各180秒），无自动重试；失败回退最近通过的输入。\n"
-            "人物步骤已包含衣装修复，不重复执行衣装工序；保真效果仍需人工检查。\n"
+            "优化最多4图5分析（图片360秒、分析180秒），无自动重试；失败回退输入，候选与记录保留。\n"
+            "流程已内置独立衣装修复，不重复执行额外衣装后处理；保真效果仍需人工检查。\n"
             "配置 refine_enabled=false 可恢复旧单步保真流程；手动重绘仍使用编辑框指令。\n"
             "原始产物路径会写进日志，方便回头对比。\n"
             "参数与提示词固件：prompts/gpt-image-optimize/（理论见 docs/gpt-image-optimize/）。"
@@ -626,7 +652,7 @@ class GptImage2Widget(QWidget):
 
         self.post_wardrobe_check = QCheckBox("衣装重绘")
         self.post_wardrobe_check.setToolTip(
-            "自动 refine 已包含人物衣装修复，启用时不重复执行此工序。\n"
+            "自动 refine 已包含整体衣装修复，启用时不重复执行此工序。\n"
             "最后一道 Gemini 重绘：只画角色**全部衣装**（蕾丝/系带/蝴蝶结/靴袜/荷叶边…），\n"
             "解决细节散乱、糊成一团；件数、配色、材质族、装饰位置与遮挡关系保持不变。\n"
             "用的是专用固件 prompts/gpt-image-optimize/wardrobe-repair-system.md ——\n"
@@ -758,6 +784,17 @@ class GptImage2Widget(QWidget):
             "默认 gemini-3.1-flash-image = Nano Banana 2；可在这里选择其他重绘模型。"
         )
         repaint_form.addRow("重绘模型:", self.repaint_model_combo)
+        for key, label in (("refine_background_model", "背景清理模型:"),
+                           ("refine_clothing_model", "衣装及整体模型:")):
+            combo = QComboBox()
+            combo.setEditable(True)
+            combo.addItems([str(name) for name in self._repaint_config.get("model_options", [])])
+            combo.setCurrentText(str(self._repaint_config.get(key) or REPAINT_DEFAULTS[key]))
+            combo.setToolTip("自动refine按阶段使用此模型；独立手动重绘使用上方重绘模型。")
+            setattr(self, key + "_combo", combo)
+            repaint_form.addRow(label, combo)
+            combo.currentTextChanged.connect(lambda _value: self.save_repaint_defaults())
+            combo.currentTextChanged.connect(lambda _value: self._refresh_budget())
 
         self.repaint_resolution_combo = QComboBox()
         for value in (self._repaint_config.get("resolution_options") or REPAINT_DEFAULTS["resolution_options"]):
@@ -925,7 +962,6 @@ class GptImage2Widget(QWidget):
         layout.addLayout(action_row)
 
         body_row = QHBoxLayout()
-        self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
         self.log_view.setPlaceholderText("运行日志")
         body_row.addWidget(self.log_view, stretch=1)
@@ -945,7 +981,38 @@ class GptImage2Widget(QWidget):
         self.result_list.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.result_list.setToolTip("双击打开所在目录；完整路径见悬浮提示与运行日志。")
         self.result_list.itemDoubleClicked.connect(self.open_item)
+        self.result_list.currentItemChanged.connect(lambda *_: self.refresh_refine_status())
         layout.addWidget(self.result_list)
+
+        self._refine_record_path = None
+        self._refine_live_path = None
+        self.refine_status_view = QPlainTextEdit()
+        self.refine_status_view.setReadOnly(True)
+        self.refine_status_view.setMaximumHeight(85)
+        self.refine_status_view.setPlaceholderText('选择产物后显示 refine 工序状态；可载入历史记录或图片。')
+        layout.addWidget(self.refine_status_view)
+        refine_row = QHBoxLayout()
+        self.refine_load_btn = QPushButton('载入 refine 记录/产物')
+        self.refine_load_btn.clicked.connect(self.load_refine_product)
+        self.refine_stage_combo = QComboBox()
+        from utils.refine_state import STAGES, LABELS
+        for stage in STAGES:
+            self.refine_stage_combo.addItem(LABELS[stage], stage)
+        self.refine_retry_btn = QPushButton('重试该步骤并继续')
+        self.refine_force_btn = QPushButton('采用该候选并继续')
+        self.refine_retry_btn.setToolTip('显式新增一次请求：从所选步骤原输入重画，通过审计后继续。旧记录与候选保留。')
+        self.refine_force_btn.setToolTip('人工采用所选步骤已返回的候选，记录覆盖决定，从下一步继续；后续审计仍生效。')
+        self.refine_retry_btn.clicked.connect(lambda: self.retry_refine(False))
+        self.refine_force_btn.clicked.connect(lambda: self.retry_refine(True))
+        self.refine_stage_combo.currentIndexChanged.connect(lambda *_: self.preview_refine_stage())
+        for widget in (self.refine_load_btn, self.refine_stage_combo, self.refine_retry_btn, self.refine_force_btn):
+            refine_row.addWidget(widget)
+        layout.addLayout(refine_row)
+        self.refine_timer = QTimer(self)
+        self.refine_timer.setInterval(2000)
+        self.refine_timer.timeout.connect(self.refresh_refine_status)
+        self.refine_timer.start()
+        self.refresh_refine_buttons()
 
         result_btn_row = QHBoxLayout()
         self.add_results_to_ref_btn = QPushButton("把结果加入参考图")
@@ -1105,6 +1172,8 @@ class GptImage2Widget(QWidget):
         # 固件可能已在磁盘修订；新请求不能继续使用窗口启动时缓存的旧画法。
         conf = load_repaint_config()
         conf["model"] = self.repaint_model_combo.currentText().strip() or REPAINT_DEFAULTS["model"]
+        for key in ("refine_background_model", "refine_clothing_model"):
+            conf[key] = getattr(self, key + "_combo").currentText().strip() or REPAINT_DEFAULTS[key]
         conf["resolution"] = self.repaint_resolution_combo.currentText().strip() or REPAINT_DEFAULTS["resolution"]
         conf["aspect_ratio"] = str(
             self.repaint_aspect_combo.currentData() or self.repaint_aspect_combo.currentText() or ASPECT_RATIO_AUTO
@@ -1165,6 +1234,8 @@ class GptImage2Widget(QWidget):
         conf = load_repaint_config()
         conf["enabled"] = bool(self.repaint_enabled())
         conf["model"] = self.repaint_model_combo.currentText().strip() or REPAINT_DEFAULTS["model"]
+        for key in ("refine_background_model", "refine_clothing_model"):
+            conf[key] = getattr(self, key + "_combo").currentText().strip() or REPAINT_DEFAULTS[key]
         conf["resolution"] = self.repaint_resolution_combo.currentText().strip() or REPAINT_DEFAULTS["resolution"]
         conf["aspect_ratio"] = str(
             self.repaint_aspect_combo.currentData() or self.repaint_aspect_combo.currentText() or ASPECT_RATIO_AUTO
@@ -1206,6 +1277,7 @@ class GptImage2Widget(QWidget):
         if not manual:
             params.update(content_guard=True, request_timeout=360, retry_limit=0, repeat=1)
             params["refine"] = bool(conf.get("refine_enabled", True))
+            params.update({key: conf[key] for key in ("refine_background_model", "refine_clothing_model")})
         return params
 
     def automatic_refine_enabled(self):
@@ -1224,6 +1296,8 @@ class GptImage2Widget(QWidget):
 
     def repaint_selected_results(self):
         """不用先加参考图：直接对结果列表里的图跑一轮重绘。"""
+        if self._pipeline_busy():
+            return
         paths = [self.result_list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.result_list.count())]
         paths = [p for p in paths if p]
         if not paths:
@@ -1245,9 +1319,10 @@ class GptImage2Widget(QWidget):
         self.preview_label.setText("重绘中...")
         self._worker = GptImage2Worker(generate_image_repaint, params, self)
         self._worker.log.connect(self._append_log)
-        self._worker.done.connect(self.on_done)
+        recipe = self._freeze_post_recipe()
+        self._worker.done.connect(lambda paths, recipe=recipe: self.on_done(paths, recipe))
         self._worker.error.connect(self.on_error)
-        self._worker.finished.connect(self._on_worker_finished)
+        self._watch_generation_worker(self._worker)
         self._worker.start()
 
     def _populate_sizes(self, site: str):
@@ -1308,14 +1383,17 @@ class GptImage2Widget(QWidget):
         self.refresh_models_btn.setEnabled(False)
         self.refresh_models_btn.setText("获取中...")
         self._model_worker = ModelListWorker(api_type=api_type, config_path=CONFIG_IMAGE_FILE, parent=self)
-        self._model_worker.done.connect(self._on_models_fetched)
+        self._model_worker.done.connect(lambda models, site=site: self._on_models_fetched(models, site))
         self._model_worker.error.connect(self._on_models_fetch_error)
-        self._model_worker.finished.connect(self._on_model_worker_finished)
+        self._model_worker.finished.connect(lambda worker=self._model_worker: self._on_model_worker_finished(worker))
         self._model_worker.start()
 
-    def _on_models_fetched(self, models):
-        site = self.current_site()
+    def _on_models_fetched(self, models, site=None):
+        site = site or self.current_site()
         self._live_models[site] = list(models or [])
+        if site != self.current_site():
+            self._append_log(f"[模型] {site} 的模型列表已缓存，当前站点未改变。")
+            return
         current = self.current_model()
         choices = pick_gpt_image_models(site=site, models=self._live_models[site], extra=[current])
         self._set_model_choices(choices, current)
@@ -1332,10 +1410,14 @@ class GptImage2Widget(QWidget):
             self, "获取失败", f"获取模型列表失败：{message}\n请检查该站点的 base_url / api_key / 网络。"
         )
 
-    def _on_model_worker_finished(self):
+    def _on_model_worker_finished(self, worker=None):
+        worker = worker or self._model_worker
+        if worker is not self._model_worker:
+            if worker is not None:
+                worker.deleteLater()
+            return
         self.refresh_models_btn.setEnabled(True)
         self.refresh_models_btn.setText("刷新模型列表")
-        worker = self._model_worker
         self._model_worker = None
         if worker is not None:
             worker.deleteLater()
@@ -1797,6 +1879,8 @@ class GptImage2Widget(QWidget):
         return generate_image_repaint, params
 
     def generate(self):
+        if self._pipeline_busy():
+            return
         site = self.current_site()
         mode = self.mode_combo.currentText()
         api_type = API_TYPE_BY_SITE.get(site, "")
@@ -1836,9 +1920,10 @@ class GptImage2Widget(QWidget):
             self.preview_label.setText("重绘中...")
             self._worker = GptImage2Worker(backend, params, self)
             self._worker.log.connect(self._append_log)
-            self._worker.done.connect(self.on_done)
+            recipe = self._freeze_post_recipe()
+            self._worker.done.connect(lambda paths, recipe=recipe: self.on_done(paths, recipe))
             self._worker.error.connect(self.on_error)
-            self._worker.finished.connect(self._on_worker_finished)
+            self._watch_generation_worker(self._worker)
             self._worker.start()
             return
 
@@ -1892,9 +1977,9 @@ class GptImage2Widget(QWidget):
         if chain_repaint:
             if repaint_params.get('refine'):
                 self._append_log(
-                    f"[链路] 生图 → 诊断 → 人物衣装 → 保真检查 → 背景 → 保真检查"
+                    f"[链路] 生图 → 源图诊断 → 按需针对性修复 → 背景清理 → 独立衣装 → 整体/头发与光照（逐步审计）"
                     f"（{repaint_params.get('model')} @{repaint_params.get('resolution')}）。"
-                    "每张最多 2 次图片、3 次分析；仅源图，失败回退最近通过的输入，无自动重试。"
+                    "优化最多4图5分析；失败回退输入，无自动重试。"
                 )
             else:
                 self._append_log(
@@ -1932,14 +2017,16 @@ class GptImage2Widget(QWidget):
         if color_record:
             self._worker.done.connect(lambda paths: self._on_theme_done(paths, True))
         else:
-            self._worker.done.connect(self.on_done)
+            recipe = self._freeze_post_recipe()
+            self._worker.done.connect(lambda paths, recipe=recipe: self.on_done(paths, recipe))
         self._worker.raw_done.connect(self._on_raw_products)
         self._worker.error.connect(self.on_error)
-        self._worker.finished.connect(self._on_worker_finished)
+        self._watch_generation_worker(self._worker)
         self._worker.start()
 
     def _on_raw_products(self, paths):
         """链式模式下先记录未重绘的原始产物（只写日志，不进结果列表）。"""
+        self._refine_live_path = paths[0] if paths else None
         for path in paths or []:
             self._append_log(f"[原始产物] {path}")
         self._append_log(
@@ -1952,13 +2039,35 @@ class GptImage2Widget(QWidget):
             self._worker.requestInterruption()
             self.status_label.setText("已请求取消，等待当前请求返回...")
 
-    def _on_worker_finished(self):
-        self.generate_btn.setEnabled(True)
-        self.cancel_btn.setEnabled(False)
-        worker = self._worker
-        self._worker = None
+    def _pipeline_busy(self):
+        # Keep the task busy until finished has been handled, including the gap
+        # between a result signal and the actual end of run().
+        return bool(getattr(self, '_shutdown_pending', False) or self._worker is not None
+                    or getattr(self, '_post_worker', None) is not None)
+
+    def _refresh_task_controls(self):
+        busy = self._pipeline_busy()
+        self.generate_btn.setEnabled(not busy)
+        self.repaint_results_btn.setEnabled(not busy)
+        self.post_retry_btn.setEnabled(not busy and self._post_retry_available)
+        self.cancel_btn.setEnabled(bool(self._worker and getattr(self._worker, 'cancellable', True)
+                                       and not getattr(self, '_shutdown_pending', False)))
+        self.refresh_refine_buttons()
+
+    def _watch_generation_worker(self, worker):
+        worker.cancellable = getattr(worker, 'params', {}).get('api_type') != 'autodl'
+        worker.finished.connect(lambda worker=worker: self._on_worker_finished(worker))
+        self._refresh_task_controls()
+
+    def _on_worker_finished(self, worker=None):
+        worker = worker or self._worker
+        if worker is self._worker:
+            self._worker = None
+            self._refine_live_path = None
         if worker is not None:
             worker.deleteLater()
+        self._refresh_task_controls()
+        self.refresh_refine_status()
 
     def _on_theme_done(self, paths, frozen_color):
         # UI 在收费调用期间可修改；本轮主题首图不能因此被追加新的后处理。
@@ -1970,7 +2079,13 @@ class GptImage2Widget(QWidget):
             return
         self.on_done(paths)
 
-    def on_done(self, paths):
+    def _freeze_post_recipe(self):
+        steps = deepcopy(self.post_pipeline_steps())
+        if steps.get('tone', {}).get('enabled'):
+            steps['tone']['reference_path'] = self.tone_reference_path()
+        return {'steps': steps, 'style_ref_path': self.current_style_block()[1]}
+
+    def on_done(self, paths, recipe=None):
         paths = [p for p in (paths or []) if p]
         if not paths:
             self.status_label.setText("完成(无图片) —— 详见下方日志")
@@ -1980,9 +2095,10 @@ class GptImage2Widget(QWidget):
             self._append_log("       3) 上方『服务器返回 JSON 已保存到: …』给出的文件，含完整原文")
             self._append_log("       4) 本机日志文件 log/<日期>.log，内容相同且含重试过程")
             return
-        steps = self.post_pipeline_steps()
+        recipe = recipe if recipe is not None else self._freeze_post_recipe()
+        steps = recipe['steps']
         if any(cfg.get("enabled") for cfg in steps.values()):
-            self._start_post_process(paths)
+            self._start_post_process(paths, recipe)
             return
         self._show_results(paths)
 
@@ -1993,7 +2109,8 @@ class GptImage2Widget(QWidget):
         from utils.post_process import pipeline_failures
         work_dir = os.path.join(os.path.dirname(os.path.abspath(paths[0])), "pipeline-steps") if paths else ""
         failures = pipeline_failures(work_dir) if work_dir else []
-        self.post_retry_btn.setEnabled(bool(failures))
+        self._post_retry_available = bool(failures)
+        self._refresh_task_controls()
         if failures:
             self.status_label.setText(f"部分完成：{len(failures)} 个后处理步骤失败（可点「重试失败步骤」）")
 
@@ -2016,7 +2133,106 @@ class GptImage2Widget(QWidget):
             item.setToolTip(path)
             self.result_list.addItem(item)
             self._append_log(f"[结果] 已保存: {path}")
+        self.result_list.setCurrentRow(self.result_list.count() - len(paths))
         self.show_preview(paths[0])
+        self.preview_refine_stage()
+
+    def load_refine_product(self):
+        path, _ = QFileDialog.getOpenFileName(self, '载入 refine 记录或图片', 'data', 'Refine记录/图片 (*.json *.png *.jpg *.jpeg *.webp)')
+        if not path:
+            return
+        try:
+            from utils.refine_state import read_record, find_record
+            found = (path, read_record(path)) if path.lower().endswith('-refine.json') else find_record(path)
+            if not found:
+                raise ValueError('找不到该产物的 refine 记录')
+            self._show_results([found[1]['selected']])
+            self._refine_record_path = found[0]
+            self.refresh_refine_status(record_path=found[0])
+        except (OSError, ValueError, KeyError) as exc:
+            self.status_label.setText(str(exc))
+
+    def refresh_refine_status(self, record_path=None):
+        if not hasattr(self, 'refine_status_view'):
+            return
+        from utils.refine_state import find_record, read_record, status_text, default_stage, stages_for_record, LABELS
+        busy = self._worker is not None and self._worker.isRunning()
+        item = self.result_list.currentItem()
+        path = self._refine_live_path if busy and self._refine_live_path else (item.data(Qt.ItemDataRole.UserRole) if item else None)
+        try:
+            found = (record_path, read_record(record_path)) if record_path else find_record(path)
+            if not found:
+                self._refine_record_path = None
+                self.refine_status_view.clear()
+            else:
+                changed = self._refine_record_path != found[0]
+                self._refine_record_path = found[0]
+                self.refine_status_view.setPlainText(status_text(found[1]))
+                self.refine_status_view.setToolTip(found[0])
+                if not busy and (found[1].get('status') in ('fallback', 'stopped') or
+                                 (found[1].get('workflow') not in ('whole', 'targeted_whole', 'hybrid') and
+                                  any(s.get('status') == 'rejected' for s in found[1].get('stages', [])))):
+                    self.status_label.setText('Refine 未完成，保留最近通过图；可重试或人工采用候选继续')
+                if changed:
+                    self.refine_stage_combo.blockSignals(True)
+                    self.refine_stage_combo.clear()
+                    for stage in stages_for_record(found[1]):
+                        self.refine_stage_combo.addItem(LABELS[stage], stage)
+                    self.refine_stage_combo.setCurrentIndex(self.refine_stage_combo.findData(default_stage(found[1])))
+                    self.refine_stage_combo.blockSignals(False)
+        except (OSError, ValueError, KeyError, TypeError):
+            pass  # Atomic writer may still be publishing a live record.
+        self.refresh_refine_buttons()
+
+    def refresh_refine_buttons(self):
+        if not hasattr(self, 'refine_retry_btn'):
+            return
+        from utils.refine_state import read_record, image_stage
+        busy = self._pipeline_busy()
+        enabled = bool(self._refine_record_path) and not busy
+        self.refine_retry_btn.setEnabled(enabled)
+        force = False
+        if enabled:
+            try:
+                entry = image_stage(read_record(self._refine_record_path), self.refine_stage_combo.currentData())
+                force = bool(entry and entry.get('outputs') and entry.get('status') != 'requested')
+            except (OSError, ValueError, KeyError):
+                pass
+        self.refine_force_btn.setEnabled(force and enabled)
+        self.refine_load_btn.setEnabled(not busy)
+        self.refine_stage_combo.setEnabled(not busy)
+
+    def preview_refine_stage(self):
+        self.refresh_refine_buttons()
+        if not self._refine_record_path:
+            return
+        from utils.refine_state import read_record, image_stage
+        try:
+            entry = image_stage(read_record(self._refine_record_path), self.refine_stage_combo.currentData())
+            if entry and entry.get('outputs') and os.path.isfile(entry['outputs'][0]):
+                self.show_preview(entry['outputs'][0])
+                self.preview_label.setToolTip('当前 refine 步骤候选：' + entry['outputs'][0])
+        except (OSError, ValueError, KeyError):
+            pass
+
+    def retry_refine(self, force=False):
+        if not self._refine_record_path or self._pipeline_busy():
+            return
+        stage = self.refine_stage_combo.currentData()
+        worker = RefineRetryWorker(self._refine_record_path, stage, force, self)
+        self._worker = worker
+        from utils.refine_state import read_record
+        self._refine_live_path = read_record(self._refine_record_path)['source']
+        self.generate_btn.setEnabled(False)
+        self.cancel_btn.setEnabled(True)
+        self.status_label.setText('人工采用候选并继续 refine…' if force else '重试 refine 工序…')
+        worker.log.connect(self._append_log)
+        # Show raw refine output. Do not silently append the saved tone/ink recipe again.
+        worker.done.connect(self._show_results)
+        worker.error.connect(self.on_error)
+        self._watch_generation_worker(worker)
+        worker.start()
+        self.refresh_refine_buttons()
 
     def reload_styles(self):
         """从 conf/config-styles.json 加载画风列表（第一项 = 默认(无附加)）。"""
@@ -2114,6 +2330,8 @@ class GptImage2Widget(QWidget):
                 quality=str(self.quality_combo.currentData() or "medium"),
                 ref_images=len(self.image_paths or []),
                 repaint_model=str(self.current_repaint_config()["model"]),
+                refine_background_model=self.current_repaint_config()["refine_background_model"],
+                refine_clothing_model=self.current_repaint_config()["refine_clothing_model"],
                 local_model=str(load_repaint_config()["model"]),
                 include_repaint=chain_repaint,
                 include_content_guard=chain_repaint,
@@ -2167,15 +2385,17 @@ class GptImage2Widget(QWidget):
             return
         self._pricing_worker = PricingWorker(self)
         self._pricing_worker.done.connect(self._on_pricing_ready)
+        self._pricing_worker.finished.connect(lambda worker=self._pricing_worker: self._on_pricing_finished(worker))
         self._pricing_worker.start()
 
     def _on_pricing_ready(self, ok):
-        worker = getattr(self, "_pricing_worker", None)
-        self._pricing_worker = None
-        if worker is not None:
-            worker.deleteLater()
         if ok:
             self._refresh_budget()
+
+    def _on_pricing_finished(self, worker):
+        if worker is getattr(self, '_pricing_worker', None):
+            self._pricing_worker = None
+        worker.deleteLater()
 
     def post_pipeline_steps(self):
         """按界面勾选框组装后处理流水线（未勾选的工序不会执行）。
@@ -2221,6 +2441,8 @@ class GptImage2Widget(QWidget):
 
     def retry_failed_post_steps(self):
         """从失败节点继续跑后处理（已成功的步骤会被跳过）。"""
+        if self._pipeline_busy():
+            return
         from utils.post_process import pipeline_failures
         sources = self._last_post_outputs()
         if not sources:
@@ -2241,26 +2463,38 @@ class GptImage2Widget(QWidget):
         if "[工序]" in text:
             self.status_label.setText("后处理中… " + text.replace("[工序]", "").strip()[:60])
 
-    def _start_post_process(self, paths):
+    def _start_post_process(self, paths, recipe=None):
         """在后台线程跑勾选的后处理工序（局部重绘要走网络，不能卡 UI）。"""
-        steps = self.post_pipeline_steps()
+        if self._post_worker is not None:
+            return
+        recipe = recipe if recipe is not None else self._freeze_post_recipe()
+        steps = deepcopy(recipe['steps'])
         self.status_label.setText("后处理中...(联网工序可能要 1 分钟)")
         firmware = None
         # 局部重绘已停用：它以前是唯一需要「当前重绘固件文本」的本地工序。
         # 现在的联网工序是「衣装重绘」，固件由 steps["wardrobe"]["firmware"] 自带（专用固件）。
         self._post_worker = PostProcessWorker(paths, steps, firmware, self,
-                                              style_ref_path=self.current_style_block()[1])
+                                              style_ref_path=recipe['style_ref_path'])
         self._post_worker.log.connect(self._append_log)
         self._post_worker.log.connect(self._on_post_progress)
         self._post_worker.done.connect(self._on_post_done)
+        self._post_worker.finished.connect(lambda worker=self._post_worker: self._on_post_finished(worker))
+        self._refresh_task_controls()
         self._post_worker.start()
 
     def _on_post_done(self, paths):
-        worker = getattr(self, "_post_worker", None)
-        self._post_worker = None
-        if worker is not None:
-            worker.deleteLater()
         self._show_results(paths)
+
+    def _on_post_finished(self, worker):
+        if worker is self._post_worker:
+            self._post_worker = None
+        worker.deleteLater()
+        self._refresh_task_controls()
+
+    def closeEvent(self, event):
+        from utils.gui_shutdown import defer_close_until_threads_finish
+        if not defer_close_until_threads_finish(self, event):
+            super().closeEvent(event)
 
     def on_error(self, message):
         self.status_label.setText("出错")

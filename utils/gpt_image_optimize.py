@@ -29,6 +29,9 @@ _ASPECT_AUTO_ALIASES = {"", "auto", "自动", "跟随源图", "keep", "same", "o
 DEFAULTS = {
     "enabled": False,
     "refine_enabled": True,
+    "refine_workflow": "hybrid",
+    "refine_background_model": "gemini-3-pro-image-preview",
+    "refine_clothing_model": "gemini-3.1-flash-image",
     "site": "new.aigc2d",
     "api_type": "aigc2d",
     "model": "gemini-3.1-flash-image",

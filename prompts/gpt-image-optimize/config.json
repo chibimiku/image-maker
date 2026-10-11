@@ -39,5 +39,8 @@
     "final_candidate_repair": {
         "model": "gemini-3.1-flash-image-preview",
         "max_repairs": 1
-    }
+    },
+    "refine_workflow": "hybrid",
+    "refine_background_model": "gemini-3-pro-image-preview",
+    "refine_clothing_model": "gemini-3.1-flash-image"
 }

@@ -203,6 +203,11 @@ class ModelFetchThread(QThread):
             self.error_signal.emit(str(e), self.current_text)
 
 class AppWindow(QWidget):
+    def closeEvent(self, event):
+        from utils.gui_shutdown import defer_close_until_threads_finish
+        if not defer_close_until_threads_finish(self, event):
+            super().closeEvent(event)
+
     def __init__(self):
         super().__init__()
         self.styles_data = DEFAULT_STYLES.copy()
