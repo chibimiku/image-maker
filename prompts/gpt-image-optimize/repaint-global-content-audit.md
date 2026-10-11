@@ -26,3 +26,6 @@ Return one JSON object, no Markdown:
 eligible_for_local_cleanup is true only when there are confirmed local additions AND the same subject, pose, framing and major objects have been preserved. It is false for no additions or global changes. All booleans must reflect actual evidence, not the desired result.
 
 Use empty arrays for added_elements and missing_or_replaced_elements when there are no confirmed findings; never return placeholder entries from the example schema. source_medium_preserved must be true and uniform_ink_or_cel_conversion false to accept the repaint.
+
+
+BILINGUAL DISPLAY OUTPUT: Keep all existing schema keys, enum values and audit findings in English. In the SAME JSON object also return "display_zh": {"summary": "简体中文结论摘要", "details": "简体中文完整展示说明"}. Translate the actual conclusion, each finding and its region, evidence, expected/observed differences, repair advice, accepted variations, limitations and uncertainty into Simplified Chinese. Preserve ordering, confidence values and meaning; do not add or remove findings. This display-only object must never override the English decision fields. Return both languages in one response, with no separate translation request.

@@ -88,6 +88,8 @@ def test_audit_geometry_uses_exif_display_orientation(tmp_path):
 
 @pytest.fixture
 def setup(tmp_path, monkeypatch):
+    # Existing fallback tests exercise exhausted calls; dedicated retry tests opt in.
+    monkeypatch.setattr(refine, 'AUDIT_RETRY_LIMIT', 0)
     paths = [str(tmp_path / (name + '.png')) for name in ['source', 'person', 'background', 'ornaments', 'lighting', 'hair']]
     for path in paths:
         Image.new('RGB', (120, 80), 'white').save(path)
@@ -440,7 +442,7 @@ def test_cost_counts_conditional_targeted_whole_and_three_text_calls():
                             include_refine=True, include_wardrobe=True, include_local=False,
                             pricing={'models': {}})
     by_key = {s['key']: s for s in est['steps']}
-    assert by_key['refine']['call_count'] == 2 and by_key['refine_audit']['call_count'] == 5
+    assert by_key['refine']['call_count'] == 2 and by_key['refine_audit']['call_count'] == refine.MAX_TEXT_ATTEMPTS
     assert by_key['refine_background']['call_count'] == by_key['refine_clothing']['call_count'] == 1
     assert not {'content_cleanup', 'content_audit', 'wardrobe', 'repaint'} & by_key.keys()
 
@@ -455,6 +457,136 @@ def hybrid_setup(setup, monkeypatch):
     monkeypatch.setattr(optimize, 'load_config', lambda: dict(
         refine_workflow='hybrid', refine_background_model='chosen-pro', refine_clothing_model='chosen-flash'))
     setup[4][:] = [setup[1], passed(), passed(), passed()]
+
+
+@pytest.mark.parametrize('audit_result', [passed(), passed(verdict='fail'), TimeoutError('again')])
+def test_resume_failed_background_audit_reuses_image_and_request_before_followup(setup, monkeypatch, audit_result):
+    hybrid_setup(setup, monkeypatch)
+    paths, diag, calls, texts, reports, options, folder = setup
+    reports[:] = [diag, TimeoutError('TLS EOF')]
+    assert refine.refine_image(paths[0], image_options=options) == paths[0]
+    parent = next(folder.glob('*-refine.json'))
+    original = json.loads(parent.read_text(encoding='utf-8'))
+    original['stages'][-1].update(system='Frozen audit system', user='Frozen audit task')
+    parent.write_text(json.dumps(original), encoding='utf-8')
+    calls.clear(); texts.clear()
+    reports[:] = [audit_result, passed(), passed()]
+    result = refine.refine_image('', image_options={}, resume_record=str(parent),
+                                 start_stage='background', resume_audit_only=True)
+    child_path = next(p for p in folder.glob('*-refine.json') if p != parent)
+    child = json.loads(child_path.read_text(encoding='utf-8'))
+    assert json.loads(parent.read_text(encoding='utf-8')) == original
+    assert child['stages'][0]['reused_from_record'] == str(parent)
+    assert child['stages'][0]['outputs'] == [paths[2]]
+    assert texts[0][1].startswith(original['stages'][-1]['system'] + '\n\nBILINGUAL DISPLAY OUTPUT:')
+    assert texts[0][1].count('BILINGUAL DISPLAY OUTPUT:') == 1
+    assert texts[0][2:4] == (original['stages'][-1]['user'], original['stages'][-1]['images'])
+    assert child['manual_override'] is None
+    if isinstance(audit_result, dict) and audit_result['verdict'] == 'pass':
+        assert child['status'] == 'finished' and result == paths[1]
+        assert [c['source_paths'] for c in calls] == [[paths[2]], [paths[3]]]
+        assert len(texts) == 3
+    else:
+        assert not calls and result == paths[0]
+        assert child['status'] in ('fallback', 'stopped')
+
+
+def test_old_hybrid_not_a_hair_decision_answer_requires_new_audit_without_new_background(setup, monkeypatch):
+    hybrid_setup(setup, monkeypatch)
+    paths, diag, calls, texts, reports, options, folder = setup
+    reports[:] = [diag, passed(hair_state='uncertain', hair_repair_needed=None,
+                              hair_evidence=['Not a hair-repair decision stage; retained hairstyle.'])]
+    assert refine.refine_image(paths[0], image_options=options) == paths[0]
+    parent = next(folder.glob('*-refine.json'))
+    old = parent.read_bytes()
+    calls.clear(); texts.clear(); reports[:] = [passed(), passed(), passed()]
+    assert refine.refine_image('', image_options={}, resume_record=str(parent),
+                              start_stage='background', resume_audit_only=True) == paths[1]
+    child = json.loads(next(p for p in folder.glob('*-refine.json') if p != parent).read_text(encoding='utf-8'))
+    assert len(calls) == 2 and len(texts) == 3
+    assert child['stages'][1]['scope_clarification']
+    assert 'Do not return uncertain/null merely because hair' in texts[0][1]
+    assert child['status'] == 'finished' and parent.read_bytes() == old
+
+
+def test_explicit_clothing_redraw_uses_prior_rejection_without_attaching_rejected_image(setup, monkeypatch):
+    hybrid_setup(setup, monkeypatch)
+    paths, diag, calls, texts, reports, options, folder = setup
+    reports[:] = [diag, passed(), passed(verdict='fail', stage_scope_preserved=False,
+                                       unacceptable_changes=['Unsupported chest cross-lacing.'])]
+    assert refine.refine_image(paths[0], image_options=options) == paths[2]
+    parent = next(folder.glob('*-refine.json'))
+    old = parent.read_bytes()
+    calls.clear(); texts.clear(); reports[:] = [passed(), passed()]
+    assert refine.refine_image('', image_options={}, resume_record=str(parent),
+                              start_stage='clothing') == paths[1]
+    assert len(calls) == 2 and len(texts) == 2
+    assert calls[0]['source_paths'] == [paths[2]]
+    assert 'Unsupported chest cross-lacing.' in calls[0]['prompt']
+    assert 'explicit retry from the trusted input' in calls[0]['prompt']
+    assert 'Unsupported chest cross-lacing.' not in calls[1]['prompt']
+    assert parent.read_bytes() == old
+
+
+@pytest.mark.parametrize('failures', [1, 3, 4])
+def test_audit_transport_retry_preserves_candidate_and_continues_only_after_return(setup, monkeypatch, failures):
+    hybrid_setup(setup, monkeypatch)
+    monkeypatch.setattr(refine, 'AUDIT_RETRY_LIMIT', 3)
+    monkeypatch.setattr(refine.time, 'sleep', lambda _: None)
+    paths, diag, calls, texts, reports, _, _ = setup
+    reports[:] = [diag] + [TimeoutError('read timeout')] * failures + [passed(), passed(), passed()]
+    result = refine.refine_image(paths[0], image_options=setup[5])
+    r = record(setup)
+    entry = r['stages'][2]  # background audit after source diagnosis and one image
+    assert len(entry['attempts']) == min(failures + 1, 4)
+    assert all(texts[i][1:4] == texts[1][1:4] for i in range(1, min(failures + 2, 5)))
+    if failures < 4:
+        assert result == paths[1] and r['status'] == 'finished'
+        assert len(calls) == 3
+        assert entry['status'] == 'returned' and 'error' not in entry
+    else:
+        assert result == paths[0] and r['status'] == 'fallback'
+        assert len(calls) == 1 and len(texts) == 5
+        assert entry['status'] == 'failed'
+
+
+@pytest.mark.parametrize('error', [ValueError('invalid JSON'), RuntimeError('budget exhausted')])
+def test_non_transport_errors_do_not_retry(setup, monkeypatch, error):
+    hybrid_setup(setup, monkeypatch)
+    monkeypatch.setattr(refine, 'AUDIT_RETRY_LIMIT', 3)
+    setup[4][:] = [setup[1], error]
+    assert refine.refine_image(setup[0][0], image_options=setup[5]) == setup[0][0]
+    assert len(setup[3]) == 2 and len(setup[2]) == 1
+
+
+def test_returned_fail_is_not_retried_even_after_transport_recovery(setup, monkeypatch):
+    hybrid_setup(setup, monkeypatch)
+    monkeypatch.setattr(refine, 'AUDIT_RETRY_LIMIT', 3)
+    monkeypatch.setattr(refine.time, 'sleep', lambda _: None)
+    setup[4][:] = [setup[1], TimeoutError('timeout'), passed(verdict='fail', anatomy_ok=False)]
+    assert refine.refine_image(setup[0][0], image_options=setup[5]) == setup[0][0]
+    assert len(setup[3]) == 3 and len(setup[2]) == 1
+    assert record(setup)['stages'][2]['report']['verdict'] == 'fail'
+
+
+@pytest.mark.parametrize('status,expected', [(401, False), (400, False), (429, True), (503, True)])
+def test_audit_http_retry_classification(status, expected):
+    import requests
+    response = requests.Response(); response.status_code = status
+    assert refine._retryable_audit_error(requests.HTTPError(response=response)) is expected
+
+
+def test_cancellation_during_audit_backoff_prevents_next_request(monkeypatch):
+    calls = []; saved = []
+    def fail(*args):
+        calls.append(args)
+        raise TimeoutError('timeout')
+    monkeypatch.setattr(refine, 'text_request', fail)
+    entry = dict(key='whole-audit', system='system', user='task', images=['existing.jpg'])
+    with pytest.raises(RuntimeError, match='cancelled'):
+        refine._request_recorded_text(entry, 'whole-audit', lambda: saved.append(entry['status']),
+                                      lambda _: None, lambda: bool(calls))
+    assert len(calls) == 1 and entry['status'] == 'failed'
 
 
 def test_backend_dispatches_explicit_stage_models_to_core(setup, monkeypatch):

@@ -16,7 +16,9 @@ AUDIT_FIELDS = ('anatomy_ok', 'identity_preserved', 'iris_hue_preserved',
                 'pose_composition_preserved', 'objects_preserved', 'stage_scope_preserved')
 MAX_IMAGE_REQUESTS = 4
 MAX_TEXT_REQUESTS = 5
-NETWORK_TIMEOUT_BUDGET = MAX_IMAGE_REQUESTS * 360 + MAX_TEXT_REQUESTS * 180
+AUDIT_RETRY_LIMIT = 3  # Additional attempts after the initial transport failure.
+MAX_TEXT_ATTEMPTS = 1 + (MAX_TEXT_REQUESTS - 1) * (1 + AUDIT_RETRY_LIMIT)
+NETWORK_TIMEOUT_BUDGET = MAX_IMAGE_REQUESTS * 360 + MAX_TEXT_ATTEMPTS * 180
 
 
 def confident(report):
@@ -122,15 +124,70 @@ def text_request(stage, system, user, images, cancel_check=None):
     cfg = load_text_api_config()
     raw = guarded_text_call(stage, call_text_model, cfg['base_url'], cfg['api_key'],
                             cfg['model'], system, user, image_paths=images,
-                            timeout=180, max_tokens=4500)
+                            timeout=180, max_tokens=7000)
     return {'report': extract_json_object(raw), 'raw': raw, 'model': cfg['model']}
 
 
+def _retryable_audit_error(exc):
+    import requests
+    if isinstance(exc, requests.HTTPError):
+        response = exc.response
+        return response is not None and (response.status_code == 429 or 500 <= response.status_code < 600)
+    return isinstance(exc, (TimeoutError, ConnectionError, requests.Timeout, requests.ConnectionError))
+
+
+def _request_recorded_text(entry, stage, save, log, cancel_check):
+    """Retry transport failures only; a returned report is never retried."""
+    if entry['key'].endswith('-audit') and 'BILINGUAL DISPLAY OUTPUT:' not in entry['system']:
+        bilingual = read_prompt_file('gpt-image-optimize/refine-audit.md').split('BILINGUAL DISPLAY OUTPUT:', 1)[1]
+        entry['system'] += '\n\nBILINGUAL DISPLAY OUTPUT:' + bilingual
+    limit = AUDIT_RETRY_LIMIT if entry['key'].endswith('-audit') else 0
+    entry.update(retry_limit=limit, attempts=[])
+    for index in range(limit + 1):
+        if callable(cancel_check) and cancel_check():
+            entry.update(status='failed', error='Refine cancelled before audit attempt')
+            save()
+            raise RuntimeError(entry['error'])
+        attempt = {'number': index + 1, 'status': 'requested', 'started_at': datetime.now().isoformat()}
+        entry['status'] = 'requested'
+        entry['attempts'].append(attempt)
+        save()
+        try:
+            result = text_request(stage, entry['system'], entry['user'], entry['images'], cancel_check)
+        except Exception as exc:
+            error = f'{type(exc).__name__}: {exc}'
+            attempt.update(status='failed', error=error, finished_at=datetime.now().isoformat())
+            retry = index < limit and _retryable_audit_error(exc)
+            entry.update(status='retrying' if retry else 'failed', error=error)
+            save()
+            if not retry:
+                raise
+            log(f'[refine] {entry["key"]} 审计接口异常，自动重试 {index + 1}/{limit}；复用已有图片：{error}')
+            # Brief backoff, cancellation remains responsive.
+            for _ in range(10 * (index + 1)):
+                if callable(cancel_check) and cancel_check():
+                    entry.update(status='failed', error='Refine cancelled during audit retry')
+                    save()
+                    raise RuntimeError(entry['error'])
+                time.sleep(0.1)
+        else:
+            attempt.update(status='returned', finished_at=datetime.now().isoformat())
+            entry.update(result, status='returned')
+            entry.pop('error', None)
+            save()
+            from utils.audit_display import summary, details
+            if entry['key'].endswith('-audit'):
+                log('[refine审计] ' + (summary(entry['report']) or entry['report'].get('verdict', '')) + '\n' + details(entry['report']))
+            return entry['report']
+
+
 def refine_image(source, *, image_options, log_callback=None, cancel_check=None,
-                 resume_record=None, start_stage=None, force_candidate=False):
+                 resume_record=None, start_stage=None, force_candidate=False, resume_audit_only=False):
     if resume_record:
         from utils.refine_state import read_record
         if read_record(resume_record).get('workflow') not in ('whole', 'targeted_whole', 'hybrid'):
+            if resume_audit_only:
+                raise ValueError('旧版分步记录请使用重画步骤或人工采用候选')
             return _refine_legacy_image(source, image_options=image_options,
                                        log_callback=log_callback, cancel_check=cancel_check,
                                        resume_record=resume_record, start_stage=start_stage,
@@ -138,11 +195,11 @@ def refine_image(source, *, image_options, log_callback=None, cancel_check=None,
     return _refine_whole_image(source, image_options=image_options,
                                log_callback=log_callback, cancel_check=cancel_check,
                                resume_record=resume_record, start_stage=start_stage,
-                               force_candidate=force_candidate)
+                               force_candidate=force_candidate, resume_audit_only=resume_audit_only)
 
 
 def _refine_whole_image(source, *, image_options, log_callback=None, cancel_check=None,
-                        resume_record=None, start_stage=None, force_candidate=False):
+                        resume_record=None, start_stage=None, force_candidate=False, resume_audit_only=False):
     from modules.others.api_backend import generate_image_repaint, resolve_save_dir
     from utils.gpt_image_optimize import validate_repaint_aspect, load_config
     log = log_callback or (lambda message: None)
@@ -151,7 +208,7 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
     plan = None
     if resume_record:
         from utils.refine_state import resume_plan
-        plan = resume_plan(resume_record, start_stage, force_candidate)
+        plan = resume_plan(resume_record, start_stage, force_candidate, audit_only=resume_audit_only)
         source, options = plan['source'], plan['options']
         for key in ('source_paths', 'prompt', 'file_prefix', 'budget_run_id', 'return_metadata'):
             options.pop(key, None)
@@ -176,7 +233,9 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
     record = {'version': (9 if whole_last else 8) if hybrid else 7, 'workflow': workflow, 'source': str(source),
               'source_sha256': hashlib.sha256(Path(source).read_bytes()).hexdigest(),
               'selected': selected, 'stages': [], 'image_limit': MAX_IMAGE_REQUESTS if hybrid else 2,
-              'text_limit': MAX_TEXT_REQUESTS if hybrid else 3, 'stage_models': stage_models}
+              'text_limit': MAX_TEXT_REQUESTS if hybrid else 3, 'stage_models': stage_models,
+              'audit_retry_limit': AUDIT_RETRY_LIMIT,
+              'text_attempt_limit': MAX_TEXT_ATTEMPTS if hybrid else 9}
     if plan:
         record.update(parent_record=os.path.abspath(resume_record), start_stage=plan['stage'],
                       manual_override=plan['override'], completed_before=plan['completed'],
@@ -198,17 +257,36 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
     def ask(key, template, user, images):
         entry = {'key': key, 'kind': 'text', 'system': read_prompt_file('gpt-image-optimize/' + template),
                  'user': user, 'images': images, 'timeout': 180, 'status': 'requested'}
+        if plan and plan['audit_only'] and key == plan['stage'] + '-audit':
+            old = next(s for s in reversed(plan['record']['stages']) if s.get('key') == key)
+            entry.update({k: old[k] for k in ('system', 'user', 'images')})
+            entry['reused_request_from'] = os.path.abspath(resume_record)
+            if plan.get('refresh_audit_scope'):
+                entry['system'] = read_prompt_file('gpt-image-optimize/' + template)
+                entry['scope_clarification'] = 'Hybrid background/clothing require explicit hair assessment'
         record['stages'].append(entry)
         save()
-        try:
-            entry.update(text_request(run_id + '-' + key, entry['system'], user, images, cancel_check))
-            entry['status'] = 'returned'
-        except Exception as exc:
-            entry.update(status='failed', error=f'{type(exc).__name__}: {exc}')
-            raise
-        finally:
-            save()
-        return entry['report']
+        return _request_recorded_text(entry, run_id + '-' + key, save, log, cancel_check)
+
+    def image_result(entry, request):
+        if plan and plan['audit_only'] and entry['key'] == plan['stage']:
+            from utils.refine_state import image_stage
+            old = image_stage(plan['record'], plan['stage'])
+            entry.update(prompt=old['prompt'], options=dict(old['options']),
+                         reused_from_record=os.path.abspath(resume_record))
+            log('[refine] 复用已返回候选，仅补跑失败审计；不重复出图。')
+            return list(old['outputs'])
+        return generate_image_repaint(**request) or []
+
+    def retry_prompt(stage, prompt):
+        if plan and not plan['audit_only'] and stage == plan['stage']:
+            old = next((s for s in reversed(plan['record']['stages']) if s.get('key') == stage + '-audit'), {})
+            report = old.get('report') or {}
+            changes = report.get('unacceptable_changes')
+            if report.get('verdict') == 'fail' and isinstance(changes, list) and changes:
+                prompt += '\n\n' + render_prompt_file('gpt-image-optimize/refine-retry-guidance.md',
+                    {'rejected_changes': json.dumps(changes, ensure_ascii=False)}).strip()
+        return prompt
 
     try:
         # Reuse an earlier source diagnosis only for an explicit historical checkpoint.
@@ -245,7 +323,7 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
             save()
             log('[refine] 诊断发现明确缺陷，先针对性修复一次。')
             try:
-                paths = generate_image_repaint(**request) or []
+                paths = image_result(entry, request)
                 entry.update(outputs=paths, status='returned' if paths else 'no_output')
                 save()
                 if not paths or not os.path.isfile(paths[0]):
@@ -278,6 +356,7 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
             if record['material_guidance']['prompt']:
                 prompt += '\n\n' + record['material_guidance']['prompt']
                 log('固定整体修复：追加已识别服装材质的质感与光照要求')
+            prompt = retry_prompt('whole', prompt)
             before = selected
             request = dict(options, source_paths=[before], prompt=prompt, prompt_suffix='',
                            model=stage_models['whole'] if hybrid else options.get('model'),
@@ -291,7 +370,7 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
             record['stages'].append(entry)
             save()
             log('[refine] 整体修复＋头发重绘＋光照重渲染（单次）')
-            paths = generate_image_repaint(**request) or []
+            paths = image_result(entry, request)
             entry.update(outputs=paths, status='returned' if paths else 'no_output')
             save()
             if not paths or not os.path.isfile(paths[0]):
@@ -320,6 +399,7 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
                     raise RuntimeError('Refine cancelled before ' + stage)
                 before = selected
                 prompt = read_prompt_file('gpt-image-optimize/refine-' + stage + '-redraw.md').strip()
+                prompt = retry_prompt(stage, prompt)
                 request = dict(options, model=stage_models[stage], source_paths=[before], prompt=prompt,
                                prompt_suffix='', use_detail_suffix=False, extra_reference_paths=[], repeat=1,
                                content_guard=False, refine=False, request_timeout=360, retry_limit=0,
@@ -331,7 +411,7 @@ def _refine_whole_image(source, *, image_options, log_callback=None, cancel_chec
                 record['stages'].append(entry)
                 save()
                 log(f'[refine] {stage} → {stage_models[stage]}（单次，无重试）')
-                paths = generate_image_repaint(**request) or []
+                paths = image_result(entry, request)
                 entry.update(outputs=paths, status='returned' if paths else 'no_output')
                 save()
                 if not paths or not os.path.isfile(paths[0]):
@@ -387,7 +467,8 @@ def _refine_legacy_image(source, *, image_options, log_callback=None, cancel_che
     record_path = os.path.join(directory, run_id + '-refine.json')
     record = {'version': 5, 'source': str(source), 'source_sha256': hashlib.sha256(Path(source).read_bytes()).hexdigest(),
               'selected': str(source), 'stages': [],
-              'image_limit': 5, 'text_limit': 6}
+              'image_limit': 5, 'text_limit': 6,
+              'audit_retry_limit': AUDIT_RETRY_LIMIT, 'text_attempt_limit': 21}
     selected = str(source)
     repair_hair = False
     if plan:
@@ -426,10 +507,7 @@ def _refine_legacy_image(source, *, image_options, log_callback=None, cancel_che
                  'images': images, 'timeout': 180, 'status': 'requested'}
         record['stages'].append(entry)
         save()
-        entry.update(text_request(run_id + '-' + stage, system, user, images, cancel_check))
-        entry['status'] = 'returned'
-        save()
-        return entry['report']
+        return _request_recorded_text(entry, run_id + '-' + stage, save, log, cancel_check)
 
     try:
         log('[refine] 诊断实际材质、身份颜色与人体连接；仅源图，无画风附件。')

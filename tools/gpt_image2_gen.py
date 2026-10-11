@@ -95,6 +95,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=("generate", "edit"), default="generate",
                         help="generate=生图（挂了 --image 会自动走 edits 垫图）; edit=编辑（必须有 --image）")
     parser.add_argument("--prompt", action="append", default=[], help="提示词，可重复")
+    parser.add_argument('--refine-record', help='显式续跑refine记录或其产物路径，不重跑GPT首图')
+    parser.add_argument('--refine-stage', help='续跑起始步骤；省略时选择失败断点')
+    refine_resume = parser.add_mutually_exclusive_group()
+    refine_resume.add_argument('--refine-resume-audit', action='store_true', help='复用已返回候选，只补跑失败审计并继续')
+    refine_resume.add_argument('--refine-force-candidate', action='store_true', help='显式人工采用候选并继续')
     parser.add_argument("--repaint-plan", help="有额度与冻结hash的数据驱动重绘实验计划")
     parser.add_argument("--plan-job", help="实验计划中的单个图片任务编号")
     parser.add_argument("--plan-audit", help="实验计划中的单个文本审计编号")
@@ -465,6 +470,36 @@ def cmd_repaint(args) -> int:
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.refine_record:
+        from utils.refine_state import find_record, resume_plan
+        from utils.gpt_image_refine import refine_image
+        try:
+            if args.refine_record.lower().endswith('-refine.json'):
+                record_path = args.refine_record
+            else:
+                found = find_record(args.refine_record)
+                if not found:
+                    raise ValueError('找不到产物对应的refine记录')
+                record_path = found[0]
+            plan = resume_plan(record_path, args.refine_stage, args.refine_force_candidate,
+                               audit_only=args.refine_resume_audit)
+            if args.dry_run:
+                _emit(json.dumps({'record': record_path, 'stage': plan['stage'],
+                                  'remaining': plan['remaining'], 'audit_only': plan['audit_only'],
+                                  'source': plan['source'], 'input': plan['selected']}, ensure_ascii=False))
+                return EXIT_OK
+            selected = refine_image('', image_options={}, resume_record=record_path,
+                                    start_stage=plan['stage'], force_candidate=args.refine_force_candidate,
+                                    resume_audit_only=args.refine_resume_audit, log_callback=_emit)
+            found = find_record(selected)
+            result = {'selected': selected, 'record': found[0] if found else '',
+                      'status': found[1].get('status') if found else 'unknown'}
+            _emit(json.dumps(result, ensure_ascii=False, indent=2))
+            return EXIT_OK if result['status'] == 'finished' else EXIT_FAIL
+        except (ValueError, OSError, KeyError) as exc:
+            _emit(f'[断点失败] {exc}')
+            return EXIT_FAIL
 
     if args.repaint_plan:
         from utils.repaint_experiment import run_plan

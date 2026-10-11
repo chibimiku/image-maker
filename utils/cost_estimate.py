@@ -250,7 +250,7 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
                                     model=gpt_model, pricing=pricing)
     steps.append({"key": "generate", "label": f"首图 {gpt_model} @{size}/{quality}", **first})
     if include_repaint and include_refine:
-        from utils.gpt_image_refine import MAX_TEXT_REQUESTS
+        from utils.gpt_image_refine import MAX_TEXT_REQUESTS, MAX_TEXT_ATTEMPTS
         from utils.gpt_image_optimize import load_config
         cfg = load_config()
         bg_model = refine_background_model or cfg['refine_background_model']
@@ -261,14 +261,14 @@ def estimate_pipeline(prompt_chars: int, size: str = "1024x1536", quality: str =
                                   ("refine_clothing", "独立衣装", cloth_model)):
             steps.append({"key": key, "label": f"{label} {model} 2K",
                           **estimate_gemini_repaint_cost(model, pricing=pricing), "call_count": 1})
-        audit = estimate_text_cost(prompt_chars=6500, completion_tokens=4500, pricing=pricing)
-        steps.append({"key": "refine_audit", "label": f"诊断及逐步审计（最多{MAX_TEXT_REQUESTS}文本）", **audit,
-                      "usd": audit["usd"] * MAX_TEXT_REQUESTS, "call_count": MAX_TEXT_REQUESTS})
+        audit = estimate_text_cost(prompt_chars=7000, completion_tokens=7000, pricing=pricing)
+        steps.append({"key": "refine_audit", "label": f"诊断及逐步审计（正常最多{MAX_TEXT_REQUESTS}次，含异常重试上限{MAX_TEXT_ATTEMPTS}次）", **audit,
+                      "usd": audit["usd"] * MAX_TEXT_ATTEMPTS, "call_count": MAX_TEXT_ATTEMPTS})
     elif include_repaint:
         rp = estimate_gemini_repaint_cost(repaint_model, pricing=pricing)
         steps.append({"key": "repaint", "label": f"全图重绘 {repaint_model} 2K", **rp})
     if include_repaint and include_content_guard and not include_refine:
-        audit = estimate_text_cost(prompt_chars=4000, completion_tokens=2600, pricing=pricing)
+        audit = estimate_text_cost(prompt_chars=4500, completion_tokens=4500, pricing=pricing)
         steps.append({"key": "content_audit", "label": "内容初审及清除复审（最多2次）", **audit, "usd": audit["usd"] * 2})
         steps.append({"key": "content_cleanup", "label": "局部新增清除（最多1次）", **estimate_gemini_repaint_cost(repaint_model, pricing=pricing)})
     if include_structure:

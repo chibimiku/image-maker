@@ -49,7 +49,7 @@ def audit_pair(before, after, *, cancel_check=None):
     raw = guarded_text_call("repaint-content-" + os.path.basename(after), call_text_model,
                             cfg["base_url"], cfg["api_key"], cfg["model"], prompt,
                             "Image 1 is SOURCE, Image 2 is RESULT. Judge the actual two images.",
-                            timeout=180, max_tokens=2600, image_paths=[before, after])
+                            timeout=180, max_tokens=4500, image_paths=[before, after])
     return {"report": extract_json_object(raw), "raw": raw, "model": cfg["model"],
             "images": [before, after], "prompt": prompt}
 
@@ -68,6 +68,8 @@ def guard_repaint(before, after, *, repaint_options=None, log_callback=None, can
     record = {"source": str(before), "repaint": str(after), "selected": str(before)}
     try:
         audit = audit_pair(before, after, cancel_check=cancel_check)
+        from utils.audit_display import summary, details
+        log("[重绘内容审计] " + summary(audit.get("report")) + "\n" + details(audit.get("report")))
         record["audit"] = audit
         action = assess_report(audit.get("report"))
         record["action"] = action
@@ -100,6 +102,7 @@ def guard_repaint(before, after, *, repaint_options=None, log_callback=None, can
             record["cleanup_outputs"] = cleaned
             if cleaned:
                 verified = audit_pair(before, cleaned[0], cancel_check=cancel_check)
+                log("[清除复审] " + summary(verified.get("report")) + "\n" + details(verified.get("report")))
                 record["cleanup_audit"] = verified
                 if assess_report(verified.get("report")) == "accept":
                     record["selected"] = str(cleaned[0])

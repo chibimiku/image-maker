@@ -244,3 +244,28 @@ def test_timeout_override_writes_temp_config(cli, config_path, tmp_path, monkeyp
     assert seen["timeout"] == 123
     # 原配置文件不被改写
     assert json.loads(Path(config_path).read_text(encoding="utf-8"))["apis"]["aigc-2d-gpt"]["timeout"] == 30
+
+
+@pytest.mark.parametrize('status', ['finished', 'fallback'])
+def test_checkpoint_cli_uses_audit_resume_and_reports_incomplete_result(cli, monkeypatch, status):
+    from utils import refine_state, gpt_image_refine
+    calls = []
+    monkeypatch.setattr(refine_state, 'resume_plan', lambda *a, **kw: {
+        'stage': 'background', 'audit_only': True, 'remaining': ('background', 'clothing', 'whole'),
+        'source': 'source.png', 'selected': 'source.png'})
+    monkeypatch.setattr(gpt_image_refine, 'refine_image', lambda *a, **kw: calls.append(kw) or 'refined.jpg')
+    monkeypatch.setattr(refine_state, 'find_record', lambda p: ('child-refine.json', {'status': status}))
+    code = cli.main(['--refine-record', 'parent-refine.json', '--refine-resume-audit'])
+    assert code == (cli.EXIT_OK if status == 'finished' else cli.EXIT_FAIL)
+    assert calls[0]['resume_audit_only'] is True
+    assert calls[0]['resume_record'] == 'parent-refine.json'
+    assert calls[0]['start_stage'] == 'background' and not calls[0]['force_candidate']
+
+
+def test_checkpoint_cli_dry_run_never_calls_refine(cli, monkeypatch):
+    from utils import refine_state, gpt_image_refine
+    monkeypatch.setattr(refine_state, 'resume_plan', lambda *a, **kw: {
+        'stage': 'whole', 'audit_only': False, 'remaining': ('whole',),
+        'source': 'source.png', 'selected': 'clothing.jpg'})
+    monkeypatch.setattr(gpt_image_refine, 'refine_image', lambda *a, **kw: pytest.fail('dry-run sent a request'))
+    assert cli.main(['--refine-record', 'parent-refine.json', '--dry-run']) == cli.EXIT_OK

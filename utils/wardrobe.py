@@ -126,7 +126,7 @@ def audit_wardrobe(candidate: str, spec: dict, content: str, text_cfg=None) -> d
                                 cfg["base_url"], cfg["api_key"], cfg["model"],
                                 read_prompt_file("wardrobe/audit.md"),
                                 "USER CONTENT:\n" + str(content or "") + "\n\n" + block,
-                                timeout=240, max_tokens=2000, image_path=proxy)
+                                timeout=240, max_tokens=3500, image_path=proxy)
     finally:
         if os.path.isfile(proxy):
             os.remove(proxy)
@@ -152,8 +152,11 @@ def record_wardrobe_audit(audit: dict, path: str):
     from utils.atomic_io import write_json_atomic
     write_json_atomic(path, audit, indent=2, ensure_ascii=False)
     from pathlib import Path
-    lines = [str(audit.get("summary") or "衣装审计缺少有效结论")]
-    for check in audit.get("checks") or []:
+    from utils.audit_display import summary, details
+    lines = [str(summary(audit) or "衣装审计缺少有效结论")]
+    if details(audit):
+        lines.append(details(audit))
+    for check in ([] if details(audit) else audit.get("checks") or []):
         if isinstance(check, dict):
             lines.append(f"{check.get('dimension')}: {check.get('result')} — {check.get('evidence')}")
     Path(path).with_suffix(".txt").write_text("\n".join(lines), encoding="utf-8")

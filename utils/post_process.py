@@ -1549,6 +1549,8 @@ def run_pipeline(paths, steps, firmware=None, out_suffix="-pp", log_callback=Non
     manifest = load_manifest(work_dir) if resume else {}
     items = [it for it in (manifest.get("items") or []) if it.get("source") in sources]
     manifest["items"] = items
+    manifest["recipe"] = {"steps": {k: dict(v) for k, v in steps.items() if k in ("structure", "contrast", "tone", "ink")},
+                          "style_ref_path": style_ref_path or ""}
     by_source = {it.get("source"): it for it in items}
 
     # `local`（局部重绘 + 羽化贴回）已按用户要求停用：不进调度顺序（详见模块 docstring）。

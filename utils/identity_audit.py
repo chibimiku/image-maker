@@ -73,7 +73,8 @@ def normalize_audit(value: dict) -> dict:
         missing.append("differences")
     anchors = [str(v).strip() for v in (data.get("stable_anchors") or []) if str(v).strip()]
     conclusion_valid = not missing and not (mismatch and severity_raw == "none")
-    return {"mismatch": mismatch, "severity": severity_raw if severity_ok else "unknown",
+    from utils.audit_display import chinese_fields
+    return {"display_zh": chinese_fields(data), "mismatch": mismatch, "severity": severity_raw if severity_ok else "unknown",
             "confidence": max(0.0, min(1.0, float(data.get("confidence") or 0.0))),
             "stable_anchors": anchors[:20], "differences": differences,
             "summary": str(data.get("summary") or "").strip(),
@@ -112,7 +113,7 @@ def audit_image_identity(image_path: str, analysis_result: dict, text_cfg: dict 
         raw = guarded_text_call("identity-audit", call_text_model, cfg["base_url"], cfg["api_key"],
                                 cfg["model"],
                                 _prompt("identity-audit-system.md"), user,
-                                timeout=timeout, max_tokens=1800, image_path=audit_image)
+                                timeout=timeout, max_tokens=3000, image_path=audit_image)
     finally:
         if proxy_path and os.path.isfile(proxy_path):
             try:

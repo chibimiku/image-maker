@@ -13,3 +13,6 @@ visible and conflicts with an explicit expected fact. Return exactly one JSON ob
  "differences":[{"feature":"snake_case","expected":"...","observed":"...","correction":"...","confidence":0.0}],
  "summary":"..."}
 Use major only for a changed character, hair/eye colour, outfit identity, or multiple clear intrinsic differences.
+
+
+BILINGUAL DISPLAY OUTPUT: Keep all existing schema keys, enum values and audit findings in English. In the SAME JSON object also return "display_zh": {"summary": "简体中文结论摘要", "details": "简体中文完整展示说明"}. Translate the actual conclusion, each finding and its region, evidence, expected/observed differences, repair advice, accepted variations, limitations and uncertainty into Simplified Chinese. Preserve ordering, confidence values and meaning; do not add or remove findings. This display-only object must never override the English decision fields. Return both languages in one response, with no separate translation request.

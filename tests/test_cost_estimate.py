@@ -103,4 +103,5 @@ def test_hybrid_pricing_charges_models_separately(monkeypatch):
     steps = {s['key']: s for s in result['steps']}
     assert steps['refine_background']['usd'] == 10
     assert steps['refine_clothing']['usd'] == 1
-    assert steps['refine_audit']['call_count'] == 5
+    # One diagnosis plus four audits, each allowing three transport retries.
+    assert steps['refine_audit']['call_count'] == 1 + 4 * 4

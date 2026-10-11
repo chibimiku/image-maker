@@ -27,10 +27,12 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
+    QDialog,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
@@ -38,6 +40,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpinBox,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -229,6 +232,7 @@ def format_request_dump(params: dict, api_cfg: dict, site: str, api_type: str, m
 
 class ResizableImagePreview(QLabel):
     """原图留在控件内部，缩放不参与父布局尺寸计算。"""
+    clicked = pyqtSignal()
     def __init__(self, parent=None):
         super().__init__("预览", parent)
         self._original_pixmap = QPixmap()
@@ -236,6 +240,12 @@ class ResizableImagePreview(QLabel):
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("border: 1px solid #888;")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and not self._original_pixmap.isNull():
+            self.clicked.emit()
+        super().mousePressEvent(event)
 
     def sizeHint(self):
         return QSize(160, 80)
@@ -260,6 +270,59 @@ class ResizableImagePreview(QLabel):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._fit_image()
+
+
+class ProductImageDialog(QDialog):
+    """Full image viewer with selectable path and explicit zoom controls."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.resize(1000, 800)
+        layout = QVBoxLayout(self)
+        self.path_edit = QLineEdit()
+        self.path_edit.setReadOnly(True)
+        layout.addWidget(self.path_edit)
+        controls = QHBoxLayout()
+        self.zoom_label = QLabel()
+        for label, callback in (('适应窗口', self.fit), ('100%', lambda: self.zoom(1)),
+                                ('放大 +', lambda: self.zoom(self.scale * 1.25)),
+                                ('缩小 −', lambda: self.zoom(self.scale / 1.25)),
+                                ('复制路径', lambda: QApplication.clipboard().setText(self.path_edit.text()))):
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            controls.addWidget(button)
+        controls.addWidget(self.zoom_label)
+        layout.addLayout(controls)
+        self.scroll = QScrollArea()
+        self.image_label = QLabel()
+        self.scroll.setWidget(self.image_label)
+        self.scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.scroll, stretch=1)
+        self.original = QPixmap()
+        self.scale = 1
+
+    def load_image(self, path):
+        self.original = QPixmap(path)
+        self.path_edit.setText(os.path.abspath(path))
+        self.path_edit.setToolTip(os.path.abspath(path))
+        self.setWindowTitle('产物大图 — ' + os.path.basename(path))
+        self.zoom(1)
+        QTimer.singleShot(0, self.fit)
+
+    def zoom(self, scale):
+        if self.original.isNull():
+            return
+        self.scale = max(0.05, min(8, scale))
+        pixmap = self.original.scaled(self.original.size() * self.scale,
+                                      Qt.AspectRatioMode.KeepAspectRatio,
+                                      Qt.TransformationMode.SmoothTransformation)
+        self.image_label.setPixmap(pixmap)
+        self.image_label.resize(pixmap.size())
+        self.zoom_label.setText(f'{self.scale:.0%}')
+
+    def fit(self):
+        if not self.original.isNull():
+            size = self.scroll.viewport().size()
+            self.zoom(min(size.width() / self.original.width(), size.height() / self.original.height()))
 
 
 class PricingWorker(QThread):
@@ -306,17 +369,21 @@ class RefineRetryWorker(QThread):
     done = pyqtSignal(list)
     error = pyqtSignal(str)
 
-    def __init__(self, record_path, stage, force, parent=None):
+    def __init__(self, record_path, stage, force, parent=None, audit_only=False):
         super().__init__(parent)
         self.record_path, self.stage, self.force = record_path, stage, force
+        self.audit_only = audit_only
 
     def run(self):
         try:
             from utils.gpt_image_refine import refine_image
             path = refine_image('', image_options={}, resume_record=self.record_path,
                                 start_stage=self.stage, force_candidate=self.force,
+                                resume_audit_only=self.audit_only,
                                 log_callback=self.log.emit, cancel_check=self.isInterruptionRequested)
-            self.done.emit([path])
+            from utils.refine_delivery import deliver_refine
+            paths = deliver_refine(path, self.record_path, getattr(self, 'delivery_recipe', {'steps': {}, 'style_ref_path': ''}), self.log.emit)
+            self.done.emit(paths)
         except Exception as exc:
             self.error.emit(f'{type(exc).__name__}: {exc}')
 
@@ -966,6 +1033,7 @@ class GptImage2Widget(QWidget):
         self.log_view.setPlaceholderText("运行日志")
         body_row.addWidget(self.log_view, stretch=1)
         self.preview_label = ResizableImagePreview()
+        self.preview_label.clicked.connect(lambda: self.open_product_image(getattr(self, '_preview_path', '')))
         body_row.addWidget(self.preview_label, stretch=1)
         layout.addLayout(body_row, stretch=1)
 
@@ -981,6 +1049,7 @@ class GptImage2Widget(QWidget):
         self.result_list.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.result_list.setToolTip("双击打开所在目录；完整路径见悬浮提示与运行日志。")
         self.result_list.itemDoubleClicked.connect(self.open_item)
+        self.result_list.itemClicked.connect(lambda item: self.open_product_image(item.data(Qt.ItemDataRole.UserRole)))
         self.result_list.currentItemChanged.connect(lambda *_: self.refresh_refine_status())
         layout.addWidget(self.result_list)
 
@@ -988,7 +1057,7 @@ class GptImage2Widget(QWidget):
         self._refine_live_path = None
         self.refine_status_view = QPlainTextEdit()
         self.refine_status_view.setReadOnly(True)
-        self.refine_status_view.setMaximumHeight(85)
+        self.refine_status_view.setMaximumHeight(150)
         self.refine_status_view.setPlaceholderText('选择产物后显示 refine 工序状态；可载入历史记录或图片。')
         layout.addWidget(self.refine_status_view)
         refine_row = QHBoxLayout()
@@ -998,16 +1067,23 @@ class GptImage2Widget(QWidget):
         from utils.refine_state import STAGES, LABELS
         for stage in STAGES:
             self.refine_stage_combo.addItem(LABELS[stage], stage)
-        self.refine_retry_btn = QPushButton('重试该步骤并继续')
+        self.refine_continue_btn = QPushButton('从断点继续')
+        self.refine_continue_btn.setToolTip('接口审计异常自动最多重试3次，复用已有图片；仍失败可点击只补复审，通过后继续。审计不通过不自动重试。')
+        self.refine_continue_btn.clicked.connect(self.continue_refine)
+        self.refine_retry_btn = QPushButton('重画该步骤并继续')
         self.refine_force_btn = QPushButton('采用该候选并继续')
         self.refine_retry_btn.setToolTip('显式新增一次请求：从所选步骤原输入重画，通过审计后继续。旧记录与候选保留。')
         self.refine_force_btn.setToolTip('人工采用所选步骤已返回的候选，记录覆盖决定，从下一步继续；后续审计仍生效。')
         self.refine_retry_btn.clicked.connect(lambda: self.retry_refine(False))
         self.refine_force_btn.clicked.connect(lambda: self.retry_refine(True))
         self.refine_stage_combo.currentIndexChanged.connect(lambda *_: self.preview_refine_stage())
-        for widget in (self.refine_load_btn, self.refine_stage_combo, self.refine_retry_btn, self.refine_force_btn):
+        for widget in (self.refine_load_btn, self.refine_stage_combo, self.refine_continue_btn):
             refine_row.addWidget(widget)
         layout.addLayout(refine_row)
+        refine_actions = QHBoxLayout()
+        refine_actions.addWidget(self.refine_retry_btn)
+        refine_actions.addWidget(self.refine_force_btn)
+        layout.addLayout(refine_actions)
         self.refine_timer = QTimer(self)
         self.refine_timer.setInterval(2000)
         self.refine_timer.timeout.connect(self.refresh_refine_status)
@@ -2123,14 +2199,16 @@ class GptImage2Widget(QWidget):
         for path in paths:
             name = os.path.basename(path)
             size = ""
+            saved_time = "时间未知"
             try:
                 size = f"  ({os.path.getsize(path) / 1024:.0f} KB)"
+                saved_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(path)))
             except OSError:
                 pass
-            # 只显示文件名（超长自动省略）——把完整路径写进条目里会把列表撑宽、顶破版面
-            item = QListWidgetItem(f"{name}{size}")
+            # 时间置前；文件名超长自动省略，完整路径保留在悬浮提示中。
+            item = QListWidgetItem(f"{saved_time}  |  {name}{size}")
             item.setData(Qt.ItemDataRole.UserRole, path)
-            item.setToolTip(path)
+            item.setToolTip(f"文件时间：{saved_time}\n{path}")
             self.result_list.addItem(item)
             self._append_log(f"[结果] 已保存: {path}")
         self.result_list.setCurrentRow(self.result_list.count() - len(paths))
@@ -2146,7 +2224,7 @@ class GptImage2Widget(QWidget):
             found = (path, read_record(path)) if path.lower().endswith('-refine.json') else find_record(path)
             if not found:
                 raise ValueError('找不到该产物的 refine 记录')
-            self._show_results([found[1]['selected']])
+            self._show_results([found[1]['selected'] if path.lower().endswith('-refine.json') else path])
             self._refine_record_path = found[0]
             self.refresh_refine_status(record_path=found[0])
         except (OSError, ValueError, KeyError) as exc:
@@ -2160,26 +2238,42 @@ class GptImage2Widget(QWidget):
         item = self.result_list.currentItem()
         path = self._refine_live_path if busy and self._refine_live_path else (item.data(Qt.ItemDataRole.UserRole) if item else None)
         try:
-            found = (record_path, read_record(record_path)) if record_path else find_record(path)
+            explicit = record_path or (item.data(Qt.ItemDataRole.UserRole + 1) if item and not busy else None)
+            found = (explicit, read_record(explicit)) if explicit else find_record(path)
             if not found:
                 self._refine_record_path = None
                 self.refine_status_view.clear()
             else:
                 changed = self._refine_record_path != found[0]
+                state_changed = getattr(self, '_refine_last_state', None) != (found[0], found[1].get('status'))
+                self._refine_last_state = (found[0], found[1].get('status'))
                 self._refine_record_path = found[0]
+                if item and record_path:
+                    item.setData(Qt.ItemDataRole.UserRole + 1, record_path)
+                if busy:
+                    live = next((s for s in reversed(found[1].get('stages', []))
+                                 if s.get('status') in ('requested', 'retrying')), None)
+                    if live:
+                        key = live.get('key', '')
+                        self.status_label.setText('当前工序：' + LABELS.get(key.removesuffix('-audit'), key)
+                                                  + ('审计' if key.endswith('-audit') else '修复')
+                                                  + ('（接口重试中）' if live.get('status') == 'retrying' else '…'))
                 self.refine_status_view.setPlainText(status_text(found[1]))
                 self.refine_status_view.setToolTip(found[0])
                 if not busy and (found[1].get('status') in ('fallback', 'stopped') or
                                  (found[1].get('workflow') not in ('whole', 'targeted_whole', 'hybrid') and
                                   any(s.get('status') == 'rejected' for s in found[1].get('stages', [])))):
                     self.status_label.setText('Refine 未完成，保留最近通过图；可重试或人工采用候选继续')
-                if changed:
+                expected = stages_for_record(found[1])
+                if changed or tuple(self.refine_stage_combo.itemData(i) for i in range(self.refine_stage_combo.count())) != expected:
                     self.refine_stage_combo.blockSignals(True)
                     self.refine_stage_combo.clear()
                     for stage in stages_for_record(found[1]):
                         self.refine_stage_combo.addItem(LABELS[stage], stage)
                     self.refine_stage_combo.setCurrentIndex(self.refine_stage_combo.findData(default_stage(found[1])))
                     self.refine_stage_combo.blockSignals(False)
+                elif state_changed and found[1].get('status') in ('fallback', 'stopped'):
+                    self.refine_stage_combo.setCurrentIndex(self.refine_stage_combo.findData(default_stage(found[1])))
         except (OSError, ValueError, KeyError, TypeError):
             pass  # Atomic writer may still be publishing a live record.
         self.refresh_refine_buttons()
@@ -2191,6 +2285,7 @@ class GptImage2Widget(QWidget):
         busy = self._pipeline_busy()
         enabled = bool(self._refine_record_path) and not busy
         self.refine_retry_btn.setEnabled(enabled)
+        self.refine_continue_btn.setEnabled(enabled)
         force = False
         if enabled:
             try:
@@ -2215,19 +2310,42 @@ class GptImage2Widget(QWidget):
         except (OSError, ValueError, KeyError):
             pass
 
-    def retry_refine(self, force=False):
+    def continue_refine(self):
+        if not self._refine_record_path or self._pipeline_busy():
+            return
+        from utils.refine_state import read_record, default_stage, can_resume_audit
+        try:
+            record = read_record(self._refine_record_path)
+            stage = default_stage(record)
+            self.refine_stage_combo.setCurrentIndex(self.refine_stage_combo.findData(stage))
+            self.retry_refine(audit_only=can_resume_audit(record, stage))
+        except (OSError, ValueError, KeyError) as exc:
+            self.status_label.setText('断点不可用：' + str(exc))
+
+    def retry_refine(self, force=False, audit_only=False):
         if not self._refine_record_path or self._pipeline_busy():
             return
         stage = self.refine_stage_combo.currentData()
-        worker = RefineRetryWorker(self._refine_record_path, stage, force, self)
+        from utils.refine_state import resume_plan
+        try:
+            plan = resume_plan(self._refine_record_path, stage, force, audit_only=audit_only)
+        except (OSError, ValueError, KeyError) as exc:
+            self.status_label.setText('断点不可用：' + str(exc))
+            return
+        worker = (RefineRetryWorker(self._refine_record_path, stage, force, self, audit_only=True)
+                  if audit_only else RefineRetryWorker(self._refine_record_path, stage, force, self))
+        from utils.refine_delivery import delivery_recipe
+        item = self.result_list.currentItem()
+        product = item.data(Qt.ItemDataRole.UserRole) if item else plan['source']
+        worker.delivery_recipe = delivery_recipe(product, plan['record'])
         self._worker = worker
-        from utils.refine_state import read_record
-        self._refine_live_path = read_record(self._refine_record_path)['source']
+        self._refine_live_path = plan['source']
         self.generate_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
-        self.status_label.setText('人工采用候选并继续 refine…' if force else '重试 refine 工序…')
+        self.status_label.setText('复用候选，补跑审计并继续…' if audit_only else '人工采用候选并继续 refine…' if force else '重试 refine 工序…')
         worker.log.connect(self._append_log)
-        # Show raw refine output. Do not silently append the saved tone/ink recipe again.
+        worker.log.connect(self._on_post_progress)
+        # Delivery is done in the worker from the saved downstream recipe, on the new candidate.
         worker.done.connect(self._show_results)
         worker.error.connect(self.on_error)
         self._watch_generation_worker(worker)
@@ -2460,8 +2578,8 @@ class GptImage2Widget(QWidget):
     def _on_post_progress(self, message):
         """把后处理进度同步到状态栏（避免"生成返回就算完成"的错觉）。"""
         text = str(message or "")
-        if "[工序]" in text:
-            self.status_label.setText("后处理中… " + text.replace("[工序]", "").strip()[:60])
+        if "[工序]" in text or "[refine]" in text or "[refine审计]" in text:
+            self.status_label.setText("后处理中… " + text.replace("[工序]", "").replace("[refine]", "").replace("[refine审计]", "审计：").strip()[:80])
 
     def _start_post_process(self, paths, recipe=None):
         """在后台线程跑勾选的后处理工序（局部重绘要走网络，不能卡 UI）。"""
@@ -2504,11 +2622,22 @@ class GptImage2Widget(QWidget):
         QMessageBox.critical(self, "生成错误", str(message)[:600])
 
     def show_preview(self, path):
+        self._preview_path = os.path.abspath(path) if path else ''
         pixmap = QPixmap(path)
         if pixmap.isNull():
             self.preview_label.setText("无法预览")
             return
         self.preview_label.setPixmap(pixmap)
+        self.preview_label.setToolTip(self._preview_path + '\n点击查看大图')
+
+    def open_product_image(self, path):
+        if not path or not os.path.isfile(path):
+            return
+        if not hasattr(self, '_image_dialog'):
+            self._image_dialog = ProductImageDialog(self)
+        self._image_dialog.load_image(os.path.abspath(path))
+        self._image_dialog.show()
+        self._image_dialog.raise_()
 
     def open_containing_dir(self, path):
         if path and os.path.exists(path):

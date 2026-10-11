@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+from utils.audit_display import summary as display_summary, details as display_details
 import os
 import re
 import time
@@ -119,7 +120,9 @@ def normalize_audit(value) -> dict:
         confidence = float(data.get("confidence") or 0.0)
     except (TypeError, ValueError):
         confidence = 0.0
+    from utils.audit_display import chinese_fields
     result = {
+        "display_zh": chinese_fields(data),
         "content_ok": content_ok if isinstance(content_ok, bool) else None,
         "style_ok": style_ok if isinstance(style_ok, bool) else None,
         "style_failure_kind": style_failure_kind,
@@ -142,6 +145,8 @@ def normalize_audit(value) -> dict:
     if result["conclusion_valid"] and result["verdict"] == "pass" and major:
         result["verdict"] = "fail"
         result["summary"] = (result["summary"] + " [major 问题与 pass 冲突，按 fail 处理]").strip()
+        if result["display_zh"]:
+            result["display_zh"]["summary"] = result["display_zh"].get("summary", "") + " [重大问题与通过结论冲突，代码按未通过处理]"
     # 结论不完整时**不能**保留一个 pass：缺字段的回复里写着 pass 只是模型漏答，不是通过
     if not result["conclusion_valid"]:
         result["verdict"] = "unknown"
@@ -149,6 +154,8 @@ def normalize_audit(value) -> dict:
         # 模型写了 fail，但没有达到门槛的重大证据：保留警告，不凭标签收费重画。
         result["verdict"] = "uncertain"
         result["summary"] = (result["summary"] + " [无明确重大证据，按 uncertain 保留产物]").strip()
+        if result["display_zh"]:
+            result["display_zh"]["summary"] = result["display_zh"].get("summary", "") + " [无明确重大证据，代码按不确定保留产物]"
     return result
 
 
@@ -452,7 +459,7 @@ def resolve_audit_content(analysis_result: dict, tier: str = "full", max_chars: 
 def audit_first_image(image_path: str, analysis_result: dict, text_cfg: dict = None, *,
                       content: str = "", style_ref_path: str = "",
                       source_image_path: str = "", forbidden=None, timeout: int = 180,
-                      max_tokens: int = 1600) -> dict:
+                      max_tokens: int = 3200) -> dict:
     """对一张 Gemini 直出图做「内容保真 / 参考图内容复制 / 画风覆盖」审计。
 
     走视觉文本通道（`load_text_api_config`，与身份审计同一家），附图顺序固定：
@@ -604,6 +611,8 @@ def generate_with_audit(generate, *, prompt: str, max_attempts: int = 2, audit=N
             log("⏹ 审计被取消（多为生图倒计时到点）：图已经出好，保留并按「未审完」交付，"
                 "不再重画、也不算生图失败。")
             break
+        if display_details(verdict):
+            log('首图审计详情：' + display_details(verdict))
         retry, reason = should_retry(verdict)
         if audit_call_failed(verdict):
             # 审计自己没跑成（超时 / 400）：跳过重画，把这张交出去；只在记录里留警告
@@ -611,12 +620,12 @@ def generate_with_audit(generate, *, prompt: str, max_attempts: int = 2, audit=N
             log(f"⚠️ 审计调用失败，跳过重画并保留这张图：{verdict.get('audit_error') or reason}")
             break
         if not retry:
-            log(f"✅ 第 {round_index} 次出图通过审计：{verdict.get('summary') or reason}")
+            log(f"✅ 第 {round_index} 次出图通过审计：{display_summary(verdict) or reason}")
             if verdict.get("warnings"):
                 log(f"⚠️ 保留 {len(verdict['warnings'])} 项非拦截限制，不追加重画。")
             stopped_reason = "passed"
             break
-        log(f"⚠️ 第 {round_index} 次出图未通过：{reason}（{verdict.get('summary') or '无摘要'}）")
+        log(f"⚠️ 第 {round_index} 次出图未通过：{reason}（{display_summary(verdict) or '无摘要'}）")
         if round_index >= limit:
             stopped_reason = "exhausted"
             log(f"🛑 重画额度已用尽（{limit} 次），在候选中选最可用的一张，并按需人工复核。")

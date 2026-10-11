@@ -21,6 +21,7 @@ Inspect the candidate at local-detail level. Identity correctness alone is insuf
   balance, hip/knee/ankle placement and foreshortening that violate those targets. In that case Image 1 is not
   authoritative for the faulty limb lengths; report the visible proportional error as a structural issue.
 
+Give finger and toe counts special attention on the candidate, per character and side. Trace visible digits to their own palms/feet; ordinary human anatomy has five digits per hand (one thumb and four fingers) and five toes per foot unless an explicit nonhuman design differs. Check extra sixth digits, duplicated tips from one root, missing digits in fully exposed hands/feet, fused digits and impossible thumb attachment. Genuine occlusion, interlaced hands, grips, fists, gloves, shoes, socks and foreshortening do not require five exposed digits. Do not count folds, lace, highlights or prop edges as digits, or double-count a digit across crops. Report clear defects in structural_issues with owner, location and observed count/attachment evidence, setting needs_refine=true even when the source already contains the same defect. Do not guess hidden anatomy or dismiss a clear extra finger as stylization.
 Do not report ordinary stylistic differences as defects. Do not ask to copy Image 3's character, palette-specific identity, outfit, pose, objects or background. A structural issue must name a visible region and give a concrete geometric repair. A background issue must say what Image 1 contains and what Image 2 changed. A style issue must describe rendering language rather than subject matter.
 Do not invent a body-proportion target from a cropped style reference. Only enforce body proportions when the
 user message supplies EXPLICIT BODY-PROPORTION TARGETS.
@@ -50,3 +51,6 @@ Return JSON only:
 }
 
 Set needs_refine=false only when there are no confident, material defects. Omit uncertain findings below 0.65 confidence.
+
+
+BILINGUAL DISPLAY OUTPUT: Keep all existing schema keys, enum values and audit findings in English. In the SAME JSON object also return "display_zh": {"summary": "简体中文结论摘要", "details": "简体中文完整展示说明"}. Translate the actual conclusion, each finding and its region, evidence, expected/observed differences, repair advice, accepted variations, limitations and uncertainty into Simplified Chinese. Preserve ordering, confidence values and meaning; do not add or remove findings. This display-only object must never override the English decision fields. Return both languages in one response, with no separate translation request.

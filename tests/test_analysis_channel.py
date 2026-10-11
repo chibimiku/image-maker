@@ -172,19 +172,19 @@ def test_wardrobe_repaint_switch_is_wired_into_the_analysis_tab(analyzer):
 def test_gpt_timeout_budget_counts_network_slots_only(analyzer):
     """预算覆盖首图、重绘、衣装重绘、质量/身份门禁；本地工序（结构线/色调/加墨）不占份额。
 
-    整体 refine 预留4*360+5*180=2340秒；外围门禁及衣装预算仍保守保留。
+    整体 refine 预留4*360+17*180=4500秒（含审计异常重试）；外围门禁及衣装预算仍保守保留。
     旧单步保真流程预留1080秒，局部重绘不占预算。
     """
     analyzer.gen_channel_gpt.setChecked(True)
     steps = analyzer._build_gpt_image_steps()          # 默认：首图 + 重绘 + 衣装重绘（结构线/色调/加墨是本地）
     assert steps['repaint']['refine'] is True
-    assert analyzer._pipeline_timeout_budget(120, steps) == 4620
+    assert analyzer._pipeline_timeout_budget(120, steps) == 6780
     legacy_steps = {key: dict(value) for key, value in steps.items()}
     legacy_steps['repaint']['refine'] = False
     assert analyzer._pipeline_timeout_budget(120, legacy_steps) == 3360
     analyzer.gpt_pp_wardrobe.setChecked(False)         # 关掉衣装重绘 → 少一份
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 4500
+    assert analyzer._pipeline_timeout_budget(120, steps) == 6660
     analyzer.gpt_pp_repaint.setChecked(False)          # 只留首图 + 衣装重绘
     analyzer.gpt_pp_wardrobe.setChecked(True)
     steps = analyzer._build_gpt_image_steps()
@@ -282,11 +282,11 @@ def test_gpt_channel_wardrobe_step_counts_one_slot_and_local_stays_off(analyzer)
     steps = analyzer._build_gpt_image_steps()
     assert steps["local"]["enabled"] is False          # 停用
     assert steps["wardrobe"]["enabled"] is True        # 衣装重绘默认开
-    # 外围预算仍保守保留衣装份额；整体 refine 预留为2340秒。
-    assert analyzer._pipeline_timeout_budget(120, steps) == 4620
+    # 外围预算仍保守保留衣装份额；含审计异常重试的refine预留为4500秒。
+    assert analyzer._pipeline_timeout_budget(120, steps) == 6780
     analyzer.gpt_pp_wardrobe.setChecked(False)
     steps = analyzer._build_gpt_image_steps()
-    assert analyzer._pipeline_timeout_budget(120, steps) == 4500
+    assert analyzer._pipeline_timeout_budget(120, steps) == 6660
 
 
 def _first_pass_payload(analyzer, tmp_path, styles, style_name):

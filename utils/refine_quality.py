@@ -103,6 +103,8 @@ def normalize_quality_audit(value: dict, schema: str = "quality") -> dict:
     result["confidence"] = max(0.0, min(1.0, float(data.get("confidence") or 0.0)))
     result["protected_features"] = [str(v).strip() for v in (data.get("protected_features") or [])
                                       if str(v).strip()][:20]
+    from utils.audit_display import chinese_fields
+    result["display_zh"] = chinese_fields(data)
     result["summary"] = str(data.get("summary") or "").strip()
     result["schema"] = schema
     result["conclusion_valid"] = not missing
@@ -178,7 +180,7 @@ def audit_refine_quality(original_path: str, candidate_path: str, style_path: st
         raw = guarded_text_call("quality-audit", call_text_model, cfg["base_url"], cfg["api_key"],
                                 cfg["model"],
                                 _prompt("final-quality-audit-system.md" if final_review else "refine-quality-audit-system.md"), user,
-                                timeout=timeout, max_tokens=5000 if final_review else 3000, image_paths=proxies)
+                                timeout=timeout, max_tokens=7500 if final_review else 5000, image_paths=proxies)
     finally:
         for path in proxies:
             try:
@@ -251,7 +253,10 @@ QUALITY_FINDING_LABELS = {"structural_issues": "结构", "line_issues": "线条"
 
 def quality_failure_details(audit: dict) -> str:
     """Human-readable evidence, including lower-confidence retained findings."""
+    from utils.audit_display import details, summary
     audit = audit or {}
+    if details(audit):
+        return summary(audit) + "\n" + details(audit)
     lines = [f"严重度={audit.get('severity', 'unknown')}；审计置信度={audit.get('confidence', 0)}"]
     for key, label in QUALITY_FINDING_LABELS.items():
         for item in audit.get(key) or []:
@@ -429,7 +434,7 @@ def audit_hand_quality(candidate_path: str, text_cfg: dict | None = None,
         raw = guarded_text_call("anatomy-audit", call_text_model, cfg["base_url"], cfg["api_key"],
                                 cfg["model"],
                                 _prompt("hand-audit-system.md"), "Trace every character's limbs and inspect all visible hands.",
-                                timeout=timeout, max_tokens=4000, image_paths=proxies)
+                                timeout=timeout, max_tokens=6000, image_paths=proxies)
         value = _json_object(raw)
         if not isinstance(value.get("structural_issues"), list):
             raise ValueError("手部审计未返回有效 structural_issues")

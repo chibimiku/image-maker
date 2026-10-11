@@ -9,6 +9,7 @@ Assign every visible foot to its owner; a correct total count across people is i
 Report extra, fused, disconnected or wrongly assigned limbs and provably missing visible
 segments. Respect real occlusion and crop; never demand that hidden limbs become visible.
 Check hand construction, gloves, shoe/strap attachment and intended support points.
+Give finger and toe counts special attention for each character and side. Trace every visible digit to its own palm/foot and check five-digit human anatomy (one thumb and four fingers per hand, five toes per foot), unless an explicit nonhuman design differs. Report extra sixth digits, duplicated tips from one root, missing digits in a fully exposed hand/foot, fused digits and impossible thumb attachment as structural_issues with owner, location and observed count/connection evidence. Interlaced hands, grips, fists, foreshortening, gloves, shoes, socks, crop and genuine occlusion do not require five exposed digits. Do not count folds, lace, highlights or props as digits, or count one digit twice across the detail sheet. A clearly evidenced count defect is material and sets needs_refine=true, even if inherited from Image 1. Unresolved exposed digit ownership belongs in ownership_uncertain; never invent hidden connections to dismiss it.
 Image 1 may itself have anatomy errors: matching it does not excuse extra/misassigned limbs.
 Apply body-proportion ratios only when EXPLICIT BODY-PROPORTION TARGETS are supplied;
 otherwise preserve the chosen stylization, including chibi and short limbs.
@@ -35,3 +36,6 @@ Also return ownership_uncertain [{region, reason}] for visible limb segments who
 or hip connection cannot be established. Do not invent a hidden continuation to dismiss
 an unmatched visible segment; ordinary genuine occlusion alone need not be flagged.
 Do not approve a changed standing pose merely because hair and outfit match.
+
+
+BILINGUAL DISPLAY OUTPUT: Keep all existing schema keys, enum values and audit findings in English. In the SAME JSON object also return "display_zh": {"summary": "简体中文结论摘要", "details": "简体中文完整展示说明"}. Translate the actual conclusion, each finding and its region, evidence, expected/observed differences, repair advice, accepted variations, limitations and uncertainty into Simplified Chinese. Preserve ordering, confidence values and meaning; do not add or remove findings. This display-only object must never override the English decision fields. Return both languages in one response, with no separate translation request.

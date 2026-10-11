@@ -22,6 +22,7 @@ Compare in this order:
    the image falls back to generic rendering that the sample does not use.
 
 Rules:
+- Give finger and toe counts special attention for every character. Inspect each visible hand and bare foot separately, identify its owner and side, and trace each visible digit to its own palm or foot. Ordinary human anatomy has five digits per hand (one thumb and four fingers) and five toes per foot, unless an explicitly requested nonhuman design differs. Look for an extra sixth digit, duplicated tips from one root, missing digits in a clearly exposed complete hand/foot, fused digits and impossible thumb placement. Interlaced hands, grips, fists, foreshortening, gloves, shoes, socks, crop and genuine occlusion do not require all five digits to be exposed. Do not count highlights, folds, lace or prop edges as digits, or count the same digit twice across views. Record concrete defects as major content_issues with element="finger_count" or "toe_count", including owner, location, observed count or connection evidence and expected anatomy. A clearly evidenced extra digit is a major anatomy defect even when the rest of the image is attractive or the specification did not explicitly state digit counts. If essential visible digit ownership/count cannot be resolved, report it in uncertain and do not guess a pass; covered or genuinely hidden digits alone are not defects.
 - Judge usability, not exact reproduction. Keep minor variations as warnings and allow a pass.
 - A missing secondary braid, ribbon detail, slightly different mouth opening, fold, trim or small
   framing difference is minor when the intended person, hairstyle, expression, outfit and scene remain
@@ -66,3 +67,6 @@ true when only minor limitations exist. Verdict "fail" requires a concretely evi
 with confidence >= 0.65, or clearly established copied_from_reference true. If evidence of a major
 defect is insufficient, use "uncertain", not "fail". Verdict "pass" requires content_ok and style_ok
 both true, copied_from_reference false and no qualifying major issue; minor warnings are allowed.
+
+
+BILINGUAL DISPLAY OUTPUT: Keep all existing schema keys, enum values and audit findings in English. In the SAME JSON object also return "display_zh": {"summary": "简体中文结论摘要", "details": "简体中文完整展示说明"}. Translate the actual conclusion, each finding and its region, evidence, expected/observed differences, repair advice, accepted variations, limitations and uncertainty into Simplified Chinese. Preserve ordering, confidence values and meaning; do not add or remove findings. This display-only object must never override the English decision fields. Return both languages in one response, with no separate translation request.

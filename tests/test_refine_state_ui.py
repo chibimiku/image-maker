@@ -177,3 +177,105 @@ def test_ui_manual_force_uses_explicit_stage_in_worker_without_local_post_proces
     assert not widget.refine_retry_btn.isEnabled() and not widget.refine_force_btn.isEnabled()
     assert widget._worker.done.callbacks == [widget._show_results]
     widget._worker = None
+
+
+def audit_failure(case):
+    paths, rp, record = case
+    record.update(workflow='hybrid', version=9, status='fallback', selected=str(paths[0]),
+                  diagnosis={'has_people': True}, targeted_check={'decision': 'skip'},
+                  stages=[{'key': 'background', 'kind': 'image', 'status': 'returned',
+                           'input': str(paths[0]), 'outputs': [str(paths[2])], 'prompt': 'saved prompt',
+                           'options': {'aspect_ratio': '3:2'}},
+                          {'key': 'background-audit', 'kind': 'text', 'status': 'failed',
+                           'system': 'saved audit', 'user': 'saved task',
+                           'images': [str(paths[0]), str(paths[0]), str(paths[2])], 'error': 'TLS EOF'}])
+    dump(rp, record)
+    dump(paths[0].parent / 'pipeline-steps/run/pipeline-manifest.json',
+         {'items': [{'source': str(paths[0]), 'final': str(paths[3]), 'steps': []}]})
+    return paths, rp, record
+
+
+def test_returned_background_audit_failure_is_recoverable_without_repainting(widget, case, monkeypatch):
+    paths, rp, record = audit_failure(case)
+    widget._refine_record_path = str(rp)  # Explicit load used to skip stage-list population.
+    widget._show_results([str(paths[3])])
+    assert widget.refine_stage_combo.currentData() == 'background'
+    assert widget.refine_continue_btn.isEnabled()
+    assert '接口失败' in widget.refine_status_view.toPlainText()
+    calls = []
+    monkeypatch.setattr(widget, 'retry_refine', lambda **kw: calls.append(kw))
+    widget.refine_continue_btn.click()
+    assert calls == [{'audit_only': True}]
+    plan = state.resume_plan(rp, 'background', audit_only=True)
+    assert plan['audit_only'] and plan['remaining'] == ('background', 'clothing', 'whole')
+    record['stages'][1].update(status='returned', report={'verdict': 'fail'})
+    dump(rp, record)
+    with pytest.raises(ValueError, match='没有可复审'):
+        state.resume_plan(rp, 'background', audit_only=True)
+
+
+def test_failed_audit_finishing_live_record_updates_default_stage(widget, case):
+    paths, rp, record = audit_failure(case)
+    widget._show_results([str(paths[3])])
+    record['status'] = 'running'
+    dump(rp, record)
+    widget.refresh_refine_status()
+    widget.refine_stage_combo.setCurrentIndex(widget.refine_stage_combo.findData('targeted'))
+    record['status'] = 'fallback'
+    dump(rp, record)
+    widget.refresh_refine_status()
+    assert widget.refine_stage_combo.currentData() == 'background'
+
+
+def test_explicit_product_load_keeps_product_and_refine_record_on_timer(widget, case, monkeypatch):
+    paths, rp, _ = audit_failure(case)
+    monkeypatch.setattr(tab.QFileDialog, 'getOpenFileName', lambda *a, **kw: (str(paths[3]), ''))
+    widget.load_refine_product()
+    assert widget.result_list.currentItem().data(tab.Qt.ItemDataRole.UserRole) == str(paths[3])
+    widget.refresh_refine_status()
+    assert widget._refine_record_path == str(rp)
+    assert widget.refine_stage_combo.currentData() == 'background'
+    assert widget.refine_continue_btn.isEnabled()
+
+
+def test_result_click_and_preview_click_open_zoomable_image_with_exact_path(widget, case):
+    from PyQt6.QtTest import QTest
+    from PyQt6.QtCore import Qt
+    path = str(case[0][3])
+    widget._show_results([path])
+    widget.result_list.itemClicked.emit(widget.result_list.currentItem())
+    viewer = widget._image_dialog
+    assert viewer.isVisible() and viewer.path_edit.text() == os.path.abspath(path)
+    viewer.zoom(2)
+    assert viewer.image_label.pixmap().width() == viewer.original.width() * 2
+    viewer.close()
+    widget.show_preview(str(case[0][2]))
+    QTest.mouseClick(widget.preview_label, Qt.MouseButton.LeftButton)
+    assert viewer.isVisible() and viewer.path_edit.text() == os.path.abspath(case[0][2])
+    viewer.close()
+
+
+def test_live_audit_updates_main_task_status(widget, case):
+    paths, rp, record = case
+    record.update(status='running')
+    record['stages'][-1]['status'] = 'requested'
+    dump(rp, record)
+    widget._show_results([str(paths[3])])
+    class Worker:
+        def isRunning(self): return True
+    widget._worker = Worker()
+    widget._refine_live_path = str(paths[0])
+    widget.refresh_refine_status(record_path=str(rp))
+    assert '背景审计' in widget.status_label.text()
+    assert '完成' not in widget.status_label.text()
+    widget._worker = None
+
+
+def test_refine_display_prefers_chinese_details_without_changing_verdict(case):
+    _, _, record = case
+    report = record['stages'][-1]['report']
+    report['display_zh'] = {'summary': '背景未通过', 'details': '窗框仍有碎纹。'}
+    text = state.status_text(record)
+    assert '窗框仍有碎纹。' in text
+    assert 'Window fragments remain.' not in text
+    assert report['verdict'] == 'fail'

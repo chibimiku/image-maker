@@ -121,8 +121,20 @@ def status_text(record):
             report = s.get('report', {})
             label += '审计'
             value = {'pass': '通过', 'fail': '未通过'}.get(report.get('verdict'), s.get('status', '等待'))
-            reasons = report.get('unacceptable_changes') or report.get('limitations') or []
-            rows.append(f'{label}：{value}' + ('；' + '\n'.join(reasons) if report.get('verdict') == 'fail' else ''))
+            if s.get('status') == 'failed':
+                value = '接口失败，可从断点继续复审'
+            elif s.get('status') == 'retrying':
+                value = f'接口异常，自动重试 {len(s.get("attempts", []))}/{s.get("retry_limit", 3)}'
+            elif s.get('status') == 'requested' and s.get('attempts'):
+                value = f'请求中（第 {len(s["attempts"])} 次尝试）'
+            if len(s.get('attempts', [])) > 1 and s.get('status') == 'returned':
+                value += f'（共 {len(s["attempts"])} 次尝试）'
+            from utils.audit_display import details, summary
+            translated = details(report) or summary(report)
+            reasons = ([translated] if translated else report.get('unacceptable_changes')) or report.get('limitations') or []
+            rows.append(f'{label}：{value}' + ('；' + '\n'.join(reasons) if reasons else ''))
+            if s.get('error'):
+                rows.append(s['error'])
         else:
             value = {'accepted': '通过', 'rejected': '未通过', 'requested': '执行中',
                      'returned': '已返回', 'no_output': '无产物', 'skipped': '跳过'}.get(s.get('status'), s.get('status', '等待'))
@@ -138,7 +150,32 @@ def status_text(record):
         rows.append(record['error'])
     return '\n'.join(rows) or '暂无工序'
 
-def resume_plan(path, stage=None, force=False):
+def can_resume_audit(record, stage):
+    if record.get('workflow') not in ('whole', 'targeted_whole', 'hybrid'):
+        return False
+    entry = image_stage(record, stage)
+    audit = next((s for s in reversed(record.get('stages', []))
+                  if s.get('key') == stage + '-audit' and s.get('kind') == 'text'), None)
+    if not (entry and entry.get('status') == 'returned' and entry.get('outputs')
+            and os.path.isfile(entry['outputs'][0]) and audit
+            and all(audit.get(k) for k in ('system', 'user', 'images'))):
+        return False
+    if audit.get('status') in ('failed', 'requested') and not audit.get('report'):
+        return True
+    # Old hybrid templates contradicted themselves by requesting 'not a hair
+    # decision stage'. Reassess that incomplete answer; never adopt it as pass.
+    if record.get('workflow') == 'hybrid' and stage in ('background', 'clothing'):
+        from utils.gpt_image_refine import audit_passes, background_repair_passes, clothing_repair_passes
+        report = audit.get('report') or {}
+        effective = background_repair_passes if stage == 'background' else clothing_repair_passes
+        return bool(audit.get('status') == 'returned' and audit_passes(report) and effective(report)
+                    and report.get('hair_state') == 'uncertain' and report.get('hair_repair_needed') is None
+                    and any('not a hair-repair decision stage' in str(e).lower()
+                            for e in report.get('hair_evidence', [])))
+    return False
+
+
+def resume_plan(path, stage=None, force=False, audit_only=False):
     r = read_record(path)
     source = r['source']
     if hashlib.sha256(Path(source).read_bytes()).hexdigest() != r.get('source_sha256'):
@@ -148,6 +185,8 @@ def resume_plan(path, stage=None, force=False):
     if stage not in stages:
         raise ValueError('未知 refine 工序')
     entry = image_stage(r, stage)
+    if audit_only and (force or not can_resume_audit(r, stage)):
+        raise ValueError('没有可复审的接口失败断点；请选择重画步骤')
     if entry:
         selected = entry.get('input')
     else:
@@ -169,4 +208,7 @@ def resume_plan(path, stage=None, force=False):
     if force:
         completed.add(stage)
     return {'record': r, 'source': source, 'selected': selected, 'remaining': remaining,
-            'options': dict(image['options']), 'override': override, 'completed': sorted(completed), 'stage': stage}
+            'options': dict(image['options']), 'override': override, 'completed': sorted(completed),
+            'stage': stage, 'audit_only': audit_only,
+            'refresh_audit_scope': audit_only and any(s.get('key') == stage + '-audit' and s.get('status') == 'returned'
+                                                       for s in r.get('stages', []))}

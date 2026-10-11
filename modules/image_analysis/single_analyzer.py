@@ -2279,6 +2279,8 @@ class GptImageGenWorkerThread(QThread):
                     **({"wardrobe": self.request_payload["wardrobe"]} if self.request_payload.get("wardrobe") else {})))
                 with open(os.path.join(audit_dir, "identity-audit-0.json"), "w", encoding="utf-8") as f:
                     _json.dump(audit, f, ensure_ascii=False, indent=2)
+                from utils.audit_display import summary, details
+                self.log_signal.emit("[身份审计] " + summary(audit) + "\n" + details(audit))
                 skip_identity_refine = bool(self.request_payload.get("skip_identity_refine"))
                 if skip_identity_refine:
                     self.log_signal.emit(
@@ -2317,6 +2319,7 @@ class GptImageGenWorkerThread(QThread):
                               "w", encoding="utf-8") as f:
                         _json.dump(audit, f, ensure_ascii=False, indent=2)
                     saved = [current]
+                    self.log_signal.emit("[身份复审] " + summary(audit) + "\n" + details(audit))
                     self.log_signal.emit(
                         f"[身份门禁] 第 {correction_round}/2 轮定点修订完成；"
                         f"复审{'仍有差异' if audit.get('mismatch') else '通过'}。")
@@ -2424,7 +2427,8 @@ class GptImageGenWorkerThread(QThread):
                 lambda: audit_wardrobe(saved[-1], spec, content))
             final_dir = process_dir or os.path.dirname(os.path.abspath(saved[-1]))
             record_wardrobe_audit(wardrobe_audit, os.path.join(final_dir, "wardrobe-audit.json"))
-            self.log_signal.emit("[衣装审计] " + wardrobe_audit["summary"])
+            from utils.audit_display import summary, details
+            self.log_signal.emit("[衣装审计] " + summary(wardrobe_audit) + "\n" + details(wardrobe_audit))
         self._stage_done("final_review", saved)
         if self.isRequestInterruption_requested_safe():
             self.checkpoint.fail("用户取消", cancelled=True)
