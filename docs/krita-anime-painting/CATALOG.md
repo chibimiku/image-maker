@@ -5,6 +5,9 @@
 ## 统一入口
 
 - [本目录 agent 阅读规则](AGENTS.md)
+- [分部位学习路径与记录要求](LEARNING-PATH.md)
+- [学习记录索引](learning-records/README.md)
+- [逐轮学习记录模板](templates/lesson-record.template.md)
 
 - [协作交接](COLLABORATION.md)
 - [先探索环境，再选择画法与工具](ENVIRONMENT.md)
