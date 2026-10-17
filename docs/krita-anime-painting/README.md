@@ -2,6 +2,14 @@
 
 整理日期：2026-10-17。供人和协作 agent 阅读。目标是细腻的蓝发少女坐椅插画；目前仍处于练习阶段，尚未达到参考插画完成度。
 
+最新：[新画布整体练习《花园小憩》](examples/garden-chair-20261017/README.md)，含最终 PNG、分层 KRA、全部本轮阶段图/配方和读图记录。用户追加要求上传后，[Puracotte 原参考与头部观察图](references/puracotte-149567189/README.md) 已单独收录，保留第三方来源与权利说明。
+
+参考拆解：[头部分析](head-parts/puracotte-149567189-head-analysis.md)，覆盖倾斜方向、五官、柔和腮红、发束转折和遮挡；附 [独立腮红/发束小样](examples/puracotte-head-study-20261017/README.md)。
+
+最新本地研究：[面部四轮迭代及读图决策](head-parts/face-iterations-20261017.md)，含 [可直接查看的各轮图与完整场景](examples/face-iterations-20261017/README.md)。旧交接基线保留，不能把旧包 KRA 当本批新稿。
+
+接续：[面部比例与颧颊A/B实验](head-parts/face-proportions-20261017.md)，全部绘制由Krita MCP桥接执行；[David Revoy包已导入启用并试画](resources/deevad-install-20261017.md)，试用不等于采用，保留稿关闭了无明确收益的罩染层。
+
 **第一步先读 [环境探索](ENVIRONMENT.md)。接收方不一定安装 Krita、Python、MCP 或相同笔刷，不能直接照抄本机路径、端口和命令。阅读资料无需安装任何软件。**
 
 ## 推荐阅读顺序
@@ -34,7 +42,7 @@
 
 历史文件里的 `data/test-result/...`、`D:\...` 指向原作者机器，通常不在仓库或知识包内。它们是现场证据位置，不是接收方必须具有的目录。优先看 `examples/`；缺失历史文件应记为缺失，不猜测结果。
 
-知识包包括全部学习文档、脚本、精选 PNG、最新独立场景，以及 ZIP `artwork/` 内的最新分层 KRA；不含全量历史 KRA、用户原始参考、第三方教程原图/视频、插件安装程序、令牌、私有配置或下载的笔刷二进制。笔刷来源与原记录见 [资源清单](resources.md)，按接收方环境另行选择。
+知识包包括全部学习文档、脚本、精选图、最新独立场景、`examples/garden-chair-20261017/garden-pause.kra`，以及用户明确指定收录的 Puracotte 原参考。其他历史 KRA/原参考、第三方教程原图/视频、插件安装程序、令牌、私有配置及下载的笔刷二进制仍不包含。笔刷来源与原记录见 [资源清单](resources.md)，按接收方环境另行选择。
 
 ```text
 python docs/krita-anime-painting/tools/build_knowledge_package.py --output <新的输出目录>

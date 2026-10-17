@@ -1,0 +1,28 @@
+{
+  "reference": "same R4 face; no reference pixels copied",
+  "camera": "same near frontal",
+  "light": "broad upper viewer left",
+  "baseline": {
+    "nose": 36,
+    "mouth": 62,
+    "chin": 95
+  },
+  "A": {
+    "same_shape": true,
+    "new_cheek_planes": true
+  },
+  "B": {
+    "nose": 36,
+    "mouth": 57,
+    "chin": 86,
+    "neck_shoulders_translate_y": -9,
+    "same_new_planes_as_A": true
+  },
+  "new_brush": "d) Glazing Round - deevad 25.01; optional low-opacity independent glaze only",
+  "workflow": [
+    "construction and actual review",
+    "untextured grey planes and actual review",
+    "color A/B and actual review",
+    "revise selected candidate"
+  ]
+}

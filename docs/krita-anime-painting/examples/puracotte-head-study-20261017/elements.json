@@ -1,0 +1,64 @@
+{
+  "reference": "user supplied 149567189_p0.jpg; no reference pixels in study scenes",
+  "reference_landmarks_approx_pixels": {
+    "eye_left": [
+      345,
+      463
+    ],
+    "eye_right": [
+      521,
+      403
+    ],
+    "nose": [
+      433,
+      515
+    ],
+    "mouth": [
+      463,
+      546
+    ],
+    "chin": [
+      480,
+      606
+    ]
+  },
+  "reference_orientation": {
+    "eye_axis_degrees_image": -19,
+    "uncertainty": "approximate hand observation, not yaw or 3D camera calibration"
+  },
+  "blush_study": {
+    "baseline": "B retained near frontal; expression unchanged",
+    "soft_color_centres": [
+      [
+        -39,
+        24
+      ],
+      [
+        39,
+        24
+      ]
+    ],
+    "separate_soft_blush_and_hatch_layers": true,
+    "no_hair_restyle_in_this_trial": true
+  },
+  "hair_study": {
+    "isolated_s_curve": "simplified volume exercise, not reconstruction of hairstyle",
+    "light": "broad upper light",
+    "value_order": [
+      "near-white front plane",
+      "lavender half-tone",
+      "cool violet turning plane",
+      "narrow darker contact seam"
+    ],
+    "details": "sparse interrupted native strokes, only after planes"
+  },
+  "workflow": [
+    "outline and actual visual review",
+    "flats and actual visual review",
+    "shading and actual visual review",
+    "detail and actual visual review",
+    "blush soft/hatch comparison"
+  ],
+  "new_downloads": false,
+  "native_brush": "c4) Thin Brush Regular - deevad 25.01"
+}

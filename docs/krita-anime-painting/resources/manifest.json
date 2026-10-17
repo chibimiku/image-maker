@@ -4,12 +4,27 @@
   "download": "https://www.peppercarrot.com/extras/resources/deevad-bundle_25.01.zip",
   "sha256": "4c628a9418fcde63abacafdcb143881f2cbbf907275cb4f72335545841cf8173",
   "license": "Brushes CC0; article and demo artworks separate",
-  "installed": false,
-  "used_in_artwork": false,
+  "installed": true,
+  "used_in_artwork": true,
   "status_as_of": "2026-10-17",
   "distribution": "Metadata only in Git/knowledge package; binary ZIP and bundle excluded",
   "files": [
     "deevad-bundle_25.01.zip",
     "Deevad_25.01.bundle"
-  ]
+  ],
+  "enabled": true,
+  "preset_count": 46,
+  "installed_bundle_sha256": "3ffb70e88bd9c71e436a1fa77eeea9f40b178352ca5e441424a8b00fdc2a1c43",
+  "installed_path_example": "%APPDATA%/krita/Deevad_25.01.bundle",
+  "used_in_studies": [
+    "six-row native brush sampler",
+    "A/B cheek glaze trials",
+    "149567189 reference study: c4 native hair strokes and three blush hatch trials",
+    "garden-chair whole illustration: c4 native 30 blush strokes retained in new final study"
+  ],
+  "installation_method": "Krita Settings > Manage Resource Libraries > Import; immediately active, no restart",
+  "usage_note": "A/B d-glaze was rejected and omitted from portable B. Later c4 Thin Brush Regular was actually used for 5 hair paths and blush trials (final 26 short paths), retained only in independent reference-study examples; old B master unchanged. Bundle source and installation records preserved.",
+  "used_in_character_trials": true,
+  "adopted_in_retained_face": false,
+  "adopted_in_whole_garden_study": true
 }

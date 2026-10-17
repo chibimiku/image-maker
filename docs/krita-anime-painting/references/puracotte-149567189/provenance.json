@@ -1,0 +1,25 @@
+{
+  "source": "User-supplied local image attachment",
+  "original_filename": "149567189_p0.jpg",
+  "artist_attribution_from_user_folder_and_signature": "Puracotte / ぷらこ",
+  "work_id_from_filename": "149567189",
+  "web_identity_and_license_verified": false,
+  "collection_authorization": "User explicitly requested uploading this reference with the learning materials on 2026-10-17.",
+  "copyright": "Third-party artwork; not original artwork by this project, and not relicensed under project license.",
+  "files": {
+    "149567189_p0.jpg": {
+      "bytes": 1655253,
+      "sha256": "604f690dbb88c5de5db3db5fea8a513a0e983c8166b91b17c367831d9b35ff0d"
+    },
+    "head-crop.png": {
+      "bytes": 552841,
+      "sha256": "00bfd5745b34eba9b6174eb4ee43d05a1a9f5b14881638108ebc1ef4e9b8787c"
+    },
+    "head-observation.png": {
+      "bytes": 554842,
+      "sha256": "2fe3db6fecfdf48d6cc821c1ab8f38c25ec925b3a0f5bbaf17b058c1e0f2fafb"
+    }
+  },
+  "derivatives": "Head crop and observation labels created in Krita Qt for analysis.",
+  "privacy": "Local Downloads path, bridge token and app configuration not included."
+}

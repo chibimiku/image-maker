@@ -1,0 +1,23 @@
+{
+  "canvas": [
+    1920,
+    2240
+  ],
+  "local_viewbox": "-160 -205 320 373.3333333333333",
+  "scale": 6,
+  "camera": "same near-frontal as source",
+  "expression": "neutral, tiny mouth opening; no smile",
+  "light": "broad upper viewer-left",
+  "fixed": [
+    "head contour",
+    "iris geometry",
+    "gaze",
+    "hair design"
+  ],
+  "round1_goals": [
+    "connected nose planes instead of isolated pin light",
+    "small mouth opening and lip turn instead of straight line"
+  ],
+  "source_scene": "docs/krita-anime-painting/examples/latest-head.scene.json",
+  "stages_are_adaptive": true
+}

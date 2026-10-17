@@ -1,0 +1,137 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": false,
+      "continued_document": true,
+      "blank_checkpoint": null,
+      "presets": [],
+      "log": [
+        {
+          "layer": "03 Garden architecture",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "04 Chair and seat",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear left outer",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear right outer",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear left inner",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear right inner",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "06 Legs and shoes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "07 Petticoat",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "08 Neck shoulders and sleeves",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "09 Dress bodice and skirt",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "10 Raised forearm",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "11 Crown and face",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "12 Front fringe",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "13 Front curls",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "14 Hands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "15 Facial anchors",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\flats\\03-flats.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\flats\\03-flats.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 1935
+  }
+}

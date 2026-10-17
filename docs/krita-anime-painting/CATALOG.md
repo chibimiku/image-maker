@@ -42,6 +42,13 @@
 
 ## 头部分项与最新体积
 
+- [面部四轮迭代与下一步决策](head-parts/face-iterations-20261017.md)
+- [接续比例与颧颊A/B实验](head-parts/face-proportions-20261017.md)
+- [A/B图像及完整场景](examples/face-proportions-20261017/README.md)
+- [David Revoy安装与实测](resources/deevad-install-20261017.md)
+- [本批图像和独立场景](examples/face-iterations-20261017/README.md)
+- [面部下一批方案](learning-records/face/NEXT-PLAN.md)
+
 - [眉毛：观察 → 修改 → 复看](head-parts/01-brows.md)
 - [鼻子：拒绝第一次仅“加细节”的修改](head-parts/02-nose.md)
 - [嘴部：控制开口与唇色的主次](head-parts/03-mouth.md)
@@ -75,6 +82,10 @@
 
 
 ## 模板与工具
+
+- [面部逐轮配方工具](tools/author_face_iterations.py)
+- [面部同尺度对照与技术检查](tools/inspect_face_iterations.py)
+- [比例与光影配方](tools/author_face_proportions.py)、[对应读图拼板](tools/inspect_face_proportions.py)、[新笔刷试样配方](tools/author_deevad_sampler.py)
 
 模板分为语义规划、环境报告和五官参数；三者不可当成同一种渲染场景。历史研究脚本有本机依赖和顶层执行副作用；仅共享快照是首选复算输入。完整说明见 [工具迁移](TOOLING.md)。
 
@@ -110,3 +121,10 @@
 - [工具：review_hair_quality_pass.py](tools/review_hair_quality_pass.py)
 
 - [特定桥接 CLI](../../tools/krita_studio.py)
+# 2026-10-17 用户参考追加
+
+- [149567189 头部/腮红/头发体积分析](head-parts/puracotte-149567189-head-analysis.md)
+- [本轮逐阶段记录](learning-records/face/20261017-puracotte-reference.md)
+- [精选自绘小样与独立场景](examples/puracotte-head-study-20261017/README.md)
+
+2026-10-17 整体续作：[花园小憩 PNG/KRA/阶段与复盘](examples/garden-chair-20261017/README.md)，[用户指定上传的原参考](references/puracotte-149567189/README.md)。

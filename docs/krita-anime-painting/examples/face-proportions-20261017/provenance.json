@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-17",
+  "files": [
+    {
+      "file": "comparison-board.png",
+      "source": "data/test-result/20261017/krita-face-proportions/comparison-board.png",
+      "sha256": "c89ee802af074fa6afc95caf0ebf90b4cbe30074a397b4ecaa0ea22fde331591"
+    },
+    {
+      "file": "construction-reviewed.png",
+      "source": "data/test-result/20261017/krita-face-proportions/construction-reviewed/01b-proportion-construction-reviewed.png",
+      "sha256": "9f3cccd60e8669ffa7fd06ec6a2ed1ead89343a37b688a5076aa3eb48be6f48a"
+    },
+    {
+      "file": "grey-planes.png",
+      "source": "data/test-result/20261017/krita-face-proportions/grey/02-grey-planes.png",
+      "sha256": "5f83170350c7ac49b183b8d9d7e4bb0c7c599997f7ed3e08c58c42ad2aa7adce"
+    },
+    {
+      "file": "retained-face.png",
+      "source": "data/test-result/20261017/krita-face-proportions/retained/05-B-retained-face.png",
+      "sha256": "6e44a00897a00771dd68db4bf93fbac50ab07e2ef07b1d4f02a5496733ae3636"
+    },
+    {
+      "file": "retained-whole.png",
+      "source": "data/test-result/20261017/krita-face-proportions/retained/05-B-retained-no-glaze.png",
+      "sha256": "0387b58a6d644faacc37801df8c0ce6147b9e8ec36c238dff1713648c40d255f"
+    },
+    {
+      "file": "rejected-glaze.png",
+      "source": "data/test-result/20261017/krita-face-proportions/color-A/03-color-A-face.png",
+      "sha256": "9a8ff267f645e5cacb50ca018e80a4e30e6de45e1ee3c9efed9b8b6981a90ab7"
+    },
+    {
+      "file": "final-scene.json",
+      "source": "data/test-result/20261017/krita-face-proportions/final-scene.json",
+      "sha256": "df6be2a62c24d6ba98ba64a524a2f5bf1f52a315fdc7b2ebab739f54fd599427"
+    },
+    {
+      "file": "elements.json",
+      "source": "data/test-result/20261017/krita-face-proportions/elements.json",
+      "sha256": "6b99a87d0983202c4614379be718e9359bde72b111135c02f29965d44a38874d"
+    }
+  ],
+  "portable_final_requires_deevad": false,
+  "reference_pixels_copied": false
+}

@@ -1,0 +1,123 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": false,
+      "continued_document": true,
+      "blank_checkpoint": null,
+      "presets": [],
+      "log": [
+        {
+          "layer": "16 Rear hair broad planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "17 Plane temple left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "17 Plane bang left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "17 Plane bang middle",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "17 Plane bang right small",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "17 Plane bang right sweep",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "18 Front curl planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "19 Neck cast shadow and clavicles",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "20 Soft blush and skin light",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "21 Fringe contact cast on skin",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "22 Dress tension and lap folds",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "23 Bodice fitted planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "24 Sleeve compression",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "25 Knee and shin planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\planes\\05-large-planes.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\planes\\05-large-planes.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 3856
+  }
+}

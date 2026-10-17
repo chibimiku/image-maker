@@ -1,0 +1,628 @@
+{
+  "name": "A garden pause",
+  "stem": "06b-detail-reviewed",
+  "width": 1600,
+  "height": 2200,
+  "scale": 2,
+  "expected_document": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\details\\06-detail.kra",
+  "layers": [
+    {
+      "name": "22 Dress tension and lap folds",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"2200\" viewBox=\"0 0 800 1100\"><defs>\n<linearGradient id=\"sky\" x1=\"0%\" y1=\"100%\" x2=\"90%\" y2=\"0%\"><stop stop-color=\"#b7d6d3\"/><stop offset=\".52\" stop-color=\"#dde9d7\"/><stop offset=\"1\" stop-color=\"#fff8d8\"/></linearGradient>\n<linearGradient id=\"floor\" x1=\"0%\" y1=\"0%\" x2=\"80%\" y2=\"100%\"><stop stop-color=\"#e5e7d6\"/><stop offset=\"1\" stop-color=\"#bccdc7\"/></linearGradient>\n<linearGradient id=\"skin\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"40%\"><stop stop-color=\"#f7d9d3\"/><stop offset=\".46\" stop-color=\"#fff0e4\"/><stop offset=\"1\" stop-color=\"#f9d3d4\"/></linearGradient>\n<linearGradient id=\"skinleg\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"10%\"><stop stop-color=\"#daaec0\"/><stop offset=\".24\" stop-color=\"#f7d4d6\"/><stop offset=\".53\" stop-color=\"#ffece3\"/><stop offset=\".8\" stop-color=\"#fff2e8\"/><stop offset=\"1\" stop-color=\"#edc5ce\"/></linearGradient>\n<linearGradient id=\"hair\" x1=\"5%\" y1=\"30%\" x2=\"100%\" y2=\"50%\"><stop stop-color=\"#8eacc5\"/><stop offset=\".17\" stop-color=\"#b8cbe1\"/><stop offset=\".42\" stop-color=\"#e0ecf6\"/><stop offset=\".65\" stop-color=\"#f6f5ff\"/><stop offset=\".83\" stop-color=\"#bfd1e8\"/><stop offset=\"1\" stop-color=\"#9daecf\"/></linearGradient>\n<linearGradient id=\"fringe\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"35%\"><stop stop-color=\"#a2b5d5\"/><stop offset=\".25\" stop-color=\"#d8e5f4\"/><stop offset=\".52\" stop-color=\"#f5f9ff\"/><stop offset=\".77\" stop-color=\"#dae6f4\"/><stop offset=\"1\" stop-color=\"#b7b9d9\"/></linearGradient>\n<linearGradient id=\"crown\" x1=\"0%\" y1=\"100%\" x2=\"85%\" y2=\"0%\"><stop stop-color=\"#a3b5d1\"/><stop offset=\".4\" stop-color=\"#dce8f3\"/><stop offset=\".8\" stop-color=\"#f6fbff\"/><stop offset=\"1\" stop-color=\"#fffbed\"/></linearGradient>\n<linearGradient id=\"cloth\" x1=\"0%\" y1=\"100%\" x2=\"90%\" y2=\"0%\"><stop stop-color=\"#a8bfd6\"/><stop offset=\".45\" stop-color=\"#e2eaf5\"/><stop offset=\".8\" stop-color=\"#fcfaff\"/><stop offset=\"1\" stop-color=\"#fff9f0\"/></linearGradient>\n<linearGradient id=\"sleeve\" x1=\"0%\" y1=\"100%\" x2=\"100%\" y2=\"10%\"><stop stop-color=\"#9bb4d2\"/><stop offset=\".6\" stop-color=\"#e5ecf7\"/><stop offset=\"1\" stop-color=\"#fdf7ff\"/></linearGradient>\n<linearGradient id=\"ribbon\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"70%\"><stop stop-color=\"#94b7d6\"/><stop offset=\".45\" stop-color=\"#d4e6f4\"/><stop offset=\"1\" stop-color=\"#7299bd\"/></linearGradient>\n<linearGradient id=\"iris\" x1=\"0%\" y1=\"0%\" x2=\"15%\" y2=\"100%\"><stop stop-color=\"#403c6c\"/><stop offset=\".38\" stop-color=\"#626ba6\"/><stop offset=\".72\" stop-color=\"#a89fcf\"/><stop offset=\"1\" stop-color=\"#e7b4d3\"/></linearGradient>\n<radialGradient id=\"rose\"><stop stop-color=\"#ef8da8\" stop-opacity=\".54\"/><stop offset=\".48\" stop-color=\"#f6a4b8\" stop-opacity=\".29\"/><stop offset=\"1\" stop-color=\"#f8b4c1\" stop-opacity=\"0\"/></radialGradient>\n<radialGradient id=\"warm\"><stop stop-color=\"#fff7dc\" stop-opacity=\".75\"/><stop offset=\"1\" stop-color=\"#fff7dc\" stop-opacity=\"0\"/></radialGradient>\n<radialGradient id=\"cool\"><stop stop-color=\"#897ea4\" stop-opacity=\".25\"/><stop offset=\"1\" stop-color=\"#9d93b0\" stop-opacity=\"0\"/></radialGradient>\n<radialGradient id=\"white\"><stop stop-color=\"#fffdf3\" stop-opacity=\".9\"/><stop offset=\"1\" stop-color=\"#fffffa\" stop-opacity=\"0\"/></radialGradient>\n</defs><defs><linearGradient id=\"fold\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"20%\"><stop stop-color=\"#7c99bc\" stop-opacity=\".44\"/><stop offset=\".65\" stop-color=\"#9dafd0\" stop-opacity=\".2\"/><stop offset=\"1\" stop-color=\"#bdcae0\" stop-opacity=\"0\"/></linearGradient></defs><path d=\"M363 553C334 600 330 643 293 699C282 719 276 735 281 751C304 731 324 676 338 645C346 624 357 594 363 553Z\" fill=\"url(#fold)\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M388 563C377 607 356 643 350 684C345 720 351 748 347 766C368 733 365 701 377 670C391 635 392 600 388 563Z\" fill=\"url(#fold)\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M418 567C421 605 412 627 413 656C414 700 438 747 430 775C449 741 433 703 432 676C431 632 437 601 418 567Z\" fill=\"url(#fold)\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M468 562C469 604 502 624 520 659C543 701 539 745 559 773C556 734 560 704 544 672C522 626 491 603 468 562Z\" fill=\"url(#fold)\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M346 614C400 608 473 622 525 650C480 639 439 637 405 637C377 638 350 633 338 630Z\" fill=\"url(#fold)\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M320 659C357 648 394 656 412 669C378 667 347 667 318 676Z\" fill=\"url(#fold)\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M485 691C521 699 550 714 577 734C548 725 514 712 488 710Z\" fill=\"url(#fold)\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M363 579C344 623 336 662 311 706M387 601C373 642 368 677 367 708M438 689C439 720 453 751 445 773M496 612Q538 653 552 698M352 627Q427 615 491 643\" fill=\"none\" stroke=\"#859fbd\" stroke-width=\"0.8\" opacity=\"0.42\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M370 586C350 630 347 658 321 706M399 595Q390 632 390 659M459 609Q474 643 483 662M450 701Q458 739 457 759\" fill=\"none\" stroke=\"#fffafa\" stroke-width=\"3\" opacity=\"0.62\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>",
+      "svg_masks": [
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"2200\" viewBox=\"0 0 800 1100\"><path d=\"M362 548C338 584 308 621 281 678C265 709 260 735 279 753Q313 775 351 768Q389 788 430 775Q465 794 505 778Q547 787 573 769Q600 771 613 748C608 698 582 651 548 620C514 587 495 559 477 550Z\" fill=\"#fff\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"
+      ],
+      "svg_erase_masks": [
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"2200\" viewBox=\"0 0 800 1100\"><path d=\"M335 291C311 374 325 433 298 494C267 559 314 583 304 626C293 672 265 694 286 723C257 703 267 680 275 659C294 611 272 586 277 550C282 489 308 454 308 399C307 345 317 316 335 291Z\" fill=\"#fff\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M491 291C484 346 477 390 499 433C516 465 544 484 532 516C523 544 478 554 488 587C495 608 522 616 514 642C550 617 524 598 511 582C495 563 546 554 555 522C568 484 530 456 518 429C496 380 520 330 491 291Z\" fill=\"#fff\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M515 620C504 620 499 630 489 634L468 640C462 641 461 645 467 647L490 646L469 651C464 653 465 657 471 657L494 653L478 660C473 662 475 666 481 665L504 656L490 666C487 669 490 672 495 670L520 654C530 648 533 639 528 632Z\" fill=\"#fff\" stroke=\"none\" stroke-width=\"1\" opacity=\"1\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"
+      ],
+      "opacity": 0.53,
+      "filters": [
+        {
+          "name": "gaussian blur",
+          "settings": {
+            "horizRadius": 5,
+            "vertRadius": 5,
+            "lockAspect": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "31 Native deevad fine blush",
+      "opacity": 0.6,
+      "strokes": [
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              393.43107490939366,
+              278.15886161193305
+            ],
+            [
+              "L",
+              394.5573499094225,
+              281.2931884334866
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              392.4101610139587,
+              278.88703385674035
+            ],
+            [
+              "L",
+              393.84830355021415,
+              283.48858207939463
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              391.45162062576907,
+              279.90865038176776
+            ],
+            [
+              "L",
+              392.7026426402885,
+              283.6298657637617
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              390.0980480250256,
+              279.07178646540103
+            ],
+            [
+              "L",
+              391.5985640685264,
+              283.96677896827543
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              389.3474193276537,
+              281.0715505911623
+            ],
+            [
+              "L",
+              390.4736943276825,
+              284.20587741271584
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              387.8067262051743,
+              279.35435383413517
+            ],
+            [
+              "L",
+              389.2448687414298,
+              283.9559020567894
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              386.78581230973936,
+              280.08252607894246
+            ],
+            [
+              "L",
+              388.0368343242588,
+              283.8037414609363
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              385.82727192154965,
+              281.1041426039699
+            ],
+            [
+              "L",
+              387.32778796505045,
+              285.9991351068444
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              384.47369932080625,
+              280.26727868760315
+            ],
+            [
+              "L",
+              385.59997432083503,
+              283.40160550915675
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              383.72307062343435,
+              282.2670428133644
+            ],
+            [
+              "L",
+              385.1612131596898,
+              286.8685910360187
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              382.18237750095494,
+              280.5498460563373
+            ],
+            [
+              "L",
+              383.4333995154744,
+              284.2710614383311
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              381.16146360551994,
+              281.2780183011446
+            ],
+            [
+              "L",
+              382.66197964902074,
+              286.173010804019
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              380.2029232173303,
+              282.299634826172
+            ],
+            [
+              "L",
+              381.3291982173591,
+              285.4339616477256
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              437.44771694241496,
+              268.80283552513384
+            ],
+            [
+              "L",
+              438.57399194244374,
+              271.9371623466874
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              438.6765425286677,
+              269.05281088106034
+            ],
+            [
+              "L",
+              440.11468506492315,
+              273.65435910371457
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              439.9677416221658,
+              269.59623051720695
+            ],
+            [
+              "L",
+              441.21876363668525,
+              273.3174458992008
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              440.8639085031101,
+              268.2811697119593
+            ],
+            [
+              "L",
+              442.3644245466109,
+              273.17616221483377
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              442.363019287426,
+              269.80273694883977
+            ],
+            [
+              "L",
+              443.48929428745475,
+              272.93706377039337
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              443.0720656466343,
+              267.6073433029317
+            ],
+            [
+              "L",
+              444.5102081828898,
+              272.208891525586
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              444.3008912328871,
+              267.8573186588582
+            ],
+            [
+              "L",
+              445.55191324740656,
+              271.57853404085205
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              445.5920903263852,
+              268.4007382950048
+            ],
+            [
+              "L",
+              447.09260636988597,
+              273.29573079787923
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              446.4882572073295,
+              267.0856774897572
+            ],
+            [
+              "L",
+              447.6145322073583,
+              270.2200043113108
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              447.9873679916454,
+              268.60724472663765
+            ],
+            [
+              "L",
+              449.4255105279008,
+              273.20879294929193
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              448.69641435085373,
+              266.4118510807296
+            ],
+            [
+              "L",
+              449.94743636537316,
+              270.13306646272343
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              449.9252399371065,
+              266.6618264366561
+            ],
+            [
+              "L",
+              451.4257559806073,
+              271.5568189395305
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              451.2164390306046,
+              267.2052460728027
+            ],
+            [
+              "L",
+              452.3427140306334,
+              270.3395728943563
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              452.1126059115489,
+              265.89018526755507
+            ],
+            [
+              "L",
+              453.5507484478044,
+              270.4917334902094
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              453.61171669586474,
+              267.4117525044355
+            ],
+            [
+              "L",
+              454.8627387103842,
+              271.13296788642936
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              454.3207630550731,
+              265.2163588585275
+            ],
+            [
+              "L",
+              455.8212790985739,
+              270.1113513614019
+            ]
+          ],
+          "taper": false
+        },
+        {
+          "brush": "c4) Thin Brush Regular - deevad 25.01",
+          "color": "#c87c9b",
+          "size": 0.6,
+          "opacity": 0.95,
+          "path": [
+            [
+              "M",
+              455.5495886413259,
+              265.466334214454
+            ],
+            [
+              "L",
+              456.6758636413547,
+              268.6006610360075
+            ]
+          ],
+          "taper": false
+        }
+      ],
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"2200\" viewBox=\"0 0 800 1100\"></svg>"
+    }
+  ],
+  "details": [
+    {
+      "file": "06b-detail-reviewed-head.png",
+      "rect": [
+        277,
+        80,
+        285,
+        285
+      ]
+    },
+    {
+      "file": "06b-detail-reviewed-hands.png",
+      "rect": [
+        255,
+        300,
+        340,
+        390
+      ]
+    }
+  ]
+}

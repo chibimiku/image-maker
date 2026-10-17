@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": false,
+      "continued_document": false,
+      "blank_checkpoint": null,
+      "presets": [],
+      "log": [
+        {
+          "layer": "03 Garden architecture",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\garden\\04b-garden.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\garden\\04b-garden.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 1007
+  }
+}

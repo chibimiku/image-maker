@@ -1,0 +1,455 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause - final study",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": true,
+      "continued_document": false,
+      "blank_checkpoint": null,
+      "presets": [
+        "c4) Thin Brush Regular - deevad 25.01"
+      ],
+      "log": [
+        {
+          "layer": "01 Structure and perspective",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "02 Occluded clean contour",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "03 Garden architecture",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "04 Chair and seat",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear left outer",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear right outer",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear left inner",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "05 rear right inner",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "06 Legs and shoes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "07 Petticoat",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "08 Neck shoulders and sleeves",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "09 Dress bodice and skirt",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "10 Raised forearm",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "11 Crown and face",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "12 Front fringe",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "13 Front curls",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "14 Hands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "15 Facial anchors",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "16 Rear hair broad planes"
+        },
+        {
+          "layer": "16 Rear hair broad planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane temple left"
+        },
+        {
+          "layer": "17 Plane temple left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang left"
+        },
+        {
+          "layer": "17 Plane bang left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang middle"
+        },
+        {
+          "layer": "17 Plane bang middle",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang right small"
+        },
+        {
+          "layer": "17 Plane bang right small",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang right sweep"
+        },
+        {
+          "layer": "17 Plane bang right sweep",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "18 Front curl planes"
+        },
+        {
+          "layer": "18 Front curl planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "19 Neck cast shadow and clavicles",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "20 Soft blush and skin light",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "21 Fringe contact cast on skin",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 5,
+            "vertRadius": 5,
+            "lockAspect": true
+          },
+          "layer": "22 Dress tension and lap folds"
+        },
+        {
+          "layer": "22 Dress tension and lap folds",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "23 Bodice fitted planes"
+        },
+        {
+          "layer": "23 Bodice fitted planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "24 Sleeve compression",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "25 Knee and shin planes"
+        },
+        {
+          "layer": "25 Knee and shin planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "26 Gemstone iris facets",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "27 Tapered lashes and warm lower lids",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "28 Rear hair interrupted strands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow temple left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang middle",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang right small",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang right sweep",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "30 Face curls selective strands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "31 Native deevad fine blush",
+          "brushes": [
+            "c4) Thin Brush Regular - deevad 25.01"
+          ],
+          "native_strokes": 30,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "32 Flounce ribbon necklace and shoe finish",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "33 Palm finger groups and nails",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "34 Restrained hem embroidery",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "35 Hair flower and loose silhouette strands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "36 Chair foreground contact and armrests",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "37 Quiet foreground botanical",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\replay\\garden-pause-replay.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\replay\\garden-pause-replay.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 14752
+  }
+}

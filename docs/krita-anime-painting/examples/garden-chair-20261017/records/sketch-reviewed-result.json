@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause - from blank",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": false,
+      "continued_document": false,
+      "blank_checkpoint": null,
+      "presets": [],
+      "log": [
+        {
+          "layer": "01 Structure and perspective",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\sketch-reviewed\\01b-sketch-reviewed.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\sketch-reviewed\\01b-sketch-reviewed.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 391
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": false,
+      "continued_document": true,
+      "blank_checkpoint": null,
+      "presets": [
+        "c4) Thin Brush Regular - deevad 25.01"
+      ],
+      "log": [
+        {
+          "layer": "26 Gemstone iris facets",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "27 Tapered lashes and warm lower lids",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "28 Rear hair interrupted strands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow temple left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang middle",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang right small",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "29 Fine flow bang right sweep",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "30 Face curls selective strands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "31 Native deevad fine blush",
+          "brushes": [
+            "c4) Thin Brush Regular - deevad 25.01"
+          ],
+          "native_strokes": 30,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "32 Flounce ribbon necklace and shoe finish",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "33 Palm finger groups and nails",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "34 Restrained hem embroidery",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "layer": "35 Hair flower and loose silhouette strands",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\details\\06-detail.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\details\\06-detail.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 3709
+  }
+}

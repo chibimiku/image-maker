@@ -1,5 +1,9 @@
 # 作者与教程来源总索引
 
+2026-10-17 新增复读记录：[面部四轮迭代](head-parts/face-iterations-20261017.md)，使用下列索引已收录的鼻、口唇、肖像光影与动漫眼睛来源，实际阅读范围和应用限制见该记录。
+
+同日后续：[比例与颧颊对照](head-parts/face-proportions-20261017.md)复读头部、交叉测量和光影；[David Revoy安装](resources/deevad-install-20261017.md)查阅作者原页及 [Krita官方资源管理](https://docs.krita.org/en/reference_manual/resource_management.html)，以实际导入和原生试样核实可用性。
+
 由现有研究文档的外部链接去重整理，2026-10-17。此索引没有新增联网核查；实际阅读范围、日期、视频是否观看及来源局限，以链接到的专题记录为准。文章可迁移原则不等于 Krita 原生操作；不收录网页正文、原图或视频。
 
 - [KDE Node API](https://api.kde.org/legacy/krita/html/classNode.html) — 研究位置：[experiments-20261016.md](experiments-20261016.md)
@@ -49,3 +53,10 @@
 - [Stan Prokopenko：Neck Muscles – Form](https://www.proko.com/course-lesson/how-to-draw-neck-muscles-form/) — 研究位置：[head-parts/tutorial-volume-20261017.md](head-parts/tutorial-volume-20261017.md)
 - [Proko / Stan Prokopenko：How to Draw the Head from Any Angle](https://www.proko.com/course-lesson/how-to-draw-the-head-from-any-angle) — 研究位置：[facial-features/perspective-verification.md](facial-features/perspective-verification.md)
 - [Drawabox 官方 Rough Perspective 演示](https://www.youtube.com/watch?v=hbjFN6RN1jA) — 研究位置：[facial-features/perspective-verification.md](facial-features/perspective-verification.md)
+# 2026-10-17 参考头部补读
+
+- 用户提供 `149567189_p0.jpg`：本地成图实际读图；作者/作品页未联网核验，作者过程未知；后按用户明确要求 [收录原图及观察裁剪](references/puracotte-149567189/README.md)。观察与应用见 [专项分析](head-parts/puracotte-149567189-head-analysis.md)。
+- CELSYS / Tsunoju，公开皮肤步骤文字：[Painting the Character (1): Skin](https://tips.clip-studio.com/en-us/articles/1210)，阅读腮红分层、冷暖和高亮部分；不是参考画师流程。
+- Esseyli，公开头发教程文字：[How to Draw Hair in Manga and Semi-Realistic Styles](https://www.clipstudio.net/how-to-draw/archives/162964)，复读先整体明暗后细节、形体及遮挡步骤；未观看内嵌视频。
+
+- 整体续作补读 Proko 的 [Gesture Lesson Notes](https://www.proko.com/course-lesson/how-to-draw-gesture-step-by-step) 与 Proko/CELSYS 的 [手部简化结构](https://www.clipstudio.net/how-to-draw/archives/156141)：本轮实际读公开文字，分别采用动作线/躯干节奏与掌腕指分组；未看内嵌视频或付费课。应用及不足见 [整体记录](learning-records/whole/20261017-garden-chair.md)。

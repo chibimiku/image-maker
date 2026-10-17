@@ -1,0 +1,237 @@
+{
+  "title": "A garden pause / 花园小憩",
+  "canvas": [
+    1600,
+    2200
+  ],
+  "logical_canvas": [
+    800,
+    1100
+  ],
+  "scale": 2,
+  "reference": "user-supplied 149567189; principles only, no imported image pixels",
+  "head": {
+    "origin": [
+      411,
+      255
+    ],
+    "roll_degrees": -12,
+    "yaw": "near frontal, stylized; no calibrated 3D claim",
+    "pitch": "near level",
+    "eye_centres_local": [
+      [
+        -36,
+        0
+      ],
+      [
+        36,
+        -1
+      ]
+    ],
+    "nose_local": [
+      0,
+      32
+    ],
+    "mouth_local": [
+      4,
+      55
+    ],
+    "chin_local": [
+      4,
+      86
+    ],
+    "expression": "new mild smile design, old expression study remains separate"
+  },
+  "gesture": {
+    "neck": [
+      411,
+      361
+    ],
+    "shoulders": [
+      [
+        318,
+        408
+      ],
+      [
+        493,
+        419
+      ]
+    ],
+    "pelvis": [
+      415,
+      621
+    ],
+    "elbows": [
+      [
+        279,
+        535
+      ],
+      [
+        558,
+        537
+      ]
+    ],
+    "wrists": [
+      [
+        306,
+        388
+      ],
+      [
+        520,
+        633
+      ]
+    ],
+    "knees": [
+      [
+        497,
+        806
+      ],
+      [
+        555,
+        819
+      ]
+    ],
+    "ankles": [
+      [
+        455,
+        986
+      ],
+      [
+        528,
+        999
+      ]
+    ]
+  },
+  "chair": {
+    "projection": "one point; front width horizontal, vertical axis parallel",
+    "vanishing_point": [
+      420,
+      340
+    ],
+    "seat_front": [
+      [
+        245,
+        700
+      ],
+      [
+        605,
+        700
+      ]
+    ],
+    "seat_back": [
+      [
+        287,
+        613.6
+      ],
+      [
+        560.6,
+        613.6
+      ]
+    ],
+    "depth_scale": 0.76,
+    "arm_front_y": 570,
+    "arm_back_y": 514.8,
+    "leg_front_bottom_y": 1000,
+    "leg_back_bottom_y": 841.6
+  },
+  "hair": {
+    "part": "off-centre swept bangs",
+    "sections": [
+      "rear outer masses",
+      "rear inner masses",
+      "crown",
+      "five uneven bangs/temple locks",
+      "two front curls"
+    ],
+    "principles": [
+      "broad light before strands",
+      "narrow occlusion seam distinct from wide turn",
+      "restrained warm reflected edge",
+      "no evenly spaced full-length comb lines"
+    ]
+  },
+  "light": {
+    "main": "broad upper viewer right",
+    "fill": "cool garden ambient",
+    "face": "soft rose under eyes; not structural shadow"
+  },
+  "tools": {
+    "render": "authored SVG paths/masks rasterized by Krita MCP",
+    "native_details": "c4) Thin Brush Regular - deevad 25.01",
+    "new_downloads": false,
+    "external_image_generation": false
+  },
+  "workflow": [
+    "sketch",
+    "occluded contours",
+    "flats",
+    "large shading",
+    "details",
+    "visual revisions",
+    "whole/crops/mirror/gray review"
+  ],
+  "initial_gesture": {
+    "neck": [
+      411,
+      361
+    ],
+    "shoulders": [
+      [
+        318,
+        408
+      ],
+      [
+        493,
+        419
+      ]
+    ],
+    "pelvis": [
+      415,
+      621
+    ],
+    "elbows": [
+      [
+        279,
+        535
+      ],
+      [
+        558,
+        537
+      ]
+    ],
+    "wrists": [
+      [
+        306,
+        388
+      ],
+      [
+        520,
+        633
+      ]
+    ],
+    "knees": [
+      [
+        448,
+        812
+      ],
+      [
+        521,
+        817
+      ]
+    ],
+    "ankles": [
+      [
+        425,
+        986
+      ],
+      [
+        510,
+        999
+      ]
+    ]
+  },
+  "revision_notes": [
+    "Initial joints were adjusted after actual sketch review; initial gesture retained above.",
+    "Head remains a stylized flat local coordinate system, not calibrated 3D projection."
+  ]
+}

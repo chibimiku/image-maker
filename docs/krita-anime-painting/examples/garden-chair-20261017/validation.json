@@ -1,0 +1,352 @@
+{
+  "status": "technical checks passed; art limitations in learning record",
+  "canvas": [
+    1600,
+    2200
+  ],
+  "kra_zip": "pass",
+  "nodes": 49,
+  "saved_document_modified": false,
+  "knowledge_files_checked": 208,
+  "historical_external_links": 86,
+  "local_scene_replay": {
+    "executed": true,
+    "png_byte_identical": true,
+    "sha256": "b7f1318ce27302b8b170cd49ca94dce4d152cc9c01253d9296783eab2434cad4",
+    "same_machine_only": true
+  },
+  "reference_original_sha256": "604f690dbb88c5de5db3db5fea8a513a0e983c8166b91b17c367831d9b35ff0d",
+  "presets_used": [
+    "c4) Thin Brush Regular - deevad 25.01"
+  ],
+  "filters_used": {
+    "gaussian blur": "1.5px selected planes; 5px dress fold layer"
+  },
+  "files": [
+    {
+      "path": "elements.json",
+      "bytes": 3928,
+      "sha256": "ba028412565fc6b352286b19249f2b85c11cde4f0a3ff5514c9507deb7b84c1e"
+    },
+    {
+      "path": "final-scene.json",
+      "bytes": 450484,
+      "sha256": "0b628ade9d7ebcf411c25e0b2fc392ab88c2a34fa254a0ad41458d3eef4ad8fa"
+    },
+    {
+      "path": "garden-pause.kra",
+      "bytes": 19997498,
+      "sha256": "5c5e08e2438867a6055863f72ae49f42301486784874a3f3bc27c2ceb4a4c19f"
+    },
+    {
+      "path": "garden-pause.png",
+      "bytes": 1250310,
+      "sha256": "b7f1318ce27302b8b170cd49ca94dce4d152cc9c01253d9296783eab2434cad4"
+    },
+    {
+      "path": "gray.png",
+      "bytes": 370638,
+      "sha256": "30d740a27f60abe5960723d1171c37d24daa4cc0b76900b85d9cfaa69d4b1610"
+    },
+    {
+      "path": "hands.png",
+      "bytes": 316024,
+      "sha256": "4e5c90cdcde7a64d5ea75ccc2accd10e86a76b111167eb26b08a723d2b26fba0"
+    },
+    {
+      "path": "head.png",
+      "bytes": 203719,
+      "sha256": "be2e5a60ca2542dbb9383b90be8b099b3f8318f7ba03f7eb8a2836e264e9ef80"
+    },
+    {
+      "path": "mirror.png",
+      "bytes": 1027365,
+      "sha256": "6709806f90bc38c53e614de75133c3878323d730ebb45682d919378d0725d08c"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1966,
+      "sha256": "afd0a383e3cdb405a697e965c36ee275e580a8ca990adba9e60821f2c89654d9"
+    },
+    {
+      "path": "recipes/01-sketch.json",
+      "bytes": 14501,
+      "sha256": "36ce9fc2b34b93b52002c1513528220258ac36534cb21f159411475a3e87c4ea"
+    },
+    {
+      "path": "recipes/01b-sketch-reviewed.json",
+      "bytes": 14633,
+      "sha256": "8a24883152b8af404c0f912e2274447bd786b7dd3a98ad0e20a6e3954bed8c2c"
+    },
+    {
+      "path": "recipes/02-contour.json",
+      "bytes": 15208,
+      "sha256": "9bc387b2f08a4b508e41b2b36196954308b05f2bc4128763d2ff875ab0c46df5"
+    },
+    {
+      "path": "recipes/03-flats.json",
+      "bytes": 73000,
+      "sha256": "5e535d12b42faf435b10e55faa4186a3aa7729819c5a456849496025aa6f6d19"
+    },
+    {
+      "path": "recipes/03b-eye-crop-reviewed.json",
+      "bytes": 17587,
+      "sha256": "acdcc39d1605940c1e9dfb347a9e440b94f0353b2193bac67043974cb3b4de7a"
+    },
+    {
+      "path": "recipes/04-shaded-bases.json",
+      "bytes": 83140,
+      "sha256": "e60dc5eba9888d0b4a77c38fe8d7edc689efee58b6b014abbf87d5960a3bc934"
+    },
+    {
+      "path": "recipes/04b-garden.json",
+      "bytes": 31110,
+      "sha256": "ccc8f096a16a7b1671b317e44ee696cbe97edffafd1eeb5a591305021022d8a5"
+    },
+    {
+      "path": "recipes/05-large-planes.json",
+      "bytes": 86815,
+      "sha256": "2b7655ba3310815446c52cb1740a9cfd4f1c8f5aab6474bf9ecbfde1c62ffa86"
+    },
+    {
+      "path": "recipes/05b-planes-softened.json",
+      "bytes": 64774,
+      "sha256": "0d2392e029d486e26f036bb1217cc93f7e59cf824733b0751753a70ed5351318"
+    },
+    {
+      "path": "recipes/06-detail.json",
+      "bytes": 198755,
+      "sha256": "3f6b9324d737ee5301c8e614eb7b2eed19c39074feab3ab4cf6d3c66c6e5e6a1"
+    },
+    {
+      "path": "recipes/06b-detail-reviewed.json",
+      "bytes": 22528,
+      "sha256": "e8ae4f3455726bfc62354db72825b4f930b157704ffcf114dc63702f28b6b2e2"
+    },
+    {
+      "path": "recipes/07-garden-pause.json",
+      "bytes": 25992,
+      "sha256": "da4504160e21390cb632492ec6d2a226d5c85eff59d6090060f9cf5e8c6b2514"
+    },
+    {
+      "path": "records/contour-result.json",
+      "bytes": 826,
+      "sha256": "c2e5dfb58a831558150e381287fd068316b2d82566b6d80d45099158fe650d33"
+    },
+    {
+      "path": "records/details-result.json",
+      "bytes": 3542,
+      "sha256": "ea64f51dc0e274bb2775042bbf33ab60dd34732bd4a1a1591e8e1001f180b2f1"
+    },
+    {
+      "path": "records/details-reviewed-result.json",
+      "bytes": 1434,
+      "sha256": "a8a91adfb0eac8f89abf15320ea1a1f0b729f684495fe6bb1669caec1fcc2408"
+    },
+    {
+      "path": "records/eye-repair-result.json",
+      "bytes": 855,
+      "sha256": "78e7dc6f1d676deadeafff08ad3f61f53804db9657733282c09a8f24e02cb9f8"
+    },
+    {
+      "path": "records/final-inspection.json",
+      "bytes": 6572,
+      "sha256": "c1a9477e71c32c9990e68c446c6269a5baf723a65dab24cc706811ee7829aaaf"
+    },
+    {
+      "path": "records/final-result.json",
+      "bytes": 1046,
+      "sha256": "19ada443deb8c0a85dfdd2408dd8f5cc139c6030a738085dabb0b35001095bda"
+    },
+    {
+      "path": "records/flats-result.json",
+      "bytes": 3613,
+      "sha256": "4763ce31a4743464f10edfd7cd53814cba8709b745a2bf55955d481ad15af7e4"
+    },
+    {
+      "path": "records/garden-result.json",
+      "bytes": 823,
+      "sha256": "b8a7a4ed0397949b31b29bb78a32ec3cd7aaf8f7011a873c9b92049c11eb49b6"
+    },
+    {
+      "path": "records/planes-result.json",
+      "bytes": 3348,
+      "sha256": "6e828f9efaa7d90a7a6873fd2e4e159deb7760246bd77f3414e97b10efbde96c"
+    },
+    {
+      "path": "records/planes-softened-result.json",
+      "bytes": 5016,
+      "sha256": "b972f54fc48e6ac6c794dafa6499f0c7707326aac90192f3185f5ad09ac73721"
+    },
+    {
+      "path": "records/replay-result.json",
+      "bytes": 12493,
+      "sha256": "edb79af2e12c9d328bc43bdd2433b523506f840c88b3422b737697b71bd56034"
+    },
+    {
+      "path": "records/shaded-bases-result.json",
+      "bytes": 3642,
+      "sha256": "23a2d96589b91a04d1079a836ff9c2c59f5edf4aa67a6bc56c79613a0b3e15a2"
+    },
+    {
+      "path": "records/sketch-result.json",
+      "bytes": 849,
+      "sha256": "c0e0ad98e27db9198dfe3d22c1d81b4a79778d66448d01f6204c915022510e2b"
+    },
+    {
+      "path": "records/sketch-reviewed-result.json",
+      "bytes": 877,
+      "sha256": "9183a69c7251d690243291510efcb792307719163702cc325ef420d78f921628"
+    },
+    {
+      "path": "stage-board.png",
+      "bytes": 299106,
+      "sha256": "1989fb501e1311f8d628e17f37bb1326ecd8f2d3eb505493ed104d74a784f130"
+    },
+    {
+      "path": "stages/contour/02-contour-hands.png",
+      "bytes": 110962,
+      "sha256": "6c1b04194a0908daa5df923e6ea7fb5c9f8c8ba86898b8efa0d5c510c2ee0eb8"
+    },
+    {
+      "path": "stages/contour/02-contour-head.png",
+      "bytes": 80356,
+      "sha256": "669d2edd1eb9bbf3fc8f9e643e00c730fc5ad2f010194e0b605249a41d5a07ad"
+    },
+    {
+      "path": "stages/contour/02-contour.png",
+      "bytes": 345619,
+      "sha256": "66efc4b9b55738a966225364710fe26dca9a039ef1d95103a09c1cebcc7369b0"
+    },
+    {
+      "path": "stages/details/06-detail-hands.png",
+      "bytes": 311775,
+      "sha256": "a3bd9505f713ec4de124dc743b72f147a0866e886aa1a6ad06a8e78cd3fdabf3"
+    },
+    {
+      "path": "stages/details/06-detail-head.png",
+      "bytes": 203472,
+      "sha256": "0e328258db5f4e7ca85f2e99171d2f844528dfe45133ff7daa0d427d762039d6"
+    },
+    {
+      "path": "stages/details/06-detail.png",
+      "bytes": 1233459,
+      "sha256": "355c379fca11e360aaa9f147e0a2c68cd3e8fa23e54aa8925d94a53e888608ea"
+    },
+    {
+      "path": "stages/details-reviewed/06b-detail-reviewed-hands.png",
+      "bytes": 311358,
+      "sha256": "a14eb6629bf66364976b99e2221c689c8324e26556687ea074be5b7eb5f635dd"
+    },
+    {
+      "path": "stages/details-reviewed/06b-detail-reviewed-head.png",
+      "bytes": 203719,
+      "sha256": "be2e5a60ca2542dbb9383b90be8b099b3f8318f7ba03f7eb8a2836e264e9ef80"
+    },
+    {
+      "path": "stages/details-reviewed/06b-detail-reviewed.png",
+      "bytes": 1235105,
+      "sha256": "27b82070e0aad5d5448c56969e129f5fd70cfc222addb5a408cc09480a7eeef8"
+    },
+    {
+      "path": "stages/flats/03-flats-hands.png",
+      "bytes": 100676,
+      "sha256": "69ad33dabb3cb9c8b6be155f596a85d5229c7fbb652b2dcde283cd2a060c3960"
+    },
+    {
+      "path": "stages/flats/03-flats-head.png",
+      "bytes": 81414,
+      "sha256": "d221c9cf67477359d8ecc884ca7516adc1e30b5268bdcc0f991ba4687fe05e8a"
+    },
+    {
+      "path": "stages/flats/03-flats.png",
+      "bytes": 368477,
+      "sha256": "c2f1794e30240b9d89f7d99cb240a93e753534950daaa20a5b499757fa363585"
+    },
+    {
+      "path": "stages/flats-reviewed/03b-eye-crop-reviewed-hands.png",
+      "bytes": 100676,
+      "sha256": "69ad33dabb3cb9c8b6be155f596a85d5229c7fbb652b2dcde283cd2a060c3960"
+    },
+    {
+      "path": "stages/flats-reviewed/03b-eye-crop-reviewed-head.png",
+      "bytes": 80619,
+      "sha256": "0f60723074484770c867e80aa5bee7c100ee4a163145776049b4a25ea6f07e5f"
+    },
+    {
+      "path": "stages/flats-reviewed/03b-eye-crop-reviewed.png",
+      "bytes": 367699,
+      "sha256": "7d2b20dbfbad8d17cdc6b3b562117426811d530e6f24c94ada355007be5d2a12"
+    },
+    {
+      "path": "stages/garden/04b-garden-hands.png",
+      "bytes": 180657,
+      "sha256": "612f243fc75154f439d511078eb96df6314588108a5e78e57b10aa533290e3e7"
+    },
+    {
+      "path": "stages/garden/04b-garden-head.png",
+      "bytes": 119376,
+      "sha256": "8d8d96ed14b51c4a25c8ecb976ecd448bac83c7f23d33cd7fc81e370f5e6741d"
+    },
+    {
+      "path": "stages/garden/04b-garden.png",
+      "bytes": 934802,
+      "sha256": "26d0dda6316f403bb17b9dedfabcca2da9b6c5ee3cd672c343e48c97fa89463b"
+    },
+    {
+      "path": "stages/planes/05-large-planes-hands.png",
+      "bytes": 241571,
+      "sha256": "4a3bed85e07da1d66d59d65dec230048ad7391f6ab5ed64a3e98fd11fe9aa012"
+    },
+    {
+      "path": "stages/planes/05-large-planes-head.png",
+      "bytes": 145679,
+      "sha256": "cc7ef4275536e6ae4db504133131e8339b597e45dd98a668fa61cb5658c07428"
+    },
+    {
+      "path": "stages/planes/05-large-planes.png",
+      "bytes": 1050745,
+      "sha256": "693922cd048759a5ca36560e0311048ddaa47af2edf0b0cf5f14334bef5307ad"
+    },
+    {
+      "path": "stages/planes-softened/05b-planes-softened-hands.png",
+      "bytes": 251225,
+      "sha256": "de348dd62808fb8120aaee1f091353a43a5d967983eee2881cbb2368d8a33eff"
+    },
+    {
+      "path": "stages/planes-softened/05b-planes-softened-head.png",
+      "bytes": 150489,
+      "sha256": "3bdcf234bfdea6602150f93eaef3b2bac327e299b1b2605f44fcffc74fc7565b"
+    },
+    {
+      "path": "stages/planes-softened/05b-planes-softened.png",
+      "bytes": 1076749,
+      "sha256": "2f101fbfb2e8587431fc5feff75f49d45b74d3cf7292ab4fc212552c4022a1fa"
+    },
+    {
+      "path": "stages/shaded-bases/04-shaded-bases-hands.png",
+      "bytes": 180612,
+      "sha256": "fd7a2b05506581985b3d793aa605a2aa64a68c5ad4d502f7b6700774048bacff"
+    },
+    {
+      "path": "stages/shaded-bases/04-shaded-bases-head.png",
+      "bytes": 119374,
+      "sha256": "87b4b72b3531cb8ef20feb78d4e38399f620cdbacc3b201d14509623f8cbd194"
+    },
+    {
+      "path": "stages/shaded-bases/04-shaded-bases.png",
+      "bytes": 779693,
+      "sha256": "3a7701a6cffd6c80aea2fdc7950753ebd4b5c2c0e018c99c4e57d91e7db31233"
+    },
+    {
+      "path": "stages/sketch/01-sketch.png",
+      "bytes": 509524,
+      "sha256": "cc9583fa1b27d0b16c3bd2882e99ef32aa96449e5f61c39b9ca68599df10829a"
+    },
+    {
+      "path": "stages/sketch-reviewed/01b-sketch-reviewed.png",
+      "bytes": 496958,
+      "sha256": "75366b09036b8421f7f4e6146e16bc4bfaa01e6b5517521b99a6189791aead26"
+    }
+  ]
+}

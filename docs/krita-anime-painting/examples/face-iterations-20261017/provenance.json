@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-17",
+  "method": "Program-planned paths rendered inside Krita; original reference pixels not copied",
+  "files": [
+    {
+      "file": "baseline-face.png",
+      "source": "data/test-result/20261017/krita-face-iterations/baseline-face.png",
+      "sha256": "7a02d45158bb833a04ac26b3fb2862849e13e40f578251531b8fece3e48e382c",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "round1-face.png",
+      "source": "data/test-result/20261017/krita-face-iterations/painting/02-round1-face.png",
+      "sha256": "a867dcdb7058adf7803074e9df85be0a683bf2071f40793a351c4c2193279dce",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "round2-face.png",
+      "source": "data/test-result/20261017/krita-face-iterations/painting/03-round2-face.png",
+      "sha256": "3105cb715f91c487b83cdb96ad8d1cb59a139a6826ca25a39a4bde2a2f1c0880",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "round3-face.png",
+      "source": "data/test-result/20261017/krita-face-iterations/painting/04-round3-face.png",
+      "sha256": "24b081391eb851eaf18a45c0b33bc55f9b62f34e21d4f004f32a0daa2ee93b4f",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "round4-face.png",
+      "source": "data/test-result/20261017/krita-face-iterations/painting/05-round4-face.png",
+      "sha256": "aa8d6f0e9001cb2d162765b762851499769603f061eda8ca88d61b1b2f4e20ed",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "round4-whole.png",
+      "source": "data/test-result/20261017/krita-face-iterations/painting/05-round4-lid-refined.png",
+      "sha256": "aca6fb606501993479c56b77d2b27de958e3cd939585929f1047fcb466f1fd84",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "comparison-board.png",
+      "source": "data/test-result/20261017/krita-face-iterations/comparison-board.png",
+      "sha256": "690815bd3e7af0c12935630e3c0dc4c855bccf499dc5b831744692b90c7748c3",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "final-scene.json",
+      "source": "data/test-result/20261017/krita-face-iterations/final-scene-snapshot.json",
+      "sha256": "58fbbfc8b8c9c585976c49a38776325bfb28cbf4b0f7715be944c4b8b986d6a1",
+      "transformation": "unchanged copy"
+    },
+    {
+      "file": "elements.json",
+      "source": "data/test-result/20261017/krita-face-iterations/elements.json",
+      "sha256": "66238b7c57146924ed290f3d7317ada0d95d143ec2f1d31031c57760667f49cb",
+      "transformation": "unchanged copy"
+    }
+  ]
+}

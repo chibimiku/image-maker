@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": false,
+      "continued_document": true,
+      "blank_checkpoint": null,
+      "presets": [],
+      "log": [
+        {
+          "layer": "02 Occluded clean contour",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\contour\\02-contour.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\contour\\02-contour.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 474
+  }
+}

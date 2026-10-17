@@ -1,0 +1,185 @@
+{
+  "ok": true,
+  "op": "run_python",
+  "result": {
+    "ok": true,
+    "result": {
+      "name": "A garden pause",
+      "size": [
+        1600,
+        2200
+      ],
+      "created_new_document": false,
+      "continued_document": false,
+      "blank_checkpoint": null,
+      "presets": [],
+      "log": [
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "16 Rear hair broad planes"
+        },
+        {
+          "layer": "16 Rear hair broad planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane temple left"
+        },
+        {
+          "layer": "17 Plane temple left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang left"
+        },
+        {
+          "layer": "17 Plane bang left",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang middle"
+        },
+        {
+          "layer": "17 Plane bang middle",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang right small"
+        },
+        {
+          "layer": "17 Plane bang right small",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "17 Plane bang right sweep"
+        },
+        {
+          "layer": "17 Plane bang right sweep",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "18 Front curl planes"
+        },
+        {
+          "layer": "18 Front curl planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "22 Dress tension and lap folds"
+        },
+        {
+          "layer": "22 Dress tension and lap folds",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "23 Bodice fitted planes"
+        },
+        {
+          "layer": "23 Bodice fitted planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        },
+        {
+          "filter": "gaussian blur",
+          "settings": {
+            "horizRadius": 1.5,
+            "vertRadius": 1.5,
+            "lockAspect": true
+          },
+          "layer": "25 Knee and shin planes"
+        },
+        {
+          "layer": "25 Knee and shin planes",
+          "brushes": [],
+          "native_strokes": 0,
+          "blend": "normal",
+          "inherit_alpha": false
+        }
+      ],
+      "kra": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\planes-softened\\05b-planes-softened.kra",
+      "png": "D:\\code\\image-maker\\data\\test-result\\20261017\\krita-garden-chair\\planes-softened\\05b-planes-softened.png"
+    },
+    "stdout": "",
+    "stderr": "",
+    "elapsed_ms": 8494
+  }
+}

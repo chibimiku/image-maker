@@ -11,8 +11,8 @@ from urllib.parse import unquote
 
 ROOT=Path(__file__).resolve().parents[3]
 DOC=ROOT/'docs/krita-anime-painting'
-ALLOWED={'.md','.py','.json','.png'}
-ART=ROOT/'data/test-result/20261017/krita-tutorial-volume/painting/tutorial-volume-eye-edge-checked.kra'
+ALLOWED={'.md','.py','.json','.png','.jpg','.kra'}
+ART=DOC/'examples/garden-chair-20261017/garden-pause.kra'
 
 
 def digest(data):
@@ -77,19 +77,19 @@ def build(output):
     files=materials()
     external=validate(files)
     entries={p.relative_to(ROOT).as_posix():p.read_bytes() for p in files}
-    entries['START-HERE.md']=('# 二次元绘画知识包\n\n先打开 [完整入口](docs/krita-anime-painting/README.md)，然后阅读 ENVIRONMENT.md。\n\n不要假定接收方装有 Krita、MCP 或 Python；先探索环境。\n\n最新分层画稿在 artwork/latest-head.kra（如本次来源可用）；精选图和独立场景在 docs/krita-anime-painting/examples/。\n\nMANIFEST.json 记录所有归档成员 SHA-256。历史本机 data 路径通常未随包提供。\n').encode('utf-8')
+    entries['START-HERE.md']=('# 二次元绘画知识包\n\n先打开 [完整入口](docs/krita-anime-painting/README.md)，然后阅读 ENVIRONMENT.md。\n\n不要假定接收方装有 Krita、MCP 或 Python；先探索环境。\n\n最新整体练习及分层 KRA 在 docs/krita-anime-painting/examples/garden-chair-20261017/；用户指定收录的 Puracotte 参考在 docs/krita-anime-painting/references/，保留第三方来源说明。\n\nMANIFEST.json 记录所有归档成员 SHA-256。其他历史本机 data 路径通常未随包提供。\n').encode('utf-8')
     missing=[]
     if ART.is_file():
         with zipfile.ZipFile(ART) as z:
             assert z.testzip() is None and 'maindoc.xml' in z.namelist()
-        entries['artwork/latest-head.kra']=ART.read_bytes()
+        assert ART in files,'Latest KRA must be in the declared material set'
     else:
         missing.append(ART.relative_to(ROOT).as_posix())
     revision=subprocess.run(['git','rev-parse','HEAD'],cwd=ROOT,capture_output=True,text=True)
     commit=revision.stdout.strip() if revision.returncode==0 else None
     manifest={'schema':'anime-knowledge-package/1','source_commit':commit,
-              'scope':'All knowledge text, recipes and curated examples; optional latest KRA. Not all historical artifacts.',
-              'excluded':['third-party brush binaries','credentials and bridge state','third-party tutorial media','user original reference','full historical KRA and data trees','Python caches'],
+              'scope':'All knowledge text, recipes, curated examples, current whole KRA and explicitly user-designated Puracotte reference. Not all historical artifacts.',
+              'excluded':['third-party brush binaries','credentials and bridge state','third-party tutorial media','other unselected original references','full historical KRA and data trees','Python caches'],
               'optional_missing':missing,'historical_external_links':external,
               'files':[{'path':n,'bytes':len(b),'sha256':digest(b)} for n,b in sorted(entries.items())]}
     entries['MANIFEST.json']=json.dumps(manifest,ensure_ascii=False,indent=2).encode('utf-8')
