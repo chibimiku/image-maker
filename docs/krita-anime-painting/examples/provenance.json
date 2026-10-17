@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-17",
+  "artwork_method": "Program-planned layers rendered in local Krita; unfinished practice, not freehand.",
+  "reference_included": false,
+  "files": [
+    {
+      "file": "latest-head.png",
+      "source": "data/test-result/20261017/krita-tutorial-volume/painting/tutorial-volume-eye-edge-checked.png",
+      "sha256": "d0ecf59b9035ec5051eaa2aa5152f4ed8f1ee0e5feafb1407414f009baf7e010",
+      "transformation": "unchanged file copy"
+    },
+    {
+      "file": "head-neck-detail.png",
+      "source": "data/test-result/20261017/krita-tutorial-volume/head-neck-detail.png",
+      "sha256": "f07c68918eee356644d1a3c21621b5cf5895a869fbe45a283b9d797397bfa96e",
+      "transformation": "unchanged file copy"
+    },
+    {
+      "file": "expression-reviewed.png",
+      "source": "data/test-result/20261017/krita-expression-topic/painting/expression-reviewed.png",
+      "sha256": "bb4c05c68d9b62472601f684f1cc00ab2712a93504f8da3e4be46b79dde84dbb",
+      "transformation": "unchanged file copy"
+    },
+    {
+      "file": "hair-hierarchy-reviewed.png",
+      "source": "data/test-result/20261017/krita-hair-hierarchy/painting/hair-hierarchy-reviewed.png",
+      "sha256": "f55622d2354676c91fef5e06b49c0a777e65d3022afba3282d5f9596d5f2add4",
+      "transformation": "unchanged file copy"
+    },
+    {
+      "file": "lesson-map.json",
+      "source": "data/test-result/20261017/krita-tutorial-volume/lesson-map.json",
+      "sha256": "20f2cc959c1f15280bf2fbf77d00c17d3463a1ecad8d8d7d9fcb267bcc4e02e6",
+      "transformation": "unchanged file copy"
+    },
+    {
+      "file": "latest-head.scene.json",
+      "source": "data/test-result/20261017/krita-tutorial-volume/final-scene-snapshot.json",
+      "sha256": "18c463ceaee5a859ca6b7cbd51f854e4d78a3dd595d2e32b6c1b92cddf6a994a",
+      "transformation": "new replay name/stem, no expected active document or blank filename; drawing layers preserved"
+    }
+  ]
+}

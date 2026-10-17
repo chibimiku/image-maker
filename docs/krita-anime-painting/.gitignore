@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+# Downloaded third-party binaries stay local; source/license records are kept.
+resources/*.bundle
+resources/*.zip

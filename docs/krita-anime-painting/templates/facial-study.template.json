@@ -1,0 +1,295 @@
+{
+  "schema": "krita-facial-elements/1",
+  "title": "Facial features - reference-led construction and direction study",
+  "reference": {
+    "path": "data/20261015/b1b382ab_232123-d0dec0.jpg",
+    "dimensions": [
+      1696,
+      2528
+    ],
+    "face_crop_xyxy": [
+      625,
+      390,
+      1060,
+      675
+    ],
+    "assessment": "Manual visual estimates; hair obscures the forehead and parts of the outline. Not a calibrated 3D reconstruction.",
+    "observed_direction": "approximately frontal, with slight asymmetry; exact yaw/pitch are uncertain",
+    "reuse_reference_pixels_in_artwork": false
+  },
+  "canvas": {
+    "width": 3600,
+    "height": 2400,
+    "coordinate_scale": 2,
+    "paper": "#fbfaf7"
+  },
+  "composition": {
+    "portrait_origin_y": 392,
+    "portrait_scale": 1.12,
+    "views": [
+      {
+        "id": "front",
+        "label": "FRONT / reference proportions",
+        "origin_x": 320,
+        "yaw_deg": 0,
+        "pitch_deg": 0,
+        "roll_deg": 0
+      },
+      {
+        "id": "turn_right",
+        "label": "TURN TO VIEWER RIGHT / +25 deg",
+        "origin_x": 900,
+        "yaw_deg": 25,
+        "pitch_deg": 0,
+        "roll_deg": 0
+      },
+      {
+        "id": "turn_left",
+        "label": "TURN TO VIEWER LEFT / -25 deg",
+        "origin_x": 1480,
+        "yaw_deg": -25,
+        "pitch_deg": -4,
+        "roll_deg": -3
+      }
+    ],
+    "detail_cards": [
+      {
+        "feature": "brows",
+        "label": "01 / quiet thin brows",
+        "x": 30,
+        "y": 790,
+        "width": 330,
+        "height": 300,
+        "detail_scale": 2.1
+      },
+      {
+        "feature": "eyes",
+        "label": "02 / restrained grey-blue eye",
+        "x": 382,
+        "y": 790,
+        "width": 330,
+        "height": 300,
+        "detail_scale": 2.45
+      },
+      {
+        "feature": "nose",
+        "label": "03 / highlight + short mark",
+        "x": 734,
+        "y": 790,
+        "width": 330,
+        "height": 300,
+        "detail_scale": 3.8
+      },
+      {
+        "feature": "mouth",
+        "label": "04 / softly parted mouth",
+        "x": 1086,
+        "y": 790,
+        "width": 330,
+        "height": 300,
+        "detail_scale": 4.1
+      },
+      {
+        "feature": "ears",
+        "label": "05 / ear rim and inner fold",
+        "x": 1438,
+        "y": 790,
+        "width": 330,
+        "height": 300,
+        "detail_scale": 2.1
+      }
+    ]
+  },
+  "direction_convention": {
+    "positive_yaw": "nose turns toward viewer right",
+    "positive_pitch": "nose points down",
+    "positive_roll": "clockwise on page",
+    "projection": "rotated shallow curved face plus pinhole perspective; a stylized construction, not a full anatomical head",
+    "gaze": "toward viewer, independently compensated for head yaw",
+    "maximum_supported_abs_yaw": 35
+  },
+  "head": {
+    "half_width": 149,
+    "crown_y": -208,
+    "temple_y": -112,
+    "cheek_y": 35,
+    "jaw_y": 111,
+    "chin_y": 180,
+    "surface_depth": 78,
+    "eye_y": 0,
+    "brow_y": -48,
+    "nose_y": 73,
+    "mouth_y": 119,
+    "neck_y": 225,
+    "jaw_style": "tapered V with a small rounded tip, gentle cheek transition"
+  },
+  "expression": {
+    "mood": "calm, attentive, slight uncertainty",
+    "mouth_state": "slightly_parted",
+    "brow_arch": "low",
+    "teeth_visible": false
+  },
+  "lighting": {
+    "key": "soft upper-left frontal",
+    "highlight_screen_offset": [
+      -5,
+      -8
+    ],
+    "warm_skin_shadow": true,
+    "hard_nose_bridge_outline": false
+  },
+  "palette": {
+    "skin_light": "#fff5ed",
+    "skin_base": "#f7dfd7",
+    "skin_shadow": "#e8bec1",
+    "face_outline": "#a17f8d",
+    "lid": "#705965",
+    "lid_soft": "#b18c9e",
+    "sclera": "#fcf5f0",
+    "iris_top": "#6a7894",
+    "iris_mid": "#9facbf",
+    "iris_bottom": "#cad9df",
+    "pupil": "#68778f",
+    "iris_edge": "#8290a7",
+    "brow": "#999eb4",
+    "nose_mark": "#b48a92",
+    "mouth_line": "#9e737c",
+    "mouth_gap": "#b58b8f",
+    "lip_light": "#f2c9cb",
+    "hair_light": "#e8f4fb",
+    "hair_base": "#bad3e7",
+    "hair_shadow": "#87a8ca",
+    "guide": "#87a9bf",
+    "label": "#687c92"
+  },
+  "features": {
+    "brows": {
+      "span": 75,
+      "line_width": 0.92,
+      "arch_height": 4.5,
+      "distance_above_eye": 48,
+      "separate_hairs": 3,
+      "avoid": "heavy arch or dense visible eyebrow hairs"
+    },
+    "eyes": {
+      "center_spacing": 150,
+      "width": 90,
+      "opening_height": 33.5,
+      "iris_diameter": 40,
+      "iris_vertical_scale": 1.06,
+      "pupil_width_ratio": 0.17,
+      "pupil_height_ratio": 0.27,
+      "upper_lid_width": 2.6,
+      "lower_lid_width": 0.66,
+      "outer_lash_groups": 3,
+      "iris_texture_count": 52,
+      "iris_texture_opacity": 0.36,
+      "highlight_radius": [
+        3.2,
+        3.7
+      ],
+      "gaze_compensation_units": 12,
+      "avoid": "round staring eyes, black tall pupils, heavy cyan lower iris ring"
+    },
+    "nose": {
+      "protrusion": 22,
+      "lower_mark_length": 5,
+      "line_width": 0.75,
+      "highlight_radius": [
+        4.9,
+        6.4
+      ],
+      "bridge_outline": false,
+      "nostril_emphasis": 0.12,
+      "avoid": "long bridge outline or a loop-shaped highlight"
+    },
+    "mouth": {
+      "width": 31,
+      "opening_height": 2.25,
+      "line_width": 0.75,
+      "lower_lip_opacity": 0.28,
+      "protrusion": 5,
+      "avoid": "full lip border, downturned pout, thick lower pink line"
+    },
+    "ears": {
+      "center_x": 147,
+      "center_y": 30,
+      "width": 24,
+      "height": 67,
+      "inner_line_width": 0.7,
+      "avoid": "equally visible ears at oblique angles"
+    },
+    "hair_context": {
+      "purpose": "thin framing locks for proportion and overlap context",
+      "cover_eyebrows": false,
+      "cover_iris": false,
+      "strand_count": 24
+    }
+  },
+  "draw_order": [
+    "construction_guides",
+    "construction_sketch",
+    "clean_face_line",
+    "skin_flats",
+    "brows",
+    "eyes",
+    "nose",
+    "mouth",
+    "ears",
+    "hair_context",
+    "atmosphere",
+    "isolated_details"
+  ],
+  "deliverables": {
+    "stem": "facial-elements-study",
+    "blank_checkpoint": "00-new-blank.kra",
+    "stage_pngs": true,
+    "show_guides_in_final": false
+  },
+  "workflow": {
+    "sketch": "Coordinate guides then pale blue construction strokes; export before cleaning.",
+    "lineart": "Separate clean contour layer, locally varied line weight.",
+    "flats": "Skin bases below the contour, preserve feature coordinates.",
+    "rendering": "Features individually staged, each with a checkpoint.",
+    "atmosphere": "Final restrained warm skin versus cool blue hair; soft upper-left light.",
+    "guides_in_final": false,
+    "do_not_infer_coords_from_preview": true
+  },
+  "camera": {
+    "projection": "perspective",
+    "distance": 1500,
+    "focal_length": 1422,
+    "units": "arbitrary consistent head-space units, not mm",
+    "principal_point": "each view origin",
+    "note": "Fixed camera with rotated head; do not interpret as a calibrated lens for the reference."
+  },
+  "perspective_verification": {
+    "enabled": true,
+    "box_bounds": {
+      "x": [
+        -174,
+        174
+      ],
+      "y": [
+        -221,
+        250
+      ],
+      "z": [
+        -62,
+        106
+      ]
+    },
+    "check_groups": [
+      "headbox X edges",
+      "headbox Y edges",
+      "headbox Z edges",
+      "projected side-plane circle",
+      "near/far eye widths",
+      "nose protrusion and midline",
+      "ear visibility"
+    ],
+    "line_extension_rule": "extend existing edges away from viewer, never redraw to a desired VP",
+    "curved_features_are_not_parallel_box_edges": true,
+    "numeric_checks_are_not_artistic_approval": true
+  }
+}

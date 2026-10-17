@@ -1,0 +1,18 @@
+{
+  "schema": "anime-practice-plan/1",
+  "note": "Semantic planning template, not a krita_studio render scene.",
+  "topic": "choose_one_visible_problem",
+  "environment_report": "fill_after_discovery",
+  "reference": {"path": null, "available": false, "observations": [], "uncertainties": [], "copy_pixels": false},
+  "canvas": {"width": 1600, "height": 2400, "units": "pixels", "origin": "top_left"},
+  "camera": {"projection": "choose_explicitly", "yaw_deg": 0, "pitch_deg": 0, "roll_deg": 0, "gaze": "toward_viewer"},
+  "character": {"expression": "neutral_for_controlled_study", "landmarks": {}, "hairstyle": {"parting": null, "anchors": [], "sections_back_to_front": []}, "pose_and_support": []},
+  "light": {"key": "upper_viewer_left", "form_shadows": [], "cast_shadows": [], "materials": []},
+  "occlusion_back_to_front": [],
+  "workflow": ["thumbnail", "construction", "contours", "flats", "form_and_cast_shadows", "medium_shapes", "small_details", "unified_review"],
+  "review_each_stage": ["export", "view_whole_and_detail", "record_problem", "revise_source_layer", "view_again"],
+  "fixed_conditions": [],
+  "sources_read": [],
+  "output_directory": "choose_a_new_local_directory",
+  "remaining_limits": []
+}

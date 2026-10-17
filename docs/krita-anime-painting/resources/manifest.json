@@ -1,0 +1,15 @@
+{
+  "author": "David Revoy",
+  "source": "https://www.davidrevoy.com/article1060/krita-brushes-2025-01-bundle",
+  "download": "https://www.peppercarrot.com/extras/resources/deevad-bundle_25.01.zip",
+  "sha256": "4c628a9418fcde63abacafdcb143881f2cbbf907275cb4f72335545841cf8173",
+  "license": "Brushes CC0; article and demo artworks separate",
+  "installed": false,
+  "used_in_artwork": false,
+  "status_as_of": "2026-10-17",
+  "distribution": "Metadata only in Git/knowledge package; binary ZIP and bundle excluded",
+  "files": [
+    "deevad-bundle_25.01.zip",
+    "Deevad_25.01.bundle"
+  ]
+}

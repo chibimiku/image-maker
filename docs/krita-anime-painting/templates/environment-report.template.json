@@ -1,0 +1,15 @@
+{
+  "schema": "drawing-environment-report/1",
+  "observed_at": null,
+  "os": "unknown",
+  "workspace": "unknown",
+  "writable_output": "unknown",
+  "python": {"available": "unknown", "command": null, "version": null},
+  "drawing_application": {"name": "unknown", "version": null, "path": null, "running": "unknown", "unsaved_work": "unknown"},
+  "automation": {"available_tools": [], "krita_bridge_compatible": "unknown", "connection_verified": false, "evidence": []},
+  "resources": {"brushes_probed": false, "filters_probed": false, "reference_available": "unknown"},
+  "chosen_route": "read_and_review_until_environment_is_known",
+  "missing_requirements": [],
+  "next_action": "Complete read-only discovery; do not assume installation or connection.",
+  "credentials": "Do not put tokens or private configuration into this report."
+}

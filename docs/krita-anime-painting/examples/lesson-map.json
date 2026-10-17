@@ -1,0 +1,34 @@
+{
+  "camera": "near frontal, no head tilt change",
+  "light": "broad source above and to viewer left",
+  "applications": [
+    {
+      "source": "https://www.proko.com/course-lesson/how-to-draw-neck-muscles-form/",
+      "read": "public lesson notes",
+      "applied": "neck cylinder connects jaw underside to clavicles, broad neck-to-shoulder contour, restrained SCM gestures"
+    },
+    {
+      "source": "https://www.clipstudio.net/how-to-draw/archives/158015",
+      "read": "public tutorial text",
+      "applied": "separate soft turning shade from jaw cast shadow, consistent upper-left light, avoid bright rim around everything"
+    },
+    {
+      "source": "https://www.clipstudio.net/how-to-draw/archives/160418",
+      "read": "public tutorial text",
+      "applied": "ear near brow-to-nose region, simplified helix and Y antihelix, visible lobe behind gathered hair"
+    }
+  ],
+  "checks": [
+    "jaw casts on neck, not over face",
+    "neck shadow wraps into side plane",
+    "no black muscle cords in relaxed anime neck",
+    "ear partly occluded by gathered hair",
+    "eyes remain untouched by cheek shading",
+    "shirt remains a placeholder, not final costume"
+  ],
+  "limits": [
+    "near-frontal view does not verify side-view neck tilt",
+    "exact braid construction remains provisional",
+    "no video viewing or traced tutorial pixels"
+  ]
+}
