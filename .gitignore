@@ -99,6 +99,7 @@ cache/
 /.cache/
 log/
 outputs/
+output/
 conf/config.json
 conf/config-image.json
 conf/*.json
