@@ -266,6 +266,7 @@ class AppWindow(QWidget):
             nsfw_changed_callback=self.on_single_nsfw_changed,
             booru_tag_limit_getter_func=self.get_booru_tag_limit,
             timeout_getter_func=self.get_request_timeout_seconds,
+            text_timeout_getter_func=self.get_text_analysis_timeout_seconds,
             upscale_options_getter_func=self.get_upscale_options,
             upscale_options_changed_callback=self.update_upscale_options,
             outfit_check_default_getter_func=lambda: self.enable_outfit_check_single,
@@ -310,6 +311,7 @@ class AppWindow(QWidget):
             nsfw_changed_callback=self.on_batch_nsfw_changed,
             booru_tag_limit_getter_func=self.get_booru_tag_limit,
             timeout_getter_func=self.get_request_timeout_seconds,
+            text_timeout_getter_func=self.get_text_analysis_timeout_seconds,
             upscale_options_getter_func=self.get_upscale_options,
             upscale_options_changed_callback=self.update_upscale_options,
             outfit_check_default_getter_func=lambda: self.enable_outfit_check_batch,
@@ -354,7 +356,7 @@ class AppWindow(QWidget):
         # 【Tab 2: 多图画风提取】
         self.style_analyzer_tab = StyleAnalyzerWidget(
             config_getter_func=self.get_text_config,
-            timeout_getter_func=self.get_request_timeout_seconds,
+            timeout_getter_func=self.get_text_analysis_timeout_seconds,
             img_config_getter_func=self.get_img_config,
             styles_getter_func=lambda: self.styles_data,
             test_gen_default_getter_func=lambda: self.style_analyzer_test_gen,
@@ -478,6 +480,13 @@ class AppWindow(QWidget):
         self.fetch_btn.clicked.connect(self.fetch_models)
         model_layout.addWidget(self.fetch_btn)
         text_layout.addRow("分析模型:", model_layout)
+
+        self.text_timeout_spin = QSpinBox()
+        self.text_timeout_spin.setRange(10, 3600)
+        self.text_timeout_spin.setValue(120)
+        self.text_timeout_spin.setSuffix(" 秒")
+        self.text_timeout_spin.setToolTip("文本分析类接口的单次请求超时；每次调用单独计时，不是整条分析流程的总时限。")
+        text_layout.addRow("文本分析单次请求超时:", self.text_timeout_spin)
 
         self.booru_tag_limit_spin = QSpinBox()
         self.booru_tag_limit_spin.setRange(1, 200)
@@ -641,7 +650,7 @@ class AppWindow(QWidget):
         self.img_timeout_spin.setRange(10, 999) # 允许设置 10秒 到 999秒（支持3位数）
         self.img_timeout_spin.setValue(120)     # 默认 120秒
         self.img_timeout_spin.setSuffix(" 秒")
-        image_layout.addRow("请求超时时间:", self.img_timeout_spin)
+        image_layout.addRow("Gemini 单次生图超时:", self.img_timeout_spin)
 
         self.img_retry_spin = QSpinBox()
         self.img_retry_spin.setRange(0, 10)     # 允许设置 0 到 10 次重试
@@ -670,6 +679,7 @@ class AppWindow(QWidget):
         self.override_ar_first_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.override_ar_second_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.img_timeout_spin.valueChanged.connect(lambda _v: self.save_image_config(silent=True))
+        self.text_timeout_spin.valueChanged.connect(lambda _v: self.save_image_config(silent=True))
         self.img_retry_spin.valueChanged.connect(lambda _v: self.save_image_config(silent=True))
         self.img_resolution_combo.currentTextChanged.connect(lambda: self.save_image_config(silent=True))
         self.img_debug_dump_checkbox.stateChanged.connect(lambda _v: self.save_image_config(silent=True))
@@ -766,6 +776,16 @@ class AppWindow(QWidget):
         self.config_tabs.addTab(tab_text, "文本分析 API")
         self.config_tabs.addTab(tab_text_nsfw, "文本分析（NSFW）")
         self.config_tabs.addTab(tab_image, "图片生成 API")
+        from utils.gpt_workflow_widget import GptWorkflowControls
+        tab_gpt = QWidget()
+        gpt_settings_layout = QVBoxLayout(tab_gpt)
+        gpt_note = QLabel("GPT 出图可使用独立接口和 key。点击「GPT配置」修改；勾选「和 Gemini 一样」时读取统一配置。后续工序默认关闭。")
+        gpt_note.setWordWrap(True)
+        gpt_settings_layout.addWidget(gpt_note)
+        self.gpt_workflow_settings = GptWorkflowControls(tab_gpt, show_config=True)
+        gpt_settings_layout.addWidget(self.gpt_workflow_settings)
+        gpt_settings_layout.addStretch()
+        self.config_tabs.addTab(tab_gpt, "GPT 出图 API")
         self.config_tabs.addTab(self.sd_webui_settings_tab, "SD-WebUI接口配置")
         self.config_tabs.addTab(tab_style, "画风预设管理")
         self.config_tabs.addTab(tab_wardrobe, "穿衣风格")
@@ -828,6 +848,11 @@ class AppWindow(QWidget):
         node = load_image_node_config(api_type)
         manual = self.img_key_input.text().strip() or str(node.get("api_key") or "")
         img_key = resolve_api_key({**node, "api_key": manual}, api_type)
+        if api_type == "aigc-2d-gpt":
+            from modules.others.api_backend import get_api_config
+            resolved = get_api_config(api_type=api_type)
+            return (resolved.get("base_url", ""), resolved.get("api_key", ""),
+                    self.img_model_combo.currentText().strip(), api_type)
         return (
             self.img_url_input.text().strip(),
             img_key,
@@ -1000,6 +1025,12 @@ class AppWindow(QWidget):
     def get_request_timeout_seconds(self):
         try:
             return int(self.img_timeout_spin.value())
+        except Exception:
+            return 120
+
+    def get_text_analysis_timeout_seconds(self):
+        try:
+            return int(self.text_timeout_spin.value())
         except Exception:
             return 120
 
@@ -1346,6 +1377,7 @@ class AppWindow(QWidget):
                     # ================= 新增：读取超时与重试 =================
                     saved_timeout = api_config.get("timeout", 120)
                     self.img_timeout_spin.setValue(saved_timeout)
+                    self.text_timeout_spin.setValue(int(config.get("text_analysis_timeout_seconds", saved_timeout)))
                     
                     saved_retries = api_config.get("max_retries", 1)
                     self.img_retry_spin.setValue(saved_retries)
@@ -1731,6 +1763,7 @@ class AppWindow(QWidget):
                     # 读取超时与重试配置
                     saved_timeout = api_config.get("timeout", 120)
                     self.img_timeout_spin.setValue(saved_timeout)
+                    self.text_timeout_spin.setValue(int(config.get("text_analysis_timeout_seconds", saved_timeout)))
                     
                     saved_retries = api_config.get("max_retries", 1)
                     self.img_retry_spin.setValue(saved_retries)
@@ -1814,6 +1847,7 @@ class AppWindow(QWidget):
                 api_config.pop(field, None)
 
         config["current_api"] = current_api_global
+        config["text_analysis_timeout_seconds"] = int(self.text_timeout_spin.value())
         # 【修改】将数据保存到正确的节点 target_api_node 下
         config["apis"][target_api_node] = api_config
         config["cached_image_models"] = getattr(self, "_cached_image_models", [])

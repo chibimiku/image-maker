@@ -1,0 +1,55 @@
+{
+  "run_id": "three-worlds-six-20261016",
+  "output_subdir": "three-worlds",
+  "evidence_dir": "data/test-result/20261016/three-worlds-six",
+  "automatic_retries": 0,
+  "max_attempts": 6,
+  "engines": {
+    "gpt": {
+      "api_type": "aigc-2d-gpt",
+      "model": "gpt-image-2.5-sunburst",
+      "quality": "max",
+      "output_format": "png",
+      "timeout": 900
+    },
+    "gemini": {
+      "api_type": "aigc2d",
+      "model": "gemini-3-pro-image-preview",
+      "resolution": "2K",
+      "timeout": 600,
+      "reference_mode": "priority"
+    }
+  },
+  "jobs": [
+    {
+      "id": "starlamp",
+      "title": "雨夜浮空电车站的星灯信使",
+      "style": "fuzichoco-v2",
+      "prompt": "Create an imaginative anime illustration of exactly one young adult woman, a courier of tiny star lanterns, waiting at an elevated tram stop suspended above a rainy fantasy city at blue hour. She has a dark indigo braided ponytail, bright cyan eyes, a small silver crescent hair pin and a curious, gently surprised expression. Dress her in a tailored midnight-blue cape over an ivory blouse, a teal pleated skirt, dark opaque tights and ivory leather knee-high boots with elegant slim heels. She holds a small brass-and-glass star lantern close to her chest with both hands as one luminous paper moth lands softly on its handle. The city layers coherent arched bridges, hanging tram cables, a stopped turquoise tram, rain-streaked glass shelter and distant towers through indigo mist. Navy and cobalt structure, bounded cyan and pale gold lights, translucent rain reflections, detailed metalwork and flowing fabric; magical yet spatially readable. Make the courier and her tender moment the focal point. Show the whole figure with natural connected arms and legs, stable uncrossed feet and intact boots. No other people. Use the attached image only for painting language, colour handling and layered depth, never its character, carousel horse or picture frames. One uninterrupted scene, no collage, lettering, logo, signature or watermark.",
+      "gpt_size": "1024x1536",
+      "gpt_framing": "Portrait 2:3 composition: the full standing courier fills the foreground beneath the tall rain shelter; elevated tram and city lights recede behind her, with both boots visible at the bottom.",
+      "gemini_aspect": "16:9",
+      "gemini_framing": "Wide 16:9 composition: place the full standing courier in the left third beneath the shelter, with the stopped tram and several elevated bridges opening into a broad rainy city panorama to the right. Give her enough height in the frame to read her face, hands and lantern clearly. Both boots visible; recompose for landscape rather than cropping a portrait."
+    },
+    {
+      "id": "raintea",
+      "title": "山雨茶亭的听雨少女",
+      "style": "waterink-style",
+      "prompt": "Create a poetic Chinese ink-wash illustration of exactly one young adult tea maker enjoying a quiet mountain rain shower beneath an open-sided timber tea pavilion. She has long straight black hair loosely tied with a small jade ribbon, warm dark eyes and a soft amused smile as she looks at a sparrow sheltering on the outer bamboo rail. She wears a pale celadon and ivory layered hanfu with restrained deep-ink trim, natural sleeve folds and simple black cloth shoes. She stands beside a low tea table, one hand gently holding a small porcelain cup at waist level, the other relaxed against her sleeve. A dark clay teapot and two cups sit coherently on the table. The pavilion roof shelters her, while rain falls beyond the eaves; a stream, weathered stepping stones, bamboo and distant misty peaks dissolve into large connected areas of untouched paper. Strong black calligraphic structural contours, restrained mineral-jade and tiny warm ochre accents, wet ink blooms, dry brush marks and visible fibrous rice-paper texture. Keep her expression and hands readable while preserving calm negative space. Whole figure, natural shoulders, hands and two uncrossed legs, credible floor contact. Reference is artistic rendering only: invent a new character and new tea-pavilion layout, do not copy its easel, cats or costume. No calligraphy, labels, seals, signature, watermark or panels.",
+      "gpt_size": "1536x1024",
+      "gpt_framing": "Landscape 3:2: figure and tea table grouped in the right third under the pavilion eave, a broad band of white mountain mist and the stream extending to the left. Keep the woman large enough to read her face and the cup; show her feet.",
+      "gemini_aspect": "3:4",
+      "gemini_framing": "Portrait 3:4: full standing woman and tea table occupy the lower middle, a bold pavilion post anchors one side, an eave and a few bamboo branches frame the top, with vertical layers of misty peaks behind. Leave generous untouched paper around her silhouette. Show both feet; rebuild the composition for portrait."
+    },
+    {
+      "id": "snowbunny",
+      "title": "冬日温室与雪兔的邂逅",
+      "style": "puracotte-style-v2",
+      "prompt": "Create a tender luminous anime illustration of exactly one young adult botanical caretaker inside a glass conservatory on a snowy winter morning. She has fluffy chestnut-brown shoulder-length curls, soft lilac eyes, a pale blue velvet headband and a delighted smile. She wears a powder-blue cable-knit cardigan over an ivory lace-trimmed midi dress, a soft dusty-lilac scarf, cream opaque tights and pearl-white leather calf-high boots with neat tapered heels. She stands beside a potting bench, cradling a small white rabbit safely against her chest with both forearms; the rabbit lifts its nose toward a tiny winter camellia flower pinned to her cardigan. Natural gentle animal interaction, no extra hands or rabbits. A warm conservatory contains readable potted white and blush camellias, a few fern fronds, a wooden bench and hanging glass planters. Frost traces the outer window edges; a snowy courtyard and soft winter sky remain visible beyond clear glass. Pearly diffuse light, delicate chromatic gradients and tinted linework, gentle pink, lavender, ivory and powder-blue harmony, knit texture and layered soft fabrics. Keep the human and rabbit faces crisp, protect midtones and avoid a broad white wash. One complete standing figure, natural knees and ankles and both boots visible. Reference only guides artistic rendering, not its character, hair, umbrella, clothing or framing. No written signs, text, signature, watermark, panels or extra people.",
+      "gpt_size": "1024x1024",
+      "gpt_framing": "Square 1:1 composition: the full standing caretaker is centered between a camellia pot on the left and glass wall on the right, with enough floor below both boots. Build an intimate balanced winter vignette around her and the rabbit.",
+      "gemini_aspect": "3:2",
+      "gemini_framing": "Landscape 3:2 composition: the full caretaker occupies the right third with the rabbit readable in her arms; the potting bench and layered camellia pots spread across the left, glass roof lines lead toward a snowy courtyard. Show both boots clearly and recompose the environment for a wide image."
+    }
+  ]
+}

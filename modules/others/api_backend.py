@@ -289,6 +289,21 @@ def get_api_config(config_path=None, api_type=None):
     # 缺 key 的判断统一用真值检查（`not cfg.get("api_key")`），与 key 是空串还是不存在无关。
     cfg["api_key"] = resolved
     cfg["_api_key_source"] = api_key_source(node, cfg)
+    if node == "aigc-2d-gpt" and "gpt_image_workflow" in config:
+        from utils.gpt_workflow_settings import apply_dedicated_key, load_settings
+        settings = load_settings(config)
+        cfg["timeout"] = settings["timeout_seconds"]
+        if settings["same_as_gemini"]:
+            shared = config.get("apis", {}).get("aigc2d", {})
+            cfg["api_key"] = resolve_api_key(shared, "aigc2d")
+            cfg["_api_key_source"] = "gemini:" + api_key_source("aigc2d", shared)
+            if shared.get("base_url"):
+                base = str(shared["base_url"]).rstrip("/")
+                if "/v1beta" in base:
+                    base = base.split("/v1beta", 1)[0] + "/v1"
+                cfg["base_url"] = base
+        else:
+            cfg = apply_dedicated_key(cfg, settings)
     return cfg
 
 
@@ -686,7 +701,7 @@ GPT_IMAGE2_SIZE_SQUARE = "1024x1024"
 GPT_IMAGE2_SIZE_LANDSCAPE = "1536x1024"
 GPT_IMAGE2_SIZE_PORTRAIT = "1024x1536"
 GPT_IMAGE2_SIZES = (GPT_IMAGE2_SIZE_SQUARE, GPT_IMAGE2_SIZE_LANDSCAPE, GPT_IMAGE2_SIZE_PORTRAIT)
-GPT_IMAGE2_QUALITIES = ("auto", "low", "medium", "high")
+GPT_IMAGE2_QUALITIES = ("auto", "low", "medium", "high", "xhigh", "max")
 GPT_IMAGE2_OUTPUT_FORMATS = ("png", "jpeg", "webp")
 GPT_IMAGE2_MAX_REFERENCE_IMAGES = 16
 # gpt-image-2 不支持透明背景，也不接受 input_fidelity（编辑场景自动高保真），这些字段不要外传。
@@ -720,7 +735,19 @@ GPT_IMAGE2_SITE_DEFAULT_SIZES = {
 # ---- gpt-image 系列可选模型（GUI 模型下拉 / CLI 共用一份，避免两边漂移）----
 # 2026-09 实测 `GET {base}/v1/models` 的真实结果：aigc2d 站点有整族（含 2.5 的 flare/sunburst
 # 与它们的 `-c` 按次计费版），autodl 站点只有 gpt-image-2。清单只是常用项，下拉框仍可手输。
-GPT_IMAGE2_MODEL_DEFAULT = "gpt-image-2"
+GPT_IMAGE2_MODEL_DEFAULT = "gpt-image-2.5-sunburst"
+
+
+def default_gpt_image_model(api_type=""):
+    """Sunburst is the default; the registered autodl channel supports Image 2 only."""
+    return "gpt-image-2" if str(api_type).lower() == "autodl" else GPT_IMAGE2_MODEL_DEFAULT
+
+
+def default_gpt_image_quality(model=None, configured_quality=None):
+    """Use max for Image 2.5; older image models retain their supported high tier."""
+    default = "max" if str(model or GPT_IMAGE2_MODEL_DEFAULT).lower().startswith("gpt-image-2.5-") else "high"
+    configured = str(configured_quality or "").strip().lower()
+    return default if configured in {"xhigh", "max"} and default == "high" else configured or default
 GPT_IMAGE2_MODEL_PREFIXES = ("gpt-image", "dall-e", "dalle")
 GPT_IMAGE2_SITE_MODELS = {
     GPT_IMAGE2_SITE_AIGC2D: (
@@ -909,7 +936,7 @@ def normalize_gpt_image2_size(size: str = None, aspect_ratio: str = None) -> str
         return GPT_IMAGE2_SIZE_SQUARE
     return _gpt_image2_size_by_ratio(ratio)
 
-def build_gpt_image2_payload(prompt: str, model: str = "gpt-image-2", size: str = None, aspect_ratio: str = "1:1", quality: str = None, output_format: str = None, n: int = 1, instructions: str = "", post_instructions: str = "") -> dict:
+def build_gpt_image2_payload(prompt: str, model: str = GPT_IMAGE2_MODEL_DEFAULT, size: str = None, aspect_ratio: str = "1:1", quality: str = None, output_format: str = None, n: int = 1, instructions: str = "", post_instructions: str = "") -> dict:
     """
     组装 gpt-image-2 请求体：/v1/images/generations(JSON) 与 /v1/images/edits(multipart) 共用同一份字段。
     只保留上游真正认识的键（model / prompt / n / size / quality / output_format）。
@@ -920,12 +947,14 @@ def build_gpt_image2_payload(prompt: str, model: str = "gpt-image-2", size: str 
     except (TypeError, ValueError):
         n_val = 1
     payload = {
-        "model": str(model or "gpt-image-2").strip() or "gpt-image-2",
+        "model": str(model or GPT_IMAGE2_MODEL_DEFAULT).strip() or GPT_IMAGE2_MODEL_DEFAULT,
         "prompt": "\n\n".join([part for part in prompt_parts if part]),
         "n": max(1, min(10, n_val)),
         "size": normalize_gpt_image2_size(size=size, aspect_ratio=aspect_ratio),
     }
     quality_text = str(quality or "").strip().lower()
+    if quality_text in {"xhigh", "max"} and not payload["model"].lower().startswith("gpt-image-2.5-"):
+        raise ValueError("xhigh/max 画质仅适用于 GPT Image 2.5，请选择 2.5 模型或使用 high。")
     if quality_text in GPT_IMAGE2_QUALITIES and quality_text != "auto":
         payload["quality"] = quality_text
     output_format_text = str(output_format or "").strip().lower()
@@ -1032,8 +1061,8 @@ def _maybe_compress_image_path(img_path, max_dim=2048, temp_files=None):
     temp_files 用于收集生成的临时文件，便于调用方在请求完成后清理。
     """
     try:
-        from PIL import Image
-        img = Image.open(img_path)
+        from PIL import Image, ImageOps
+        img = ImageOps.exif_transpose(Image.open(img_path))
         if img.mode != "RGB":
             img = img.convert("RGB")
         width, height = img.size
@@ -1069,8 +1098,8 @@ def _encode_image_for_transmission(path, max_dim=2048):
     本函数是唯一编码点，`to_base64_compressed` 与 `transmitted_image_digest` 共用它，
     才能保证「预检算出来的哈希」就是「实际送出的哈希」。
     """
-    from PIL import Image
-    img = Image.open(path)
+    from PIL import Image, ImageOps
+    img = ImageOps.exif_transpose(Image.open(path))
     if img.mode != "RGB":
         img = img.convert("RGB")
     width, height = img.size
@@ -1138,7 +1167,7 @@ def resolve_images_endpoint(api_base: str, has_images: bool = False, api_type: s
         base = base[: -len("/images/edits")] + "/images/generations"
     if base.endswith("/images/generations"):
         generations_url = base
-    elif normalized in {"aigc-2d-gpt", "aigc2d-gpt", "aigc_2d_gpt"}:
+    elif normalized in {"aigc-2d-gpt", "aigc2d-gpt", "aigc_2d_gpt", "openai-image"}:
         generations_url = f"{base}/images/generations" if base.endswith("/v1") else f"{base}/v1/images/generations"
     else:
         generations_url = f"{base}/images/generations" if base.endswith("/v1") else f"{base}/v1beta/images/generations"
@@ -1187,12 +1216,12 @@ def _post_images_edits_request(url: str, api_key: str, form_payload: dict, image
         _cleanup_temp_files(temp_files)
     return resp, used_files
 
-def generate_image_openai_image(prompt: str, image_paths: list = None, model: str = "gpt-image-2", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, size: str = None, quality: str = None, output_format: str = None, config_path: str = None) -> list:
+def generate_image_openai_image(prompt: str, image_paths: list = None, model: str = None, aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, size: str = None, quality: str = None, output_format: str = None, config_path: str = None) -> list:
     """
     openai-image 生图接口（OpenAI 风格）：
     - 入口端点：/v1/images/generations
     - 请求体风格：OpenAI Image API
-    - 默认模型：gpt-image-2
+    - 默认模型：gpt-image-2.5-sunburst（autodl 保留 Image 2）
     """
     normalized_api_type = str(api_type or "").strip().lower()
     if normalized_api_type in {"aigc-2d-gpt", "aigc2d-gpt", "aigc_2d_gpt"}:
@@ -1212,7 +1241,8 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
     valid_image_paths = _existing_image_paths(image_paths)
 
     output_format = str(config.get("output_format", "png") or "png").lower()
-    quality = str(quality or config.get("quality", "high") or "high")
+    quality = str(quality or default_gpt_image_quality(
+        model or config.get("model") or default_gpt_image_model(normalized_api_type), config.get("quality")))
     raw_allow_auto_size = config.get("allow_auto_size", True)
     if isinstance(raw_allow_auto_size, str):
         allow_auto_size = raw_allow_auto_size.strip().lower() not in ("0", "false", "no", "off")
@@ -1224,16 +1254,19 @@ def generate_image_openai_image(prompt: str, image_paths: list = None, model: st
         request_size = _aspect_ratio_to_dalle3_size(aspect_ratio, allow_auto_for_extreme=allow_auto_size)
     final_prompt = f"{instructions}\n\n{prompt}".strip() if instructions else str(prompt or "")
 
-    use_model = str(model or config.get("model") or "gpt-image-2").strip() or "gpt-image-2"
+    use_model = str(model or config.get("model") or default_gpt_image_model(normalized_api_type)).strip()
+    if quality.lower() in {"xhigh", "max"} and not use_model.lower().startswith("gpt-image-2.5-"):
+        raise ValueError("xhigh/max 画质仅适用于 GPT Image 2.5。")
     payload = {
         "model": use_model,
         "prompt": final_prompt,
         "size": request_size,
         "quality": quality,
         "n": 1,
-        "response_format": "b64_json",
         "output_format": output_format
     }
+    if not use_model.lower().startswith("gpt-image-"):
+        payload["response_format"] = "b64_json"
     use_edits_mode = len(valid_image_paths) > 0
     request_url = _derive_edits_url_from_generations_url(url) if use_edits_mode else url
     if use_edits_mode:
@@ -1740,17 +1773,19 @@ def generate_image_openrouter_image(prompt: str, image_paths: list = None, model
         }
     return saved_files
 
-def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str = "gpt-image-2", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, size: str = None, quality: str = None, output_format: str = None, n: int = None, mode: str = None, cancel_check: callable = None, post_instructions: str = "", log_callback: callable = None, config_path: str = None) -> list:
+def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str = None, aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, size: str = None, quality: str = None, output_format: str = None, n: int = None, mode: str = None, cancel_check: callable = None, post_instructions: str = "", log_callback: callable = None, config_path: str = None) -> list:
     """
     aigc2d 的 gpt-image-2 专用通道（与 Gemini 的 /v1beta/models 通道完全分离）：
-    - 纯文生图：POST {base}/v1/images/generations，JSON 体 = model / prompt / n / size(/quality/output_format)
-    - 带参考图（生图垫图 or 编辑）：POST {base}/v1/images/edits，multipart，图片字段 image[]，最多 16 张
+    - 纯文生图：POST {base}/v1/images/generations，JSON 请求
+    - 所有带参考图请求（含 mode=generate）：POST {base}/v1/images/edits，multipart image[]，最多 16 张
     - size 只有 3 档：1024x1024(方) / 1536x1024(横) / 1024x1536(竖)，不接受 auto 与自定义尺寸
-    - 不支持 background=transparent 与 input_fidelity，这两个字段不发送
+    - 本通道不下发 background 与 input_fidelity；失败不切换接口重发
     - high 画质单张常见 3~5 分钟，超时取配置 timeout（默认 600s）
     - 返回 data[].b64_json（或无 b64 时的 data[].url），落盘后会另存一份服务器原始 JSON
     """
     resolved_api_type = api_type or "aigc-2d-gpt"
+    if resolved_api_type == "aigc2d":
+        resolved_api_type = "aigc-2d-gpt"
     config = get_api_config(config_path=config_path, api_type=resolved_api_type)
     api_base = str(config.get("base_url", "https://new.aigc2d.com/v1/images/generations") or "https://new.aigc2d.com/v1/images/generations").strip().rstrip("/")
     url = resolve_images_endpoint(api_base, has_images=False, api_type=resolved_api_type)
@@ -1788,13 +1823,14 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         size=size or config.get("size"),
         aspect_ratio=aspect_ratio,
     )
-    request_quality = str(quality or config.get("quality", "") or "").strip().lower()
+    request_quality = str(quality or default_gpt_image_quality(
+        model or config.get("model") or GPT_IMAGE2_MODEL_DEFAULT, config.get("quality"))).strip().lower()
     request_output_format = str(output_format or config.get("output_format", "") or "").strip().lower()
     request_n = n if n is not None else config.get("n", 1)
 
     payload = build_gpt_image2_payload(
         prompt=prompt,
-        model=str(model or config.get("model") or "gpt-image-2"),
+        model=str(model or config.get("model") or GPT_IMAGE2_MODEL_DEFAULT),
         size=request_size,
         aspect_ratio=aspect_ratio,
         quality=request_quality,
@@ -1812,10 +1848,6 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     valid_image_paths = _existing_image_paths(image_paths)
     mode_text = str(mode or "").strip().lower()
     force_edit = mode_text in {"edit", "edits", "image-edit", "编辑", "图片编辑"}
-    # 「新建图片」模式（用户 2026-09-24 要求）：首图走 /images/generations（不是 edits），
-    # 但画风参考图仍然带上 —— 实测中转站的 generations 端点接受 `image` 字段（base64 data URI），
-    # 这样模型是"从文字新建一张图"，而不是"把参考图当原图来编辑"（edits 会把参考图的角色/构图搬过来）。
-    force_generate = mode_text in {"generate", "generation", "new", "生图", "新建", "新建图片"}
     if force_edit and not valid_image_paths:
         logger.error("AIGC-2D-GPT(edit) 需要至少 1 张参考图/原图，但未收到有效图片路径。")
         _emit("编辑模式需要至少 1 张图片，已中止。")
@@ -1827,26 +1859,13 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         )
         valid_image_paths = valid_image_paths[:GPT_IMAGE2_MAX_REFERENCE_IMAGES]
 
-    # 带图就走 edits（gpt-image-2 的参考图/编辑入口），否则走 generations；
-    # 显式 mode=generate/new 时即使带图也走 generations，把图放进 JSON 的 `image` 字段。
-    use_edits_mode = len(valid_image_paths) > 0 and not force_generate
-    request_url = _derive_edits_url_from_generations_url(url) if use_edits_mode else url
-    if use_edits_mode:
-        _emit(f"模式=/images/edits（参考图 {len(valid_image_paths)} 张）  尺寸={payload['size']}  画质={payload.get('quality', '服务端默认')}")
-    elif valid_image_paths:
-        images_b64 = []
-        for path in valid_image_paths:
-            try:
-                mime, b64 = to_base64_compressed(path)
-                images_b64.append(f"data:{mime or 'image/png'};base64,{b64}")
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(f"参考图编码失败（已跳过）: {path} -> {exc}")
-        if images_b64:
-            payload["image"] = images_b64[0] if len(images_b64) == 1 else images_b64
-        _emit(f"模式=/images/generations（新建图片 + 参考图 {len(images_b64)} 张）  "
-              f"尺寸={payload['size']}  画质={payload.get('quality', '服务端默认')}")
-    else:
-        _emit(f"模式=/images/generations（无参考图）  尺寸={payload['size']}  画质={payload.get('quality', '服务端默认')}")
+    # All GPT image models use the documented image-input endpoint before sending.
+    # mode=generate describes new content; it cannot force images into generations.
+    use_edits_mode = bool(valid_image_paths)
+    request_url = resolve_images_endpoint(api_base, has_images=use_edits_mode, api_type=resolved_api_type)
+    _emit(f"模式={'/images/edits' if use_edits_mode else '/images/generations'}"
+          f"（参考图 {len(valid_image_paths)} 张）  尺寸={payload['size']}  "
+          f"画质={payload.get('quality', '服务端默认')}")
 
     logger.info(f"=== 发起 gpt-image(aigc2d) API 请求  model={payload.get('model')} ===")
     logger.info(f"请求 URL: {request_url}")
@@ -1952,28 +1971,17 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
     _log_stage_elapsed("阶段1-获取JSON响应", stage_json_start)
 
     data_items = resp_json.get("data", []) if isinstance(resp_json, dict) else []
-    # 中转站按请求随机挑上游：某些通道不认我们发的字段（实测 `/images/generations` 的 `image` 字段会
-    # 被判成 `Unknown parameter: 'image'`，同一份请求换个通道就正常）。这类「上游报错 + 空 data」
-    # 重发一次基本就好，所以这里单独再试几次，别让画风生图随机失败。
+    # Preserve configured transient upstream retries, but never reroute failures.
+    # Invalid parameters and terminal client errors must not incur another POST.
     upstream_retries = int(config.get("upstream_error_retries", 2) or 2)
     def _terminal_image_error(body):
         error = body.get("error") if isinstance(body, dict) else None
         text = str(error or "").lower()
         return any(term in text for term in ("moderation_blocked", "safety system", "content_policy_violation"))
 
-    def _unsupported_generation_image(body):
-        error = body.get("error") if isinstance(body, dict) else None
-        if not isinstance(error, dict) or not valid_image_paths or use_edits_mode:
-            return False
-        message = str(error.get("message") or "").lower()
-        return (str(error.get("param") or "").lower() == "image"
-                and str(error.get("code") or "").lower() == "unknown_parameter") or (
-                    "unknown parameter: 'image'" in message
-                    or 'unknown parameter: "image"' in message)
-
     while (not isinstance(data_items, list) or not data_items) and upstream_retries > 0 \
             and isinstance(resp_json, dict) and resp_json.get("error") and not _terminal_image_error(resp_json) \
-            and not _unsupported_generation_image(resp_json):
+            and getattr(resp, "status_code", 200) not in {400, 401, 403, 404, 422}:
         upstream_retries -= 1
         err_text = str((resp_json.get("error") or {}).get("message") or resp_json.get("error"))[:200]
         logger.warning(f"AIGC-2D-GPT 上游返回错误（{err_text}），重新发起请求（还剩 {upstream_retries} 次）…")
@@ -1999,32 +2007,6 @@ def generate_image_aigc2d_gpt(prompt: str, image_paths: list = None, model: str 
         logger.info(f"=== AIGC-2D-GPT 服务器原始返回信息（重发后） ===\n{_format_safe_log(resp_json)}")
         data_items = resp_json.get("data", []) if isinstance(resp_json, dict) else []
         stage_json_start = time.perf_counter()
-    # 最后兜底：某些上游通道压根不认 generations 的 `image` 字段（`Unknown parameter: 'image'`），
-    # 重发也一直落到这类通道 → 改用 `/images/edits`（multipart 传参考图）。语义上 edits 更像
-    # 「把参考图当原图编辑」，所以**只在报错时回退**，并且日志里写明，方便排查产物差异。
-    if (not isinstance(data_items, list) or not data_items) and isinstance(resp_json, dict) \
-            and resp_json.get("error") and not use_edits_mode \
-            and not _terminal_image_error(resp_json) \
-            and _unsupported_generation_image(resp_json):
-        logger.warning("AIGC-2D-GPT 上游不认 generations 的 image 字段 → 回退 /images/edits 重发一次")
-        _emit("上游不支持「新建图片」模式的参考图字段，已回退到编辑端点重发")
-        use_edits_mode = True
-        request_url = _derive_edits_url_from_generations_url(url)
-        # multipart 已使用 image[] 文件；不要再把 generations 的 base64 image 字段当普通表单发送。
-        payload.pop("image", None)
-        try:
-            resp, request_trace_body = _post_once()
-            if getattr(resp, "encoding", None) is None:
-                resp.encoding = "utf-8"
-            resp_text = _response_text_utf8(resp)
-            resp_json = resp.json()
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"AIGC-2D-GPT 回退 edits 重发失败: {exc}")
-            resp_json = resp_json if isinstance(resp_json, dict) else {}
-        else:
-            _save_server_response_json(save_dir, file_prefix, "aigc-2d-gpt", resp_json)
-            logger.info(f"=== AIGC-2D-GPT 服务器原始返回信息（edits 回退后） ===\n{_format_safe_log(resp_json)}")
-        data_items = resp_json.get("data", []) if isinstance(resp_json, dict) else []
     if not isinstance(data_items, list) or not data_items:
         logger.warning("AIGC-2D-GPT 返回 JSON 中没有 data 节点。")
         logger.warning(f"=== AIGC-2D-GPT 服务器完整返回 ===\n{_format_safe_log(resp_json)}")
@@ -2566,7 +2548,7 @@ def fetch_cohere_json(system_prompt: str, user_content: str, temperature: float 
             logger.error(f"服务器返回信息: {_format_safe_log(resp.text)}")
         return ""
 
-def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None, post_instructions: str = "", prompt_suffix: str = "", face_quality_boost: bool = True, request_timeout=None, retry_limit=None) -> list:
+def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "gemini-3.1-flash-image-preview", aspect_ratio: str = "1:1", instructions: str = "", resolution: str = None, api_type: str = None, save_sub_dir: str = None, file_prefix: str = None, return_metadata: bool = False, log_callback=None, cancel_check: callable = None, post_instructions: str = "", prompt_suffix: str = "", face_quality_boost: bool = True, request_timeout=None, retry_limit=None, config_snapshot=None) -> list:
     """
     AIGC2D 专用的图片生成核心逻辑
     入参跟 generate_image_whatai 保持完全一致；
@@ -2574,7 +2556,7 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
     `face_quality_boost=False` 时不追加「detailed face…」（重绘时 prompt 已自带更强约束）。
     """
     # 从统一配置文件中加载 aigc2d 配置
-    config = get_api_config(api_type="aigc2d" if not api_type else api_type)
+    config = dict(config_snapshot) if config_snapshot is not None else get_api_config(api_type="aigc2d" if not api_type else api_type)
 
     def _log(msg: str) -> None:
         if log_callback:
@@ -2611,7 +2593,8 @@ def generate_image_aigc2d(prompt: str, image_paths: list = None, model: str = "g
         post_instructions = build_gemini_content_postamble(prompt, post_instructions)
     # 组合提示词
     _face_quality_boost = ", detailed face, clear facial features, sharp focus on face"
-    boost = _face_quality_boost if face_quality_boost else ""
+    boost = (_face_quality_boost if face_quality_boost
+             and _face_quality_boost.lstrip(", ") not in str(prompt) else "")
     combined_prompt = f"{instructions} \n {prompt}{boost}".strip() if instructions else f"{prompt}{boost}"
     # 重绘（gpt-image 产物优化）通道：用独立段落追加细节强化要求，替代逗号后缀
     suffix_text = str(prompt_suffix or "").strip()

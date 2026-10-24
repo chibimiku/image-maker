@@ -42,6 +42,8 @@ if BASE_DIR not in sys.path:
 from modules.others.api_backend import (  # noqa: E402  (需要在 sys.path 之后导入)
     GPT_IMAGE2_MAX_REFERENCE_IMAGES,
     GPT_IMAGE2_MODEL_NOTES,
+    default_gpt_image_model,
+    default_gpt_image_quality,
     GPT_IMAGE2_OUTPUT_FORMATS,
     GPT_IMAGE2_QUALITIES,
     GPT_IMAGE2_SITE_AIGC2D,
@@ -116,7 +118,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="replace 完整转化（默认） / reinterpret 改款 / fill_missing 只补全")
     parser.add_argument("--list-wardrobes", action="store_true", help="离线列出衣装预设后退出")
     parser.add_argument("--size", help="尺寸；aigc2d 仅 3 档(1024x1024/1536x1024/1024x1536)，autodl 另含 auto/1792x1024")
-    parser.add_argument("--quality", choices=GPT_IMAGE2_QUALITIES, help="画质，默认取配置或 high")
+    parser.add_argument("--quality", choices=GPT_IMAGE2_QUALITIES, help="画质，默认取配置；2.5 默认 max，其它模型 high")
     parser.add_argument("--output-format", choices=GPT_IMAGE2_OUTPUT_FORMATS, help="输出格式，默认取配置或 png")
     parser.add_argument("--n", type=int, help="张数，仅 new.aigc2d 站点有效（autodl 一次一张）")
     parser.add_argument("--model", help="模型名，默认取配置")
@@ -198,6 +200,8 @@ def _config_with_timeout(config_path: str, api_type: str, timeout: int):
     apis = data.setdefault("apis", {})
     node = apis.setdefault(api_type, {})
     node["timeout"] = int(timeout)
+    if api_type == "aigc-2d-gpt" and isinstance(data.get("gpt_image_workflow"), dict):
+        data["gpt_image_workflow"]["timeout_seconds"] = int(timeout)
     handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8")
     try:
         json.dump(data, handle, ensure_ascii=False, indent=4)
@@ -253,7 +257,7 @@ def _describe_request(args, site: str, api_type: str, prompt: str, size: str, qu
     api_base = str(cfg.get("base_url") or "").rstrip("/")
     images = [p for p in args.image]
     endpoint = resolve_images_endpoint(api_base, has_images=bool(images), api_type=api_type)
-    model = args.model or str(cfg.get("model") or "gpt-image-2")
+    model = args.model or str(cfg.get("model") or default_gpt_image_model(api_type))
     info = {
         "site": site,
         "api_type": api_type,
@@ -356,7 +360,7 @@ def _run_one(args, site: str, api_type: str, prompt: str, size: str) -> list:
         return generate_image_openai_image(
             prompt=prompt,
             image_paths=images,
-            model=args.model or "gpt-image-2",
+            model=args.model or None,
             aspect_ratio="1:1",
             instructions="",
             api_type=api_type,
@@ -578,7 +582,7 @@ def main(argv=None) -> int:
         _emit(f"[错误] apis.{api_type} 缺少 api_key（配置文件: {args.config}）")
         return EXIT_USAGE
 
-    quality = args.quality or str(cfg.get("quality") or "")
+    quality = args.quality or default_gpt_image_quality(args.model or cfg.get("model") or default_gpt_image_model(api_type), cfg.get("quality"))
     output_format = args.output_format or str(cfg.get("output_format") or "")
 
     results = []

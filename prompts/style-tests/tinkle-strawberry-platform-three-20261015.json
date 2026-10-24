@@ -1,0 +1,20 @@
+{
+  "run_id": "tinkle-strawberry-platform-three-20261015",
+  "site": "new.aigc2d",
+  "api_type": "aigc-2d-gpt",
+  "style": "tinkle-style",
+  "subject_file": "prompts/style-tests/tinkle-strawberry-platform-three-20261015.txt",
+  "size": "1024x1536",
+  "output_format": "png",
+  "n": 1,
+  "timeout_seconds": 900,
+  "max_attempts": 3,
+  "automatic_retries": 0,
+  "mode": "generate",
+  "jobs": [
+    {"id": "image2-high", "model": "gpt-image-2", "quality": "high"},
+    {"id": "flare-max", "model": "gpt-image-2.5-flare", "quality": "max"},
+    {"id": "sunburst-max", "model": "gpt-image-2.5-sunburst", "quality": "max"}
+  ],
+  "output_dir": "data/test-result/20261015/tinkle-strawberry-platform-three"
+}

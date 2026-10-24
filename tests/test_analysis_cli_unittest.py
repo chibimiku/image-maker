@@ -56,7 +56,11 @@ class AnalysisCliSmoke(unittest.TestCase):
             "outfit_style": "Victorian", "upscale_model": "", "upscale_by": 3.0,
             "webp_target_mb": 8.0,
         }
-        with patch("modules.image_analysis.single_analyzer.save_analysis_gpt_ui") as save_ui:
+        with patch("modules.image_analysis.single_analyzer.save_analysis_gpt_ui") as save_ui, \
+             patch("utils.gpt_workflow_settings.postprocess_enabled", return_value=True):
+            # 后处理开关默认关（gpt_image_workflow.postprocess_enabled 默认 False）时
+            # `_build_gpt_image_steps` 返回 {}（GPT 直出：首图即最终产物）。
+            # 本用例检验的是 CLI 选项 → 控件 → plan 的映射，按开启后处理来取完整 steps。
             plan = apply_analysis_tab_options(tab, options)
             save_ui.assert_not_called()
         self.assertEqual(plan["reference_mode"], "priority")
@@ -255,7 +259,11 @@ class AnalysisCliSmoke(unittest.TestCase):
             tab.gen_channel_gpt.setChecked(True)
             prompt_bundle = {"task_hash": worker.meta_task_hash, "style_name": worker.meta_style_name,
                              "aspect_ratio": "1:1", "refined_prompt": "a girl"}
+            # gpt 通道在入口就按 aigc-2d-gpt 配置预检 key；测试隔离环境下密钥为空，
+            # 必须像 test_analysis_channel 的 fixture 一样打桩，否则 is_auto 直接跳过。
             with patch.object(tab, "_start_gpt_image_thread", return_value=True) as start, \
+                 patch("modules.others.api_backend.get_api_config",
+                       lambda *a, **k: {"api_key": "test-key", "timeout": 600}), \
                  patch("modules.image_analysis.single_analyzer.ImageGenWorkerThread",
                        side_effect=AssertionError("test must not start an API thread")):
                 self.assertTrue(tab.trigger_image_generation("refined", is_auto=True,
@@ -265,6 +273,8 @@ class AnalysisCliSmoke(unittest.TestCase):
             self.assertEqual(record["generation_styles"], ["style-B"])
             tab.main_style_combo.setCurrentText(RANDOM_STYLE_LABEL)
             with patch.object(tab, "_start_gpt_image_thread", return_value=True) as start, \
+                 patch("modules.others.api_backend.get_api_config",
+                       lambda *a, **k: {"api_key": "test-key", "timeout": 600}), \
                  patch("modules.image_analysis.single_analyzer.ImageGenWorkerThread",
                        side_effect=AssertionError("test must not start an API thread")):
                 self.assertTrue(tab.trigger_image_generation("refined", prompt_bundle={

@@ -246,6 +246,10 @@ def test_wardrobe_switch_is_visible_and_on_by_default(qapp, tmp_path, monkeypatc
 
 def test_wardrobe_switch_is_wired_into_the_tab_pipeline(qapp, tmp_path, monkeypatch):
     tab, _config = _make_tab(tmp_path, monkeypatch)
+    # `automatic_refine_enabled` 以 gpt_image_workflow.postprocess_enabled 为总闸
+    # （默认 False = GPT 直出首图即成品）；本用例检验工序接线，按开启后处理来断言。
+    import utils.gpt_workflow_settings as gws
+    monkeypatch.setattr(gws, "postprocess_enabled", lambda *a, **k: True)
     assert tab.automatic_refine_enabled() is True
     assert tab.post_pipeline_steps()["wardrobe"]["enabled"] is False
     tab.repaint_check.setChecked(False)  # independent wardrobe remains available without refine

@@ -41,7 +41,7 @@ def test_tinkle_sheer_material_and_bounded_design_authorization(tuned_styles):
     from utils.style_gpt import validate_prompt_gpt
     from utils.styles import build_ref_gen_params
     entry = tuned_styles["tinkle-style"]
-    assert entry["enabled"] and not tuned_styles["tinkle"]["enabled"]
+    assert entry["enabled"] and "tinkle" not in tuned_styles
     assert validate_prompt_gpt(entry["prompt_gpt"]) == (True, [])
     assert "Sheer layered fabric" in entry["prompt_gpt"]
     for mode in ("off", "head", "priority", "interleave"):

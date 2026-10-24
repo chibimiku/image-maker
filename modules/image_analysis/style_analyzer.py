@@ -576,7 +576,7 @@ class StyleIterativeWorkerThread(QThread):
                     first, repaint["steps"], final_dir=round_dir,
                     work_dir=os.path.join(round_dir, "gpt-repaint-steps"),
                     style_ref_path=repaint["style_ref_path"], style_clauses=repaint["style_clauses"],
-                    log_callback=self.log_signal.emit) or []
+                    log_callback=self.log_signal.emit, strict=True) or []
         except Exception as exc:
             failed_channel = "gpt_repainted" if outputs["gpt_first_pass"] else "gpt_first_pass"
             self._test_generation_errors[failed_channel] = f"{type(exc).__name__}: {exc}"
@@ -1848,7 +1848,7 @@ class StyleAnalyzerWidget(QWidget):
         self.score_details.setPlainText("正在对全部原图和各轮/终审测试图统一评分…")
         self.result_tabs.setCurrentIndex(1)
         self.log_msg("自动比较：" + FORMULA)
-        timeout = max(600, int(self.get_timeout())) if self.get_timeout else 600
+        timeout = max(1, int(self.get_timeout())) if self.get_timeout else 120
         self.comparison_thread = StyleComparisonWorker(self._loaded_json_path, self.get_config(), timeout, self)
         self.comparison_thread.progress.connect(self.log_msg)
         self.comparison_thread.progress.connect(self.progress_label.setText)
@@ -2404,7 +2404,7 @@ class StyleAnalyzerWidget(QWidget):
         img_aspect_ratio = "auto"
 
         timeout_seconds = int(self.get_timeout()) if self.get_timeout else 120
-        timeout_seconds = max(600, timeout_seconds)
+        timeout_seconds = max(1, timeout_seconds)
         self._output_dir = new_style_run_directory(file_prefix, self._loaded_json_path if self._existing_state else "")
         if self._existing_state:
             self._existing_state = copy.deepcopy(self._existing_state)

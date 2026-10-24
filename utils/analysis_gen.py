@@ -32,6 +32,11 @@ def save_generation_manifest(first_image, request, *, model, size, quality, mode
                 "requested_mode": mode, "model": model, "size": size, "quality": quality,
                 "steps": steps, "firmware_text": resolve_firmware_text(firmware),
                 "outputs": list(outputs or [])}
+    from utils.style_reference import reference_input_manifest
+    snapshot["reference_inputs"] = reference_input_manifest(
+        [p for p in request.get("image_paths") or [] if os.path.isfile(p)],
+        content_count=int(bool(request.get("has_content_ref"))))
+    snapshot["reference_detail_crops"] = request.get("reference_detail_crops") or []
     target = str(first_image) + ".request.json"
     with open(target, "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
@@ -302,6 +307,12 @@ def build_first_pass_request(styles_data, style_name, analysis_result, content_t
                                       extra_clauses=(clauses + generation_clauses + proportion_clauses
                                                      + motif_clauses) or None,
                                       content_image_path=content_image_path, content_text=content_text)
+    from utils.style_reference import append_gpt_style_details
+    payload["prompt"], payload["image_paths"] = append_gpt_style_details(
+        payload["prompt"], payload["image_paths"], entry, ref,
+        int(payload["has_content_ref"]))
+    payload["reference_detail_crops"] = (entry.get("reference_detail_crops") or []
+        if isinstance(entry, dict) and entry.get("reference_details_enabled") is True else [])
     skip_quality_refine = bool(entry.get("skip_quality_refine", False)) if isinstance(entry, dict) else False
     skip_identity_refine = bool(entry.get("skip_identity_refine", False)) if isinstance(entry, dict) else False
     skip_repaint = bool(entry.get("skip_repaint", False)) if isinstance(entry, dict) else False

@@ -1,0 +1,51 @@
+{
+  "name": "ha9siro-luminous-portrait-study",
+  "status": "agent_visual_study_unvalidated",
+  "collection": "data/20261019/style-extraction/ha9siro/samples.json",
+  "selected_post_ids": ["2008375025565659636", "2008474633276891146", "2017886859071045787", "2023884849761886483", "2039814687928512522"],
+  "limitations": [
+    "Only 11 images from 10 verified account posts were retrievable; target 20–30 was not reached.",
+    "Five selected luminous portraits repeat pale hair, masks and reflective objects; rendering and subject choices remain confounded.",
+    "Discovery used indexed public pages; metadata was checked through FxTwitter, not a complete live X timeline export.",
+    "These are agent visual observations, not the app's iterative extraction output, paid model audit, generation validation or user acceptance.",
+    "No numerical style fidelity score or account-wide 80 percent commonality claim is established."
+  ],
+  "style_entry_candidate": {
+    "enabled": false,
+    "prompt": "Create a luminous, highly finished fantasy anime illustration. Keep facial construction stylized: large layered irises, tapered eyelid accents, small nose and mouth, and smooth restrained facial shading rather than photographic anatomy. Build hair from flowing tapered locks with finer continuous strands and narrow light ribbons. Use thin colored contours and precise darker accents at important overlaps; separate structural edges from tiny surface decoration. Combine clean illustrated shapes and controlled gradient shading with concentrated glossy or refractive highlights on materials that already warrant them. Organize color through cool violet-blue shadows, warmer pink light and vivid jewel-like accents while retaining the requested intrinsic colors. Let local highlights sparkle and softly bloom, but keep focal contours readable and preserve quieter surfaces. Give existing ornament a layered, finely resolved finish without multiplying its count. Separate crisp focal detail from softly defocused depth. Preserve the requested subject, clothing, accessories, pose, framing and background. Do not infer required hair color, eye color, masks, fruit, flowers, weapons or scenery from the sample subjects.",
+    "prompt_compressed": "Luminous fantasy anime illustration; stylized smooth face, layered irises, flowing tapered hair locks, fine colored contours, controlled gradients, cool shadows and warmer light, vivid jewel accents, selective glossy highlights and soft bloom, sharp focal details with defocused depth. Keep requested identity, intrinsic colors and content; add no sample-specific motifs.",
+    "prompt_gpt": "Palette: cool shadows, warm light, jewel accents\nLighting: selective bloom, crisp glints\nBrushwork: smooth gradients, tapered strokes\nEdges: thin colored contours, precise overlaps\nTexture: selective gloss, fine relief\nComposition density: focal clusters, quiet intervals\nDetail level: crisp layered detail\nAvoid: muddy haze, uniform sparkle",
+    "repaint_clauses": [
+      "Use the input as the sole source for identity, intrinsic colors, clothing, objects, pose, framing and scene geometry; introduce no motifs from reference subjects.",
+      "Keep facial construction stylized with smooth restrained shading, layered irises and precise tapered eyelid accents; retain the input eye and hair colors.",
+      "Organize existing hair into continuous tapered locks with finer supporting strands and narrow highlights; preserve its length, silhouette and direction.",
+      "Use thin colored contours and selective darker overlap accents; keep decorative microdetail subordinate to connected structural edges.",
+      "Concentrate glints and gentle bloom on existing reflective or translucent materials; preserve the distinct response of matte cloth, skin and other materials.",
+      "Keep focal detail crisp and depth transitions gentle without replacing the scene with generic blur or adding new ornament."
+    ],
+    "face_hair_refine": false,
+    "motif_enabled": false,
+    "motif_clauses": [],
+    "ref_image": "",
+    "study_only_reference": "data/20261019/style-extraction/ha9siro/images/2008375025565659636_2008375018724749315.jpg"
+  },
+  "optional_motifs_not_enabled": [
+    {"motif": "A landscape or sky contained inside an already requested reflective or transparent object", "evidence_post_ids": ["2008292497928450414", "2017886859071045787", "2023884849761886483", "2039814687928512522"], "boundary": "Compositional device, not literal optics, not required in unrelated content."},
+    {"motif": "Fox masks, flowers, fruit, filigree and jewel ornaments", "boundary": "Repeated content, not a default style requirement; never add automatically."},
+    {"motif": "Prismatic iris starbursts and rainbow bands", "evidence_post_ids": ["2017886859071045787", "2023884849761886483"], "boundary": "Strong only in a subset; do not force glowing eyes or change eye color."}
+  ],
+  "review": [
+    {"post_id": "2008292497928450414", "group": "dark-metallic", "selected": false, "scores": [8, 5, 8, 7], "reason": "暗蓝低调肖像、镜面狐面内嵌樱花天空，毛发与金属的写实表面明显更强；保留为风格边界样本。"},
+    {"post_id": "2008375025565659636", "group": "luminous-anime", "selected": true, "scores": [8, 9, 8, 7], "reason": "紫粉侧脸、连续收尖发束、局部亮边与玻璃状刀身形成明确二维脸与高光材质对比；作为研究参考。"},
+    {"post_id": "2008474633276891146", "group": "luminous-anime", "selected": true, "scores": [8, 8, 7, 6], "reason": "蓝紫与暖橙发光结构围绕平滑动漫面部；用于观察强特效上限，亮线密集、不能视为无伪影成品。"},
+    {"post_id": "2008654538501489025", "group": "dark-metallic", "selected": false, "scores": [8, 5, 8, 7], "reason": "金色薄边光、低调面部和金属反射；与高亮二维肖像分组，不能合并成固定曝光规则。"},
+    {"post_id": "2017886859071045787", "group": "luminous-anime", "selected": true, "scores": [8, 9, 9, 7], "reason": "粉色层叠虹膜、细轮廓、精细饰物与容纳天空的光滑苹果；构图与另外两张苹果肖像相似，记录内容偏样。"},
+    {"post_id": "2023884849761886483", "group": "luminous-anime", "selected": true, "scores": [8, 9, 9, 7], "reason": "原分辨率放大检查确认虹膜星芒、细发线、蕾丝和宝石边缘；苹果内海天是可选超现实手法，不能当通用材质规则。"},
+    {"post_id": "2031934613975859242", "group": "crisp-floral", "selected": false, "scores": [8, 6, 9, 8], "reason": "蓝白花卉轮廓清晰、硬边分块更强、整体辉光少；仅一例，保留独立分支，不把它覆盖为玻璃宝石材质。"},
+    {"post_id": "2039814687928512522", "group": "luminous-anime", "selected": true, "scores": [8, 9, 8, 7], "reason": "近景侧脸、浅色衣料与高彩反射物形成层次；同苹果系列的相关样本，非独立场景泛化证明。"},
+    {"post_id": "2079135730551628155", "extension": ".png", "group": "reveal-effect", "selected": false, "scores": [2, 1, 2, 2], "reason": "338×510 RGBA 长按变图用的小图，外观依赖透明合成与显示底色，排除画风提取。"},
+    {"post_id": "2079135730551628155", "extension": ".jpg", "group": "animal-control", "selected": false, "scores": [9, 3, 8, 8], "reason": "暖色狐狸与苹果的大留白动物插画，用作内容与构图反例；单例不足以泛化动物画法。"},
+    {"post_id": "2080488147440308584", "group": "reveal-effect", "selected": false, "scores": [7, 3, 4, 3], "reason": "调色板 PNG 含透明信息、长按变图投稿，显示底色改变外观；保存原图但排除普通画风提取。"}
+  ],
+  "score_disclaimer": "Four subjective curation scores only, ordered completeness/style_consistency/detail_readability/artifact_cleanliness; style consistency is relative to the selected luminous subset. These are neither model audit scores nor generation quality approval. Contact sheet inspection covers all 11; four originals received additional enlarged inspection."
+}

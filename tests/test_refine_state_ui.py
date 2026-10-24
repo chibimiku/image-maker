@@ -62,6 +62,8 @@ def test_force_cannot_adopt_an_unreturned_candidate(case):
 
 @pytest.fixture
 def widget(monkeypatch):
+    from utils import gpt_workflow_settings
+    monkeypatch.setattr(gpt_workflow_settings, "postprocess_enabled", lambda **kw: True)
     app = QApplication.instance() or QApplication([])
     monkeypatch.setattr(tab.GptImage2Widget, 'load_defaults', lambda self: None)
     monkeypatch.setattr(tab.GptImage2Widget, 'save_defaults', lambda self: None)
@@ -82,6 +84,23 @@ def test_ui_shows_refine_status_for_tone_product_and_enables_stage_actions(widge
     assert 'Window fragments remain.' in widget.refine_status_view.toPlainText()
     widget.refine_stage_combo.setCurrentIndex(widget.refine_stage_combo.findData('lighting'))
     assert not widget.refine_force_btn.isEnabled()
+
+
+def test_finished_record_disables_adopt_and_continue_even_when_selecting_old_candidate(widget, case, monkeypatch):
+    paths, rp, record = case
+    widget._show_results([str(paths[3])])
+    assert widget.refine_force_btn.isEnabled()
+    record['status'] = 'finished'
+    dump(rp, record)
+    widget.refresh_refine_status()
+    assert not widget.refine_force_btn.isEnabled()
+    assert not widget.refine_continue_btn.isEnabled()
+    assert widget.refine_retry_btn.isEnabled()  # Explicit redraw remains available.
+    widget.refine_stage_combo.setCurrentIndex(widget.refine_stage_combo.findData('background'))
+    assert not widget.refine_force_btn.isEnabled()
+    monkeypatch.setattr(tab, 'RefineRetryWorker', lambda *a, **k: pytest.fail('Completed chain must not advance'))
+    widget.continue_refine()
+    widget.retry_refine(force=True)
 
 
 def test_hybrid_ui_lists_models_and_clothing_checkpoint(widget, case):

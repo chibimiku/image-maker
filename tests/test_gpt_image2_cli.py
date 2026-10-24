@@ -31,6 +31,21 @@ def cli():
     return load_cli_module()
 
 
+def test_timeout_override_updates_independent_gpt_copy(cli, tmp_path):
+    path = tmp_path / "timeout.json"
+    source = {"apis": {"aigc-2d-gpt": {"timeout": 600}},
+              "gpt_image_workflow": {"timeout_seconds": 600, "same_as_gemini": False}}
+    path.write_text(json.dumps(source), encoding="utf-8")
+    temporary, cleanup = cli._config_with_timeout(str(path), "aigc-2d-gpt", 900)
+    try:
+        copy = json.loads(Path(temporary).read_text(encoding="utf-8"))
+        assert copy["apis"]["aigc-2d-gpt"]["timeout"] == 900
+        assert copy["gpt_image_workflow"]["timeout_seconds"] == 900
+        assert json.loads(path.read_text()) == source
+    finally:
+        cleanup()
+
+
 @pytest.fixture
 def config_path(tmp_path):
     path = tmp_path / "config-image.json"
@@ -269,3 +284,14 @@ def test_checkpoint_cli_dry_run_never_calls_refine(cli, monkeypatch):
         'source': 'source.png', 'selected': 'clothing.jpg'})
     monkeypatch.setattr(gpt_image_refine, 'refine_image', lambda *a, **kw: pytest.fail('dry-run sent a request'))
     assert cli.main(['--refine-record', 'parent-refine.json', '--dry-run']) == cli.EXIT_OK
+
+
+def test_dry_run_sunburst_max_keeps_quality_and_routes_by_style_image(cli, config_path, tmp_path, capsys):
+    image = tmp_path / "ref.png"
+    image.write_bytes(TINY_PNG)
+    code = cli.main(["--config", config_path, "--prompt", "new scene",
+                    "--model", "gpt-image-2.5-sunburst", "--quality", "max",
+                    "--image", str(image), "--mode", "generate", "--dry-run"])
+    assert code == cli.EXIT_OK
+    out = capsys.readouterr().out
+    assert "/images/edits" in out and '"quality": "max"' in out

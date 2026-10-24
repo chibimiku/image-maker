@@ -1,0 +1,31 @@
+{
+  "name": "clamp-sakura-chobits-original",
+  "rounds": 5,
+  "images_per_round": 4,
+  "sampling_seed": 20261018,
+  "image_paths": [
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-01.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-02.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-03.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-05.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-08.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-artbook-official/sakura-artbook-official-02.jpg",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-01.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-02.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-03.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-04.webp"
+  ],
+  "style_reference": "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-04.webp",
+  "seed_prompt_file": "prompts/style-tests/clamp-sakura-chobits-seed-20261017.txt",
+  "test_prompt_file": "prompts/style-tests/clamp-fixed-subject-20261018.txt",
+  "aspect_ratio": "2:3",
+  "output_dir": "data/20261018/style-extraction/clamp-sakura-chobits-original/run-five-rounds-20261018",
+  "lexical_repairs": {
+    "round_1": {
+      "polished manga colour": "polished illustrated colour"
+    },
+    "round_5": {
+      "purposeful negative space": "deliberate negative space"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "run_id": "moonlit-astronomy-sheya-tinkle-20261015",
+  "site": "new.aigc2d",
+  "api_type": "aigc-2d-gpt",
+  "model": "gpt-image-2.5-sunburst",
+  "quality": "max",
+  "size": "1024x1536",
+  "output_format": "png",
+  "n": 1,
+  "mode": "generate",
+  "timeout_seconds": 900,
+  "automatic_retries": 0,
+  "max_attempts": 2,
+  "subject_file": "prompts/starry-maidens-20261015.txt",
+  "output_subdir": "moonlit-astronomy",
+  "evidence_dir": "data/test-result/20261015/moonlit-astronomy-sheya-tinkle",
+  "jobs": [
+    {"id": "sheya", "style": "sheya-style"},
+    {"id": "tinkle", "style": "tinkle-style"}
+  ]
+}

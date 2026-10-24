@@ -101,13 +101,17 @@ def safe_repaint_firmware(payload, original_firmware):
 
 
 def generate_first_image(generate, *, prompt, analysis_result=None, checkpoint=None,
-                         log_callback=None, plan_callback=None, **kwargs):
+                         log_callback=None, plan_callback=None, postprocess_enabled=True, **kwargs):
     """Return (files, effective prompt); never retry vague errors or switch routes."""
     def log(message):
         if log_callback:
             log_callback(message)
     if kwargs.get("cancel_check") and kwargs["cancel_check"]():
         return [], prompt
+    if not postprocess_enabled:
+        response = generate(prompt=prompt, return_metadata=True, **kwargs)
+        files = response.get("saved_files", []) if isinstance(response, dict) else response or []
+        return files, prompt
     # Successful paid retries are reusable even if subsequent stages failed.
     state = checkpoint.data.setdefault("first_safe_review", {}) if checkpoint else {}
     if state.get("outputs") and all(Path(p).is_file() for p in state["outputs"]):

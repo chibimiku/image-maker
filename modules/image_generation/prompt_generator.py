@@ -170,6 +170,7 @@ class PromptCellWidget(QFrame):
             instructions=active_instructions,
             api_type=api_type,
             image_paths=style_ref_paths,
+            face_quality_boost=not bool(style_ref_paths),
             post_instructions=post_instructions
         )
 

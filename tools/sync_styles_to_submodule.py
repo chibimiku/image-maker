@@ -33,7 +33,8 @@ for name, entry in local.items():
                   "identity_correction_clauses", "post_adjustment", "motif_clauses", "motif_enabled",
                   "repaint_reference_mode", "skip_repaint", "gemini_content_field",
                   "gemini_surface_clauses", "gemini_priority_profile", "reference_content_exclusions",
-                  "proportion_clauses"):
+                  "proportion_clauses", "reference_details_enabled", "reference_detail_crops",
+                  "face_quality_boost"):
         value = entry.get(field)
         if value is not None and target.get(field) != value:
             target[field] = value

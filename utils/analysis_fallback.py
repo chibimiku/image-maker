@@ -278,7 +278,8 @@ def _vision_capable_reuse_model(model: str) -> str:
     return name
 
 
-def load_fallback_config(config_path: Optional[str] = None, allow_nsfw_reuse: bool = True) -> FallbackConfig:
+def load_fallback_config(config_path: Optional[str] = None, allow_nsfw_reuse: bool = True,
+                         require_vision: bool = True) -> FallbackConfig:
     """读备用端点配置；没有就返回 `enabled=False`。**不抛异常**（读不到按没配处理）。
 
     两个来源，按顺序取第一个「三要素齐全」的：
@@ -335,7 +336,7 @@ def load_fallback_config(config_path: Optional[str] = None, allow_nsfw_reuse: bo
     if allow_nsfw_reuse:
         nsfw_key = str(data.get("nsfw_api_key") or "").strip()
         nsfw_model = str(data.get("nsfw_model") or "").strip()
-        reuse_model = _vision_capable_reuse_model(nsfw_model)
+        reuse_model = _vision_capable_reuse_model(nsfw_model) if require_vision else nsfw_model
         candidates.append(
             {
                 "enabled": True,   # 复用来源不需要额外开关：它本来就是一条可用的文本通道

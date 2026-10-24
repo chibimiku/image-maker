@@ -1,5 +1,5 @@
 {
-    "enabled": true,
+    "enabled": false,
     "refine_enabled": true,
     "site": "new.aigc2d",
     "api_type": "aigc2d",

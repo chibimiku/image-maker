@@ -1,0 +1,55 @@
+{
+  "run_id": "lolita-hosiery-five-20261017",
+  "api_type": "aigc2d",
+  "model": "gemini-3-pro-image-preview",
+  "resolution": "2K",
+  "timeout": 600,
+  "reference_mode": "priority",
+  "output_subdir": "lolita-hosiery-five",
+  "evidence_dir": "data/test-result/20261017/lolita-hosiery-five",
+  "max_attempts": 5,
+  "automatic_retries": 0,
+  "common_prompt": "Create a complete fashion illustration of exactly one adult woman in her twenties wearing elegant Japanese Lolita fashion. This is an adult fashion portrait with mature proportions and refined styling. Show her whole figure from head to both complete shoes, including their high heels, with clear ground contact and breathing room below the feet. The bell-shaped layered skirt reaches around the knees, with a full blouse, petticoat and detailed but coherent lace and ribbons. The hosiery and high-heeled shoes must remain clearly readable below the skirt. Natural balanced pose, two connected legs, knees and feet facing compatible directions, no extreme crossed legs or twisted ankles. Beautiful expression, natural hands, distinct fabric materials. Preserve the requested clothing and hosiery colours. The attached reference supplies only painting style; invent the character, clothing and scene from this text, never copy the reference character, costume or props. No other people, writing, labels, watermark, signature, collage or inset portraits.",
+  "jobs": [
+    {
+      "id": "gothiclibrary",
+      "style": "sheya-style",
+      "title": "哥特藏书馆·黑丝",
+      "aspect": "2:3",
+      "hosiery": "black",
+      "prompt": "A poised 24-year-old archivist with a long auburn side braid, clear jade-green eyes and a tiny black lace bonnet stands beside a carved library ladder in a gothic reading gallery. She wears a burgundy velvet and black satin Lolita dress with a high-neck ivory blouse, orderly rose embroidery, lace cuffs and an oval cameo brooch. Fine sheer BLACK TIGHTS cover both legs continuously; translucent dark nylon should show soft skin tones beneath, with darker overlap at the feet, no bare legs. Her BLACK PATENT pointed-toe pumps have delicate ankle straps and slender 8 cm heels, both visible. She holds a closed leather-bound book against her waist with one arm and rests the other hand lightly on the ladder rail, smiling knowingly. Tall walnut bookshelves, stained-glass windows, a reading desk and a few warm brass lamps form the environment. Clear graphic silhouette, localized warm window light, deep readable reds and blacks. Full-body portrait framing, tasteful adult gothic fashion."
+    },
+    {
+      "id": "strawberrytea",
+      "style": "tinkle-style",
+      "title": "草莓午后茶室·白丝",
+      "aspect": "2:3",
+      "hosiery": "white",
+      "prompt": "A cheerful 23-year-old woman with long honey-blonde twin tails, bright rose eyes and soft pink ribbon bows pauses beside a small round table in a strawberry-themed Victorian tea salon. Her sweet Lolita coordinate has a cream-and-blush-pink bell skirt, strawberry embroidery, layered lace borders, a fitted high-neck blouse and a small ribbon headdress. Smooth opaque WHITE TIGHTS cover her legs, a clean milky white clearly distinct from bare skin. She wears pearl-white high-heeled Mary Jane shoes with pink satin bows, polished rounded toes and slim 7 cm heels; both complete shoes visible. She carefully carries a small dessert plate with one strawberry tart in both hands, with a delighted smile. A porcelain tea set, glass strawberry bowl, upholstered chairs and sunlit curtains create a cozy pale pink interior. Rich but readable lace, luminous eyes, gentle sparkles in glass only, warm afternoon light. Full-body standing pose beside the table, feet comfortably apart."
+    },
+    {
+      "id": "rainbookshop",
+      "style": "tid",
+      "title": "雨中古书店·黑丝",
+      "aspect": "3:4",
+      "hosiery": "black",
+      "prompt": "A thoughtful 25-year-old woman with a silver-gray chin-length bob, amber eyes, thin round glasses and a navy ribbon beret stands just inside the open doorway of an old bookshop after rain. Her classic Lolita outfit is navy wool and ivory cotton, a tailored lace-trimmed jacket over a knee-length flared skirt, a cream jabot and small brass buttons. Both legs wear sheer BLACK TIGHTS with a fine natural nylon texture, clearly darker than skin. Dark oxblood leather Mary Jane HIGH HEELS have slim curved heels, rounded almond toes and two neat instep straps; show both shoes and heel shapes. One hand holds a small brown paper-wrapped book parcel at her waist, the other gently touches her beret as she smiles toward the rainy street. Wet cobblestones, reflected shop lights, a dark wood doorway, book stacks and a restrained brass umbrella stand. Bright overcast reflections with warm interior fill, airy environment depth and textured fabrics. Stable full-body stance, uncrossed feet."
+    },
+    {
+      "id": "snowmusicbox",
+      "style": "puracotte-style-v2",
+      "title": "雪夜音乐盒橱窗·白丝",
+      "aspect": "2:3",
+      "hosiery": "white",
+      "prompt": "A gentle 24-year-old woman with fluffy chestnut shoulder-length curls, lilac eyes and an icy-blue velvet headband stands beside a glowing music-box shop window on a snowy evening. She wears an ice-blue and ivory winter Lolita dress with a soft knit capelet, snowdrop-flower lace, pearl buttons and a knee-length layered bell skirt. Her legs are covered in opaque pearl-WHITE TIGHTS, visibly white rather than skin coloured. Her icy-blue satin pointed-almond pumps have delicate pearl ankle straps and slim high heels, both shoes fully visible on a dry sheltered pavement. She cradles a tiny closed music-box case in both hands and smiles softly. Behind the window are miniature wooden carousels and jewel-like music boxes, with warm amber lights; snowfall stays outside the shop awning. Diffuse pearly illumination, soft pastel colour transitions, quiet winter tenderness, clear focal face and clothing construction. Full-body adult fashion portrait without text or signs."
+    },
+    {
+      "id": "botanicalmorning",
+      "style": "kishida-mel-style",
+      "title": "晨光植物温室·黑丝",
+      "aspect": "3:4",
+      "hosiery": "black",
+      "prompt": "A serene 26-year-old botanical illustrator with long dark-brown hair in a loose low braid, warm hazel eyes and a muted sage ribbon stands along a greenhouse path. Her country-classic Lolita dress is moss-green cotton with tiny cream botanical embroidery, an ivory high-neck blouse, crochet lace and a knee-length full skirt; a straw bonnet hangs from her wrist. She wears sheer BLACK TIGHTS covering both legs smoothly, with subtle dark nylon shading, and chocolate-brown leather T-strap HIGH-HEELED pumps with delicate curved 7 cm heels and rounded toes. Both shoes and their heels must be visible. She holds a slim closed botanical sketchbook against her torso with one hand and brushes a stray curl away with the other, giving a quiet natural smile. Large fern leaves, potted white roses, a weathered wooden potting bench and greenhouse glazing frame a sunlit pathway. Painterly natural greens, soft cloud-filtered daylight, delicate linework and tranquil atmospheric depth. Full-body relaxed adult proportions, feet placed naturally on the path."
+    }
+  ]
+}

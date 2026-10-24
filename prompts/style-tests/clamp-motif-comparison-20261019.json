@@ -1,0 +1,29 @@
+{
+  "styles_file": "conf/config-styles.json",
+  "style_name": "clamp-sakura-chobits-original",
+  "image_paths": [
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-01.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-02.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-03.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-05.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-08.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-artbook-official/sakura-artbook-official-02.jpg",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-01.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-02.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-03.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-04.webp"
+  ],
+  "test_prompt_file": "prompts/style-tests/clamp-motif-subject-20261019.txt",
+  "aspect_ratio": "2:3",
+  "output_dir": "data/test-result/20261019/clamp-motif-comparison",
+  "conditions": [
+    {
+      "id": "motif_off",
+      "motif_enabled": false
+    },
+    {
+      "id": "motif_on",
+      "motif_enabled": true
+    }
+  ]
+}

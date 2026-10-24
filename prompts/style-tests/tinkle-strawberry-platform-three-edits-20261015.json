@@ -1,0 +1,30 @@
+{
+  "run_id": "tinkle-strawberry-platform-three-20261015-edits",
+  "site": "new.aigc2d",
+  "api_type": "aigc-2d-gpt",
+  "style": "tinkle-style",
+  "subject_file": "prompts/style-tests/tinkle-strawberry-platform-three-20261015.txt",
+  "size": "1024x1536",
+  "output_format": "png",
+  "n": 1,
+  "timeout_seconds": 900,
+  "max_attempts": 2,
+  "automatic_retries": 0,
+  "mode": "edit",
+  "jobs": [
+    {
+      "id": "flare-max",
+      "model": "gpt-image-2.5-flare",
+      "quality": "max"
+    },
+    {
+      "id": "sunburst-max",
+      "model": "gpt-image-2.5-sunburst",
+      "quality": "max"
+    }
+  ],
+  "output_dir": "data/test-result/20261015/tinkle-strawberry-platform-three-edits",
+  "authorization_status": "User explicitly authorized only two image2.5 edits requests and reuse existing image2/high output",
+  "endpoint": "https://new.aigc2d.com/v1/images/edits",
+  "reason": "Supplement two image2.5 candidates using edits; existing image2/high used generations, so endpoint differs."
+}

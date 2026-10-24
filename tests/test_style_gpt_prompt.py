@@ -55,6 +55,20 @@ GOOD_FIELDS = {
 GOOD_TEXT = format_prompt_gpt(GOOD_FIELDS)
 
 
+@pytest.mark.parametrize("value", ["manga colour with purposeful accents", "composed transparent washes"])
+def test_rendering_words_do_not_trigger_subject_substrings(value):
+    fields = dict(GOOD_FIELDS, Brushwork=value)
+    assert validate_prompt_gpt(format_prompt_gpt(fields))[0]
+
+
+@pytest.mark.parametrize("value", ["a man", "a girl", "POSE", "her outfit", "少女服装"])
+def test_subject_words_still_rejected_at_boundaries(value):
+    fields = dict(GOOD_FIELDS, Brushwork=value)
+    ok, errors = validate_prompt_gpt(format_prompt_gpt(fields))
+    assert not ok
+    assert any("主体/角色词" in error for error in errors)
+
+
 def test_api_type_detection():
     assert is_gpt_image_api_type("aigc-2d-gpt")
     assert is_gpt_image_api_type("AIGC_2D_GPT")

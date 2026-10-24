@@ -211,6 +211,7 @@ class CharDesignWorker(QRunnable):
                     file_prefix=prompt_item.get('id', ''),
                     resolution=resolution if resolution != "默认" else "",
                     return_metadata=True,
+                    face_quality_boost=self.task_info.get('face_quality_boost', True),
                     cancel_check=lambda: self.is_stopped_func(),
                     post_instructions=self.task_info.get('post_instructions', '')
                 )
@@ -723,6 +724,7 @@ class CharDesignWidget(QWidget):
                 'concat_requirement_position': concat_requirement_position,
                 'image_paths': list(all_image_paths) + style_ref_paths,
                 'post_instructions': post_instructions,
+                'face_quality_boost': not bool(style_ref_paths),
                 'save_dir': self.current_save_dir,
                 'status': 'pending',
                 'list_idx': list_idx, # Store list index to update color later

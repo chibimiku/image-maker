@@ -18,8 +18,8 @@ GET /api/queue
 |------|------|------|--------|------|
 | `page` | int | 否 | `1` | 页码 |
 | `per_page` | int | 否 | `20` | 每页条数 |
-| `pixiv_status` | string | 否 | 无 | 按 Pixiv 状态筛选：`pending` / `uploading` / `uploaded` |
-| `chichipui_status` | string | 否 | 无 | 按 Chichi-pui 状态筛选：`pending` / `uploading` / `uploaded` |
+| `pixiv_status` | string | 否 | 无 | 按 Pixiv 状态筛选：`pending` / `uploading` / `uploaded` / `error` |
+| `chichipui_status` | string | 否 | 无 | 按 Chichi-pui 状态筛选：`pending` / `uploading` / `uploaded` / `error` |
 
 > 两个筛选条件可同时使用（AND 逻辑）。
 
@@ -55,8 +55,9 @@ GET /api/queue
 
 | 字段 | 说明 |
 |------|------|
-| `pixiv_status` | Pixiv 投稿状态：`pending` / `uploading` / `uploaded` |
-| `chichipui_status` | Chichi-pui 投稿状态：`pending` / `uploading` / `uploaded` |
+| `pixiv_status` | Pixiv 投稿状态：`pending` / `uploading` / `uploaded` / `error` |
+| `chichipui_status` | Chichi-pui 投稿状态：`pending` / `uploading` / `uploaded` / `error` |
+| `error_message` | 发布错误原因；缺图时包含缺失文件路径 |
 | `image_base64` | 图片的 base64 编码 |
 | `metadata` | 匹配到的 JSON 元数据对象；未匹配到时为 `null` |
 | `json_path` | 匹配到的 JSON 文件路径；未匹配到时为 `null` |
@@ -76,6 +77,8 @@ GET /api/queue/latest-pending?platform={pixiv|chichipui}
 | `platform` | string | 否 | `pixiv` | 指定平台：`pixiv` 或 `chichipui` |
 
 返回该平台 `status = 'pending'` 的最新一条记录。
+
+服务启动时检查所有未完成记录的图片文件。缺图记录的 `pending` / `uploading` 平台标为 `error`，已上传平台状态保持。取待上传任务时也会检查文件；缺图、空文件或无法读取的记录自动标错并跳过，同一次请求继续寻找下一条有效图片。
 
 ### 有数据时
 
@@ -153,12 +156,14 @@ PUT /api/queue/{uuid}/status
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `platform` | string | 是 | 目标平台：`pixiv` 或 `chichipui` |
-| `status` | string | 是 | 新状态：`pending` / `uploading` / `uploaded` |
+| `status` | string | 是 | 新状态：`pending` / `uploading` / `uploaded` / `error` |
 
 ### 成功响应
 
 ```json
 { "code": 0, "message": "ok", "uuid": "a1b2c3d4-...", "platform": "pixiv", "status": "uploading" }
+
+图片不存在时，将状态设为 `pending` 或 `uploading` 返回 HTTP 409，防止缺图记录重新阻塞。恢复文件或修正图片路径后，可手动设回 `pending` 重试；错误记录不会自动恢复。
 ```
 
 ### 错误响应

@@ -1,0 +1,37 @@
+{
+  "style": "sakura-shiori-crystal",
+  "output_dir": "D:\\code\\image-maker\\data\\test-result\\20261021\\reference-strategy\\sakura-shiori-crystal",
+  "max_calls": 6,
+  "repeat": 2,
+  "aspect_ratio": "2:3",
+  "prompt_file": "reference-strategy-subject-20261021.txt",
+  "variants": [
+    {
+      "name": "A-original",
+      "face_quality_boost": true
+    },
+    {
+      "name": "B-no-boost",
+      "face_quality_boost": false
+    },
+    {
+      "name": "C-face-detail",
+      "face_quality_boost": false,
+      "entry_overrides": {
+        "reference_details_enabled": true,
+        "reference_detail_crops": [
+          {
+            "role": "face_eyes",
+            "box": [
+              0.48,
+              0.13,
+              0.78,
+              0.3
+            ],
+            "source_sha256": "a32968e42a0e47755e5625344fc61495d994c3dda30a52d28e6ddac090b64eda"
+          }
+        ]
+      }
+    }
+  ]
+}

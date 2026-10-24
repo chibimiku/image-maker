@@ -1,0 +1,38 @@
+{
+  "output_subdir": "mizuiro-six",
+  "evidence_dir": "data/test-result/20261017/mizuiro-six",
+  "max_image_requests": 6,
+  "automatic_retries": 0,
+  "jobs": [
+    {
+      "id": "sensual",
+      "title": "水色·海盐微光｜性感",
+      "style": "tinkle-style",
+      "prompt": "Exactly one clearly adult woman aged 25, mature facial features and adult proportions, in a tasteful glamorous summer fashion illustration. Theme: mizuiro, pale aqua, clear water and sparkling summer light. Long flowing silver-blue hair, sapphire eyes, confident inviting smile. An opaque pale-aqua halter bikini with pearl clasps, a sheer chiffon wrap tied at one hip over the swimsuit, tiny silver earrings. She is at a luxurious seaside infinity pool, turquoise water, glass-like reflections, white stone and a distant cerulean sea. Sensual through elegant posture, bare shoulders and refined fashion, natural anatomy. Sapphire shadow anchors and intricate translucent water glints; the whole scene should feel richly painted and luminous. Only the painting language comes from the style reference; invent a new adult character, outfit and setting. No lettering, signature, watermark or panels.",
+      "gpt_size": "1024x1536",
+      "gpt_framing": "Portrait 2:3, eye-level three-quarter-length fashion portrait: she stands beside the pool, one hand lightly lifting her hair, the other resting on the white stone rail; the sea horizon lies behind her shoulders. A gentle S-curve, face and torso clearly readable.",
+      "gemini_aspect": "16:9",
+      "gemini_framing": "Wide 16:9, elevated diagonal view: she sits sideways on the infinity-pool steps at the right third, both legs extending naturally into shallow water toward the lower left, one hand braced beside her and the other holding the chiffon wrap. Broad water reflections and the sea fill the left side. Rebuild the scene and pose, do not crop or duplicate the portrait."
+    },
+    {
+      "id": "elegant",
+      "title": "水色·白莲回廊｜典雅",
+      "style": "kishida-mel-style",
+      "prompt": "Exactly one adult woman aged 25 in a refined fantasy fashion illustration. Theme: mizuiro, clear pale-blue water and quiet elegance. Long dark ash-brown hair in a loose low chignon, gray-blue eyes and a composed gentle smile. She wears a floor-length water-blue silk gown with an opaque fitted bodice, delicate ivory lace sleeves, flowing layered skirt and a small pearl hair comb. A graceful white-stone colonnade borders a still lotus pool, a few white lotus blossoms and pale green leaves, graceful arches and reflected summer sky. She holds a closed ivory folding fan lightly in both hands at her waist. Delicate chromatic shading, beautiful flowing drapery, restrained detail, powder-blue and ivory harmony with clear dark accents. Use the reference only for artistic rendering; new adult identity, gown, pose and architecture. One coherent scene; no text, signature, watermark or panels.",
+      "gpt_size": "1536x1024",
+      "gpt_framing": "Landscape 3:2, eye-level full figure in the left third beneath a white arch, viewed three-quarter front. Her gown reaches the floor; lotus pool and rhythmic arches recede broadly to the right, calm asymmetrical balance.",
+      "gemini_aspect": "3:4",
+      "gemini_framing": "Portrait 3:4, gently elevated view from within the colonnade: full standing woman centered on a short curved bridge above the lotus pool, her body in profile and face turned slightly toward the viewer. Fan held in one relaxed hand, the other gathers a small fold of skirt. Tall arch frames the upper image, circular water ripples and her reflection below. New composition and pose."
+    },
+    {
+      "id": "fresh",
+      "title": "水色·汽水与海风｜清新",
+      "style": "goto-p",
+      "prompt": "Exactly one young adult woman aged 23 in a fresh breezy summer anime illustration. Theme: mizuiro, ramune soda, pale-blue sky and clear coastal water. Short chestnut bob moving in the sea breeze, bright teal eyes and an open cheerful smile. She wears an opaque white cotton sundress with pale-aqua ribbon trim, a light sky-blue cardigan draped over her shoulders and simple white sandals, carrying a small straw tote. She holds one recognizable unlabeled glass ramune bottle with a marble neck. A quiet seaside promenade with blue hydrangeas, white railings, sparkling shallow sea and a few soft white clouds. Airy gentle color transitions, fine tinted contours, clean blue-white light, readable warm skin and soft cool shadows. Reference is painting technique only; do not copy its maid costume, wings, halo, character or pose. One continuous scene, no text, logo, signature, watermark or panels.",
+      "gpt_size": "1024x1024",
+      "gpt_framing": "Square 1:1, lively medium-full walking portrait from knee level upward: she turns back toward the viewer while walking along the seaside railing, ramune held near her cheek. Hydrangeas fill the lower-left foreground, bright sea and sky behind. Keep both hands naturally connected and readable.",
+      "gemini_aspect": "9:16",
+      "gemini_framing": "Tall 9:16, low eye-level full-body composition: she stands on the lowest step of a narrow white coastal staircase leading down to the water, head tilted up to feel the breeze, bottle held down at her side and straw tote on the other arm. Show both sandals and complete figure. Stair rail creates a vertical diagonal, expansive blue sky above and a little clear water below. A distinct quiet pose, not the square walking portrait."
+    }
+  ]
+}

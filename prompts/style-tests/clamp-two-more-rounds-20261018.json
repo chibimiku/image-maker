@@ -1,0 +1,35 @@
+{
+  "name": "clamp-sakura-chobits-original",
+  "rounds": 2,
+  "images_per_round": 4,
+  "sampling_seed": 2026101806,
+  "image_paths": [
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-01.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-02.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-03.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-05.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-us-collector/sakura-us-collector-08.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/sakura-artbook-official/sakura-artbook-official-02.jpg",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-01.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-02.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-03.webp",
+    "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-04.webp"
+  ],
+  "style_reference": "data/style-datasets/clamp-sakura-chobits-sources-20261018/originals/chobits-us-anniversary/chobits-us-anniversary-04.webp",
+  "seed_prompt_file": "",
+  "test_prompt_file": "prompts/style-tests/clamp-fixed-subject-20261018.txt",
+  "aspect_ratio": "2:3",
+  "output_dir": "data/20261018/style-extraction/clamp-sakura-chobits-original/run-rounds-6-7-20261018",
+  "resume_state": "data/20261018/style-extraction/clamp-sakura-chobits-original/run-rounds-6-7-20261018/prepared-resume-state.json",
+  "revision_guidance_file": "prompts/style-tests/clamp-continuation-guidance-20261018.txt",
+  "baseline_observation_dir": "data/20261018/style-extraction/clamp-sakura-chobits-original/run-five-rounds-20261018/observations",
+  "lexical_repairs": {
+    "round_7": {
+      "sparse purposeful highlights": "sparse deliberate highlights"
+    },
+    "final": {
+      "sparse purposeful accents": "sparse deliberate accents"
+    }
+  },
+  "retry_missing_gemini": true
+}

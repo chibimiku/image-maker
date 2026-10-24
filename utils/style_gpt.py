@@ -263,7 +263,11 @@ def validate_prompt_gpt(text: str):
     if total > MAX_CHARS:
         errors.append(f"太长({total}>{MAX_CHARS})")
     low = body.lower()
-    banned = [w for w in SUBJECT_BAN_WORDS if w in low]
+    # English subject words must be whole words: manga/man and purposeful/pose
+    # are rendering vocabulary, not evidence that a subject leaked into the style.
+    banned = [w for w in SUBJECT_BAN_WORDS
+              if (re.search(r"\b" + re.escape(w.strip()) + r"\b", low)
+                  if w.strip().isascii() else w in low)]
     for pattern in SUBJECT_BAN_PATTERNS:
         for m in re.finditer(pattern, low):
             banned.append(m.group(0).strip())

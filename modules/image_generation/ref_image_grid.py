@@ -338,12 +338,13 @@ class RefImageGrid(QWidget):
     def paths(self) -> list:
         return list(self._paths)
 
-    def set_auxiliary_image(self, path):
+    def set_auxiliary_image(self, path, number=None):
         """显示系统自动追加的最后一张图；不计入用户素材、不允许拖动或删除。"""
         path = str(path or "")
-        if path == self._auxiliary_path:
+        if path == self._auxiliary_path and number == getattr(self, "_auxiliary_number", None):
             return
         self._auxiliary_path = path
+        self._auxiliary_number = number
         self._rebuild()
 
     def count(self) -> int:
@@ -451,9 +452,10 @@ class RefImageGrid(QWidget):
             self._cards.append(card)
         if self._auxiliary_path:
             path = self._auxiliary_path
-            card = RefImageCard(path, len(self._paths), self.thumb_size, self, editable=False)
+            number = getattr(self, "_auxiliary_number", None) or len(self._paths) + 1
+            card = RefImageCard(path, number - 1, self.thumb_size, self, editable=False)
             card.activated.connect(lambda _card, item=path: self.image_clicked.emit(item))
-            card.activated.connect(lambda _card, item=path: self.reference_clicked.emit(item, len(self._paths) + 1))
+            card.activated.connect(lambda _card, item=path, n=number: self.reference_clicked.emit(item, n))
             card.opened.connect(lambda _card, item=path: self.image_double_clicked.emit(item))
             self.row_layout.insertWidget(self.row_layout.count() - 1, card)
             self._auxiliary_card = card

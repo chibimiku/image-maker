@@ -1,0 +1,65 @@
+{
+  "nocturne": {
+    "japanese_title": "赤夜のバックレスレザー",
+    "chinese_title": "赤夜·露背皮革礼装",
+    "description": "An adult woman with long black hair and red eyes looks back over her shoulder beside a dark balcony rail. Her glossy red backless mini dress has waist cutouts and black buckle straps. Lace-top black stockings, garter straps, a red thigh strap, black gloves and black platform stiletto heels complete the outfit. Scarlet drapes and blurred city lights frame the scene; some distant neon shapes resemble lettering.",
+    "pixiv_tags": ["黒髪", "ロングヘアー", "赤目", "ボディコン", "背中", "ガーターベルト", "ニーソックス", "厚底", "ハイヒール", "エナメル"],
+    "booru-tags": ["1girl", "solo", "long_hair", "black_hair", "red_eyes", "looking_back", "backless_dress", "red_dress", "garter_straps", "thighhighs", "thigh_strap", "gloves", "platform_heels", "high_heels", "night"]
+  },
+  "scarlet-stage": {
+    "japanese_title": "緋紅のレザーステージ",
+    "chinese_title": "绯红·镂空机车装",
+    "description": "An adult woman with flowing burgundy hair stands against a graphic red circle and black angular stage panels. She wears a fitted red-and-black glossy leather mini dress with a geometric midriff cutout and a red biker jacket draped off her shoulders. Black thigh-high stockings connect to garter straps, with a red buckle thigh strap. Both black platform high-heeled ankle boots are fully visible. Bold cel shading, polished leather reflections, metal zippers and seams define the outfit.",
+    "pixiv_tags": ["赤髪", "ロングヘアー", "ボディコン", "レザージャケット", "ガーターベルト", "ニーソックス", "厚底", "ハイヒール", "ブーツ", "赤と黒"],
+    "booru-tags": ["1girl", "solo", "long_hair", "red_hair", "standing", "full_body", "leather_jacket", "off_shoulder", "black_dress", "red_dress", "midriff", "garter_straps", "thighhighs", "thigh_strap", "platform_footwear", "high_heels", "ankle_boots"]
+  },
+  "rose-gallery": {
+    "japanese_title": "黒薔薇のレザークチュール",
+    "chinese_title": "黑蔷薇·皮革时装",
+    "description": "An adult woman with very long silver hair and red eyes poses in a dark gallery with red curtains, an arched window and red roses on a stone plinth. Her black leather halter bodice has a chest keyhole and side cutouts, paired with an asymmetric crimson wrap skirt. Black lace-top stockings, red garter straps, a black thigh strap and black gloves complement the glossy platform stiletto shoes. One leg bends backward while the other supports her weight. Curved highlights and folds distinguish the leather from the sheer stockings.",
+    "pixiv_tags": ["銀髪", "ロングヘアー", "赤目", "ホルターネック", "ガーターベルト", "ニーソックス", "厚底", "ハイヒール", "エナメル", "薔薇"],
+    "booru-tags": ["1girl", "solo", "long_hair", "silver_hair", "red_eyes", "full_body", "halter_top", "cleavage_cutout", "red_skirt", "garter_straps", "thighhighs", "thigh_strap", "gloves", "platform_heels", "high_heels", "rose", "indoors"]
+  },
+  "gpt-sensual": {
+    "japanese_title": "水色の潮風ときらめき",
+    "chinese_title": "水色·海盐微光",
+    "description": "An adult woman with long silver-blue hair and blue eyes poses beside an infinity pool overlooking a bright blue sea and coastal buildings. She wears a pale-blue bikini with pearl-like clasps and a translucent floral wrap tied at her hip. One hand lifts her hair and the other rests on a stone ledge. Sparkling water, white flowers and fine luminous hair strands fill the portrait composition.",
+    "pixiv_tags": ["銀髪", "ロングヘアー", "青い目", "水着", "ビキニ", "パレオ", "プール", "海", "夏", "水色"],
+    "booru-tags": ["1girl", "solo", "long_hair", "silver_hair", "blue_eyes", "bikini", "blue_bikini", "sarong", "looking_at_viewer", "smile", "pool", "ocean", "outdoors", "day"]
+  },
+  "gemini-sensual": {
+    "japanese_title": "水色のプールサイド",
+    "chinese_title": "水色·泳池微澜",
+    "description": "An adult woman with long silver-blue hair and blue eyes sits sideways on white infinity-pool steps. She wears a pale-aqua bikini with pearl clasps and holds a translucent aqua wrap, while her other hand rests beside her. Her legs extend into clear shallow water. The broad landscape composition gives most of the left side to bright turquoise ripples and reflections, with the sea beyond the pool.",
+    "pixiv_tags": ["銀髪", "ロングヘアー", "青い目", "水着", "ビキニ", "パレオ", "プール", "海", "夏", "水色"],
+    "booru-tags": ["1girl", "solo", "long_hair", "silver_hair", "blue_eyes", "bikini", "blue_bikini", "sarong", "sitting", "pool", "water", "ocean", "outdoors", "day"]
+  },
+  "gpt-elegant": {
+    "japanese_title": "白蓮の回廊と水色のドレス",
+    "chinese_title": "水色·白莲回廊",
+    "description": "An adult woman with dark brown hair in a low updo stands beneath a white stone arch at the left side of a luminous landscape. She wears a floor-length pale-blue gown with an ivory lace upper layer and holds a closed folding fan in both hands. A still pool with white lotus blossoms and green leaves extends toward a long arcade of white columns, distant mountains and a summer sky.",
+    "pixiv_tags": ["ドレス", "ロングドレス", "レース", "まとめ髪", "扇子", "蓮", "回廊", "水面", "水色", "夏"],
+    "booru-tags": ["1girl", "solo", "brown_hair", "updo", "blue_dress", "long_dress", "lace", "folding_fan", "standing", "full_body", "lotus", "pond", "pillar", "arch", "outdoors", "day"]
+  },
+  "gemini-elegant": {
+    "japanese_title": "蓮池に佇む水色の貴婦人",
+    "chinese_title": "水色·莲池倩影",
+    "description": "An adult woman with dark hair in a low updo stands front-facing under a tall white arch beside a lotus pool. She wears a long blue gown with sheer ivory lace sleeves, holds an open ivory folding fan across her waist and lifts a small fold of skirt with her other hand. White columns, pale stone, white lotus blossoms and her reflection create a calm vertical composition with softly textured watercolor-like shading.",
+    "pixiv_tags": ["ドレス", "ロングドレス", "レース", "まとめ髪", "扇子", "蓮", "回廊", "水面", "水色", "水彩風"],
+    "booru-tags": ["1girl", "solo", "black_hair", "updo", "blue_dress", "long_dress", "lace", "folding_fan", "standing", "full_body", "lotus", "pond", "reflection", "pillar", "arch"]
+  },
+  "gpt-fresh": {
+    "japanese_title": "ラムネ色の潮風",
+    "chinese_title": "水色·汽水与海风",
+    "description": "An adult woman with a short chestnut bob and teal eyes turns back with a cheerful smile on a seaside promenade. She wears a white sundress with pale-blue ribbon trim and a blue cardigan draped below her shoulders. She holds an unlabeled glass soda bottle near her cheek and carries a straw bag. Blue hydrangeas, a white railing, sparkling sea and a soft clouded sky fill the bright square composition.",
+    "pixiv_tags": ["ボブカット", "茶髪", "緑眼", "ワンピース", "カーディガン", "ラムネ", "紫陽花", "海", "夏", "水色"],
+    "booru-tags": ["1girl", "solo", "short_hair", "brown_hair", "green_eyes", "white_dress", "sundress", "cardigan", "looking_back", "smile", "bottle", "basket", "hydrangea", "ocean", "outdoors", "day"]
+  },
+  "gemini-fresh": {
+    "japanese_title": "海へ続く水色の階段",
+    "chinese_title": "水色·海边阶梯",
+    "description": "An adult woman with a short chestnut bob and teal eyes stands on a white coastal staircase and looks upward with a smile. She wears a white summer dress with aqua edging, a sky-blue cardigan draped over her shoulders and white ankle-strap sandals. A glass soda bottle hangs naturally from one hand and a straw tote from the other. Blue hydrangeas, a white rail, calm sea and a large open summer sky form the tall vertical composition.",
+    "pixiv_tags": ["ボブカット", "茶髪", "緑眼", "ワンピース", "カーディガン", "ラムネ", "サンダル", "紫陽花", "海", "夏"],
+    "booru-tags": ["1girl", "solo", "short_hair", "brown_hair", "green_eyes", "white_dress", "sundress", "cardigan", "sandals", "full_body", "standing", "bottle", "handbag", "hydrangea", "stairs", "ocean", "outdoors", "day"]
+  }
+}

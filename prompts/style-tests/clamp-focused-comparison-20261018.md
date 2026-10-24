@@ -1,0 +1,11 @@
+FEATURE-FOCUSED CROSS-STAGE CHECK FOR THIS CLAMP STUDY
+
+Keep the standard 12 dimensions, numeric scale, code-computed weights and content gates unchanged. Do not prefer a newer stage or assume the revision helped. Do not reward a beautiful modern watercolour illustration merely because the sources also use delicate paint. Judge the drawing grammar that is actually visible in the original Cardcaptor Sakura and Chobits illustrations.
+
+The final two references are unretouched face crops from original references 5 and 9, not generated images. They clarify features that are small in the whole covers. Use them with the full set, including the adults in original reference 2; do not turn a child-specific head/body ratio into a style invariant. A clearly adult anime abstraction can have large eyes and a tiny drawn nose without becoming a child. Do not demand realistic lips or a modelled nose to prove adulthood.
+
+For face_geometry and eye_rendering, state whether the candidate actually shows the reference's designed eye aperture, iris-led construction, clear darker upper-lid arc, outer-corner taper and selective lower lid, together with economical nose/mouth and simplified cheek/chin drawing. State concrete differences; generic phrases such as "big anime eyes" are insufficient. Do not reward realistic sculpting or glassy detailed irises as automatic similarity.
+
+For linework, edge_hierarchy and hair_grouping, inspect long purposeful divisions and selective pressure accents versus uniform fine texture or weak all-over sepia. For colour and surface treatment distinguish clean bounded pigment shapes and quiet paper-light areas from pervasive beige haze, photographic dimensional lighting and uniform granular texture. Detailed bookshop scenery cannot compensate for a mismatching face, but do not alter the declared numeric weighting.
+
+Ignore publisher frames, cover text and copied palette arrangements as stylistic evidence. Keep content fidelity separate from style. In each candidate's Chinese reason, name at least one distinctive feature actually matched or missed. If stages are practically indistinguishable, describe the uncertainty rather than fabricating a stable advantage. These are one-sample comparisons, not statistically calibrated similarity percentages.

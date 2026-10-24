@@ -40,7 +40,7 @@ ASPECT_RATIO = "2:3"
 
 def run_plan(plan_path, dry_run=False):
     """Data-driven, bounded priority-mode comparison through the live assembler."""
-    from modules.others.api_backend import get_api_config
+    from modules.others.api_backend import get_api_config, generate_image_aigc2d_gpt
     from utils.analysis_gen import build_gemini_content_postamble
     from utils import send_budget
     plan_path = os.path.abspath(plan_path)
@@ -54,15 +54,35 @@ def run_plan(plan_path, dry_run=False):
     os.makedirs(output, exist_ok=True)
     os.environ[send_budget.ENV_DIR] = os.path.join(output, "budget")
     os.environ[send_budget.ENV_LIMIT] = str(plan["max_calls"])
+    os.environ["IMAGE_MAKER_IMAGE_MAX_RETRIES"] = "0"
     prompt = open(os.path.join(base, plan["prompt_file"]), encoding="utf-8").read().strip()
     variants = plan["variants"]
     repeats = int(plan.get("repeat", 1))
     if repeats * len(variants) > int(plan["max_calls"]):
         raise ValueError("Plan exceeds image budget")
+    frozen = {p: hashlib.sha256(open(p, "rb").read()).hexdigest() for p in
+              [os.path.join(BASE_DIR, "conf", "config-styles.json"),
+               os.path.join(BASE_DIR, "conf", "config.json"),
+               styles[style]["ref_image"], os.path.join(base, plan["prompt_file"]), plan_path]}
+    frozen_path = os.path.join(output, "frozen-plan.json")
+    if os.path.isfile(frozen_path):
+        if json.load(open(frozen_path, encoding="utf-8")) != frozen:
+            raise ValueError("Frozen plan or style configuration changed")
+    elif not dry_run:
+        with open(frozen_path, "w", encoding="utf-8") as handle:
+            json.dump(frozen, handle, indent=2)
     for repeat in range(1, repeats + 1):
         for variant in variants:
+            if any(hashlib.sha256(open(p, "rb").read()).hexdigest() != h for p, h in frozen.items()):
+                raise ValueError("Frozen input changed before dispatch")
             name = f"{variant['name']}-{repeat}"
+            channel = variant.get("channel", "gemini")
+            if channel not in {"gemini", "gpt"}:
+                raise ValueError("Unknown image channel")
+            cfg = get_api_config(api_type="aigc2d" if channel == "gemini" else "aigc-2d-gpt")
+            model = cfg["model"]
             local = copy.deepcopy(styles)
+            local[style].update(variant.get("entry_overrides") or {})
             for field, filename in variant.get("field_files", {}).items():
                 local[style][field] = open(os.path.join(base, filename), encoding="utf-8").read().strip()
             head, post, refs = build_ref_gen_params(local, style, MODE_PRIORITY, api_type="aigc2d")
@@ -77,15 +97,38 @@ def run_plan(plan_path, dry_run=False):
             if variant.get("post_template"):
                 template = open(os.path.join(base, variant["post_template"]), encoding="utf-8").read().strip()
                 post = template.replace("{content}", prompt)
-            full = head + "\n" + prompt + "\n" + post
+            request_prompt = prompt
+            if channel == "gpt":
+                from utils.analysis_gen import build_first_pass_request
+                request = build_first_pass_request(local, style, {}, content_text=prompt)
+                head, post, refs = "", "", request["image_paths"]
+                request_prompt = request["prompt"]
+            boost = variant.get("face_quality_boost", True) if channel == "gemini" else False
+            suffix = ", detailed face, clear facial features, sharp focus on face" if boost else ""
+            full = (f"{head} \n {request_prompt}{suffix}".strip() if head else request_prompt + suffix)
+            full += ("\n" + post) if post else ""
             record = dict(name=name, model=model, resolution=cfg.get("resolution", "2K"),
-                          aspect_ratio=plan["aspect_ratio"], instructions=head, prompt=prompt,
+                          channel=channel, quality=cfg.get("quality"),
+                          aspect_ratio=plan["aspect_ratio"], instructions=head, prompt=request_prompt,
                           post_instructions=post, references=refs, retry_limit=0,
-                          timeout=360, face_quality_boost=variant.get("face_quality_boost", True),
+                          assembled_text=full, timeout=360 if channel == "gemini" else cfg.get("timeout", 600),
+                          face_quality_boost=boost,
                           reference_sha256=[hashlib.sha256(open(p, "rb").read()).hexdigest() for p in refs])
+            from modules.others.api_backend import transmitted_image_digest
+            record["transmitted_references"] = [transmitted_image_digest(p) for p in refs]
+            record["style_entry"] = local[style]
             request_path = os.path.join(output, name + ".request.json")
             if os.path.exists(request_path) and not dry_run:
-                raise ValueError(f"Existing attempt: {name}; inspect evidence before resuming")
+                result_path = os.path.join(output, name + ".result.json")
+                previous = json.load(open(result_path, encoding="utf-8")) if os.path.exists(result_path) else {}
+                old_request = json.load(open(request_path, encoding="utf-8"))
+                if old_request != record:
+                    raise ValueError(f"Changed request: {name}; refusing resumption")
+                hashes = previous.get("output_sha256") or {}
+                if not hashes or any(not os.path.isfile(p) or hashlib.sha256(open(p, "rb").read()).hexdigest() != h for p, h in hashes.items()):
+                    raise ValueError(f"Existing incomplete/changed attempt: {name}; will not resend")
+                print(f"REUSE {name}", flush=True)
+                continue
             if dry_run:
                 print(f"PREVIEW {name}: {model}, {len(full)} chars, {refs}", flush=True)
                 continue
@@ -99,17 +142,32 @@ def run_plan(plan_path, dry_run=False):
             started = time.time()
             messages = []
             try:
-                result = generate_image_aigc2d(
-                    prompt=prompt, instructions=head, post_instructions=post, image_paths=refs,
-                    model=model, aspect_ratio=plan["aspect_ratio"], resolution=record["resolution"],
-                    api_type="aigc2d", save_sub_dir=output, file_prefix=name, return_metadata=True,
-                    request_timeout=360, retry_limit=0, log_callback=messages.append,
-                    face_quality_boost=record["face_quality_boost"])
+                if channel == "gemini":
+                    result = generate_image_aigc2d(
+                        prompt=request_prompt, instructions=head, post_instructions=post, image_paths=refs,
+                        model=model, aspect_ratio=plan["aspect_ratio"], resolution=record["resolution"],
+                        api_type="aigc2d", save_sub_dir=output, file_prefix=name, return_metadata=True,
+                        request_timeout=360, retry_limit=0, log_callback=messages.append,
+                        face_quality_boost=record["face_quality_boost"])
+                else:
+                    result = generate_image_aigc2d_gpt(
+                        prompt=request_prompt, image_paths=refs, model=model, quality=cfg.get("quality"),
+                        aspect_ratio=plan["aspect_ratio"], api_type="aigc-2d-gpt",
+                        save_sub_dir=output, file_prefix=name, return_metadata=True,
+                        log_callback=messages.append)
                 files = result.get("saved_files", []) if isinstance(result, dict) else (result or [])
+                from PIL import Image
+                for path in files:
+                    with Image.open(path) as image:
+                        image.verify()
                 record.update(files=files, elapsed=time.time()-started,
                               messages=messages, error="" if files else
                               (result.get("raw_text", "No image; billing unknown") if isinstance(result, dict)
                                else "No image; billing unknown"))
+                record["output_sha256"] = {p: hashlib.sha256(open(p, "rb").read()).hexdigest() for p in files}
+                if isinstance(result, dict):
+                    raw = result.get("server_response_raw") or {}
+                    record["reported_usage"] = {k: raw[k] for k in ("usage", "usageMetadata", "model", "modelVersion") if k in raw}
                 send_budget.settle_image_attempt(reservation, status="success" if files else "unknown",
                                                  output_path=files[0] if files else "", error=record["error"])
             except Exception as exc:

@@ -16,7 +16,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QStringListModel
 from PyQt6.QtGui import QPixmap, QColor, QDesktopServices
 from PyQt6.QtCore import QUrl
 
-from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d 
+from modules.others.api_backend import generate_image_whatai, generate_image_aigc2d, GPT_IMAGE2_MODEL_DEFAULT
 from utils.booru_tags import normalize_booru_tags, filter_facial_degrading_tags, filter_facial_degrading_from_text
 from utils.wd14_tagger import predict_local_booru_tags, merge_prompt_with_local_booru_tags, merge_prompt_with_pixiv_tag_hints
 from utils.styles import (style_prompt, style_ref_image, ref_image_valid, build_ref_gen_params,
@@ -63,6 +63,7 @@ STABLE_LOCAL_REGIONS = ("subject_no_face", "shoes", "waist", "thigh")
 # 分析 Tab 默认为 "style"（源图 + 完整画风图）；其它参考组合留给无头 CLI 对照实验。
 # —— §三十一 实测线锚图会把画面塌成白底线稿 / 铺满「碎玻璃」纹理。
 ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure": False,
+                            "gemini_audit_retry": False, "gemini_audit_attempts": 2,
                             "auto_gen_original": False, "auto_gen_refined": False,
                             "style_selection": "",
                             "wardrobe_selection": {"name": "", "policy": "replace"},
@@ -70,14 +71,14 @@ ANALYSIS_GPT_UI_DEFAULTS = {"channel": "gpt-image", "repaint": True, "structure"
                             "local": False,          # 已停用（用户 2026-10-07）：裁切贴回废品率高，恒定关
             "region": STABLE_LOCAL_REGIONS[0],
                             "regions": list(STABLE_LOCAL_REGIONS),
-                            "quality": "high",
+                            "quality": "max",
                             "size_follow_input": True,
                             "first_pass_size": "1024x1536",   # 取消「跟随输入图」后用的手动档
                             "tone": False, "tone_target": "style", "ink": False,
                             # 「衣装重绘」：gpt 链最后一道 Gemini 重绘（专用固件），
                             # 只重画角色全部衣装、解决细节散乱（用户 2026-10-07 要求，默认开）
                             "wardrobe": True,
-                            "repaint_scope": "full", "first_pass_mode": "generate",
+                            "repaint_scope": "full", "first_pass_mode": "auto",
                             "recipe_version": GPT_RECIPE_VERSION}
 GPT_RECIPE_KEYS = ("channel", "repaint", "structure", "local", "region", "regions", "quality",
                    "size_follow_input", "tone", "tone_target", "ink", "wardrobe",
@@ -1991,8 +1992,8 @@ class GptImageGenWorkerThread(QThread):
     log_signal = pyqtSignal(str)
     finish_signal = pyqtSignal(list)
 
-    def __init__(self, request_payload, steps=None, firmware="", size="1024x1536", quality="high",
-                 output_format="png", file_prefix=None, model_name="gpt-image-2", api_type="aigc-2d-gpt",
+    def __init__(self, request_payload, steps=None, firmware="", size="1024x1536", quality=None,
+                 output_format="png", file_prefix=None, model_name=None, api_type="aigc-2d-gpt",
                  mode="generate", style_ref_path="", style_clauses=None, analysis_result=None,
                  checkpoint_path="", restart_stage=""):
         super().__init__()
@@ -2000,12 +2001,14 @@ class GptImageGenWorkerThread(QThread):
         self.steps = dict(steps or {})
         self.firmware = str(firmware or "")
         self.size = size
-        self.quality = quality
         self.output_format = output_format
         self.file_prefix = str(file_prefix or "").strip()
-        self.model_name = model_name
+        from modules.others.api_backend import get_api_config, default_gpt_image_quality
+        api_cfg = get_api_config(api_type=api_type)
+        self.model_name = model_name or api_cfg.get("model") or GPT_IMAGE2_MODEL_DEFAULT
+        self.quality = quality or default_gpt_image_quality(self.model_name, api_cfg.get("quality"))
         self.api_type = api_type
-        # 首图走「新建图片」（/images/generations + 参考图字段），不走 /images/edits（用户 2026-09-24 要求）
+        # Backend routes by final attachments: images -> edits, text only -> generations.
         self.mode = str(mode or "generate")
         # 重绘的第二张参考：画风参考图 + 画风渲染条款（`reference_mode="style"` 时用得上）
         self.style_ref_path = str(style_ref_path or "")
@@ -2116,6 +2119,7 @@ class GptImageGenWorkerThread(QThread):
             from utils.first_image_review import generate_first_image
             if first_needed:
                 saved, prompt = generate_first_image(generate_image_aigc2d_gpt,
+                postprocess_enabled=self.request_payload.get("postprocess_enabled", True),
                 analysis_result=self.analysis_result, checkpoint=self.checkpoint,
                 log_callback=self.log_signal.emit,
                 prompt=prompt, image_paths=images, model=self.model_name, size=self.size,
@@ -2165,6 +2169,30 @@ class GptImageGenWorkerThread(QThread):
             except Exception as exc:
                 self.log_signal.emit(f"[gpt 通道] 请求快照保存失败：{exc}")
         record_request()
+        if self.request_payload.get("postprocess_enabled") is False:
+            if self.isInterruptionRequested():
+                self.checkpoint.fail("用户取消", cancelled=True)
+                self.last_status = "cancelled"
+                self.finish_signal.emit([])
+                return
+            publish_needed, published = self.checkpoint.begin("publish", saved)
+            if publish_needed:
+                published_final = publish_final_output(
+                    first_image,
+                    style_name=self.request_payload.get("style_name", ""),
+                    process_dir=process_dir,
+                    task_hash=self.file_prefix,
+                )
+                published = [published_final]
+                self.checkpoint.complete("publish", published)
+            self.checkpoint.data["postprocess_enabled"] = False
+            self.checkpoint.data["status"] = "success"
+            self.checkpoint.save()
+            self.last_status = "success"
+            record_request(published)
+            self.log_signal.emit(f"[GPT 直出] 后续工序关闭：首图即最终输出，已发布到日期目录：{published[0]}")
+            self.finish_signal.emit(published)
+            return
         active = [k for k, v in self.steps.items() if isinstance(v, dict) and v.get("enabled")]
         if active and not self.isInterruptionRequested() and self._stage_needed("pipeline", saved):
             self.log_signal.emit("🧩 工序加工: " + " → ".join(active))
@@ -2459,6 +2487,51 @@ class GptImageGenWorkerThread(QThread):
         return self.isInterruptionRequested()
 
 
+class AnimeConvertWorkerThread(QThread):
+    """「转化二次元」：当前输入照片作为唯一参考，走图片 edit 接口重绘成日系二次元插画。
+
+    与分析任务无关的独立动作：不建队列记录、不接审计/工序，prompt 固件全文逐字发送
+    （`prompts/anime-convert/edit-prompt.md`）。通道跟随界面「生图通道」单选：
+    gpt-image → aigc-2d-gpt 的 /images/edits；Gemini → 全局生图配置的 api_type。
+    """
+
+    log_signal = pyqtSignal(str)
+    finish_signal = pyqtSignal(list)
+
+    def __init__(self, source_path, channel, model_name="", api_type="", resolution=None):
+        super().__init__()
+        self.source_path = str(source_path)
+        self.channel = str(channel or "gemini")
+        self.model_name = str(model_name or "")
+        self.api_type = str(api_type or "")
+        self.resolution = resolution
+        self.last_status = "idle"
+
+    def request_cancel(self):
+        self.requestInterruption()
+
+    def run(self):
+        from utils.anime_convert import run_anime_convert
+        self.last_status = "running"
+        try:
+            saved = run_anime_convert(
+                self.source_path, channel=self.channel, model_name=self.model_name,
+                api_type=self.api_type, resolution=self.resolution,
+                log_callback=self.log_signal.emit,
+                cancel_check=self.isInterruptionRequested)
+        except Exception as exc:  # noqa: BLE001 - 独立动作：失败只报日志，不影响分析队列
+            self.last_status = "error"
+            self.log_signal.emit(f"❌ 转化二次元请求失败: {type(exc).__name__}: {exc}")
+            self.finish_signal.emit([])
+            return
+        saved = [p for p in (saved or []) if p]
+        if self.isInterruptionRequested():
+            self.last_status = "cancelled"
+        else:
+            self.last_status = "success" if saved else "failed"
+        self.finish_signal.emit(saved)
+
+
 class AnalysisHistoryDetailDialog(QDialog):
     def __init__(self, task_record, parent=None):
         super().__init__(parent)
@@ -2565,7 +2638,7 @@ class SingleAnalyzerWidget(QWidget):
         if not defer_close_until_threads_finish(self, event):
             super().closeEvent(event)
 
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, remove_photo_style_default_getter_func=None, remove_photo_style_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None, persist_ui_state=True, fallback_default_getter_func=None, fallback_changed_callback=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, remove_photo_style_default_getter_func=None, remove_photo_style_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, styles_reload_callback=None, persist_ui_state=True, fallback_default_getter_func=None, fallback_changed_callback=None, text_timeout_getter_func=None):
         super().__init__()
         self.queued_log.connect(self._append_log_on_gui, Qt.ConnectionType.QueuedConnection)
         self.persist_ui_state = bool(persist_ui_state)
@@ -2577,6 +2650,7 @@ class SingleAnalyzerWidget(QWidget):
         self.on_nsfw_changed = nsfw_changed_callback
         self.get_booru_tag_limit = booru_tag_limit_getter_func
         self.get_timeout_seconds = timeout_getter_func
+        self.get_text_timeout_seconds = text_timeout_getter_func or timeout_getter_func
         self.get_upscale_options = upscale_options_getter_func
         self.on_upscale_options_changed = upscale_options_changed_callback
         self.get_outfit_check_default = outfit_check_default_getter_func
@@ -2831,7 +2905,7 @@ class SingleAnalyzerWidget(QWidget):
         # 「首图审计 + 重画」只作用于 Gemini 直出（gpt 通道已有身份/人体/终审门禁）。
         # 放在通道这一行：不新增常驻行（布局契约：gpt 通道只多两行工序/参数），且始终可见。
         self.gemini_audit_retry = QCheckBox("首图审计")
-        self.gemini_audit_retry.setChecked(True)
+        self.gemini_audit_retry.setChecked(False)
         self.gemini_audit_retry.setToolTip(
             "Gemini 直出后先审计这一张：内容是否与本次要求一致、有没有把画风参考图的角色/服装/\n"
             "道具/场景搬过来、画法是否跟上了参考图。不通过就带着失败原因重画（上限见右侧）。\n"
@@ -2860,6 +2934,10 @@ class SingleAnalyzerWidget(QWidget):
         basic_row = QHBoxLayout(self.gpt_basic_controls)
         basic_row.setContentsMargins(0, 0, 0, 0)
         basic_row.addWidget(self.gpt_pp_repaint)
+        from utils.gpt_workflow_widget import GptWorkflowControls
+        self.workflow_controls = GptWorkflowControls(self)
+        basic_row.addWidget(self.workflow_controls)
+        self.workflow_controls.changed.connect(self._on_gen_channel_changed)
         self.gpt_advanced_toggle = QCheckBox("高级选项")
         basic_row.addWidget(self.gpt_advanced_toggle)
         self.gpt_reset_recipe = QPushButton("恢复推荐")
@@ -2916,10 +2994,10 @@ class SingleAnalyzerWidget(QWidget):
         self.gpt_pp_region.setToolTip("裁切后重绘再贴回，可能产生错位或鬼影；四区串联是历史实验，不作为默认。")
         pp_row.addWidget(self.gpt_pp_scope)
         self.gpt_first_pass_mode = QComboBox()
-        self.gpt_first_pass_mode.addItem("首图：新建接口", "generate")
-        self.gpt_first_pass_mode.addItem("首图：参考图接口（历史）", "edits")
+        self.gpt_first_pass_mode.addItem("首图：自动选择接口", "auto")
+        self.gpt_first_pass_mode.addItem("首图：图片输入接口", "edits")
         self.gpt_first_pass_mode.setMaximumWidth(180)
-        self.gpt_first_pass_mode.setToolTip("历史 V6 首图走 edits。新建接口的参考图字段是中转站扩展；两条路效果不保证相同。拒绝请求后不会切换接口重试。")
+        self.gpt_first_pass_mode.setToolTip("自动：有画风或内容参考图走 edits；无图走 generations。图片输入接口要求有参考图。失败后不切换接口重发。")
         pp_row.addWidget(self.gpt_first_pass_mode)
         pp_row.addStretch(1)
         self.gpt_pp_row = QWidget()
@@ -2932,12 +3010,14 @@ class SingleAnalyzerWidget(QWidget):
         q_row = QHBoxLayout()
         q_row.addWidget(QLabel("gpt 参数:"))
         self.gpt_quality_combo = QComboBox()
-        for _label, _val, _tip in (("high 细节最好(推荐)", "high", "输出 token 约为 medium 的 5 倍，细节/发丝/蕾丝最清楚"),
-                                   ("medium 快省", "medium", "细节明显少于 high，重绘放大后容易发糊"),
+        for _label, _val, _tip in (("high 精细(默认)", "high", "精细质量；费用按实际 token 用量"),
+                                   ("xhigh 超精细(2.5)", "xhigh", "仅 GPT Image 2.5 支持"),
+                                   ("max 最高(2.5)", "max", "仅 GPT Image 2.5 支持；较高档位不保证每张图都更好"),
+                                   ("medium 快省", "medium", "标准质量"),
                                    ("low 预览", "low", "只适合构图预览")):
             self.gpt_quality_combo.addItem(_label, _val)
             self.gpt_quality_combo.setItemData(self.gpt_quality_combo.count() - 1, _tip, 3)  # Qt.ToolTipRole
-        self.gpt_quality_combo.setToolTip("首图质量：high 的细节 token 约为 medium 的 5 倍（重绘放大后差别明显）。")
+        self.gpt_quality_combo.setToolTip("首图质量：质量与费用取决于模型及实际返回用量；2.5 可选 xhigh/max。")
         self.gpt_quality_combo.setCurrentIndex(0)
         self.gpt_quality_combo.setMaximumWidth(180)
         q_row.addWidget(self.gpt_quality_combo)
@@ -3022,14 +3102,29 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_orig_btn.setFixedHeight(35)
         self.gen_orig_btn.clicked.connect(lambda: self.trigger_image_generation("original"))
         self.gen_orig_btn.setEnabled(False)
-        
+
         self.gen_ref_btn = QPushButton("② 生成图片 (基于 优化 提示词)")
         self.gen_ref_btn.setFixedHeight(35)
         self.gen_ref_btn.clicked.connect(lambda: self.trigger_image_generation("refined"))
         self.gen_ref_btn.setEnabled(False)
-        
+
+        # 「转化二次元」：独立动作，不需要先做文本分析——把当前输入照片直接交给
+        # 图片 edit 接口（通道跟随上方「生图通道」单选），prompt 固件全文固定。
+        self.anime_convert_btn = QPushButton("转化二次元")
+        self.anime_convert_btn.setFixedHeight(35)
+        self.anime_convert_btn.setEnabled(False)
+        self.anime_convert_btn.setToolTip(
+            "把当前预览的真人照片作为唯一人物参考，走图片 edit 接口重绘成日系二次元美少女商业插画。\n"
+            "提示词为固定全文（prompts/anime-convert/edit-prompt.md），不挂画风参考图。\n"
+            "通道跟随「生图通道」单选：gpt-image → /v1/images/edits（模型/画质读 aigc-2d-gpt 配置）；\n"
+            "Gemini → 全局生图配置的模型与接口（generateContent，照片作为内联附件）。\n"
+            "输出比例锁定为输入照片的最接近官方比例，产物落 data/<日期>/anime-convert/。"
+        )
+        self.anime_convert_btn.clicked.connect(self.trigger_anime_convert)
+
         gen_img_layout.addWidget(self.gen_orig_btn)
         gen_img_layout.addWidget(self.gen_ref_btn)
+        gen_img_layout.addWidget(self.anime_convert_btn)
 
         gen_control_layout = QHBoxLayout()
         self.gen_countdown_label = QLabel("生图超时倒计时: --")
@@ -3235,6 +3330,7 @@ class SingleAnalyzerWidget(QWidget):
             )
         )
         self.send_btn.setEnabled(True)
+        self._sync_anime_convert_btn()
         self.save_to_source_dir_cb.setEnabled(True)
 
     def show_clipboard_preview(self, pil_image):
@@ -3260,6 +3356,7 @@ class SingleAnalyzerWidget(QWidget):
             )
         )
         self.send_btn.setEnabled(True)
+        self._sync_anime_convert_btn()
         # 剪贴板图片无实际文件路径，保存到原图目录不适用；
         # 需先取消勾选，避免 _on_save_to_source_dir_toggled 残留禁用两个自动生图 checkbox
         self.save_to_source_dir_cb.setChecked(False)
@@ -3980,6 +4077,10 @@ class SingleAnalyzerWidget(QWidget):
 
     def _resume_generation_checkpoint(self, record, path, mode="resume"):
         """Replay original settings without re-analysing or re-generating GPT."""
+        from utils.gpt_workflow_settings import postprocess_enabled
+        if not postprocess_enabled():
+            self.log_msg("后续工序关闭，请先勾选「后续工序」再续跑修复或审计。")
+            return False
         if not record or self._pipeline_pending_for_hash(record.get("task_hash")):
             return False
         try:
@@ -3987,6 +4088,7 @@ class SingleAnalyzerWidget(QWidget):
                 checkpoint = json.load(stream)
             import copy
             snapshot = copy.deepcopy(checkpoint["snapshot"])
+            snapshot["request_payload"]["postprocess_enabled"] = True
             if mode == "first":
                 snapshot["request_payload"].pop("manual_repaint_input", None)
                 # Explicit redraw is a new attempt: use current rendering instructions,
@@ -4036,9 +4138,8 @@ class SingleAnalyzerWidget(QWidget):
             record["failed_stage"] = ""
             self._update_history_record(record.get("task_id"), status="running", phase=thread.meta_prompt_type)
             self._active_img_threads.append(thread)
-            if not self._img_gen_running:
-                timeout = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
-                self._start_image_gen_runtime(self._pipeline_timeout_budget(timeout, thread.steps, thread.request_payload))
+            timeout = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+            self._start_image_gen_runtime(self._pipeline_timeout_budget(timeout, thread.steps, thread.request_payload))
             thread.log_signal.connect(self.log_msg)
             thread.finish_signal.connect(lambda files, t=thread: self.on_image_generation_finished(t, files))
             thread.finished.connect(lambda t=thread: self._on_image_thread_stopped(t))
@@ -4257,12 +4358,11 @@ class SingleAnalyzerWidget(QWidget):
             QMessageBox.warning(self, "随机画风不可用", str(exc))
             return None
 
-        timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+        timeout_seconds = int(self.get_text_timeout_seconds()) if self.get_text_timeout_seconds else 180
         booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
         analysis_thread_no = self._next_thread_no("_analysis_thread_seq")
         thread_prefix = self._build_thread_prefix("分析线程", analysis_thread_no)
         submit_time = datetime.datetime.now()
-        ddl = submit_time + datetime.timedelta(seconds=max(1, timeout_seconds))
         task_hash = _generate_task_hash(image_source_snapshot, submit_time, analysis_thread_no)
         if self.main_style_combo.currentText() == RANDOM_STYLE_LABEL:
             self._random_style_by_task_hash[task_hash] = selected_style_name
@@ -4274,7 +4374,7 @@ class SingleAnalyzerWidget(QWidget):
         self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}", prefix=thread_prefix)
         self.log_msg(f"任务 Hash: {task_hash}", prefix=thread_prefix)
         self.log_msg(f"本次画风预设: {selected_style_name}", prefix=thread_prefix)
-        self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）", prefix=thread_prefix)
+        self.log_msg(f"文本分析单次请求超时: {timeout_seconds} 秒（每个文本请求独立计时）", prefix=thread_prefix)
         retry_settings = load_retry_settings()
         if retry_settings.enabled and retry_settings.times > 0:
             self.log_msg(
@@ -4863,6 +4963,10 @@ class SingleAnalyzerWidget(QWidget):
                 self._send_system_notification("单图分析完成", "任务已完成并生成结果文件。")
 
     def _start_image_gen_runtime(self, timeout_seconds):
+        # A later task must not inherit an older, shorter cancellation deadline.
+        remaining = self._remaining_image_gen_budget()
+        if remaining is not None:
+            timeout_seconds = max(int(timeout_seconds), int(remaining) + 1)
         self._img_gen_running = True
         self._img_gen_timeout_seconds = max(1, int(timeout_seconds))
         now = datetime.datetime.now()
@@ -4927,6 +5031,7 @@ class SingleAnalyzerWidget(QWidget):
             return
         self.gen_orig_btn.setEnabled(True)
         self.gen_ref_btn.setEnabled(True)
+        self._sync_anime_convert_btn()      # 生图/后处理都结束：转化二次元按输入图状态恢复
         self._stop_image_gen_runtime()
         self.log_msg("生图与后处理线程已结束；任务结果以队列状态和最终门禁为准。")
 
@@ -4964,6 +5069,8 @@ class SingleAnalyzerWidget(QWidget):
         self.gen_countdown_label.setText("生图超时倒计时: 正在退出...")
         self.gen_orig_btn.setEnabled(False)
         self.gen_ref_btn.setEnabled(False)
+        if getattr(self, "anime_convert_btn", None) is not None:
+            self.anime_convert_btn.setEnabled(False)
         for t in running_threads:
             try:
                 if hasattr(t, "request_cancel"):
@@ -5008,8 +5115,9 @@ class SingleAnalyzerWidget(QWidget):
         self.gpt_pp_ink.setChecked(bool(state.get("ink")))
         # 衣装重绘默认开启（用户 2026-10-07 明确要求）：老配置没有这个键时也走默认
         self.gpt_pp_wardrobe.setChecked(state.get("wardrobe", True) is not False)
-        # 首图审计默认开启（用户 2026-10-06 明确要求）：老配置没有这个键时也走默认开
-        self.gemini_audit_retry.setChecked(state.get("gemini_audit_retry", True) is not False)
+        # Gemini 首图审计默认关闭；只恢复明确保存的手动选择。
+        self._gemini_audit_enabled = state.get("gemini_audit_retry", False) is True
+        self.gemini_audit_retry.setChecked(self._gemini_audit_enabled)
         _ai = self.gemini_audit_attempts.findData(int(state.get("gemini_audit_attempts", 2) or 2))
         self.gemini_audit_attempts.setCurrentIndex(max(0, _ai))
         _ti = self.gpt_pp_tone_target.findData(str(state.get("tone_target") or "style"))
@@ -5054,8 +5162,7 @@ class SingleAnalyzerWidget(QWidget):
             "ink": bool(self.gpt_pp_ink.isChecked()),
             "wardrobe": bool(getattr(self, "gpt_pp_wardrobe", None) is None
                              or self.gpt_pp_wardrobe.isChecked()),
-            "gemini_audit_retry": bool(getattr(self, "gemini_audit_retry", None) is None
-                                       or self.gemini_audit_retry.isChecked()),
+            "gemini_audit_retry": bool(getattr(self, "_gemini_audit_enabled", False)),
             "gemini_audit_attempts": int(getattr(self, "gemini_audit_attempts", None).currentData()
                                          if getattr(self, "gemini_audit_attempts", None) is not None else 2),
             "repaint_scope": str(getattr(self, "gpt_pp_scope", None).currentData()
@@ -5066,6 +5173,8 @@ class SingleAnalyzerWidget(QWidget):
 
     def _save_gpt_pipeline_ui(self, *_args):
         """任何选择变化都记下来（下次启动自动恢复）。"""
+        if not self._gpt_image_channel_active():
+            self._gemini_audit_enabled = self.gemini_audit_retry.isChecked()
         if not self.persist_ui_state:
             return
         save_analysis_gpt_ui(self._gpt_pipeline_ui_state())
@@ -5125,6 +5234,12 @@ class SingleAnalyzerWidget(QWidget):
 
     def _on_gen_channel_changed(self):
         active = self._gpt_image_channel_active()
+        from utils.gpt_workflow_settings import postprocess_enabled
+        post_enabled = postprocess_enabled()
+        for name in ("gpt_pp_repaint", "gpt_pp_structure", "gpt_pp_tone", "gpt_pp_ink", "gpt_pp_wardrobe"):
+            control = getattr(self, name, None)
+            if control is not None:
+                control.setEnabled(post_enabled)
         basic = getattr(self, "gpt_basic_controls", None)
         if basic is not None:
             basic.setVisible(active)
@@ -5133,15 +5248,35 @@ class SingleAnalyzerWidget(QWidget):
             row = getattr(self, name, None)
             if row is not None:
                 row.setVisible(active and advanced is not None and advanced.isChecked())
+        expanded = active and advanced is not None and advanced.isChecked()
+        self.controls_scroll.setMinimumHeight(180 if expanded else 100)
+        if expanded:
+            from PyQt6.QtCore import QTimer
+            if not hasattr(self, "_advanced_reveal_timer"):
+                self._advanced_reveal_timer = QTimer(self)
+                self._advanced_reveal_timer.setSingleShot(True)
+                self._advanced_reveal_timer.timeout.connect(self._reveal_gpt_advanced)
+            self._advanced_reveal_timer.start(0)
         # 首图审计只作用于 Gemini 直出：走 gpt 通道时置灰但仍可见（不隐藏，避免"只给文字没有功能"）
         gemini_audit = getattr(self, "gemini_audit_retry", None)
         if gemini_audit is not None:
+            gemini_audit.blockSignals(True)
+            gemini_audit.setChecked(False if active else bool(getattr(self, "_gemini_audit_enabled", False)))
+            gemini_audit.blockSignals(False)
             gemini_audit.setEnabled(not active)
         attempts = getattr(self, "gemini_audit_attempts", None)
         if attempts is not None:
             attempts.setEnabled(not active and gemini_audit is not None and gemini_audit.isChecked())
 
+    def _reveal_gpt_advanced(self):
+        if self._gpt_image_channel_active() and self.gpt_advanced_toggle.isChecked():
+            self.controls_body.layout().activate()
+            self.controls_scroll.ensureWidgetVisible(self.gpt_param_row, 0, 12)
+
     def _build_gpt_image_steps(self) -> dict:
+        from utils.gpt_workflow_settings import postprocess_enabled
+        if not postprocess_enabled():
+            return {}
         from utils.analysis_gen import pipeline_steps_from_flags
         region = getattr(self, "gpt_pp_region", None)
         data = region.currentData() if region is not None else None
@@ -5178,6 +5313,12 @@ class SingleAnalyzerWidget(QWidget):
         **衣装重绘**占一份——它是整图重绘、一次调用，但同样是联网工序。
         """
         steps = steps or {}
+        if request_payload is not None and request_payload.get("postprocess_enabled") is False:
+            from modules.others.api_backend import get_api_config
+            from utils.gpt_workflow_settings import generation_timeout_budget
+            return generation_timeout_budget(get_api_config(api_type="aigc-2d-gpt"),
+                mode=request_payload.get("first_pass_mode", "generate"),
+                has_images=bool(request_payload.get("image_paths")))
         slots = 1                                                   # 首图
         fallback_repaint = bool(request_payload and (request_payload.get("style_ref_path") or
                                                        request_payload.get("fallback_style_ref_path")))
@@ -5202,7 +5343,15 @@ class SingleAnalyzerWidget(QWidget):
         # Hybrid refine reserves at most four 360s images plus five 180s texts.
         from utils.gpt_image_refine import NETWORK_TIMEOUT_BUDGET
         refine_enabled = bool((steps.get("repaint") or {}).get("refine"))
-        return max(1, int(timeout_seconds or 120)) * slots + ((NETWORK_TIMEOUT_BUDGET if refine_enabled else 1080) if guarded_repaint else 0)
+        budget = max(1, int(timeout_seconds or 120)) * slots + ((NETWORK_TIMEOUT_BUDGET if refine_enabled else 1080) if guarded_repaint else 0)
+        if request_payload is not None:
+            from modules.others.api_backend import get_api_config
+            from utils.gpt_workflow_settings import generation_timeout_budget
+            first_budget = generation_timeout_budget(get_api_config(api_type="aigc-2d-gpt"),
+                mode=request_payload.get("first_pass_mode", "generate"),
+                has_images=bool(request_payload.get("image_paths")))
+            budget += max(0, first_budget - max(1, int(timeout_seconds or 120)))
+        return budget
 
     def _start_gpt_image_thread(self, prompt_type, prompt_context, task_hash, selected_style_name,
                                styles_data, is_auto=False, analysis_thread_no=None, auto_group_id=None,
@@ -5251,6 +5400,9 @@ class SingleAnalyzerWidget(QWidget):
             styles_data, selected_style_name, analysis_result,
             content_text=content_text, tier="short", size=size or "",
             wardrobe=prompt_context.get("wardrobe") or {})
+        from utils.gpt_workflow_settings import postprocess_enabled
+        request_payload["postprocess_enabled"] = postprocess_enabled()
+        request_payload["first_pass_mode"] = str(self.gpt_first_pass_mode.currentData() or "generate")
         if size:
             self.log_msg(f"[gpt 通道] 尺寸 {size}（{size_source}；画风参考图的朝向不参与）")
         if request_payload.get("aspect_alignment"):
@@ -5281,8 +5433,9 @@ class SingleAnalyzerWidget(QWidget):
         # 超时按「一道工序一份」算：首图 + 每道工序各给一份（用户要求：不要总体 120s 掐掉整条链）
         step_timeout = int(timeout_seconds or 120)
         timeout_budget = self._pipeline_timeout_budget(step_timeout, steps, request_payload)
-        self.log_msg(f"[gpt 通道] 超时预算 {timeout_budget} 秒 = 每份联网调用 {step_timeout} 秒 × "
-                     f"{timeout_budget // step_timeout} 份（含审计与最多两轮人体定点修订）")
+        from modules.others.api_backend import get_api_config
+        gpt_timeout = int(get_api_config(api_type="aigc-2d-gpt").get("timeout") or 600)
+        self.log_msg(f"[gpt 通道] 单次 GPT 请求超时 {gpt_timeout} 秒；界面总预算 {timeout_budget} 秒（含允许的重试、工序与收尾）。")
         firmware = ""
         if steps.get("repaint", {}).get("enabled") or steps.get("local", {}).get("enabled"):
             try:
@@ -5306,7 +5459,7 @@ class SingleAnalyzerWidget(QWidget):
             analysis_result=analysis_result,
             **({"size": size} if size else {}),
         )
-        self.log_msg(f"[gpt 通道] 画质 {quality}（high 的细节 token 约为 medium 的 5 倍）")
+        self.log_msg(f"[gpt 通道] 画质 {quality}（费用按模型实际返回用量）")
         thread.meta_thread_no = self._next_thread_no("_image_gen_thread_seq")
         thread.meta_analysis_thread_no = analysis_thread_no
         thread.meta_is_auto = bool(is_auto)
@@ -5315,8 +5468,7 @@ class SingleAnalyzerWidget(QWidget):
         thread.meta_task_hash = task_hash
         thread.meta_analysis_json_path = analysis_json_path
         self._active_img_threads.append(thread)
-        if not self._img_gen_running:
-            self._start_image_gen_runtime(timeout_budget)
+        self._start_image_gen_runtime(timeout_budget)
         thread.log_signal.connect(
             lambda text, t=thread: self.log_msg(
                 text,
@@ -5328,6 +5480,102 @@ class SingleAnalyzerWidget(QWidget):
         thread.start()
         return True
 
+    def _sync_anime_convert_btn(self, *_args):
+        """「转化二次元」可用 = 已加载输入图 且 当前没有生图/后处理线程在跑。"""
+        btn = getattr(self, "anime_convert_btn", None)
+        if btn is None:
+            return
+        btn.setEnabled(bool(self.image_source) and not self._pipeline_busy())
+
+    def trigger_anime_convert(self):
+        """把当前输入照片交给图片 edit 接口重绘成二次元（独立动作，不进分析队列）。"""
+        from utils.anime_convert import ANIME_CONVERT_PROMPT_FILE
+        if not self.image_source:
+            QMessageBox.warning(self, "缺少图片", "请先拖入或粘贴一张照片，再点击「转化二次元」。")
+            return
+        if self._pipeline_busy():
+            self.log_msg("⏭ 转化二次元已跳过：当前还有生图/后处理任务在执行，请等它结束再试。")
+            return
+        # 剪贴板输入是内存 PIL 对象：先落快照拿文件路径（edit 接口需要真实文件）
+        source_path = ""
+        if isinstance(self.image_source, Image.Image):
+            source_path = self._save_clipboard_snapshot(self.image_source)
+            if not source_path:
+                QMessageBox.warning(self, "图片不可用", "剪贴板图片快照保存失败，无法发起转化二次元。")
+                return
+        else:
+            source_path = str(self.image_source)
+            if not os.path.isfile(source_path):
+                QMessageBox.warning(self, "图片不可用", f"输入图片不存在：{source_path}")
+                return
+        try:
+            from utils.prompt_loader import find_missing_prompt_files
+            missing = find_missing_prompt_files([ANIME_CONVERT_PROMPT_FILE])
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "提示词不可用", f"读取转化二次元提示词失败：{exc}")
+            return
+        if missing:
+            QMessageBox.warning(self, "缺少 Prompt 文件", f"以下 Prompt 文件不存在，无法转化：\n{chr(10).join(missing)}")
+            return
+
+        gpt_channel = self._gpt_image_channel_active()
+        model_name, api_type, resolution = "", "", None
+        if gpt_channel:
+            from modules.others.api_backend import get_api_config
+            gpt_cfg = get_api_config(api_type="aigc-2d-gpt")
+            if not gpt_cfg.get("api_key"):
+                QMessageBox.warning(self, "缺少配置", "gpt-image 通道 API Key 不能为空，请检查【全局配置】。")
+                return
+            timeout_seconds = int(gpt_cfg.get("timeout") or 600)
+        else:
+            _base, img_key, model_name, api_type = self.get_img_config()
+            if not img_key:
+                QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空，请检查【全局配置】。")
+                return
+            timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+
+        channel_key = "gpt-image" if gpt_channel else "gemini"
+        thread_no = self._next_thread_no("_image_gen_thread_seq")
+        thread_prefix = self._build_thread_prefix("转化二次元", thread_no)
+        if gpt_channel:
+            self.log_msg(f"[转化二次元] 通道 {channel_key}｜输入照片: {source_path}｜"
+                         f"提示词为固定全文（{ANIME_CONVERT_PROMPT_FILE}），尺寸按输入照片比例收敛。",
+                         prefix=thread_prefix)
+        else:
+            self.log_msg(f"[转化二次元] 通道 {channel_key}（api_type={api_type or '默认'}，"
+                         f"模型 {model_name or '配置默认'}）｜输入照片: {source_path}｜"
+                         f"提示词为固定全文（{ANIME_CONVERT_PROMPT_FILE}），输出比例锁定输入照片比例。",
+                         prefix=thread_prefix)
+
+        self.gen_orig_btn.setEnabled(False)
+        self.gen_ref_btn.setEnabled(False)
+        self.anime_convert_btn.setEnabled(False)
+        thread = AnimeConvertWorkerThread(source_path, channel_key,
+                                          model_name=model_name, api_type=api_type,
+                                          resolution=resolution)
+        thread.meta_thread_no = thread_no
+        thread.meta_task_hash = ""            # 独立动作：不关联分析队列任务
+        thread.meta_prompt_type = "anime-convert"
+        self._active_img_threads.append(thread)   # 挂进生图线程列表：终止按钮/倒计时统一生效
+        self._start_image_gen_runtime(timeout_seconds)
+        thread.log_signal.connect(lambda text, t=thread: self.log_msg(
+            text, prefix=self._build_thread_prefix("转化二次元", getattr(t, "meta_thread_no", "?"))))
+        thread.finish_signal.connect(lambda files, t=thread: self._on_anime_convert_finished(t, files))
+        thread.finished.connect(lambda t=thread: self._on_image_thread_stopped(t))
+        thread.start()
+
+    def _on_anime_convert_finished(self, thread, saved_files):
+        thread_prefix = self._build_thread_prefix("转化二次元", getattr(thread, "meta_thread_no", "?"))
+        files = [p for p in (saved_files or []) if p]
+        if files:
+            self.log_msg(f"🎉 转化二次元完成，共 {len(files)} 张：", prefix=thread_prefix)
+            for file_path in files:
+                self.log_msg(f"📂 保存路径: {file_path}", prefix=thread_prefix)
+        elif str(getattr(thread, "last_status", "")) == "cancelled":
+            self.log_msg("🛑 转化二次元已取消，本次没有产物。", prefix=thread_prefix)
+        else:
+            self.log_msg("❌ 转化二次元没有返回图片（失败原因见上方日志与 log/<日期>.log）。", prefix=thread_prefix)
+
     def trigger_image_generation(self, prompt_type, is_auto=False, prompt_bundle=None, analysis_thread_no=None, auto_group_id=None, channel=None):
         """按提示词类型出图。
 
@@ -5338,6 +5586,10 @@ class SingleAnalyzerWidget(QWidget):
         self.save_img_cfg()
         
         img_base_url, img_key, model_name, api_type = self.get_img_config()
+        gpt_channel = self._gpt_image_channel_active() if channel is None else str(channel) == "gpt-image"
+        if gpt_channel:
+            from modules.others.api_backend import get_api_config
+            img_key = get_api_config(api_type="aigc-2d-gpt").get("api_key", "")
         if not img_key:
             if is_auto:
                 self.log_msg("自动生图已跳过：生图 API Key 不能为空，请检查【全局配置】。")
@@ -5389,13 +5641,19 @@ class SingleAnalyzerWidget(QWidget):
         validate_wardrobe_style(styles_data, selected_style_name, prompt_context.get("wardrobe"))
         has_ref = ref_image_valid(style_ref_image(styles_data, selected_style_name))
         active_mode = self.style_ref_mode_combo.effective_mode(has_ref)
-        active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
-            styles_data, selected_style_name, active_mode, api_type=api_type
-        )
+        try:
+            active_instructions, post_instructions, style_ref_paths = build_ref_gen_params(
+                styles_data, selected_style_name, active_mode, api_type=api_type
+            )
+        except (OSError, ValueError) as exc:
+            self.log_msg(f"画风参考无效，未发送：{exc}")
+            return False
         from utils.styles import gemini_priority_profile_for
         priority_profile = (gemini_priority_profile_for(
             styles_data, selected_style_name, active_mode, api_type) if not gpt_channel else {})
-        face_quality_boost = priority_profile.get("face_quality_boost", True)
+        from utils.style_reference import style_face_quality_boost
+        face_quality_boost = style_face_quality_boost(
+            styles_data, selected_style_name, active_mode, api_type)
         if face_quality_boost:
             prompt_to_use = f"{prompt_to_use}, {_face_quality_suffix}"
         from utils.analysis_gen import resolve_gemini_reference_content
@@ -5424,7 +5682,9 @@ class SingleAnalyzerWidget(QWidget):
         
         self.gen_orig_btn.setEnabled(False)
         self.gen_ref_btn.setEnabled(False)
-        
+        if getattr(self, "anime_convert_btn", None) is not None:
+            self.anime_convert_btn.setEnabled(False)
+
         # 【修改】动态实例化线程对象存放至列表，避免并发勾选导致线程互相覆盖报错
         final_gen_ar = self._resolve_ar_for_second_stage(prompt_context.get("aspect_ratio", self.current_aspect_ratio))
 
@@ -5503,12 +5763,10 @@ class SingleAnalyzerWidget(QWidget):
         img_thread.meta_analysis_json_path = prompt_context.get("analysis_json_path", getattr(self, "_last_saved_json_path", ""))
 
         self._active_img_threads.append(img_thread)
-        if not self._img_gen_running:
-            # 开了「审计 + 重画」时每张图都要同样的出图时间，倒计时不能按单张算，
-            # 否则第 2 张还在画就被判超时（超时预算 = 单张 × 最多张数 + 每次审计的窗口）。
-            attempts = max(1, audit_attempts if audit_callback else 1)
-            budget = timeout_seconds * attempts + (audit_window * attempts if audit_callback else 0)
-            self._start_image_gen_runtime(budget)
+        # 新任务加入时补足自身预算；已有截止时间只能延长。
+        attempts = max(1, audit_attempts if audit_callback else 1)
+        budget = timeout_seconds * attempts + (audit_window * attempts if audit_callback else 0)
+        self._start_image_gen_runtime(budget)
         img_thread.audit_retry_budget = self._remaining_image_gen_budget()
         
         img_thread.log_signal.connect(lambda text, t=img_thread: self._on_gemini_thread_log(t, text))

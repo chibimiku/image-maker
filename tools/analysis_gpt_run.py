@@ -876,7 +876,8 @@ def main():
                     help="独立衣装预设；未指定时沿用分析任务快照，off=沿用原衣装")
     ap.add_argument("--wardrobe-policy", default="replace", choices=list(dict(POLICIES)),
                     help="衣装策略：replace 完整转化（默认） / reinterpret 改款 / fill_missing 只补全")
-    ap.add_argument("--quality", default="high", choices=["low", "medium", "high"])
+    ap.add_argument("--quality", choices=["low", "medium", "high", "xhigh", "max"], help="省略时读取 API 配置；2.5 默认 max")
+    ap.add_argument("--model", help="GPT 首图模型；省略时读取现有 API 配置，默认 Sunburst")
     ap.add_argument("--size", default="auto", help="auto=按输入图比例挑；也可写 1024x1536 等")
     ap.add_argument("--steps", default="repaint",
                     help="要跑的工序，逗号分隔：repaint,structure,local（空 = 只出首图）")
@@ -890,9 +891,8 @@ def main():
                          "on=把原图当内容参考图（视觉锚定最强，代价是出图基本就是原图的画风重绘）")
     ap.add_argument("--use-source-base", action="store_true",
                     help="首图直接用分析原图（保线条，走 §⑲ E 路线），跳过 gpt-image 生成")
-    ap.add_argument("--first-pass-mode", default="generate", choices=["generate", "edits"],
-                    help="首图端点：generate（默认，/images/generations + image 字段，= app.py 当前契约）"
-                         "或 edits（历史路径，把画风参考图当输入图编辑；实测画风注入更强但线条更碎）")
+    ap.add_argument("--first-pass-mode", default="auto", choices=["auto", "generate", "edits"],
+                    help="有参考图走 edits，无图走 generations；edits 要求有图片，generate 也按附件路由")
     ap.add_argument("--no-dual", action="store_true", help="重绘不用双参考（默认用）")
     ap.add_argument("--white-contrast", type=float, default=0.0,
                     help="白色/高亮材质区的局部对比增强量（0=关，建议 0.4~0.7；用于高光压平结构的情况）")
@@ -989,6 +989,9 @@ def main():
     from modules.others.api_backend import (generate_image_aigc2d_gpt,
                                             normalize_gpt_image2_size,
                                             pick_gpt_image2_size_for_images)
+    from modules.others.api_backend import get_api_config, default_gpt_image_quality
+    image_cfg = get_api_config(api_type="aigc-2d-gpt")
+    args.quality = args.quality or default_gpt_image_quality(args.model or image_cfg.get("model"), image_cfg.get("quality"))
     from utils import post_process as pp
     from utils.analysis_gen import (build_first_pass_request, first_pass_sub_dir,
                                     publish_final_output, resolve_content_text,
@@ -1176,15 +1179,15 @@ def main():
         base_path = source
         print(f"[3/4] 跳过 gpt-image 生成，直接用原图作为工序输入")
     else:
-        print(f"[3/4] gpt-image-2 出首图（quality={args.quality}, size={size}, "
-              f"端点={'/images/generations（新建图片）' if args.first_pass_mode == 'generate' else '/images/edits'}）…")
+        print(f"[3/4] gpt-image 出首图（quality={args.quality}, size={size}, "
+              f"端点={'/images/edits' if payload.get('image_paths') else '/images/generations'}）…")
         from utils.first_image_review import generate_first_image, apply_safe_plan
         saved, payload["prompt"] = generate_first_image(generate_image_aigc2d_gpt,
             analysis_result=result,
             plan_callback=lambda plan: apply_safe_plan(payload, steps, plan,
                 original_style_ref=repaint_style_ref, restore_reference=not args.no_dual),
             prompt=payload["prompt"], image_paths=list(payload.get("image_paths") or []),
-            model="gpt-image-2", size=size, quality=args.quality, output_format="png", n=1,
+            model=args.model or None, size=size, quality=args.quality, output_format="png", n=1,
             api_type="aigc-2d-gpt", file_prefix=os.path.splitext(os.path.basename(args.json))[0][:24],
             save_sub_dir=output_dir or first_pass_sub_dir(steps),
             mode=args.first_pass_mode,

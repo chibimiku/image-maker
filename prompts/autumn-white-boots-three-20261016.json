@@ -1,0 +1,31 @@
+{
+  "run_id": "autumn-white-boots-three-20261016",
+  "model": "gpt-image-2.5-sunburst",
+  "quality": "max",
+  "size": "1024x1536",
+  "output_format": "png",
+  "api_type": "aigc-2d-gpt",
+  "output_subdir": "autumn-white-boots",
+  "max_attempts": 3,
+  "automatic_retries": 0,
+  "jobs": [
+    {
+      "id": "tid",
+      "style": "tid",
+      "title": "银杏大道的小惊喜",
+      "prompt": "Create a full-body anime illustration of one young adult woman enjoying a cute fleeting moment on a golden ginkgo-lined avenue in autumn. She is a reserved photography enthusiast with a silver-gray shoulder-length bob, amber eyes, round thin-framed glasses and a navy beret. She wears a rust-orange cable-knit sweater, a short navy pleated skirt, a soft cream scarf and opaque charcoal tights. Her footwear is a prominent pair of WHITE KNEE-HIGH LEATHER BOOTS with elegant slim high heels, pointed toes, fitted shafts and subtle seams; show both complete boots and heels clearly. A falling golden leaf has just landed on her beret; she glances upward with a surprised little smile, one hand reaching toward the leaf, the other holding a small camera by her waist. Natural uncrossed standing pose on a dry stone path, two anatomically connected legs, knees and boot toes aligned, credible balance and perspective. Golden leaves drift through cool clear morning air; a quiet avenue, low stone wall and distant old university buildings recede behind her. Bright airy autumn sunlight, warm gold versus navy, delicate layered foliage, convincing knit and white leather texture. Original character and scene; use the attached image only for artistic rendering, not its character, clothing, colours or beach setting. One coherent portrait composition with head-to-heel framing and breathing room, no text, watermark, panels or inset portraits."
+    },
+    {
+      "id": "tinkle",
+      "style": "tinkle-style",
+      "title": "枫叶公园的暖栗子",
+      "prompt": "Create a sweet, richly detailed full-body anime illustration of one young adult woman at a crimson maple park in autumn. A cheerful woman with long honey-blonde twin tails, rose-pink eyes and burgundy velvet hair bows wears a dusty-rose wool capelet, an ivory blouse, a burgundy ruffled skirt and warm cream opaque tights. She wears WHITE KNEE-HIGH HIGH-HEELED BOOTS: pearl-white leather, slender high heels, rounded almond toes, delicate cuff bows and fine stitching. Both full boots including soles and heels must remain visible. She has paused beside a wooden park bench and cups a small paper cone of steaming roasted chestnuts in both hands; a curled maple leaf caught on one twin tail makes her giggle with her eyes bright and cheeks rosy. A simple stable standing pose with feet comfortably apart, no crossed legs or twisted ankles. The park contains a red maple canopy, copper leaves carpeting the path, a small pond and a charming distant pavilion; late-afternoon sun filters through scarlet foliage. A cute spontaneous autumn memory, sparkling eyes, fine lace and ribbon detail, soft warm light, clearly separated textured wool and smooth white leather. Original character and environment; use the attached reference only for art style, not its identity, costume or underwater imagery. Head-to-heel portrait framing, exactly two arms and two legs, natural hands, no text, watermark, panels or inset portraits."
+    },
+    {
+      "id": "puracotte",
+      "style": "puracotte-style",
+      "title": "花店门口的秋日问候",
+      "prompt": "Create a luminous pastel full-body anime illustration of one young adult florist outside a cozy flower shop on an autumn morning just after rain. She has a short peach-pink wavy bob, mint-green eyes, a small sage hair clip and a playful open smile. Dress her in a sage-green knit cardigan over a butter-yellow knee-length A-line dress, a short linen florist apron and pale gray tights. Her statement footwear is WHITE KNEE-HIGH LEATHER BOOTS with tapered high heels, neat rounded toes, fitted shafts, tiny silver side buckles and softly reflective white leather; show both boots entirely with distinct heel silhouettes. She stands at the shop doorway holding a small bouquet of rust-orange dahlias and cream chrysanthemums in one hand, giving a tiny friendly wave with the other as a breeze lifts one curl. Her weight rests naturally on one leg, the other foot a modest half-step forward, no crossing or exaggerated ankle rotation. Around her are terracotta flower pots, dried hydrangea bunches, a basket of small pumpkins and amber vines framing the door; wet cobblestones reflect gentle morning light. Warm shop-window glow meets cool fresh autumn daylight, tender pearly highlights, soft pastel colour transitions, clear flower shapes and delicate fabric texture. A completely new character, outfit and scene; the attached image guides rendering only, not identity, hair arrangement, umbrella or composition. Full-body portrait with clear ground contact and intact heels, exactly two arms and two legs, no writing, signage text, watermark, panels or inset portraits."
+    }
+  ]
+}

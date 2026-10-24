@@ -1,0 +1,47 @@
+{
+  "run_id": "frilled-fishnet-four-styles-20261017",
+  "api_type": "aigc2d",
+  "model": "gemini-3-pro-image-preview",
+  "resolution": "2K",
+  "timeout": 600,
+  "reference_mode": "priority",
+  "output_subdir": "frilled-fishnet-four-styles",
+  "evidence_dir": "data/test-result/20261017/frilled-fishnet-four-styles",
+  "max_attempts": 4,
+  "automatic_retries": 0,
+  "common_prompt": "Create one complete full-body fashion illustration of exactly one adult woman aged 24, with adult facial structure and balanced adult proportions. The required outfit combination is: very long flowing hair, visibly multicoloured fingernails, a short frilled dress, fine diamond-pattern fishnet tights covering both legs continuously, and lace ankle boots with clear crisscross ribbon lacing and slender high heels. The layered dress ends at mid-thigh so the upper legs and fishnet pattern are clearly visible. Frilled edges, lace borders and opaque fabric layers must read as coherent garment construction. Keep the skirt covering the pelvis naturally. These must be SHORT ANKLE BOOTS: cuffs stop just above the ankles, not at mid-calf or the knees; show both complete boots, toes and narrow heel silhouettes. Fishnet must remain visibly mesh rather than opaque plain tights. Nails alternate three readable colours on naturally posed fingers: one hand near her hair or face, the other near her waist or resting on a nearby railing with nails turned toward the viewer. Hair flows behind the figure without hiding the footwear. Elegant natural standing pose, credible knees and ankles, feet modestly apart, eye-level camera and clear ground contact. Give the figure most of the portrait frame with breathing room below the heels. Reference image supplies artistic rendering only, never copy its person, costume, props or scene. No extra people, text, logo, signature, watermark, panels or inset portraits.",
+  "jobs": [
+    {
+      "id": "sheya",
+      "style": "sheya-style",
+      "title": "酒红夜玫瑰",
+      "aspect": "2:3",
+      "hosiery": "black",
+      "prompt": "She has waist-length auburn hair, emerald eyes and a composed warm smile. Her dress is deep burgundy and black with a fitted satin waist, crisp layered frills and rose-pattern lace. Fine BLACK fishnet tights are clearly outlined against the softly lit skin. Black lace ankle boots have plum crisscross satin ribbons, scalloped lace cuffs, pointed toes and elegant needle-thin heels. Her nails alternate crimson, lavender and emerald. One hand brushes hair behind her ear while the other rests against her waist. Place her in a refined evening rose salon: dark wood panels, warm brass lamps, a velvet stool and a tall window with rain outside. Preserve rich red and black intrinsic colours under neutral warm light with restrained cool edge accents; emphasize clean connected contours and readable satin versus lace texture."
+    },
+    {
+      "id": "puracotte",
+      "style": "puracotte-style-v2",
+      "title": "薄荷晨光花房",
+      "aspect": "2:3",
+      "hosiery": "ivory",
+      "prompt": "She has very long dark-brown waves, clear turquoise eyes and a gentle delighted smile. Her dress is mint-green and ivory with botanical embroidery, airy frills over opaque backing and tiny satin bows. Fine IVORY-WHITE fishnet tights must show a delicate visible diamond mesh with subtle skin-toned shading beneath. Her ivory lace SHORT ankle boots use sage-green crisscross ribbons, small pearly accents, scalloped cuffs and slim pointed high heels. Fingernails alternate pale lemon, sky blue and soft coral. One hand brushes a flowing lock of hair, while the other rests lightly on a pale metal greenhouse railing with fingernails visible. A fresh morning conservatory contains white jasmine, ferns, pale floor tiles and an open glass door. Soft pearly chromatic gradients, crisp focal eyes and nails, protected readable midtones, no blanket white haze."
+    },
+    {
+      "id": "fuzichoco",
+      "style": "fuzichoco-v2",
+      "title": "午夜蓝蝶舞台",
+      "aspect": "2:3",
+      "hosiery": "black",
+      "prompt": "She has very long silver-lilac hair, deep sapphire eyes and a bright confident smile. Her short dress is midnight navy with cobalt frills, small constellation-like silver embroidery and translucent blue ruffle edges over opaque fabric. Fine BLACK diamond fishnet tights cover both legs. Black lace SHORT ankle boots have electric-blue crisscross ribbons, small silver eyelets, pointed-almond toes and slender high heels; keep their cuffs just above the ankles. Her nails alternate cobalt, violet and silver. One hand lightly touches her hair near her cheek and the other rests openly at her waist. Place her on an ornate indoor fantasy-theatre landing with layered cobalt glass, curved brass rails, hanging jewel lamps and a few luminous butterfly-shaped light decorations in the depth. Complex yet readable spatial layers, cool jewel colour washes and localized gold highlights. The woman and outfit remain the clear focal point."
+    },
+    {
+      "id": "kishidamel",
+      "style": "kishida-mel-style",
+      "title": "奶油玫瑰庭院",
+      "aspect": "2:3",
+      "hosiery": "ivory",
+      "prompt": "She has waist-length chestnut hair tied loosely with a cream ribbon, warm hazel eyes and an easy natural smile. Her dress is pale cream with dusty-rose frills, delicate small rose embroidery, soft cotton texture and a gently fitted waist. Fine IVORY fishnet tights show a clearly visible, evenly spaced diamond pattern and subtle shading. Her cream lace SHORT ankle boots have dusty-rose crisscross ribbons, neatly scalloped ankle cuffs, rounded-almond toes and delicate curved high heels, both fully visible. Nails alternate peach, sage and dusty pink. One hand tucks a strand behind her ear, and the other rests on a low garden gate with fingernails visible. Place her in a quiet sunlit rose courtyard with a weathered stone path, climbing roses, soft green shrubs and a pale garden pavilion in the distance. Gentle natural daylight, fine drawn contours, soft painterly colour transitions and a tranquil fresh atmosphere; retain mature adult proportions."
+    }
+  ]
+}

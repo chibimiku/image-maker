@@ -1,0 +1,26 @@
+{
+  "name": "ha9siro-luminous",
+  "rounds": 5,
+  "images_per_round": 4,
+  "sampling_seed": 20261019,
+  "image_paths": [
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2008375025565659636_2008375018724749315.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2008474633276891146_2008474630450012160.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2017886859071045787_2017886803114803200.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2018111105227534792_2018111102501244928.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2018257982677778484_2018257936313970689.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2023884849761886483_2023884832603033600.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2039814687928512522_2039814685974003712.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2110853231307850196_2110717425763356672.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2111039671090475125_2111039654694936576.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2111215618011615689_2111105662839332864.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2111396811948642775_2111374986158178304.jpg",
+    "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2111577998147178616_2111454883815837696.jpg"
+  ],
+  "style_reference": "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro\\expansion-r2\\datasets\\ha9siro-luminous-study12-6df0918efbb8\\images\\2008375025565659636_2008375018724749315.jpg",
+  "output_dir": "D:\\code\\image-maker\\data\\20261019\\style-extraction\\ha9siro-luminous\\run-5rounds-r1",
+  "test_prompt_file": "D:\\code\\image-maker\\prompts\\style-extraction\\ha9siro-5rounds-20261019\\test-subject.txt",
+  "seed_prompt_file": "D:\\code\\image-maker\\prompts\\style-extraction\\ha9siro-5rounds-20261019\\seed.txt",
+  "revision_guidance_file": "D:\\code\\image-maker\\prompts\\style-extraction\\ha9siro-5rounds-20261019\\revision-guidance.txt",
+  "aspect_ratio": "2:3"
+}

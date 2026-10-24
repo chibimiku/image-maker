@@ -212,9 +212,14 @@ def test_worker_thread_only_calls_gpt_prompt_builder_when_asked(
 
     logs = []
     results = []
+    # Step 2 走 DeepSeek 次级文本通道：显式给全 base_url/api_key/model，
+    # 客户端由已打桩的 OpenAI 工厂创建；不显式给时测试隔离环境下读不到 NSFW key，
+    # 线程会在 Step 2 直接 error（次级通道是 refine 的硬前提）。
     thread = single_analyzer_module.WorkerThread(
         _make_png(tmp_path), "sk", "https://example.invalid/v1", "test-model",
         enable_refine=True, timeout_seconds=30, use_fallback=False, gpt_prompts=gpt_prompts,
+        secondary_config={"base_url": "https://secondary.invalid/v1",
+                          "api_key": "secondary-test-key", "model": "secondary-test-model"},
     )
     thread.log_signal.connect(logs.append)
     thread.finish_signal.connect(results.append)

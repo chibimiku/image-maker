@@ -102,8 +102,13 @@ class AtmosphereTests(unittest.TestCase):
 
     def test_worker_freezes_choice_and_keeps_it_through_later_stages(self):
         selection = {"mood": "relaxed"}
+        # Step 2 走 DeepSeek 次级文本通道：显式给全配置（隔离环境读不到 NSFW key，
+        # 否则线程在进入打桩的 step_2 之前就以「次级通道不可用」error）。
         worker = analyzer.WorkerThread("source.png", "fake", "http://unused", "fake", atmosphere=selection,
-                                       enable_outfit_check=True, gpt_prompts=True, use_fallback=False)
+                                       enable_outfit_check=True, gpt_prompts=True, use_fallback=False,
+                                       secondary_config={"base_url": "https://secondary.invalid/v1",
+                                                         "api_key": "secondary-test-key",
+                                                         "model": "secondary-test-model"})
         selection["mood"] = "tense"
         results = []
         worker.finish_signal.connect(results.append)
@@ -136,6 +141,10 @@ class AtmosphereTests(unittest.TestCase):
     def test_headless_uses_the_same_frozen_plan(self):
         from modules.image_analysis import analysis_pipeline as pipeline
         cfg = {"base_url": "http://unused", "api_key": "fake", "model": "fake",
+               # Step 2 次级文本通道的配置键（secondary_text_config 直接读这三个键）
+               "nsfw_base_url": "https://secondary.invalid/v1",
+               "nsfw_api_key": "secondary-test-key",
+               "nsfw_model": "secondary-test-model",
                "refine_atmosphere": {"mood": "relaxed", "season": "winter"}}
         with patch("modules.others.api_backend.apply_secret_env_overrides", side_effect=lambda c: c), \
              patch.object(pipeline, "OpenAI"), \

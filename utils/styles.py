@@ -93,6 +93,8 @@ def normalize_style_entry(entry):
             "prompt_gemini": str(gemini_prompt or ""),
             "gemini_priority_profile": dict(entry.get("gemini_priority_profile") or {}),
             "gemini_content_field": str(entry.get("gemini_content_field") or ""),
+            "reference_details_enabled": entry.get("reference_details_enabled") is True,
+            "reference_detail_crops": list(entry.get("reference_detail_crops") or []),
             "enabled": entry.get("enabled", True) is not False,
             "motif_clauses": [str(v).strip() for v in (entry.get("motif_clauses") or [])
                               if str(v).strip()][:4],
@@ -416,6 +418,16 @@ def build_ref_gen_params(styles, style_name, mode, api_type=""):
         head = render_prompt_file(profile["head_file"]).strip()
         post = render_prompt_file(profile["post_file"]).strip()
     ref_paths = [entry["ref_image"]] if (has_ref and mode != MODE_OFF) else []
+    if ref_paths:
+        from utils.style_reference import detail_reference_paths, reference_role_prompt
+        details = detail_reference_paths(entry, entry["ref_image"])
+        if details:
+            ref_paths.extend(d["path"] for d in details)
+            # The legacy postamble says 'image immediately above'. With multiple
+            # references use an explicit map instead of accidentally promoting a crop.
+            role_map = reference_role_prompt(ref_paths, primary_index=1, details=details)
+            post = (role_map if post == REF_PRIORITY_POSTAMBLE else
+                    "\n\n".join(v for v in (post, role_map) if v))
     # 画风自带的**材质/表面条款**（`gemini_surface_clauses`，目前只有 satou_kuuki-style-v2 配了皮革光泽）
     # 在这里就拼进 `post`：它必须落在**参考图之后**（图前会去和图争权威），而这个函数的
     # `post` 正是"所有参考图之后的执行要求"那一段。放在这里而不是新加返回值，是因为

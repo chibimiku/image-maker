@@ -1,0 +1,26 @@
+{
+  "run_id": "tinkle-frilled-fishnet-two-20261017",
+  "api_type": "aigc-2d-gpt",
+  "model": "gpt-image-2.5-sunburst",
+  "quality": "max",
+  "size": "1024x1536",
+  "output_format": "png",
+  "timeout": 900,
+  "style": "tinkle-style",
+  "output_subdir": "tinkle-frilled-fishnet",
+  "evidence_dir": "data/test-result/20261017/tinkle-frilled-fishnet",
+  "max_attempts": 2,
+  "automatic_retries": 0,
+  "jobs": [
+    {
+      "id": "sweet",
+      "title": "莓粉甜美风",
+      "prompt": "Create a full-body anime fashion illustration of one adult woman in her mid-twenties, using the attached tinkle reference only for artistic rendering. She has very long flowing honey-blonde hair, rose-pink eyes and a warm, playful smile.\n\nShe wears a strawberry-pink and ivory frilled dress with a fitted waist, layered ruffles, delicate lace borders and ribbon bows. The skirt ends at mid-thigh, leaving the upper legs clearly visible above the knees. Fine black diamond-pattern fishnet tights cover both legs continuously, following their natural curvature.\n\nHer footwear is a matching pair of black lace ankle boots with clearly readable crisscross ribbon lacing, scalloped lace cuffs, pointed-almond toes and slender high heels. Show both complete boots and their heel silhouettes.\n\nHer fingernails alternate glossy strawberry pink, lavender and mint. One hand gently gathers a lock of hair near her shoulder, while the other rests near her waist with the nails facing the viewer.\n\nPlace her in a charming pastel dressing room with a velvet stool, ribbon boxes and softly lit curtains. Sweet jewel-like eyes, luminous colour glazes, fine tinted contours, rich but coherent lace details and soft warm daylight. Use a relaxed standing pose with one leg slightly forward, keeping the thighs, fishnet pattern, coloured nails and footwear readable together. Eye-level framing, natural anatomy, no text, watermark or inset portraits."
+    },
+    {
+      "id": "fresh",
+      "title": "薄荷清新风",
+      "prompt": "Create a fresh, airy full-body anime fashion illustration of one adult woman in her mid-twenties, using the attached tinkle reference only for painting style. She has waist-length dark-brown hair flowing gently in the breeze, clear turquoise eyes and a relaxed, bright smile.\n\nDress her in a mint-green and ivory frilled dress with a softly fitted bodice, delicate botanical embroidery, translucent ruffle edges over opaque fabric and a light layered skirt ending at mid-thigh. Keep the upper legs clearly visible. She wears fine ivory diamond-pattern fishnet tights, with enough soft shading for the mesh to remain visible against the skin.\n\nHer ivory lace ankle boots feature elegant crisscross sage-green ribbon lacing, scalloped cuffs, softly pointed toes and slim high heels. Both complete boots, including the heels, must remain inside the frame.\n\nHer glossy fingernails alternate pale lemon, sky blue and soft coral. One hand rests lightly on a greenhouse railing, fingers naturally separated so the coloured nails are visible; the other brushes her long hair behind her ear.\n\nSet the scene in a sunlit conservatory with white flowers, fern leaves, pale stone tiles and an open glass door. Use clear morning light, soft green reflections, restrained sparkling highlights and readable midtones. A natural standing pose with feet comfortably apart, coherent knees and ankles, and balanced adult proportions. Keep the thighs, dress ruffles, fishnet texture, nails and laced heels legible in one composition. No text, watermark, collage or extreme low-angle perspective."
+    }
+  ]
+}

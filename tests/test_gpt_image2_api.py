@@ -188,29 +188,51 @@ def test_moderation_rejection_is_not_retried_or_rerouted(tmp_path, monkeypatch):
     assert calls == ["https://example.invalid/v1/images/generations"]
 
 
-def test_unsupported_generation_image_falls_back_once_without_base64_form(tmp_path, monkeypatch):
+@pytest.mark.parametrize("model", ["gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"])
+def test_generate_with_reference_routes_directly_to_edits(model, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)
     ref = tmp_path / "ref.png"
     ref.write_bytes(TINY_PNG)
     calls = []
-
     def post(url, **kwargs):
         calls.append((url, kwargs))
-        if len(calls) == 1:
-            return _FakeResponse({"error": {"code": "unknown_parameter", "param": "image",
-                "message": "Unknown parameter: 'image'."}})
         assert url.endswith("/images/edits")
         assert "image" not in kwargs["data"]
+        assert "json" not in kwargs
         assert kwargs["files"][0][0] == "image[]"
+        assert kwargs["data"]["model"] == model
         return _FakeResponse({"data": [{"b64_json": base64.b64encode(TINY_PNG).decode()}]})
-
     monkeypatch.setattr(api_backend.requests, "post", post)
+    quality = "max" if "2.5" in model else "high"
     saved = api_backend.generate_image_aigc2d_gpt(
-        prompt="new scene", image_paths=[str(ref)], mode="generate", save_sub_dir="probe")
-    assert len(saved) == 1
-    assert len(calls) == 2
-    assert calls[0][0].endswith("/images/generations")
+        prompt="new scene", model=model, quality=quality, image_paths=[str(ref)],
+        mode="generate", save_sub_dir="probe")
+    assert len(saved) == 1 and len(calls) == 1
+    assert calls[0][1]["data"]["quality"] == quality
+
+
+def test_terminal_parameter_error_is_not_retried_or_rerouted(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_backend, "get_api_config", _fake_api_config)
+    calls = []
+    def post(url, **kwargs):
+        calls.append(url)
+        response = _FakeResponse({"error": {"code": "unknown_parameter", "param": "image"}})
+        response.status_code = 400
+        return response
+    monkeypatch.setattr(api_backend.requests, "post", post)
+    assert api_backend.generate_image_aigc2d_gpt(prompt="test") == []
+    assert calls == ["https://example.invalid/v1/images/generations"]
+
+
+@pytest.mark.parametrize("quality", ["xhigh", "max"])
+def test_25_quality_is_preserved_and_older_models_reject_it(quality):
+    for model in ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare-2026-09-08"]:
+        assert build_gpt_image2_payload("test", model=model, quality=quality)["quality"] == quality
+    with pytest.raises(ValueError, match="2.5"):
+        build_gpt_image2_payload("test", model="gpt-image-2", quality=quality)
+
 
 
 def test_whatai_success_resolves_save_directory_before_downloading(tmp_path, monkeypatch):
@@ -285,7 +307,7 @@ def test_generation_with_reference_uses_multipart_edits(tmp_path, monkeypatch):
 
     assert captured["url"] == "https://example.invalid/v1/images/edits"
     assert captured["kwargs"]["data"]["size"] == GPT_IMAGE2_SIZE_PORTRAIT
-    assert captured["kwargs"]["data"]["model"] == "gpt-image-2"
+    assert captured["kwargs"]["data"]["model"] == api_backend.GPT_IMAGE2_MODEL_DEFAULT
     assert captured["kwargs"]["files"][0][0] == "image[]"
     assert len(saved) == 1
 
@@ -353,10 +375,23 @@ def _write_tab_config(tmp_path, payload=None):
     return config_path
 
 
+@pytest.fixture(autouse=True)
+def _isolate_repaint_recipe_writes(monkeypatch):
+    # Also cover tests that instantiate a widget without the `tab` fixture.
+    monkeypatch.setattr(gpt_image2_tab, "save_repaint_config", lambda conf: None)
+
+
 @pytest.fixture
 def tab(qapp, tmp_path, monkeypatch):
+    from utils import gpt_workflow_settings
+    # These existing tests exercise the explicitly enabled legacy recipe.
+    monkeypatch.setattr(gpt_workflow_settings, "postprocess_enabled", lambda **kw: True)
     config_path = _write_tab_config(tmp_path)
     monkeypatch.setattr(gpt_image2_tab, "CONFIG_IMAGE_FILE", str(config_path))
+    monkeypatch.setattr(api_backend, "UNIFIED_CONFIG_PATH", str(config_path))
+    monkeypatch.setattr(gpt_workflow_settings, "CONFIG_PATH", config_path)
+    # Checkbox signal tests must not persist into the production repaint recipe.
+    monkeypatch.setattr(gpt_image2_tab, "save_repaint_config", lambda conf: None)
     monkeypatch.setattr(gpt_image2_tab, "GptImage2Worker", _FakeWorker)
     return GptImage2Widget()
 
@@ -963,7 +998,8 @@ def test_key_hint_mentions_both_sources(tab):
     """缺 key 的提示要同时给出两条路：配置文件 与环境变量名。"""
     text = tab._key_hint("aigc-2d-gpt")
     assert "conf/config.json" in text
-    assert "IMAGE_MAKER_AIGC_2D_GPT_API_KEY" in text
+    # This fixture explicitly shares env_slug=aigc2d.
+    assert "IMAGE_MAKER_AIGC2D_API_KEY" in text
 
 
 # ---------------- 日志栏（UI 诊断） ----------------
@@ -1476,7 +1512,10 @@ def test_result_list_never_widens_the_page(tab, tmp_path):
     assert item.data(Qt.ItemDataRole.UserRole) == str(path)
     assert str(path) not in item.text(), "完整路径不能写进条目文本（会把列表撑宽）"
     assert long_name[:20] in item.text()
-    assert item.toolTip() == str(path)                       # 完整路径仍看得到
+    tooltip_lines = item.toolTip().splitlines()
+    assert tooltip_lines[0].startswith("文件时间：")
+    assert tooltip_lines[-1] == str(path)                    # 完整路径仍看得到
+    assert tooltip_lines[0][len("文件时间："):] in item.text()
     assert tab.result_list.horizontalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
     assert tab.result_list.textElideMode() == Qt.TextElideMode.ElideMiddle
     assert tab.result_list.sizePolicy().horizontalPolicy() is QSizePolicy.Policy.Ignored
@@ -1726,6 +1765,32 @@ def test_running_character_reference_and_style_have_matching_ui_and_request(tab,
     api_backend._post_images_edits_request("https://example.invalid/edits", "test-key",
                                           {}, request["image_paths"], 30)
     assert captured == [Path(path).name for path in request["image_paths"]]
+
+
+def test_style_detail_references_match_ui_numbers_and_actual_request(tab, tmp_path):
+    from PIL import Image
+    from utils.style_reference import file_hash
+    reference = tmp_path / "full-reference.png"
+    Image.new("RGB", (200, 300), "purple").save(reference)
+    tab._styles_data["tid"].update(ref_image=str(reference), reference_details_enabled=True,
+        reference_detail_crops=[{"role": "face_eyes", "box": [.1, .1, .8, .5],
+                                 "source_sha256": file_hash(reference)}])
+    tab.style_combo.setCurrentText("tid")
+    tab._refresh_reference_guide()
+    assert "图2 = 系统画风图" in tab.reference_guide_label.text()
+    assert "图1（face_eyes）" in tab.reference_guide_label.text()
+    person = tmp_path / "person.png"
+    Image.new("RGB", (64, 64), "blue").save(person)
+    tab.image_grid.add_paths([str(person)])
+    _backend, request = tab.build_request()
+    assert request["image_paths"][0] == str(person)
+    assert request["image_paths"][-1] == str(reference)
+    assert "图3 = 系统画风图" in tab.reference_guide_label.text()
+    assert "Image 2: face_eyes" in request["prompt"]
+    assert "Image 3: full style reference" in request["prompt"]
+    assert "Image 2 (the LAST image)" not in request["prompt"]
+    assert tab.image_grid.max_images == 14
+    assert tab.image_grid._auxiliary_card.index == 2
 
 
 def test_reference_guidance_tracks_add_reorder_remove_and_style_change(tab, tmp_path):
@@ -2276,3 +2341,67 @@ def test_old_config_with_dead_dual_key_still_loads(qapp, tmp_path, monkeypatch):
     widget = GptImage2Widget()
     assert not hasattr(widget, "post_dual_check")
     assert widget.current_site() == SITE_AIGC2D
+
+
+def test_sunburst_default_preserves_configured_and_autodl_model(tmp_path, monkeypatch):
+    assert api_backend.default_gpt_image_model() == "gpt-image-2.5-sunburst"
+    assert api_backend.default_gpt_image_model("autodl") == "gpt-image-2"
+    assert build_gpt_image2_payload("test")["model"] == "gpt-image-2.5-sunburst"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(api_backend, "get_api_config", lambda **k: dict(_fake_api_config(), model="gpt-image-2"))
+    calls = []
+    def post(url, **kwargs):
+        calls.append(kwargs["json"])
+        return _FakeResponse({"error": {"code": "moderation_blocked"}})
+    monkeypatch.setattr(api_backend.requests, "post", post)
+    api_backend.generate_image_aigc2d_gpt(prompt="test")
+    assert len(calls) == 1 and calls[0]["model"] == "gpt-image-2"
+
+
+def test_openai_root_url_routes_by_images():
+    assert api_backend.resolve_images_endpoint("https://example.invalid", api_type="openai-image") == "https://example.invalid/v1/images/generations"
+    assert api_backend.resolve_images_endpoint("https://example.invalid", True, "openai-image") == "https://example.invalid/v1/images/edits"
+
+
+def test_max_budget_does_not_show_uncalibrated_medium_cost(tab):
+    tab.model_combo.setCurrentText("gpt-image-2.5-sunburst")
+    tab.quality_combo.setCurrentIndex(tab.quality_combo.findData("max"))
+    tab._refresh_budget()
+    assert "xhigh/max 成本尚未校准" in tab.budget_label.toolTip()
+
+
+def test_debug_channel_keeps_composed_prompt_and_final_references(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import modules.image_generation.single_gen_debug_tab as debug
+    from utils import analysis_gen, gpt_workflow_settings
+    ref = tmp_path / "style.png"
+    ref.write_bytes(TINY_PNG)
+    monkeypatch.setattr(api_backend, "get_api_config", lambda **k: dict(_fake_api_config(), model="gpt-image-2.5-sunburst"))
+    monkeypatch.setattr(analysis_gen, "build_first_pass_request",
+                        lambda *a, **k: {"prompt": "composed style and content", "image_paths": [str(ref)]})
+    monkeypatch.setattr(gpt_workflow_settings, "postprocess_enabled", lambda: False)
+    captured = {}
+    signal = SimpleNamespace(connect=lambda *a: None)
+    class Thread:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.log_signal = self.finish_signal = self.finished = signal
+        def start(self):
+            captured["started"] = True
+    monkeypatch.setattr(debug, "GptDebugGenThread", Thread)
+    control = SimpleNamespace(setEnabled=lambda *a: None)
+    label = SimpleNamespace(setText=lambda *a: None)
+    owner = SimpleNamespace(
+        save_img_cfg=lambda: None, get_img_config=lambda: ("", "", "", "aigc2d"),
+        get_styles=lambda: {}, main_style_combo=SimpleNamespace(currentText=lambda: "test"),
+        _effective_style_ref_image=lambda: (str(ref), "test"),
+        style_mode_combo=SimpleNamespace(effective_mode=lambda *a: "priority"),
+        _resolve_aspect_ratio=lambda: "2:3", post_pipeline_check=SimpleNamespace(isChecked=lambda: False),
+        generate_btn=control, cancel_btn=control, status_label=label, preview_label=label,
+        _append_log=lambda *a: None, on_image_finished=lambda *a: None,
+        prompt_optimizer=SimpleNamespace(refresh=lambda: None))
+    debug.SingleGenDebugWidget._generate_via_gpt_channel(owner, "subject")
+    assert captured["started"]
+    assert captured["prompt"] == "composed style and content"
+    assert captured["request_kwargs"]["image_paths"] == [str(ref)]
+    assert captured["request_kwargs"]["model"] == "gpt-image-2.5-sunburst"

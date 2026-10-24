@@ -8,7 +8,7 @@ from datetime import datetime
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QListWidget, QListWidgetItem, QFileDialog, QLabel, 
                              QTextEdit, QMessageBox, QComboBox, QSplitter, QProgressBar, QSpinBox, QApplication,
-                             QAbstractItemView)
+                             QAbstractItemView, QTabWidget)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QImageReader
 from openai import OpenAI
@@ -19,6 +19,7 @@ from modules.others.api_backend import generate_image_whatai, generate_image_aig
 from utils.prompt_loader import PROMPTS_DIR
 from utils.styles import style_ref_image, ref_image_valid, build_ref_gen_params
 from utils.style_ref_widget import StyleRefModeCombo
+from modules.image_generation.image_edit_dialogue_widget import DialogueEditPanel
 
 PROMPT_DIR = os.path.join(PROMPTS_DIR, "image-edit")
 IMAGE_EDIT_UI_STATE_FILE = "data/image_edit_ui_state.json"
@@ -79,6 +80,7 @@ class ImageEditWorker(QThread):
                     save_sub_dir="image-edit",
                     file_prefix=os.path.splitext(os.path.basename(self.image_path))[0],
                     cancel_check=lambda: self.isInterruptionRequested(),
+                    face_quality_boost=not bool(self.style_ref_paths),
                     post_instructions=self.post_instructions
                 )
             else:
@@ -146,6 +148,8 @@ class ImageEditWidget(QWidget):
         self.initUI()
         self.load_prompt_templates()
         self.load_ui_state()
+        self._add_images_from_paths([row["original"] for row in self.dialogue_panel.session["images"]])
+        self.dialogue_panel.render_session()
         self._is_initializing = False
         app = QApplication.instance()
         if app is not None:
@@ -192,7 +196,9 @@ class ImageEditWidget(QWidget):
         template_layout.addWidget(self.save_current_template_btn)
         
         top_layout.addLayout(template_layout)
-        layout.addLayout(top_layout)
+        self.legacy_top = QWidget()
+        self.legacy_top.setLayout(top_layout)
+        layout.addWidget(self.legacy_top)
         
         # 中间：分割器 (左侧图片列表，右侧提示词编辑和日志)
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -235,7 +241,13 @@ class ImageEditWidget(QWidget):
         self.log_text.setReadOnly(True)
         right_layout.addWidget(self.log_text)
         
-        splitter.addWidget(right_widget)
+        self.edit_modes = QTabWidget()
+        self.edit_modes.addTab(right_widget, "直接批量编辑")
+        self.dialogue_panel = DialogueEditPanel(self)
+        self.edit_modes.addTab(self.dialogue_panel, "对话编辑")
+        self.dialogue_panel.busy_changed.connect(self._dialogue_busy_changed)
+        self.edit_modes.currentChanged.connect(self._edit_mode_changed)
+        splitter.addWidget(self.edit_modes)
         
         # 设置分割器比例
         splitter.setSizes([300, 500])
@@ -260,12 +272,32 @@ class ImageEditWidget(QWidget):
         self.retry_selected_btn.setEnabled(False)
         bottom_layout.addWidget(self.retry_selected_btn)
         
-        layout.addLayout(bottom_layout)
+        self.legacy_bottom = QWidget()
+        self.legacy_bottom.setLayout(bottom_layout)
+        layout.addWidget(self.legacy_bottom)
 
         self.main_style_combo.currentTextChanged.connect(self.save_ui_state)
         self.template_combo.currentTextChanged.connect(self.save_ui_state)
         self.template_combo.currentTextChanged.connect(self._update_template_save_buttons)
         self.thread_spin.valueChanged.connect(self.save_ui_state)
+
+    def _edit_mode_changed(self, index):
+        self.legacy_top.setVisible(index == 0)
+        self.legacy_bottom.setVisible(index == 0)
+
+    def _dialogue_busy_changed(self, busy):
+        for control in (self.add_btn, self.clear_btn, self.scan_missing_btn, self.image_list,
+                        self.start_btn, self.template_combo, self.prompt_edit, self.thread_spin,
+                        self.main_style_combo, self.style_ref_mode_combo):
+            control.setEnabled(not busy)
+        self._update_template_save_buttons()
+        if busy:
+            self.retry_btn.setEnabled(False)
+            self.retry_selected_btn.setEnabled(False)
+            self.save_template_btn.setEnabled(False)
+            self.save_current_template_btn.setEnabled(False)
+        else:
+            self._update_action_buttons()
 
     def load_prompt_templates(self):
         self.template_combo.clear()
@@ -411,6 +443,8 @@ class ImageEditWidget(QWidget):
         return ext.lower() in SUPPORTED_IMAGE_EXTENSIONS
 
     def _add_images_from_paths(self, paths):
+        if self.processing or self.dialogue_panel.busy:
+            return 0, len(paths)
         added_count = 0
         skipped_count = 0
         for file in paths:
@@ -477,7 +511,7 @@ class ImageEditWidget(QWidget):
         event.acceptProposedAction()
 
     def clear_images(self):
-        if self.processing:
+        if self.processing or self.dialogue_panel.busy:
             QMessageBox.warning(self, "提示", "任务执行中，暂不支持清空列表")
             return
         self.image_paths.clear()
@@ -616,6 +650,8 @@ class ImageEditWidget(QWidget):
         self.progress_bar.setFormat(f"{processed}/{total}")
 
     def _start_processing_with_scope(self, scope_paths=None):
+        if self.processing or self.dialogue_panel.busy:
+            return
         if not self.image_paths:
             QMessageBox.warning(self, "警告", "请先添加图片")
             return
@@ -635,6 +671,7 @@ class ImageEditWidget(QWidget):
             self._run_scope_paths = normalized_scope
             
         self.processing = True
+        self.dialogue_panel.set_controls_busy(True)
         self.update_progress()
         self.start_btn.setEnabled(False)
         self.add_btn.setEnabled(False)
@@ -706,7 +743,7 @@ class ImageEditWidget(QWidget):
         return None
 
     def _update_action_buttons(self):
-        if self.processing:
+        if self.processing or (hasattr(self, "dialogue_panel") and self.dialogue_panel.busy):
             return
         has_errors = any(status == "error" for status in self.results.values())
         has_checked = any(
@@ -945,6 +982,7 @@ class ImageEditWidget(QWidget):
 
     def finish_processing(self):
         self.processing = False
+        self.dialogue_panel.set_controls_busy(False)
         self._run_scope_paths = None
         self.update_progress()
         self.start_btn.setEnabled(True)
@@ -987,6 +1025,10 @@ class ImageEditWidget(QWidget):
         self.active_workers.clear()
 
     def closeEvent(self, event):
+        if not self.dialogue_panel.request_shutdown():
+            self.dialogue_panel.notice("正在等待当前请求返回并保存；完成后可关闭窗口。")
+            event.ignore()
+            return
         try:
             self.processing = False
             self._shutdown_workers()
@@ -997,3 +1039,6 @@ class ImageEditWidget(QWidget):
     def _on_app_about_to_quit(self):
         self.processing = False
         self._shutdown_workers()
+        if not self.dialogue_panel.request_shutdown():
+            # Network calls are bounded; never terminate a thread while saving a paid result.
+            self.dialogue_panel.worker.wait()

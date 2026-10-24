@@ -90,9 +90,37 @@ def init_db():
     if "status" in cols and "pixiv_status" not in cols:
         conn.execute("ALTER TABLE publish_queue RENAME COLUMN status TO pixiv_status")
         conn.execute("ALTER TABLE publish_queue ADD COLUMN chichipui_status TEXT DEFAULT 'pending'")
+    if "error_message" not in cols:
+        conn.execute("ALTER TABLE publish_queue ADD COLUMN error_message TEXT DEFAULT ''")
     conn.commit()
     _repair_missing_metadata_links(conn)
+    missing = check_pending_files(conn)
     conn.close()
+    return missing
+
+
+def mark_queue_file_error(conn, item_uuid, message):
+    """Quarantine only unfinished platforms; preserve completed upload history."""
+    cur = conn.execute("""UPDATE publish_queue SET
+        pixiv_status = CASE WHEN pixiv_status IN ('pending','uploading') THEN 'error' ELSE pixiv_status END,
+        chichipui_status = CASE WHEN chichipui_status IN ('pending','uploading') THEN 'error' ELSE chichipui_status END,
+        error_message = ?, updated_at = datetime('now','localtime')
+        WHERE uuid = ? AND (pixiv_status IN ('pending','uploading') OR chichipui_status IN ('pending','uploading'))""",
+        [message, item_uuid])
+    conn.commit()
+    return cur.rowcount
+
+
+def check_pending_files(conn):
+    """Check all queued, unfinished images on startup (metadata is stored in DB)."""
+    rows = conn.execute("""SELECT uuid, image_path FROM publish_queue
+        WHERE pixiv_status IN ('pending','uploading') OR chichipui_status IN ('pending','uploading')""").fetchall()
+    missing = []
+    for item_uuid, image_path in rows:
+        if not os.path.isfile(image_path):
+            if mark_queue_file_error(conn, item_uuid, "图片文件不存在：" + image_path):
+                missing.append(item_uuid)
+    return missing
 
 
 def close_db(error=None):
@@ -379,8 +407,10 @@ def image_to_base64(image_path: str) -> str | None:
 flask_app = Flask(__name__)
 flask_app.teardown_appcontext(close_db)
 
-VALID_STATUS = ("pending", "uploading", "uploaded")
+VALID_STATUS = ("pending", "uploading", "uploaded", "error")
 VALID_PLATFORM = ("pixiv", "chichipui")
+STATUS_LABELS = {"pending": "待上传", "uploading": "正在上传", "uploaded": "已上传", "error": "错误"}
+STATUS_VALUES = {label: value for value, label in STATUS_LABELS.items()}
 
 
 def _row_to_item(r) -> dict:
@@ -441,13 +471,20 @@ def api_latest_pending():
     col = "pixiv_status" if platform == "pixiv" else "chichipui_status"
 
     db = get_db()
-    row = db.execute(
-        f"SELECT * FROM publish_queue WHERE {col} = 'pending' ORDER BY created_at DESC LIMIT 1"
-    ).fetchone()
-    if not row:
-        return jsonify({"code": 1, "message": f"no pending item for {platform}", "data": None})
-
-    return jsonify({"code": 0, "message": "ok", "data": _row_to_item(row)})
+    while True:
+        row = db.execute(
+            f"SELECT * FROM publish_queue WHERE {col} = 'pending' ORDER BY created_at DESC, id DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return jsonify({"code": 1, "message": f"no pending item for {platform}", "data": None})
+        if not os.path.isfile(row["image_path"]):
+            mark_queue_file_error(db, row["uuid"], "图片文件不存在：" + row["image_path"])
+            continue
+        item = _row_to_item(row)
+        if not item["image_base64"]:
+            mark_queue_file_error(db, row["uuid"], "图片文件为空或无法读取：" + row["image_path"])
+            continue
+        return jsonify({"code": 0, "message": "ok", "data": item})
 
 
 @flask_app.route("/api/queue/<item_uuid>", methods=["GET"])
@@ -473,8 +510,13 @@ def api_get_image(item_uuid):
         return jsonify({"code": 404, "message": "uuid not found"}), 404
     img_path = row["image_path"]
     if not os.path.isfile(img_path):
+        mark_queue_file_error(db, item_uuid, "图片文件不存在：" + img_path)
         return jsonify({"code": 404, "message": "image file not found on disk"}), 404
-    return send_file(img_path, mimetype=_guess_mime(img_path))
+    try:
+        return send_file(img_path, mimetype=_guess_mime(img_path))
+    except OSError:
+        mark_queue_file_error(db, item_uuid, "图片文件无法读取：" + img_path)
+        return jsonify({"code": 404, "message": "image file unavailable on disk"}), 404
 
 
 @flask_app.route("/api/queue/<item_uuid>/status", methods=["PUT"])
@@ -493,11 +535,18 @@ def api_update_status(item_uuid):
 
     col = "pixiv_status" if platform == "pixiv" else "chichipui_status"
     db = get_db()
+    row = db.execute("SELECT image_path FROM publish_queue WHERE uuid = ?", [item_uuid]).fetchone()
+    if row is None:
+        return jsonify({"code": 404, "message": "uuid not found"}), 404
+    if new_status in ("pending", "uploading") and not os.path.isfile(row["image_path"]):
+        mark_queue_file_error(db, item_uuid, "图片文件不存在：" + row["image_path"])
+        return jsonify({"code": 409, "message": "image file missing; restore image before retrying"}), 409
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cur = db.execute(
         f"UPDATE publish_queue SET {col} = ?, updated_at = ? WHERE uuid = ?",
         [new_status, now, item_uuid],
     )
+    db.execute("UPDATE publish_queue SET error_message = '' WHERE uuid = ? AND pixiv_status <> 'error' AND chichipui_status <> 'error'", [item_uuid])
     db.commit()
     if cur.rowcount == 0:
         return jsonify({"code": 404, "message": "uuid not found"}), 404
@@ -628,7 +677,7 @@ class StatusDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         combo = QComboBox(parent)
         combo.setEditable(True)
-        combo.addItems(["待上传", "正在上传", "已上传"])
+        combo.addItems(list(STATUS_VALUES))
         return combo
 
     def setEditorData(self, editor, index):
@@ -694,14 +743,14 @@ class PublishServerWindow(QMainWindow):
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(QLabel("筛选 Pixiv:"))
         self.filter_pixiv = QComboBox()
-        self.filter_pixiv.addItems(["全部", "待上传", "正在上传", "已上传"])
+        self.filter_pixiv.addItems(["全部", *STATUS_VALUES])
         self.filter_pixiv.currentTextChanged.connect(self._on_filter_changed)
         filter_layout.addWidget(self.filter_pixiv)
 
         filter_layout.addSpacing(20)
         filter_layout.addWidget(QLabel("筛选 Chichi-pui:"))
         self.filter_chichipui = QComboBox()
-        self.filter_chichipui.addItems(["全部", "待上传", "正在上传", "已上传"])
+        self.filter_chichipui.addItems(["全部", *STATUS_VALUES])
         self.filter_chichipui.currentTextChanged.connect(self._on_filter_changed)
         filter_layout.addWidget(self.filter_chichipui)
 
@@ -809,9 +858,11 @@ class PublishServerWindow(QMainWindow):
         self._tooltip_cache = {}
 
         # 初始化数据库并刷新
-        init_db()
+        missing = init_db()
         self._refresh_table()
         self._log("GUI 初始化完成，数据库就绪。")
+        if missing:
+            self._log(f"启动检查：{len(missing)} 条待发送记录的图片已缺失，已标为错误并跳过。")
 
         # 端口空闲则自动启动
         saved_port = self._config.get("port", DEFAULT_PORT)
@@ -898,7 +949,7 @@ class PublishServerWindow(QMainWindow):
         self.table.cellChanged.disconnect(self._on_cell_changed)
 
         # 构建筛选条件
-        status_map = {"待上传": "pending", "正在上传": "uploading", "已上传": "uploaded"}
+        status_map = STATUS_VALUES
         conditions = []
         params = []
         if self._pixiv_filter != "全部":
@@ -939,8 +990,11 @@ class PublishServerWindow(QMainWindow):
             keys = set(r.keys())
             raw_p = r["pixiv_status"] if "pixiv_status" in keys else r["status"] if "status" in keys else "pending"
             raw_c = r["chichipui_status"] if "chichipui_status" in keys else "pending"
-            self.table.setItem(i, 0, QTableWidgetItem(status_map.get(raw_p, raw_p)))
-            self.table.setItem(i, 1, QTableWidgetItem(status_map.get(raw_c, raw_c)))
+            for col, status in ((0, raw_p), (1, raw_c)):
+                status_item = QTableWidgetItem(STATUS_LABELS.get(status, status))
+                if status == "error":
+                    status_item.setToolTip(r["error_message"] or "发布错误")
+                self.table.setItem(i, col, status_item)
             # UUID
             uuid_item = QTableWidgetItem(r["uuid"])
             uuid_item.setFlags(uuid_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -1064,24 +1118,25 @@ class PublishServerWindow(QMainWindow):
             return
         item_uuid = uuid_item.text()
         new_value = self.table.item(row, col).text().strip()
-        status_reverse = {"待上传": "pending", "正在上传": "uploading", "已上传": "uploaded"}
+        status_reverse = STATUS_VALUES
 
-        if col == 0:  # Pixiv 状态
+        if col in (0, 1):
             db_status = status_reverse.get(new_value, new_value)
             conn = sqlite3.connect(DB_PATH)
-            conn.execute("UPDATE publish_queue SET pixiv_status = ?, updated_at = datetime('now','localtime') WHERE uuid = ?",
-                         [db_status, item_uuid])
-            conn.commit()
-            conn.close()
-            self._log(f"[{item_uuid[:8]}] Pixiv → {new_value}")
-        elif col == 1:  # Chichi-pui 状态
-            db_status = status_reverse.get(new_value, new_value)
-            conn = sqlite3.connect(DB_PATH)
-            conn.execute("UPDATE publish_queue SET chichipui_status = ?, updated_at = datetime('now','localtime') WHERE uuid = ?",
-                         [db_status, item_uuid])
-            conn.commit()
-            conn.close()
-            self._log(f"[{item_uuid[:8]}] Chichi-pui → {new_value}")
+            try:
+                item = conn.execute("SELECT image_path FROM publish_queue WHERE uuid = ?", [item_uuid]).fetchone()
+                if item and db_status in ("pending", "uploading") and not os.path.isfile(item[0]):
+                    mark_queue_file_error(conn, item_uuid, "图片文件不存在：" + item[0])
+                    self._log(f"[{item_uuid[:8]}] 图片不存在，保持错误状态；恢复文件后再设为待上传。")
+                else:
+                    column = "pixiv_status" if col == 0 else "chichipui_status"
+                    conn.execute(f"UPDATE publish_queue SET {column} = ?, updated_at = datetime('now','localtime') WHERE uuid = ?", [db_status, item_uuid])
+                    conn.execute("UPDATE publish_queue SET error_message = '' WHERE uuid = ? AND pixiv_status <> 'error' AND chichipui_status <> 'error'", [item_uuid])
+                    conn.commit()
+                    self._log(f"[{item_uuid[:8]}] {'Pixiv' if col == 0 else 'Chichi-pui'} → {new_value}")
+            finally:
+                conn.close()
+            self._refresh_table()
         elif col == 3:  # 图片路径
             conn = sqlite3.connect(DB_PATH)
             conn.execute("UPDATE publish_queue SET image_path = ?, updated_at = datetime('now','localtime') WHERE uuid = ?",
@@ -1105,6 +1160,14 @@ class PublishServerWindow(QMainWindow):
             self._start_server()
 
     def _start_server(self):
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            missing = check_pending_files(conn)
+        finally:
+            conn.close()
+        if missing:
+            self._log(f"启动检查：{len(missing)} 条缺图记录已标为错误。")
+            self._refresh_table()
         port = self.port_spin.value()
         self._server = FlaskServerThread(port)
         self._server.start()

@@ -1,0 +1,23 @@
+{
+  "size": "1536x1024",
+  "quality": "high",
+  "model": "gpt-image-2",
+  "max_attempts_per_job": 2,
+  "jobs": [
+    {
+      "id": "01-tea-garden",
+      "style": "iris-mix-style",
+      "prompt": "An elegant everyday fashion illustration of one young adult woman wearing a complete Sweet Lolita outfit in a rose garden beside a small outdoor tea table. Her dress has a pastel mint and cream palette, a modest opaque bodice, puff sleeves, a rounded collar, a bell-shaped knee-length skirt supported by a petticoat, neatly grouped lace trim and a few small ribbon bows. Matching lace-trimmed ankle socks, mint Mary Jane shoes and a small bonnet. Chestnut-brown curled hair, gentle happy expression. She stands naturally holding a closed parasol at her side, full body and shoes visible. A few roses frame the scene, with a quiet garden path behind her. Landscape fashion composition, readable silhouette, coherent folds and clean details, soft morning light and clear coloured shadows. Match the attached reference only for its art style, creating a new character and scene. No text or watermark."
+    },
+    {
+      "id": "02-library-classic",
+      "style": "inf-nikki-v1",
+      "prompt": "A refined fashion illustration of one young adult woman in Classic Lolita clothing browsing a quiet old library. She wears a burgundy and ivory knee-length dress with an opaque high-neck blouse, long bishop sleeves, a structured fitted waist, a full bell-shaped skirt, restrained lace borders and small antique-gold buttons. Ivory opaque tights, brown low-heeled Mary Jane shoes and a burgundy hair bow. Long dark-brown hair in soft organized curls. She stands in a relaxed three-quarter pose beside a bookshelf, holding one closed book against her waist. Show her full outfit and both shoes inside the frame. Warm wood shelves and one window form a simple background. Landscape composition, gentle afternoon light, readable dark fabric folds, distinct material textures and uncluttered silhouette. Match the attached reference only for its art style. No lettering or watermark."
+    },
+    {
+      "id": "03-seaside-sailor",
+      "style": "tinkle-style",
+      "prompt": "A bright summer fashion anime illustration of one young adult woman wearing Sailor Lolita fashion on a seaside promenade. Her opaque white and navy outfit combines a sailor collar, short puff sleeves, a neat blue ribbon and a full knee-length bell-shaped skirt with broad scalloped trim and a small number of nautical ribbon accents. White ankle socks, navy Mary Jane shoes and a small straw hat with a blue bow. Long honey-blonde hair gently moves in the sea breeze. She walks naturally along the promenade, smiling, holding the edge of her hat with one hand. Full body with both shoes clearly visible. Turquoise sea, a white railing and distant sailboats provide a spacious simple background. Landscape composition, crisp focal details, coherent fabric folds, grouped hair locks, fresh sunlight and clear coloured shadows. Follow the attached reference only for its art style, creating a new character and scene. No lettering or watermark."
+    }
+  ]
+}

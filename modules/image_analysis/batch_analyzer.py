@@ -15,7 +15,7 @@ from utils.output_isolation import resolve_output_target
 class BatchAnalyzerWidget(QWidget):
     quick_export_requested = pyqtSignal(list)
 
-    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None):
+    def __init__(self, config_getter_func, img_config_getter_func, styles_getter_func, save_img_cfg_callback, ar_policy_getter_func=None, nsfw_default_getter_func=None, nsfw_changed_callback=None, booru_tag_limit_getter_func=None, timeout_getter_func=None, upscale_options_getter_func=None, upscale_options_changed_callback=None, outfit_check_default_getter_func=None, outfit_check_changed_callback=None, outfit_style_history_getter_func=None, outfit_style_default_getter_func=None, outfit_style_changed_callback=None, outfit_style_delete_callback=None, text_timeout_getter_func=None):
         super().__init__()
         self.get_text_config = config_getter_func
         self.get_img_config = img_config_getter_func
@@ -26,6 +26,7 @@ class BatchAnalyzerWidget(QWidget):
         self.on_nsfw_changed = nsfw_changed_callback
         self.get_booru_tag_limit = booru_tag_limit_getter_func
         self.get_timeout_seconds = timeout_getter_func
+        self.get_text_timeout_seconds = text_timeout_getter_func or timeout_getter_func
         self.get_upscale_options = upscale_options_getter_func
         self.on_upscale_options_changed = upscale_options_changed_callback
         self.get_outfit_check_default = outfit_check_default_getter_func
@@ -478,11 +479,10 @@ class BatchAnalyzerWidget(QWidget):
         self.retry_failed_btn.setEnabled(False)
         self.set_manage_buttons_enabled(False)
         self.log_text.clear()
-        timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+        timeout_seconds = int(self.get_text_timeout_seconds()) if self.get_text_timeout_seconds else 180
         submit_time = datetime.datetime.now()
-        ddl = submit_time + datetime.timedelta(seconds=max(1, timeout_seconds))
         self.log_msg(f"提交时间: {submit_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        self.log_msg(f"超时设置: {timeout_seconds} 秒（预计超时点: {ddl.strftime('%H:%M:%S')}）")
+        self.log_msg(f"文本分析单次请求超时: {timeout_seconds} 秒（每个文本请求独立计时）")
         self.update_progress()
         mode_text = "失败重试" if is_retry else "批量图片分析"
         self.log_msg(f"开始{mode_text}，共 {self.current_run_total} 个文件，并发线程数: {int(self.concurrent_threads_spin.value())}")
@@ -498,7 +498,7 @@ class BatchAnalyzerWidget(QWidget):
             self.next_worker_id += 1
             base_url, api_key, model_name = self.get_text_config(self.use_nsfw_cb.isChecked())
             booru_tag_limit = int(self.get_booru_tag_limit()) if self.get_booru_tag_limit else 30
-            timeout_seconds = int(self.get_timeout_seconds()) if self.get_timeout_seconds else 120
+            timeout_seconds = int(self.get_text_timeout_seconds()) if self.get_text_timeout_seconds else 180
             extra_llm_prompt = self.extra_llm_prompt_edit.toPlainText().strip()
             thread = WorkerThread(
                 image_path,
@@ -816,6 +816,7 @@ class BatchAnalyzerWidget(QWidget):
                     instructions=active_instructions,
                     api_type=api_type,
                     image_paths=style_ref_paths,
+                    face_quality_boost=not bool(style_ref_paths),
                     post_instructions=post_instructions
                 )
                 img_thread.meta_prompt_type = "original"
@@ -841,6 +842,7 @@ class BatchAnalyzerWidget(QWidget):
                     instructions=active_instructions,
                     api_type=api_type,
                     image_paths=style_ref_paths,
+                    face_quality_boost=not bool(style_ref_paths),
                     post_instructions=post_instructions
                 )
                 img_thread.meta_prompt_type = "refined"

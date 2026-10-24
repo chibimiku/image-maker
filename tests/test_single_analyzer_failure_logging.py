@@ -174,7 +174,12 @@ def test_worker_thread_reports_step_2_failure_reason(qapp, monkeypatch):
     monkeypatch.setattr(single_analyzer_module, "step_1_analyze_image", lambda *a, **k: dict(STEP1_RESULT))
     monkeypatch.setattr(single_analyzer_module, "step_2_refine_description", lambda *a, **k: None)
 
-    thread = WorkerThread("dummy.png", "key", "https://example.invalid/v1", "test-model")
+    # Step 2 走 DeepSeek 次级文本通道：显式给全配置（测试隔离环境读不到 NSFW key，
+    # 否则线程在进入打桩的 step_2 之前就以「次级通道不可用」提前返回）。
+    thread = WorkerThread("dummy.png", "key", "https://example.invalid/v1", "test-model",
+                          secondary_config={"base_url": "https://secondary.invalid/v1",
+                                            "api_key": "secondary-test-key",
+                                            "model": "secondary-test-model"})
     log_lines = []
     thread.log_signal.connect(log_lines.append)
 

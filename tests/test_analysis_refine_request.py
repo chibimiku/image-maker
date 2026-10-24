@@ -109,7 +109,13 @@ def test_worker_keeps_step2_refused_state(monkeypatch, qapp):
         return None
 
     monkeypatch.setattr(module, "step_2_refine_description", refine)
-    thread = module.WorkerThread("dummy.png", "key", "https://example.invalid/v1", "test-model")
+    # Step 2 走 DeepSeek 次级文本通道：显式给全 base_url/api_key/model（客户端由打桩的
+    # OpenAI 工厂创建）；不显式给时测试隔离环境下读不到 NSFW key，线程会在进入
+    # step_2_refine_description 之前就以「次级通道不可用」error，断言不到 refused 状态。
+    thread = module.WorkerThread(
+        "dummy.png", "key", "https://example.invalid/v1", "test-model",
+        secondary_config={"base_url": "https://secondary.invalid/v1",
+                          "api_key": "secondary-test-key", "model": "secondary-test-model"})
     results = []
     thread.finish_signal.connect(results.append)
     thread.run()

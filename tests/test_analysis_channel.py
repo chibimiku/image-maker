@@ -79,6 +79,12 @@ class _FakeGptWorker:
 
 @pytest.fixture()
 def analyzer(qapp, monkeypatch, tmp_path):
+    from utils import gpt_workflow_settings
+    from modules.others import api_backend
+    # Legacy recipe coverage is opt-in; the new direct mode has separate tests.
+    monkeypatch.setattr(gpt_workflow_settings, "postprocess_enabled", lambda **kw: True)
+    monkeypatch.setattr(api_backend, "get_api_config", lambda **kw: {"api_key": "test-key"})
+    monkeypatch.setattr(gpt_workflow_settings, "CONFIG_PATH", tmp_path / "workflow-config.json")
     classic = {"base_url": "http://x", "api_key": "k", "model": "m", "api_type": "aigc2d"}
     monkeypatch.setattr(sa, "list_esrgan_models", lambda: ["realesrgan-x4plus"])
     monkeypatch.setattr(sa, "GptImageGenWorkerThread", _FakeGptWorker)
@@ -108,6 +114,56 @@ def test_channel_radios_exist_and_default_to_gpt_recipe(analyzer):
     # gpt 是新装/配方升级后的默认通道；高级参数仍默认折叠。
     assert analyzer.gpt_pp_row.isHidden() is True
     assert analyzer.gen_channel_row.isHidden() is False
+
+
+def test_first_audit_gpt_inapplicable_gemini_can_opt_in(analyzer, qapp, monkeypatch):
+    from utils import gpt_workflow_settings
+    monkeypatch.setattr(gpt_workflow_settings, "postprocess_enabled", lambda **kw: False)
+    assert not analyzer.gemini_audit_retry.isChecked()
+    assert not analyzer.gemini_audit_retry.isEnabled()
+    assert analyzer.workflow_controls.config_button.isHidden()
+    analyzer.gen_channel_gemini.setChecked(True)
+    assert analyzer.gemini_audit_retry.isEnabled()
+    assert not analyzer.gemini_audit_retry.isChecked()
+    analyzer.gemini_audit_retry.setChecked(True)
+    analyzer.gen_channel_gpt.setChecked(True)
+    assert not analyzer.gemini_audit_retry.isChecked()
+    assert not analyzer.gemini_audit_retry.isEnabled()
+    analyzer.gen_channel_gemini.setChecked(True)
+    assert analyzer.gemini_audit_retry.isChecked() and analyzer.gemini_audit_retry.isEnabled()
+
+
+def test_advanced_rows_are_scrolled_into_view(analyzer, qapp):
+    analyzer.resize(1100, 750)
+    analyzer.show()
+    analyzer.gpt_advanced_toggle.setChecked(True)
+    qapp.processEvents()
+    assert analyzer.controls_scroll.minimumHeight() == 180
+    assert not analyzer.gpt_pp_row.isHidden() and not analyzer.gpt_param_row.isHidden()
+    viewport = analyzer.controls_scroll.viewport()
+    position = analyzer.gpt_param_row.mapTo(viewport, analyzer.gpt_param_row.rect().center())
+    assert viewport.rect().contains(position)
+    analyzer.gpt_advanced_toggle.setChecked(False)
+    assert analyzer.controls_scroll.minimumHeight() == 100
+    analyzer.hide()
+
+
+def test_direct_gpt_uses_own_timeout_instead_of_generic_60_seconds(analyzer, monkeypatch):
+    from modules.others import api_backend
+    monkeypatch.setattr(api_backend, "get_api_config", lambda **k: {"timeout": 600, "max_retries": 0, "upstream_error_retries": -1})
+    monkeypatch.setenv("IMAGE_MAKER_IMAGE_MAX_RETRIES", "0")
+    assert analyzer._pipeline_timeout_budget(60, {}, {"postprocess_enabled": False, "first_pass_mode": "edit"}) == 630
+
+
+def test_later_generation_extends_but_never_shortens_deadline(analyzer):
+    analyzer._start_image_gen_runtime(60)
+    old = analyzer._img_gen_deadline
+    analyzer._start_image_gen_runtime(630)
+    extended = analyzer._img_gen_deadline
+    assert (extended - old).total_seconds() > 500
+    analyzer._start_image_gen_runtime(30)
+    assert analyzer._img_gen_deadline >= extended
+    analyzer._stop_image_gen_runtime()
 
 
 def test_selecting_gpt_channel_shows_post_process_row(analyzer):
@@ -229,7 +285,7 @@ def test_gpt_channel_request_uses_identity_complete_anchor_and_style_ref(analyze
     assert len(payload["image_paths"]) == 1 and payload["image_paths"][0].endswith("tid.png")
     assert _FakeGptWorker.last.get("started") is True
     # 首图走「新建图片」（/images/generations + 参考图字段），不走 edits
-    assert _FakeGptWorker.last.get("mode") == "generate"
+    assert _FakeGptWorker.last.get("mode") == "auto"
     # 重绘的第二张参考 = 画风参考图（不是线锚图）：修「碎玻璃/塌线稿」那处
     assert _FakeGptWorker.last.get("style_ref_path", "").endswith("tid.png")
     assert _FakeGptWorker.last["steps"]["repaint"]["reference_mode"] == "style"
@@ -342,9 +398,9 @@ def test_gpt_first_pass_prefers_handwritten_clauses(analyzer, tmp_path):
 
 
 
-def test_gpt_quality_combo_defaults_to_high(analyzer):
+def test_gpt_quality_combo_defaults_to_max(analyzer):
     """首图质量默认 high（medium 的细节 token 只有 high 的 1/5，重绘放大后必糊）。"""
-    assert analyzer.gpt_quality_combo.currentData() == "high"
+    assert analyzer.gpt_quality_combo.currentData() == "max"
     assert analyzer.gpt_param_row.isHidden() is True        # 未选 gpt 通道时隐藏
     analyzer.gen_channel_gpt.setChecked(True)
     analyzer.gpt_advanced_toggle.setChecked(True)

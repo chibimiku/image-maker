@@ -50,6 +50,8 @@ from modules.others.api_backend import (
     CONFIG_DIR,
     GPT_IMAGE2_MAX_REFERENCE_IMAGES,
     GPT_IMAGE2_MODEL_DEFAULT,
+    default_gpt_image_model,
+    default_gpt_image_quality,
     GPT_IMAGE2_MODEL_NOTES,
     GPT_IMAGE2_OUTPUT_FORMATS,
     GPT_IMAGE2_SITE_AIGC2D,
@@ -111,6 +113,8 @@ SIZE_CHOICES_BY_SITE = {
     for site, sizes in GPT_IMAGE2_SITE_SIZES.items()
 }
 QUALITY_CHOICES = (
+    ("max 最高（2.5）", "max"),
+    ("xhigh 超精细（2.5）", "xhigh"),
     ("high 精细(较慢较贵)", "high"),
     ("medium 标准", "medium"),
     ("low 快速草稿", "low"),
@@ -518,6 +522,7 @@ class GptImage2Widget(QWidget):
         self.setAcceptDrops(True)
         self.initUI()
         self.load_defaults()
+        self._refresh_workflow_controls()
         self.refresh_api_hint()
         # 长度护栏 + 成本估算（先用内置价目快照显示，首次显示窗口时再拉一次网络价目刷新）
         self._connect_budget_signals()
@@ -631,6 +636,10 @@ class GptImage2Widget(QWidget):
         row0.addWidget(self.site_combo, 3)
         row0.addWidget(_cell_label("模式:"), 0)
         row0.addWidget(self.mode_combo, 3)
+        from utils.gpt_workflow_widget import GptWorkflowControls
+        self.workflow_controls = GptWorkflowControls(self)
+        self.workflow_controls.changed.connect(self._refresh_workflow_controls)
+        row0.addWidget(self.workflow_controls)
         top.addWidget(_fixed_row(row0))
 
         # 行 1：模型 + 刷新 | 尺寸 + 自动尺寸提示
@@ -1107,8 +1116,23 @@ class GptImage2Widget(QWidget):
         result_btn_row.addStretch(1)
         layout.addLayout(result_btn_row)
 
+        from utils.image_prompt_optimizer_widget import PromptOptimizerControl
+        self.prompt_optimizer = PromptOptimizerControl(
+            self, self.prompt_edit, self._prompt_optimizer_context, self._append_log,
+            supported=lambda: self.mode_combo.currentText() != MODE_REPAINT,
+            generation_busy=self._pipeline_busy,
+            state_getter=lambda: tuple(self.image_paths),
+        )
+        self.optimize_prompt_btn = self.prompt_optimizer.button
+        prompt_header.insertWidget(1, self.optimize_prompt_btn)
         self._populate_sizes(SITE_AIGC2D)
         self.on_mode_changed(self.mode_combo.currentText())
+
+    def _prompt_optimizer_context(self):
+        size = self.resolve_request_size()
+        return {"channel": "gpt", "mode": "edit" if self.mode_combo.currentText() == MODE_EDIT else "generate",
+                "size": size, "style": self.style_combo.currentText(),
+                "content_attachment_count": len(self.image_paths)}
 
     def current_site(self) -> str:
         return str(self.site_combo.currentData() or SITE_AIGC2D)
@@ -1168,6 +1192,8 @@ class GptImage2Widget(QWidget):
                 self.prompt_edit.setPlaceholderText("生图：描述画面；有素材时写“图1提供人设，让TA跑步”，并说明要保留什么、改变什么。")
         self._refresh_repaint_hint()
         self._on_images_changed(self.image_paths)
+        if hasattr(self, "prompt_optimizer"):
+            self.prompt_optimizer.refresh()
 
     def reset_post_defaults(self):
         """「恢复推荐」：把重绘/后处理开关与参数拉回推荐配方（与「图片分析」Tab 的 gpt 通道一致）。
@@ -1237,6 +1263,9 @@ class GptImage2Widget(QWidget):
           编辑模式同样支持——gpt-image 的 edits 出的图分辨率同样偏低，重绘一步到位。
         - 重绘模式下再叠一层重绘没有意义，所以那种情况不看勾选框。
         """
+        from utils.gpt_workflow_settings import postprocess_enabled
+        if not postprocess_enabled():
+            return False
         mode_text = self.mode_combo.currentText()
         if mode_text == MODE_REPAINT:
             return True
@@ -1293,9 +1322,10 @@ class GptImage2Widget(QWidget):
         mode_text = self.mode_combo.currentText() if hasattr(self, "mode_combo") else MODE_GENERATE
         if hasattr(self, "repaint_check"):
             # 生图 / 编辑模式都由这个勾选框决定是否链式重绘；重绘模式恒定走重绘，勾选框无意义 → 置灰仍可见
-            self.repaint_check.setEnabled(mode_text != MODE_REPAINT)
+            from utils.gpt_workflow_settings import postprocess_enabled
+            self.repaint_check.setEnabled(postprocess_enabled() and mode_text != MODE_REPAINT)
             if hasattr(self, "post_wardrobe_check"):
-                self.post_wardrobe_check.setEnabled(not self.automatic_refine_enabled())
+                self.post_wardrobe_check.setEnabled(postprocess_enabled() and not self.automatic_refine_enabled())
         # 参数在三种模式下都可调（编辑模式也会走重绘；重绘模式更不用说）
         for widget in (self.repaint_model_combo, self.repaint_resolution_combo,
                        self.repaint_aspect_combo, self.repaint_repeat_spin):
@@ -1357,8 +1387,23 @@ class GptImage2Widget(QWidget):
         return params
 
     def automatic_refine_enabled(self):
-        return (self.mode_combo.currentText() != MODE_REPAINT and self.repaint_check.isChecked()
+        from utils.gpt_workflow_settings import postprocess_enabled
+        return (postprocess_enabled() and self.mode_combo.currentText() != MODE_REPAINT and self.repaint_check.isChecked()
                 and bool(self.current_repaint_config().get("refine_enabled", True)))
+
+    def _refresh_workflow_controls(self):
+        from utils.gpt_workflow_settings import postprocess_enabled
+        enabled = postprocess_enabled()
+        for name in ("repaint_check", "structure_check", "post_wardrobe_check", "post_tone_check", "post_ink_check"):
+            widget = getattr(self, name, None)
+            if widget is not None:
+                widget.setEnabled(enabled)
+        if enabled:
+            self.repaint_check.setEnabled(self.mode_combo.currentText() != MODE_REPAINT)
+            self.post_wardrobe_check.setEnabled(not self.automatic_refine_enabled())
+        if hasattr(self, "api_hint"):
+            self.refresh_api_hint()
+        self._refresh_budget()
 
     def add_results_to_reference(self):
         paths = [self.result_list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.result_list.count())]
@@ -1419,7 +1464,7 @@ class GptImage2Widget(QWidget):
             live_models = self._live_models.get(site)
         self._set_model_choices(
             pick_gpt_image_models(site=site, models=live_models, extra=[saved]),
-            saved or GPT_IMAGE2_MODEL_DEFAULT,
+            saved or default_gpt_image_model(api_type),
         )
 
     def _set_model_choices(self, models, current: str):
@@ -1440,7 +1485,7 @@ class GptImage2Widget(QWidget):
             self.model_combo.blockSignals(False)
 
     def current_model(self) -> str:
-        return self.model_combo.currentText().strip() or GPT_IMAGE2_MODEL_DEFAULT
+        return self.model_combo.currentText().strip() or default_gpt_image_model(API_TYPE_BY_SITE.get(self.current_site(), ""))
 
     def refresh_models(self):
         """按当前站点 GET /v1/models，把 gpt-image 系列填进下拉（后台线程，不卡界面）。"""
@@ -1512,6 +1557,9 @@ class GptImage2Widget(QWidget):
         except Exception:  # noqa: BLE001 - 提示文案不该因为读配置失败而崩
             cfg = {}
         names = _env_key_names(api_type, cfg)
+        if cfg.get("_gpt_dedicated_key"):
+            from utils.gpt_workflow_settings import KEY_ENV
+            return "GPT 专用 key 未配置：点击「GPT配置」填写，或设置 " + KEY_ENV
         env_hint = f"，或设环境变量 {names[0]}" if names else ""
         return f"apis.{api_type} 缺少 api_key（可在 conf/config.json 填写{env_hint}）"
 
@@ -1527,7 +1575,7 @@ class GptImage2Widget(QWidget):
         }.get(str(cfg.get("_api_key_source") or ""), "")
         if not key_state:
             key_state = f"已配置({cfg.get('_api_key_source')})"   # env:VARNAME，只暴露变量名
-        model = str(cfg.get("model") or "gpt-image-2")
+        model = str(cfg.get("model") or default_gpt_image_model(api_type))
         cancel_state = "支持取消" if site == SITE_AIGC2D else "不支持中断(请求返回后才结束)"
         self.api_hint.setText(
             f"站点: {site}  (API类型 {api_type})    接口: {base_url}    模型: {model}    "
@@ -1560,7 +1608,7 @@ class GptImage2Widget(QWidget):
             if str(saved_size) != SIZE_FOLLOW_INPUT:
                 saved_size = normalize_gpt_image2_size(size=saved_size)
         _set_combo_by_data(self.size_combo, saved_size, fallback_size)
-        _set_combo_by_data(self.quality_combo, per_site.get("quality"), "high")
+        _set_combo_by_data(self.quality_combo, per_site.get("quality"), default_gpt_image_quality(self.current_model()))
         output_format = str(per_site.get("output_format") or "png").lower()
         if self.output_format_combo.findText(output_format) >= 0:
             self.output_format_combo.setCurrentText(output_format)
@@ -1719,7 +1767,8 @@ class GptImage2Widget(QWidget):
         extra = [render_prompt_file("gpt-reference-example-extra-zh.md", {"image_index": i}).strip()
                  for i in range(2, count + 1)]
         _style_text, style_ref = self.current_style_block()
-        style = render_prompt_file("gpt-reference-example-style-zh.md", {"style_index": count + 1}).strip() if style_ref else ""
+        style = render_prompt_file("gpt-reference-example-style-zh.md", {
+            "style_index": count + 1 + len(self._style_detail_references())}).strip() if style_ref else ""
         return render_prompt_file("gpt-reference-example-zh.md", {
             "extra_roles": "\n" + "\n".join(extra) if extra else "",
             "style_reference": "\n" + style if style else ""}).strip()
@@ -1764,6 +1813,18 @@ class GptImage2Widget(QWidget):
         edit.endEditBlock()
         self.prompt_edit.setTextCursor(saved_cursor)
 
+    def _style_detail_references(self):
+        from utils.style_reference import detail_reference_paths
+        _text, reference = self.current_style_block()
+        entry = getattr(self, "_styles_data", {}).get(self.current_style_name())
+        try:
+            details = detail_reference_paths(entry, reference) if reference else []
+            self._style_detail_error = ""
+            return details
+        except (OSError, ValueError) as exc:
+            self._style_detail_error = str(exc)
+            return []  # Request preparation repeats validation and blocks sending.
+
     def _refresh_reference_guide(self):
         if not hasattr(self, "reference_guide_label"):
             return
@@ -1773,14 +1834,17 @@ class GptImage2Widget(QWidget):
         paths = self.image_paths if hasattr(self, "image_grid") else []
         count = len(paths)
         _style_text, style_ref = self.current_style_block()
+        details = self._style_detail_references() if not repaint else []
+        style_index = count + len(details) + 1
         order = [("content", os.path.normcase(os.path.abspath(path))) for path in paths]
         if style_ref:
+            order.extend(("style-detail", item["sha256"]) for item in details)
             order.append(("system-style",))
         self._update_reference_numbers(order)
-        limit = GPT_IMAGE2_MAX_REFERENCE_IMAGES - bool(style_ref)
+        limit = GPT_IMAGE2_MAX_REFERENCE_IMAGES - bool(style_ref) - len(details)
         if hasattr(self, "image_grid"):
             self.image_grid.max_images = limit if not repaint else GPT_IMAGE2_MAX_REFERENCE_IMAGES
-            self.image_grid.set_auxiliary_image("" if repaint else style_ref)
+            self.image_grid.set_auxiliary_image("" if repaint else style_ref, number=style_index)
         if hasattr(self, "ref_label"):
             mode_hint = "重绘=源图" if repaint else ("编辑=至少1张素材" if self.mode_combo.currentText() == MODE_EDIT else "生图=素材可留空")
             user_limit = GPT_IMAGE2_MAX_REFERENCE_IMAGES if repaint else limit
@@ -1790,20 +1854,25 @@ class GptImage2Widget(QWidget):
             user_range = "图1" if count == 1 else f"图1～图{count}"
             summary = f"{user_range} = 你插入的素材（按缩略图顺序）"
             if style_ref:
-                summary += f"；图{count + 1} = 系统画风图。"
+                summary += f"；图{style_index} = 系统画风图。"
             else:
                 summary += "；未附加系统画风图。"
             summary += "\n正文中点击图片可插入 Image N；排序后 Image N / 图N 引用自动更新。请写清每张图用途和修改要求。"
         elif style_ref:
-            summary = "图1 = 系统画风图；角色、动作和场景请用文字描述。上传人设图后，它将成为图1，画风图顺延。"
+            summary = f"图{style_index} = 系统画风图；角色、动作和场景请用文字描述。上传人设图后，它将成为图1，画风图顺延。"
         else:
             summary = "上传后按图1、图2…引用，并写明每张图用途（人设 / 姿势 / 服装 / 背景）；选择画风后系统画风图排最后。"
         if count > limit and not repaint:
-            summary += f"\n共{count + 1}张超出上限：请移除一张素材图，或取消系统画风图。"
+            summary += f"\n共{style_index}张超出上限：请移除素材图或局部参考。"
+        if details:
+            summary += "\n附加局部参考：" + "、".join(f"图{count+i+1}（{item['role']}）" for i, item in enumerate(details))
+        if getattr(self, "_style_detail_error", ""):
+            summary += "\n局部参考无效，发送前需修正：" + self._style_detail_error
         self.reference_guide_label.setText(summary)
         mapping = [f"图{i}：{os.path.basename(path)}（用户素材）" for i, path in enumerate(paths, 1)]
         if style_ref:
-            mapping.append(f"图{count + 1}：{os.path.basename(style_ref)}（系统画风）")
+            mapping.extend(f"图{count+i+1}：{item['role']}（局部画风参考）" for i, item in enumerate(details))
+            mapping.append(f"图{style_index}：{os.path.basename(style_ref)}（系统画风）")
         detail = "\n".join(mapping) + "\n\n" + (self._reference_example() if count else summary)
         detail += "\n\n光标在正文时点击缩略图，在光标处插入 Image N；系统画风图也可点击引用。排序时正文编号自动更新，删除被引用图片会标记待修正。"
         detail += "\n官方指南：https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide"
@@ -1907,6 +1976,10 @@ class GptImage2Widget(QWidget):
             prompt += raw_with_color[len(raw_prompt):]
         self._prepared_color = color
         image_paths = ordered_reference_images(content_images, style_ref, style_ref_attached=bool(style_ref))
+        from utils.style_reference import append_gpt_style_details
+        prompt, image_paths = append_gpt_style_details(
+            prompt, image_paths, self._styles_data.get(self.current_style_name()),
+            style_ref, len(content_images))
         # 按最终附件（含自动追加的画风图）选接口，避免 generate 强制把图片发到
         # generations 的非标准 image 字段，再因上游不支持而回退重发。
         mode = "edit" if mode_text == MODE_EDIT or image_paths else "generate"
@@ -1966,6 +2039,10 @@ class GptImage2Widget(QWidget):
 
         # ---- 分支 1：重绘模式（输入=已拖入的产物）----
         if mode == MODE_REPAINT:
+            from utils.gpt_workflow_settings import postprocess_enabled
+            if not postprocess_enabled():
+                QMessageBox.information(self, "后续工序关闭", "请先勾选「后续工序」再执行 Gemini 重绘。")
+                return
             if not self.image_paths:
                 QMessageBox.warning(
                     self, "提示",
@@ -2018,7 +2095,8 @@ class GptImage2Widget(QWidget):
             )
             return
         # 生图与编辑都支持出图后接着重绘（gpt-image 两种模式出的分辨率都偏低）
-        chain_repaint = bool(self.repaint_check.isChecked()) and mode in (MODE_GENERATE, MODE_EDIT)
+        from utils.gpt_workflow_settings import postprocess_enabled
+        chain_repaint = postprocess_enabled() and bool(self.repaint_check.isChecked()) and mode in (MODE_GENERATE, MODE_EDIT)
         if chain_repaint:
             repaint_api_type = str(self.current_repaint_config().get("api_type") or REPAINT_DEFAULTS["api_type"])
             if not str(get_api_config(api_type=repaint_api_type).get("api_key") or "").strip():
@@ -2119,7 +2197,8 @@ class GptImage2Widget(QWidget):
         # Keep the task busy until finished has been handled, including the gap
         # between a result signal and the actual end of run().
         return bool(getattr(self, '_shutdown_pending', False) or self._worker is not None
-                    or getattr(self, '_post_worker', None) is not None)
+                    or getattr(self, '_post_worker', None) is not None
+                    or (getattr(self, 'prompt_optimizer', None) and self.prompt_optimizer.busy))
 
     def _refresh_task_controls(self):
         busy = self._pipeline_busy()
@@ -2129,6 +2208,8 @@ class GptImage2Widget(QWidget):
         self.cancel_btn.setEnabled(bool(self._worker and getattr(self._worker, 'cancellable', True)
                                        and not getattr(self, '_shutdown_pending', False)))
         self.refresh_refine_buttons()
+        if hasattr(self, "prompt_optimizer"):
+            self.prompt_optimizer.refresh()
 
     def _watch_generation_worker(self, worker):
         worker.cancellable = getattr(worker, 'params', {}).get('api_type') != 'autodl'
@@ -2283,14 +2364,18 @@ class GptImage2Widget(QWidget):
             return
         from utils.refine_state import read_record, image_stage
         busy = self._pipeline_busy()
-        enabled = bool(self._refine_record_path) and not busy
+        from utils.gpt_workflow_settings import postprocess_enabled
+        enabled = bool(self._refine_record_path) and not busy and postprocess_enabled()
         self.refine_retry_btn.setEnabled(enabled)
         self.refine_continue_btn.setEnabled(enabled)
         force = False
         if enabled:
             try:
-                entry = image_stage(read_record(self._refine_record_path), self.refine_stage_combo.currentData())
-                force = bool(entry and entry.get('outputs') and entry.get('status') != 'requested')
+                record = read_record(self._refine_record_path)
+                finished = record.get('status') == 'finished'
+                self.refine_continue_btn.setEnabled(not finished)
+                entry = image_stage(record, self.refine_stage_combo.currentData())
+                force = bool(not finished and entry and entry.get('outputs') and entry.get('status') != 'requested')
             except (OSError, ValueError, KeyError):
                 pass
         self.refine_force_btn.setEnabled(force and enabled)
@@ -2316,6 +2401,9 @@ class GptImage2Widget(QWidget):
         from utils.refine_state import read_record, default_stage, can_resume_audit
         try:
             record = read_record(self._refine_record_path)
+            if record.get('status') == 'finished':
+                self.refresh_refine_buttons()
+                return
             stage = default_stage(record)
             self.refine_stage_combo.setCurrentIndex(self.refine_stage_combo.findData(stage))
             self.retry_refine(audit_only=can_resume_audit(record, stage))
@@ -2323,12 +2411,19 @@ class GptImage2Widget(QWidget):
             self.status_label.setText('断点不可用：' + str(exc))
 
     def retry_refine(self, force=False, audit_only=False):
+        from utils.gpt_workflow_settings import postprocess_enabled
+        if not postprocess_enabled():
+            self._append_log("后续工序关闭，请先勾选「后续工序」再执行修复或审计。")
+            return
         if not self._refine_record_path or self._pipeline_busy():
             return
         stage = self.refine_stage_combo.currentData()
         from utils.refine_state import resume_plan
         try:
             plan = resume_plan(self._refine_record_path, stage, force, audit_only=audit_only)
+            if force and plan['record'].get('status') == 'finished':
+                self.refresh_refine_buttons()
+                return
         except (OSError, ValueError, KeyError) as exc:
             self.status_label.setText('断点不可用：' + str(exc))
             return
@@ -2438,7 +2533,8 @@ class GptImage2Widget(QWidget):
                 pass  # 不完整落点在提交前报告，预算刷新不弹窗。
         budget = prompt_budget(len(text), style_chars=len(style_text))
         steps = self.post_pipeline_steps() if hasattr(self, "structure_check") else {}
-        chain_repaint = bool(self.repaint_check.isChecked()) if hasattr(self, "repaint_check") else False
+        from utils.gpt_workflow_settings import postprocess_enabled
+        chain_repaint = postprocess_enabled() and bool(self.repaint_check.isChecked()) if hasattr(self, "repaint_check") else False
         try:
             est = estimate_pipeline(
                 max(1, len(text) + len(style_text)),
@@ -2446,6 +2542,7 @@ class GptImage2Widget(QWidget):
                          self.size_combo.currentData() or DEFAULT_SIZE_BY_SITE.get(self.current_site(),
                                                                                   GPT_IMAGE2_SIZE_SQUARE)),
                 quality=str(self.quality_combo.currentData() or "medium"),
+                gpt_model=self.current_model(),
                 ref_images=len(self.image_paths or []),
                 repaint_model=str(self.current_repaint_config()["model"]),
                 refine_background_model=self.current_repaint_config()["refine_background_model"],
@@ -2463,7 +2560,13 @@ class GptImage2Widget(QWidget):
             est = None
             self._append_log(f"[估算] 成本估算失败（忽略）: {exc}")
 
+        uncalibrated_quality = self.quality_combo.currentData() in {"xhigh", "max"}
+        if uncalibrated_quality:
+            # Do not silently estimate these new tiers using medium's token count.
+            est = None
         detail_lines = [format_budget(budget)]
+        if uncalibrated_quality:
+            detail_lines.append("xhigh/max 成本尚未校准，请以实际返回 token 用量和账单为准。")
         if est:
             detail_lines.extend(format_pipeline_cost(est).splitlines())
             detail_lines.append("逐工序：" + " + ".join(
@@ -2478,6 +2581,8 @@ class GptImage2Widget(QWidget):
             summary += f" ｜ 还能输入约 {budget['remaining_soft']:,} 字符"
         if est:
             summary += f" ｜ 估算 ¥{est['total_cny']:.2f}"
+        elif uncalibrated_quality:
+            summary += " ｜ 成本待实际用量"
         # 超长时右边截断（左边是"超没超"的关键信息）；QLabel 不支持省略号，这里手工裁
         keep = max(24, self.budget_label.width() // 8)
         self.budget_label.setText(summary if len(summary) <= keep else summary[:keep - 1] + "…")
@@ -2522,6 +2627,9 @@ class GptImage2Widget(QWidget):
         gpt 通道同源，避免两边各写一份默认值后漂移。色调校准是**本地**工序（零 API 成本），
         但它必须有一个目标图：没有可用目标时这里直接不启用，免得白跑一遍还改掉产物名。
         """
+        from utils.gpt_workflow_settings import postprocess_enabled
+        if not postprocess_enabled():
+            return {}
         from utils.analysis_gen import pipeline_steps_from_flags
         return pipeline_steps_from_flags(
             repaint=False,          # 重绘在本 Tab 是独立的「重绘模式 / 链式重绘」，不走这条流水线
@@ -2558,6 +2666,10 @@ class GptImage2Widget(QWidget):
         return paths
 
     def retry_failed_post_steps(self):
+        from utils.gpt_workflow_settings import postprocess_enabled
+        if not postprocess_enabled():
+            self._append_log("后续工序关闭，请先勾选「后续工序」再重试。")
+            return
         """从失败节点继续跑后处理（已成功的步骤会被跳过）。"""
         if self._pipeline_busy():
             return

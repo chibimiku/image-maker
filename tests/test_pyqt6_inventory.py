@@ -18,6 +18,11 @@ ROOT_FILES = {
     "publish_server.py",
 }
 
+# 运行在 Krita 内嵌 Python（只带 PyQt5）里的桥接脚本，不属于主应用的 Qt6 迁移范围。
+PYQT5_EXEMPT = {
+    REPO_ROOT / "tools" / "krita_studio.py",
+}
+
 LEGACY_PATTERNS = [
     r"QMessageBox\.(Yes|No)\b",
     r"QLineEdit\.PasswordEchoOnEdit\b",
@@ -57,8 +62,11 @@ def iter_source_files():
 def test_source_files_no_longer_import_pyqt5():
     offenders = []
     legacy_import = "from " + "PyQt5"
+    exempt = {p.resolve() for p in PYQT5_EXEMPT}
 
     for path in iter_source_files():
+        if path.resolve() in exempt:
+            continue
         text = path.read_text(encoding="utf-8")
         if legacy_import in text or "import PyQt5" in text:
             offenders.append(str(path))

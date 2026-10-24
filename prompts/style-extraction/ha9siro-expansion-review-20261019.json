@@ -1,0 +1,29 @@
+{
+  "status": "visual_curation_only_no_training",
+  "date": "2026-10-19",
+  "target_count": 12,
+  "base_review": "prompts/style-extraction/ha9siro-study-20261019.json",
+  "score_disclaimer": "Subjective curation scores: completeness, style_consistency relative to the luminous study, detail_readability, artifact_cleanliness. Not model audit scores or generation validation.",
+  "review_method": "All 11 new images inspected in a contact sheet; two full-body images and one new sword portrait additionally inspected enlarged. Earlier 11 images retain the first review.",
+  "selected_core_new": ["2018257982677778484", "2018111105227534792", "2111215618011615689", "2111039671090475125", "2110853231307850196"],
+  "selected_breadth_new": ["2111577998147178616", "2111396811948642775"],
+  "notes": [
+    "12-study set = 10 core luminous portraits + 2 composition/material breadth examples; a strict 10-portrait manifest is also provided.",
+    "The two full-body examples support flowing locks, gradient light, crisp silhouette and landscape-in-object motifs. Their simpler faces are not evidence for the portrait group's iris microstructure.",
+    "Repeated pale hair and five apple compositions remain a content confound. Different post IDs and hashes do not establish independent scenes.",
+    "Do not expand the old five-image prompt automatically or claim retraining. This round is collection and curation only."
+  ],
+  "review": [
+    {"post_id": "2025411664334762298", "group": "crisp-pale-angel", "selected": false, "scores": [8, 5, 8, 7], "reason": "蓝白天使与刀具为大面积浅平涂和清晰图案，宝石辉光及面部表达明显弱于主集；保留为风格分支。"},
+    {"post_id": "2021729791649755287", "group": "graphic-red-black", "selected": false, "scores": [8, 4, 8, 7], "reason": "红黑白图案、强斜线构图与平面阴影占主导；不同画法不为凑数混入。"},
+    {"post_id": "2018257982677778484", "group": "luminous-portrait", "selected": true, "role": "core", "scores": [8, 9, 8, 7], "reason": "粉色层叠虹膜、细轮廓和镜面内景苹果支持高亮肖像；与既有苹果系列内容相近，明确记录系列偏样。"},
+    {"post_id": "2018111105227534792", "group": "luminous-portrait", "selected": true, "role": "core", "scores": [8, 9, 8, 7], "reason": "仰视侧脸与暖红反光苹果，比正面苹果提供不同视角；细发束和蕾丝保持主集画法，仍属相关主题。"},
+    {"post_id": "2111940394892271983", "group": "bell-glow-alternate", "selected": false, "scores": [8, 6, 6, 6], "reason": "全身人物与层叠景观铃形光带，强辉光遮蔽结构；已有两个更清楚的全身补充，因此不继续增加特效比重。"},
+    {"post_id": "2111577998147178616", "group": "luminous-fullbody", "selected": true, "role": "breadth", "scores": [9, 7, 8, 7], "reason": "白底全身与蝴蝶形内景、流动发束和透明亮边；补充景别与材质关系。面部较简化，仅作构图/材质补充，不用于推断复杂虹膜共性。"},
+    {"post_id": "2111396811948642775", "group": "luminous-fullbody", "selected": true, "role": "breadth", "scores": [9, 7, 8, 7], "reason": "黑底小主体全身、红橙蓝内景翼形、清晰轮廓与局部发光；与白底补充形成明暗范围对照。面部小且简化，严格肖像清单中排除。"},
+    {"post_id": "2111215618011615689", "group": "luminous-portrait", "selected": true, "role": "core", "scores": [8, 9, 8, 7], "reason": "侧向眼部、棱彩刀身与局部薄辉光，细发线和光滑肤面延续主集；刀具与光环属内容，不变成强制母题。"},
+    {"post_id": "2111039671090475125", "group": "luminous-portrait", "selected": true, "role": "core", "scores": [8, 9, 8, 7], "reason": "正向脸、精细发束和斜置棱彩刀具，提供另一视角；与相邻刀身投稿高度相关，应限制系列权重。"},
+    {"post_id": "2110669518338981985", "group": "monochrome-floral", "selected": false, "scores": [8, 5, 7, 6], "reason": "黑白玫瑰礼服与大面积花纹、弱肤色和模糊景深，颜色/材质组织与宝石肖像主集有差异，另存分支。"},
+    {"post_id": "2110853231307850196", "group": "luminous-portrait", "selected": true, "role": "core", "scores": [8, 9, 9, 7], "reason": "放大检查显示连贯收尖发束、平滑二维肤面、层叠彩色虹膜及刀身局部反光；与相邻刀身作品同系列，不能称独立泛化样本。"}
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "style": "ha9siro-luminous",
+  "output_dir": "D:\\code\\image-maker\\data\\test-result\\20261021\\reference-strategy\\ha9siro-luminous\\network-r2",
+  "max_calls": 6,
+  "repeat": 2,
+  "aspect_ratio": "2:3",
+  "prompt_file": "reference-strategy-subject-20261021.txt",
+  "variants": [
+    {
+      "name": "A-original",
+      "face_quality_boost": true
+    },
+    {
+      "name": "B-no-boost",
+      "face_quality_boost": false
+    },
+    {
+      "name": "C-face-detail",
+      "face_quality_boost": false,
+      "entry_overrides": {
+        "reference_details_enabled": true,
+        "reference_detail_crops": [
+          {
+            "role": "face_eyes",
+            "box": [
+              0.49,
+              0.23,
+              0.75,
+              0.4
+            ],
+            "source_sha256": "a78095f8111dad7c125a759bf32bce6a29ccc8d839d5ef195a3177050fb76c8e"
+          }
+        ]
+      }
+    }
+  ]
+}

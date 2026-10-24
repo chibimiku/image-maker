@@ -1,0 +1,8 @@
+Palette: Transparent light washes, clear local hues, selective rich accents
+Lighting: Gentle tinted shadows, restrained tonal depth, luminous light ground
+Brushwork: Thin layered washes with precise ink drawing
+Edges: Elastic tapered contours; stronger overlaps, fine interior lines
+Texture: Smooth colour with subtle paper grain, no plastic gloss
+Composition density: Quiet open areas balanced with rhythmic detail
+Detail level: Graphic iris layers, flowing grouped locks, economical folds
+Avoid: 3D rendering, impasto, neon bloom, glitter noise, uniform outlines

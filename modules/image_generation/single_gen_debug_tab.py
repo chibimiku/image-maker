@@ -145,7 +145,8 @@ class GptDebugGenThread(QThread):
             keywords = dict(self.request_kwargs)
             keywords.setdefault("return_metadata", False)
             files, effective_prompt = self._first_image(
-                self._generate, prompt=self.prompt, log_callback=self._log, **keywords)
+                self._generate, prompt=self.prompt, log_callback=self._log,
+                postprocess_enabled=getattr(self, "postprocess_enabled", True), **keywords)
             if self._cancelled:
                 self.finish_signal.emit([])
                 return
@@ -223,8 +224,12 @@ class SingleGenDebugWidget(QWidget):
         self.post_pipeline_check.setToolTip(
             "只对 gpt-image-2 通道生效：出首图后按「图片分析」Tab 的默认配方执行\n"
             "重绘(lines_only) → 色调校准(目标=画风参考图) → 线条加墨。\n全流程要 2~3 份联网调用。")
-        self.post_pipeline_check.setChecked(True)
+        self.post_pipeline_check.setChecked(False)
         channel_layout.addWidget(self.post_pipeline_check)
+        from utils.gpt_workflow_widget import GptWorkflowControls
+        self.workflow_controls = GptWorkflowControls(self)
+        channel_layout.addWidget(self.workflow_controls)
+        self.workflow_controls.changed.connect(self._on_channel_changed)
         channel_layout.addStretch(1)
         layout.addLayout(channel_layout)
 
@@ -289,8 +294,10 @@ class SingleGenDebugWidget(QWidget):
 
         layout.addLayout(json_group_layout)
 
-        prompt_label = QLabel("调试提示词:")
-        layout.addWidget(prompt_label)
+        prompt_header = QHBoxLayout()
+        prompt_header.addWidget(QLabel("调试提示词:"))
+        prompt_header.addStretch()
+        layout.addLayout(prompt_header)
         self.prompt_edit = QTextEdit()
         self.prompt_edit.setPlaceholderText("输入用于调试的生图文本...")
         self.prompt_edit.setMinimumHeight(120)
@@ -363,7 +370,23 @@ class SingleGenDebugWidget(QWidget):
         self.resolution_combo.currentTextChanged.connect(self.save_ui_state)
         self.style_mode_combo.currentIndexChanged.connect(self.save_ui_state)
 
+        from utils.image_prompt_optimizer_widget import PromptOptimizerControl
+        self.prompt_optimizer = PromptOptimizerControl(
+            self, self.prompt_edit, self._prompt_optimizer_context, self._append_log,
+            generation_busy=lambda: any(t is not None and t.isRunning()
+                                       for t in (self.img_thread, self.gpt_thread)),
+            state_getter=lambda: (tuple(self.attach_image_paths), self._effective_style_ref_image()),
+        )
+        self.optimize_prompt_btn = self.prompt_optimizer.button
+        prompt_header.insertWidget(1, self.optimize_prompt_btn)
+        self.prompt_optimizer.refresh()
         self.setLayout(layout)
+
+    def _prompt_optimizer_context(self):
+        return {"channel": self.channel_combo.currentText(), "mode": "generate",
+                "aspect_ratio": self._resolve_aspect_ratio(), "style": self.main_style_combo.currentText(),
+                "style_reference_mode": self.style_mode_combo.currentData(),
+                "content_attachment_count": len(self.attach_image_paths)}
 
     def _load_json_data(self, file_path):
         try:
@@ -509,7 +532,7 @@ class SingleGenDebugWidget(QWidget):
             if isinstance(saved_channel, str) and saved_channel:
                 if self.channel_combo.findText(saved_channel) >= 0:
                     self.channel_combo.setCurrentText(saved_channel)
-            self.post_pipeline_check.setChecked(bool(state.get("post_pipeline", True)))
+            self.post_pipeline_check.setChecked(bool(state.get("post_pipeline", False)))
 
             self._refresh_style_ref_info()
         finally:
@@ -618,8 +641,10 @@ class SingleGenDebugWidget(QWidget):
     def _update_mode_validity(self):
         """参考图无效时，禁用所有使用参考图的模式并回退到「关闭」。"""
         has_ref = ref_image_valid(self._effective_style_ref_image()[0])
+        previous_mode = self.style_mode_combo.selected_mode()
         self.style_mode_combo.set_modes_available(has_ref)
-        if not has_ref:
+        # 刷新不等于发生回退；恢复界面记忆时也可能暂时尚未载入参考图。
+        if not has_ref and previous_mode != "off" and not self._is_restoring_state:
             self._append_log("⚠️ 当前没有有效参考图，已回退到「关闭」模式（参考类模式不可用）")
 
     def _refresh_style_ref_info(self):
@@ -659,7 +684,8 @@ class SingleGenDebugWidget(QWidget):
         if not name:
             return
         entry = normalize_style_entry((self.get_styles() or {}).get(name))
-        dlg = StyleEditDialog(name, entry["prompt"], entry["ref_image"], entry["prompt_compressed"], parent=self)
+        dlg = StyleEditDialog(name, entry["prompt"], entry["ref_image"], entry["prompt_compressed"],
+                              parent=self, detail_settings=entry)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         prompt, compressed, ref = dlg.get_values()
@@ -671,6 +697,13 @@ class SingleGenDebugWidget(QWidget):
         merged = dict(old) if isinstance(old, dict) else {}
         merged.update(build_style_entry(
             prompt, ref, compressed, prompt_gpt=entry["prompt_gpt"], enabled=entry["enabled"]))
+        merged.update(dlg.detail_values())
+        try:
+            from utils.style_reference import detail_reference_paths
+            detail_reference_paths(merged, ref)
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "局部画风参考", str(exc))
+            return
         if not ref:
             merged.pop("ref_image", None)
         if not compressed:
@@ -689,6 +722,8 @@ class SingleGenDebugWidget(QWidget):
         self._refresh_style_ref_info()
 
     def generate_image(self):
+        if self.prompt_optimizer.busy:
+            return
         prompt = self.prompt_edit.toPlainText().strip()
         if not prompt:
             QMessageBox.warning(self, "提示", "请先输入提示词。")
@@ -716,11 +751,7 @@ class SingleGenDebugWidget(QWidget):
         # 「短内容锚 + 图后重申」，这两步以前只有分析 Tab 有，导致本页的图不可横向对比。
         from utils.analysis_gen import resolve_gemini_reference_content, build_gemini_content_postamble
         styles_data = self.get_styles() or {}
-        instructions, post_instructions, ref_paths = build_ref_gen_params(
-            styles_data, style_name, mode, api_type=api_type)
         style_entry = normalize_style_entry(styles_data.get(style_name, {}))
-        from utils.styles import gemini_priority_profile_for
-        priority_profile = gemini_priority_profile_for(styles_data, style_name, mode, api_type)
         # 内容锚（gemini_content_field）由 `resolve_gemini_reference_content` 从**分析产物 JSON 路径**读取，
         # 所以这里必须把已加载的 JSON 路径一起传进去（只传字段字典是解析不出锚的）。
         prompt_context = {"analysis_json_path": self.json_file_path or "",
@@ -729,15 +760,31 @@ class SingleGenDebugWidget(QWidget):
             self._append_log("未加载分析 JSON：画风若配置了内容锚，会退回用提示词框内容（可能触发不了锚）")
         content, anchor_field = resolve_gemini_reference_content(
             style_entry, prompt_context, prompt, mode)
-        post_instructions = build_gemini_content_postamble(content, post_instructions)
         if anchor_field:
             self._append_log(f"内容锚：使用 {anchor_field}（{len(content)} 字符）")
-        image_paths = list(self.attach_image_paths)
-        for ref in ref_paths:
-            if ref and ref not in image_paths:
-                image_paths.insert(0, ref)
-        if has_ref and mode != MODE_OFF and ref_path not in image_paths:
-            image_paths.insert(0, ref_path)
+        # Override applies before assembly, including crop hash checks. Never
+        # describe attached content images as style references.
+        import copy
+        effective_styles = copy.deepcopy(styles_data)
+        raw_entry = effective_styles.get(style_name, {})
+        effective_entry = dict(raw_entry) if isinstance(raw_entry, dict) else normalize_style_entry(raw_entry)
+        if ref_path != effective_entry.get("ref_image", ""):
+            effective_entry["ref_image"] = ref_path
+            effective_entry["reference_details_enabled"] = False
+        effective_styles[style_name] = effective_entry
+        try:
+            instructions, post_instructions, ref_paths = build_ref_gen_params(
+                effective_styles, style_name, mode, api_type=api_type)
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "画风参考", str(exc))
+            return
+        post_instructions = build_gemini_content_postamble(content, post_instructions)
+        image_paths = list(self.attach_image_paths) + list(ref_paths)
+        if ref_paths and self.attach_image_paths:
+            from utils.style_reference import detail_reference_paths, reference_role_prompt
+            details = detail_reference_paths(effective_entry, ref_path)
+            post_instructions += "\n\n" + reference_role_prompt(
+                image_paths, len(self.attach_image_paths), len(self.attach_image_paths) + 1, details)
 
         mode_label = self.style_mode_combo.itemText(self.style_mode_combo.findData(mode)) or "关闭"
         self.generate_btn.setEnabled(False)
@@ -750,9 +797,10 @@ class SingleGenDebugWidget(QWidget):
             f"模式={mode_label}, 参考图={'ON(' + ref_source + ')' if has_ref and mode != MODE_OFF else 'OFF'}"
         )
 
+        from utils.style_reference import style_face_quality_boost
         self.img_thread = ImageGenWorkerThread(
-            prompt=prompt,
-            face_quality_boost=priority_profile.get("face_quality_boost", True),
+            prompt=content,
+            face_quality_boost=style_face_quality_boost(effective_styles, style_name, mode, api_type),
             model_name=model_name,
             aspect_ratio=aspect_ratio,
             instructions=instructions,
@@ -764,12 +812,15 @@ class SingleGenDebugWidget(QWidget):
         )
         self.img_thread.log_signal.connect(self._append_log)
         self.img_thread.finish_signal.connect(self.on_image_finished)
+        self.img_thread.finished.connect(self.prompt_optimizer.refresh)
         self.img_thread.start()
+        self.prompt_optimizer.refresh()
 
     # ------------------------------------------------------------------ gpt-image-2 通道
     def _on_channel_changed(self, *args):
         is_gpt = self.channel_combo.currentText().strip().startswith("gpt")
-        self.post_pipeline_check.setEnabled(is_gpt)
+        from utils.gpt_workflow_settings import postprocess_enabled
+        self.post_pipeline_check.setEnabled(is_gpt and postprocess_enabled())
         self.prompt_edit.setPlaceholderText(
             "输入内容描述（作为内容锚）…" if is_gpt else "输入提示词…"
         )
@@ -784,10 +835,12 @@ class SingleGenDebugWidget(QWidget):
 
         self.save_img_cfg()
         _img_url, img_key, _model, api_type = self.get_img_config()
+        from modules.others.api_backend import get_api_config
+        img_key = get_api_config(api_type="aigc-2d-gpt").get("api_key", "")
         if not img_key:
             QMessageBox.warning(self, "缺少配置", "生图 API Key 不能为空。")
             return
-        gpt_api_type = api_type if api_type in ("aigc2d", "autodl") else "aigc2d"
+        gpt_api_type = "aigc-2d-gpt"
 
         style_name = self.main_style_combo.currentText()
         ref_path, ref_source = self._effective_style_ref_image()
@@ -804,15 +857,35 @@ class SingleGenDebugWidget(QWidget):
                 size = "1536x1024" if float(w) > float(h) else ("1024x1536" if float(h) > float(w) else "1024x1024")
             except ValueError:
                 size = ""
-        payload = build_first_pass_request(
-            self.get_styles() or {}, style_name, analysis_like,
-            content_text=prompt, tier="short", size=size, api_type=gpt_api_type,
-        )
+        import copy
+        effective_styles = copy.deepcopy(self.get_styles() or {})
+        original_entry = effective_styles.get(style_name, {})
+        effective_entry = dict(original_entry) if isinstance(original_entry, dict) else normalize_style_entry(original_entry)
+        if ref_path != effective_entry.get("ref_image", "") or mode == MODE_OFF:
+            effective_entry["ref_image"] = ref_path if mode != MODE_OFF else ""
+            effective_entry["reference_details_enabled"] = False
+        effective_styles[style_name] = effective_entry
+        try:
+            payload = build_first_pass_request(
+                effective_styles, style_name, analysis_like,
+                content_text=prompt, tier="short", size=size, api_type=gpt_api_type,
+            )
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "画风参考", str(exc))
+            return
         request_kwargs = dict(payload.get("request_kwargs") or {})
-        style_entry = normalize_style_entry((self.get_styles() or {}).get(style_name, {}))
+        # The shared builder returns prompt/image_paths directly. Keep its final
+        # attachments so the backend can choose edits before the first request.
+        prompt = str(payload.get("prompt") or prompt)
+        request_kwargs.setdefault("image_paths", list(payload.get("image_paths") or []))
+        request_kwargs.setdefault("api_type", gpt_api_type)
+        request_kwargs.setdefault("model", get_api_config(api_type=gpt_api_type).get("model"))
+        request_kwargs.setdefault("size", size or None)
+        style_entry = normalize_style_entry(effective_entry)
         style_ref_for_pipeline = style_entry.get("ref_image") or ""
         steps = {}
-        if self.post_pipeline_check.isChecked():
+        from utils.gpt_workflow_settings import postprocess_enabled
+        if postprocess_enabled() and self.post_pipeline_check.isChecked():
             steps = pipeline_steps_from_flags(repaint=True, tone=True, ink=True,
                                               repaint_ref_mode="style",
                                               style_ref_path=style_ref_for_pipeline)
@@ -838,8 +911,11 @@ class SingleGenDebugWidget(QWidget):
             parent=self,
         )
         self.gpt_thread.log_signal.connect(self._append_log)
+        self.gpt_thread.postprocess_enabled = postprocess_enabled()
         self.gpt_thread.finish_signal.connect(self.on_image_finished)
+        self.gpt_thread.finished.connect(self.prompt_optimizer.refresh)
         self.gpt_thread.start()
+        self.prompt_optimizer.refresh()
 
     def cancel_generation(self):
         if self.img_thread and self.img_thread.isRunning():
@@ -908,10 +984,12 @@ class DropLineEdit(QLineEdit):
 class StyleEditDialog(QDialog):
     """样式编辑器：编辑某个画风预设的指令文本、压缩版指令与参考图路径（config-styles.json 新格式）。"""
 
-    def __init__(self, style_name, prompt_text, ref_image, prompt_compressed="", parent=None):
+    def __init__(self, style_name, prompt_text, ref_image, prompt_compressed="", parent=None,
+                 detail_settings=None):
         super().__init__(parent)
         self.setWindowTitle(f"编辑样式: {style_name}")
         self.setMinimumSize(680, 560)
+        self.detail_crops = list((detail_settings or {}).get("reference_detail_crops") or [])
         layout = QVBoxLayout(self)
 
         name_label = QLabel(f"样式名: {style_name}")
@@ -954,6 +1032,24 @@ class StyleEditDialog(QDialog):
         clear_btn.clicked.connect(lambda: self.ref_edit.clear())
         ref_row.addWidget(clear_btn)
         layout.addLayout(ref_row)
+        detail_row = QHBoxLayout()
+        self.details_check = QCheckBox("附加局部画风参考")
+        self.details_check.setChecked((detail_settings or {}).get("reference_details_enabled") is True)
+        self.details_check.setToolTip("增加最多两张已框选的局部图片；只参考绘制方法，额外图片会增加输入费用。")
+        detail_row.addWidget(self.details_check)
+        self.detail_role = QComboBox()
+        for label, role in (("脸眼", "face_eyes"), ("头发", "hair"), ("材质", "material")):
+            self.detail_role.addItem(label, role)
+        detail_row.addWidget(self.detail_role)
+        add_detail = QPushButton("框选区域")
+        add_detail.clicked.connect(self._select_detail)
+        detail_row.addWidget(add_detail)
+        clear_detail = QPushButton("清除区域")
+        clear_detail.clicked.connect(self._clear_details)
+        detail_row.addWidget(clear_detail)
+        self.detail_label = QLabel(f"{len(self.detail_crops)}/2")
+        detail_row.addWidget(self.detail_label)
+        layout.addLayout(detail_row)
 
         tip = QLabel(
             "提示：参考图仅用于提取画风（线条/上色/光影/配色/渲染惯例），不会改变主体与构图。\n"
@@ -1007,3 +1103,26 @@ class StyleEditDialog(QDialog):
 
     def get_values(self):
         return self.prompt_edit.toPlainText().strip(), self.compressed_edit.toPlainText().strip(), self.ref_edit.text().strip()
+
+    def detail_values(self):
+        return {"reference_details_enabled": self.details_check.isChecked(),
+                "reference_detail_crops": self.detail_crops}
+
+    def _clear_details(self):
+        self.detail_crops = []
+        self.details_check.setChecked(False)
+        self.detail_label.setText("0/2")
+
+    def _select_detail(self):
+        if len(self.detail_crops) >= 2:
+            QMessageBox.information(self, "局部参考", "最多两个区域；请先清除后重新框选。")
+            return
+        try:
+            from utils.style_reference_widget import ReferenceCropDialog
+            dialog = ReferenceCropDialog(self.ref_edit.text().strip(), self.detail_role.currentData(), self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self.detail_crops.append(dialog.specification())
+                self.details_check.setChecked(True)
+                self.detail_label.setText(f"{len(self.detail_crops)}/2")
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, "局部参考", str(exc))
